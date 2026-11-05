@@ -33,7 +33,7 @@ export default function ThreadPost({
   const [first, ...more] = post.postAssets.map((postAsset) => postAsset.asset);
   const tile = first && (
     <CoverImage asset={first} style={styles.tile}>
-      {more.length > 0 && <ThumbnailBadge label={`+${more.length}`} style={styles.more} />}
+      {more.length > 0 && <ThumbnailBadge label={`+${more.length}`} corner="bottomRight" />}
     </CoverImage>
   );
 
@@ -75,10 +75,5 @@ const styles = StyleSheet.create({
   // Its first line a little below the tile's top.
   textBesideTile: {
     paddingTop: layout.postTextInset,
-  },
-  more: {
-    position: 'absolute',
-    bottom: layout.badgeInset,
-    right: layout.badgeInset,
   },
 });

@@ -24,8 +24,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.md,
-    paddingHorizontal: space.xxxl,
-    paddingVertical: space.xxxl,
+    padding: space.xxxl,
   },
   title: {
     ...textStyles.bodyBold,

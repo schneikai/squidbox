@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.iconGap,
-    paddingHorizontal: layout.cardInset,
+    paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderRadius: radii.pill,
     backgroundColor: colors.status.danger,

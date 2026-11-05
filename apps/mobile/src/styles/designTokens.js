@@ -132,64 +132,24 @@ export const shadows = {
 
 // The spacing scale: every padding, margin, gap and offset is one of these steps or a layout role
 // built from them, except the few that say on their line why they are not (an ESLint rule holds
-// the line). A 4 pt grid in points, the same on every phone, so steps add up (sm + sm = lg) and the
-// gutter is Apple's 16 pt compact-width margin.
+// the line). The steps grow with the screen like the sizes do (scale()), so a phone's proportions
+// hold; a sum of steps is written as the sum, so it says what it is made of.
 export const space = {
-  hair: 2, // a hair: a title from its subtitle line, the two halves of a paired button
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32, // the breathing room of a status screen or an empty state
+  hair: scale(2), // a hair: a title from its subtitle line, the two halves of a paired button
+  xs: scale(4),
+  sm: scale(8),
+  md: scale(12),
+  lg: scale(16),
+  xl: scale(20),
+  xxl: scale(24),
+  xxxl: scale(32), // the breathing room of a status screen or an empty state
 };
 
-// What a spacing means, on the scale: cards, rows, tiles and the app's chrome take a role, never a
-// step, so one kind of thing has one spacing everywhere.
-export const layout = {
-  sideGutter: space.lg, // the screen's gutter, Apple's compact-width margin: 16 on every portrait iPhone
-  cardInset: space.lg, // a card's or a sheet's inset
-  rowInset: space.lg, // a list row's text inset, and its divider's, header's, footer's and intro's
-  cardGap: space.md, // between the parts of a card or the rows of a form
-  rowPaddingY: space.lg, // a settings row's vertical padding
-  rowPaddingYCompact: space.md, // a row beside a thumbnail, a small settings row, a log block, a pick row
-  badgeInset: space.sm, // a badge from a tile's or a grid cell's corner
-  badgeInsetSmall: space.hair, // a badge from the corner of a small (34 pt) thumbnail
-  sectionGap: space.xl, // between a screen's sections
-  iconGap: space.sm, // an icon from its label in a chip or a regular control
-  iconGapSmall: space.xs, // an icon from its label in a small control, a link or a badge
-  barBottom: space.lg, // between the bottom bars and the home indicator's safe area
-  barPaddingX: space.sm,
-  barPaddingY: scale(6), // scaled: it frames a scaled disc
-  toolbarFrame: 3, // the glass frame around a toolbar's buttons, its lit rim inside it (FloatingPill)
-  contentTop: scale(88), // clears the floating header
-  contentBottom: scale(128), // clears the floating bottom bars
-  popoverGap: 25, // between a trigger button and the popover that opens from it
-  introGap: space.md, // between a screen's intro text (IntroText at its top) and the content below it
-  actionsGap: space.xxl, // between a screen's content and its text actions under it (ActionButtons)
-  menuRowPaddingX: space.lg,
-  menuRowPaddingY: space.md, // with the row's minHeight (popupMenuStyles), a menu row is 44 pt
-  menuIconGap: space.md, // between a menu row's leading icon and its label
-  // A post's card (PostView, and a thread's following post, ThreadPost): its padding, the further inset
-  // of its text on each side (so text starts at cardInset with or without photos) and below, and the
-  // room between its photos and its text.
-  postCardPadding: space.sm,
-  postTextInset: space.lg - space.sm,
-  postTextBottom: space.xs,
-  postCardGap: space.md,
-};
-
+const SIDE_GUTTER = space.lg;
+const CARD_INSET = space.lg;
+const BAR_BOTTOM = space.lg;
+const POST_CARD_PADDING = space.sm;
 const CARD_RADIUS = 16;
-
-export const radii = {
-  pill: 100,
-  card: CARD_RADIUS,
-  cover: 10, // album covers and the thumbnails of list rows (CoverImage)
-  postPicture: CARD_RADIUS - layout.postCardPadding, // a post card's pictures, concentric with the card's corner
-  modal: 20,
-  badge: 6, // a small label inside content (Badge)
-};
 
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
 export const sizes = {
@@ -200,7 +160,60 @@ export const sizes = {
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
   menuIcon: scale(16),
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
-  popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * layout.sideGutter),
+  popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
+};
+
+const BAR_HEIGHT = sizes.iconButton + BAR_BOTTOM * 2;
+
+// What a spacing means, on the scale: cards, rows, tiles and the app's chrome take a role, never a
+// step, so one kind of thing has one spacing everywhere.
+export const layout = {
+  sideGutter: SIDE_GUTTER, // the screen's gutter, around Apple's 16 pt compact-width margin
+  cardInset: CARD_INSET, // a card's or a sheet's inset (Card `padded`)
+  rowInset: space.lg, // a list row's text inset, and its divider's, header's, footer's and intro's
+  cardGap: space.md, // between the parts of a card or the rows of a form
+  rowPaddingY: space.lg, // a settings row's vertical padding
+  rowPaddingYCompact: space.md, // a row beside a thumbnail, a small settings row, a log block, a pick row
+  badgeInset: space.sm, // a badge from a tile's or a grid cell's corner (ThumbnailBadge `corner`)
+  badgeInsetSmall: space.hair, // a badge from the corner of a small (34 pt) thumbnail
+  capsulePaddingX: space.xs + space.hair, // a small label's capsule around its text (Badge, ThumbnailBadge)
+  capsulePaddingY: space.hair,
+  sectionGap: space.xl, // between a screen's sections
+  iconGap: space.sm, // an icon from its label in a chip or a regular control
+  iconGapSmall: space.xs, // an icon from its label in a small control, a link or a badge
+  linkPaddingX: space.xxl, // a regular text link's side padding (Button); AddRow and PostedAtPicker undo it
+  keyboardGap: space.md, // between the keyboard (or the safe area) and what sits on it (useKeyboardInset)
+  gridGutter: 1, // the hairline between a grid's cells: a line, not a step
+  barBottom: BAR_BOTTOM, // between the bottom bars and the home indicator's safe area
+  barHeight: BAR_HEIGHT, // a floating bar's row with the room around it
+  barClearance: BAR_HEIGHT + space.lg, // what content keeps free under the bottom bars
+  barPaddingX: space.sm,
+  barPaddingY: scale(6), // frames a toolbar's disc
+  toolbarFrame: 3, // the glass frame around a toolbar's buttons, its lit rim inside it (FloatingPill)
+  contentTop: scale(88), // clears the floating header
+  contentBottom: scale(128), // clears the floating bottom bars
+  popoverGap: 25, // between a trigger button and the popover that opens from it
+  introGap: space.md, // between a screen's intro text (IntroText at its top) and the content below it
+  actionsGap: space.xxl, // between a screen's content and its text actions under it (ActionButtons)
+  menuRowPaddingX: space.lg,
+  menuRowPaddingY: space.md, // with the row's minHeight (popupMenuStyles), a menu row is at least 44 pt
+  menuIconGap: space.md, // between a menu row's leading icon and its label
+  // A post's card (PostView, and a thread's following post, ThreadPost): its padding, the further inset
+  // of its text on each side (so text starts at cardInset with or without photos) and below, and the
+  // room between its photos and its text.
+  postCardPadding: POST_CARD_PADDING,
+  postTextInset: CARD_INSET - POST_CARD_PADDING,
+  postTextBottom: space.xs,
+  postCardGap: space.md,
+};
+
+export const radii = {
+  pill: 100,
+  card: CARD_RADIUS,
+  cover: 10, // album covers and the thumbnails of list rows (CoverImage)
+  postPicture: CARD_RADIUS - POST_CARD_PADDING, // a post card's pictures, concentric with the card's corner
+  modal: 20,
+  badge: 6, // a small label inside content (Badge)
 };
 
 // The sizes and line heights textStyles are built from. Text takes a textStyle, never these; they
@@ -225,9 +238,9 @@ export const lineHeights = {
   title1: scale(34),
 };
 
-// Apple's iOS text styles at their default (Large) sizes with their line heights, in regular and
-// semibold: every text in the app is one of these, so there are four sizes and one weight rule.
-// `reading` is looser, for long text someone reads or writes. Titles are bold.
+// Apple's iOS text styles at their default (Large) sizes with their line heights: caption2,
+// footnote, subheadline and body in regular and semibold, `reading` (body, looser) for long text
+// someone reads or writes, and the two titles, bold. Every text in the app is one of these.
 export const textStyles = {
   caption2: { fontSize: typography.caption2, lineHeight: lineHeights.caption2 }, // a log's details
   // a badge over a thumbnail, a toolbar's subtitle, a grid cell's label

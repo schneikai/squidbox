@@ -33,17 +33,17 @@ export default function ChatBubble({ side, label, text, children }) {
 
 // The bubble's text inset, which its ⋯ lines up with.
 const BUBBLE_PADDING_X = space.md;
+// The room a bubble leaves on the other side: a width, not a step.
+const OTHER_SIDE_WIDTH = 48;
 
 const styles = StyleSheet.create({
   userRow: {
     alignItems: 'flex-end',
-    // eslint-disable-next-line no-restricted-syntax -- the room a bubble leaves on the other side: a width, not a gap
-    paddingLeft: 48,
+    paddingLeft: OTHER_SIDE_WIDTH,
   },
   assistantRow: {
     alignItems: 'flex-start',
-    // eslint-disable-next-line no-restricted-syntax -- as the user's row
-    paddingRight: 48,
+    paddingRight: OTHER_SIDE_WIDTH,
   },
   bubble: {
     borderRadius: 18,

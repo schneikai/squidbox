@@ -1,4 +1,5 @@
 import SortableGrid from '@/components/sortable-grid/SortableGrid';
+import { layout } from '@/styles/designTokens';
 
 // The album Assets tab's grid: a SortableGrid of square cells, so photos can be dragged into a new
 // order, with the props of the virtualized AssetList (library / all-assets view). It tracks its own
@@ -28,7 +29,7 @@ export default function SortableAssetGrid({
       loadMore={loadMore}
       renderItem={renderListItem}
       numColumns={3}
-      cellPadding={1}
+      cellPadding={layout.gridGutter}
       paddingTop={paddingTop}
       paddingBottom={paddingBottom}
       listRef={listRef}

@@ -7,7 +7,7 @@ import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { layout, press, scale, space } from '@/styles/designTokens';
+import { press, scale, space } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -51,13 +51,13 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     minWidth: 0,
-    gap: layout.iconGap,
+    gap: space.sm,
   },
   // The actions sit at the card's bottom, however many lines the text above them takes.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.iconGap,
+    gap: space.sm,
     marginTop: 'auto',
   },
   more: {

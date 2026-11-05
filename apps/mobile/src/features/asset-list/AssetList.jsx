@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 
 import useDragSelect from '@/components/sortable-grid/useDragSelect';
 import useScrollY from '@/hooks/useScrollY';
+import { layout as layoutTokens } from '@/styles/designTokens';
 
 // Constant props, so FlatList's own memo isn't defeated on every render of the screen.
 const keyExtractor = (asset) => asset.id;
@@ -63,8 +64,9 @@ export default function AssetList({
 
   const renderItem = useCallback(
     ({ item: asset }) => (
-      // eslint-disable-next-line no-restricted-syntax -- the grid's hairline gutter
-      <View style={{ width: listItemWidth, height: listItemWidth, padding: 1 }}>{renderListItem(asset)}</View>
+      <View style={{ width: listItemWidth, height: listItemWidth, padding: layoutTokens.gridGutter }}>
+        {renderListItem(asset)}
+      </View>
     ),
     [listItemWidth, renderListItem],
   );

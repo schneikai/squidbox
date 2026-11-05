@@ -1,11 +1,12 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
+import Text from '@/components/Text';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, layout, scale, space, textStyles } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -30,10 +31,10 @@ export default function PhotoSetRow({ assets, detail, onPick }) {
         </View>
       )}
       <View style={styles.text}>
-        <Text style={[textStyles.subheadlineBold, styles.count]} numberOfLines={1}>
+        <Text variant="title" size="small" numberOfLines={1}>
           {count === 0 ? 'No photos' : pluralizeText('%{count} photo', '%{count} photos', count)}
         </Text>
-        {!!detail && count > 0 && <Text style={listTextStyles.subtitle}>{detail}</Text>}
+        {!!detail && count > 0 && <RNText style={listTextStyles.subtitle}>{detail}</RNText>}
       </View>
       <Button label={count === 0 ? 'Pick photos' : 'Change'} onPress={onPick} size="small" />
     </Card>
@@ -63,8 +64,5 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-  },
-  count: {
-    color: colors.text.primary,
   },
 });

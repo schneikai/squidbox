@@ -10,7 +10,7 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { layout, lineHeights, motion, sizes, space } from '@/styles/designTokens';
+import { layout, motion, sizes, space } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -55,7 +55,7 @@ export default function SearchOptionsBar({
 }) {
   const inputRef = useRef(null);
   const { bottom: safeBottom } = useSafeAreaInsets();
-  const keyboardInset = useKeyboardInset();
+  const keyboardInset = useKeyboardInset(0); // the bar keeps its own gap above the keyboard
 
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, motion.move);
@@ -173,7 +173,6 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    lineHeight: lineHeights.subheadline,
     paddingLeft: space.xs,
     paddingRight: space.md,
     paddingVertical: 0,

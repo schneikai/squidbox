@@ -1,12 +1,13 @@
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
 import ChatOptionCard from './ChatOptionCard';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import { colors, layout, textStyles } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors, layout, space } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
 const SLOW_MS = 20_000;
@@ -22,7 +23,9 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }) {
   if (reply.status === 'error') {
     return (
       <Card style={styles.status}>
-        <Text style={[textStyles.subheadline, styles.statusText]}>{reply.error}</Text>
+        <Text variant="status" style={styles.statusText}>
+          {reply.error}
+        </Text>
         {onRetry && <Button label="Retry" size="small" onPress={onRetry} />}
       </Card>
     );
@@ -52,7 +55,9 @@ function ThinkingCard() {
   return (
     <Card style={styles.status}>
       <ActivityIndicator color={colors.text.secondary} />
-      <Text style={[textStyles.subheadline, styles.statusText]}>{isSlow ? 'Still writing…' : 'Thinking…'}</Text>
+      <Text variant="status" style={styles.statusText}>
+        {isSlow ? 'Still writing…' : 'Thinking…'}
+      </Text>
     </Card>
   );
 }
@@ -61,13 +66,12 @@ const styles = StyleSheet.create({
   status: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.cardGap,
-    paddingVertical: layout.cardGap,
+    gap: space.md,
+    paddingVertical: space.md,
     paddingHorizontal: layout.cardInset,
   },
   statusText: {
     flex: 1,
-    color: colors.text.secondary,
   },
   reply: {
     gap: layout.cardGap,

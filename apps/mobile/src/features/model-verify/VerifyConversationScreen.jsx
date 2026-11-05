@@ -53,7 +53,7 @@ export default function VerifyConversationScreen() {
               />
             </Section>
             {isBriefingOpen && (
-              <Card style={styles.briefing}>
+              <Card padded>
                 <IntroText selectable>{systemMessage}</IntroText>
               </Card>
             )}
@@ -103,9 +103,6 @@ const VerifyTurn = memo(function VerifyTurn({ turn }) {
 const styles = StyleSheet.create({
   content: {
     gap: space.lg,
-  },
-  briefing: {
-    padding: layout.cardInset,
   },
   turn: {
     gap: layout.cardGap,

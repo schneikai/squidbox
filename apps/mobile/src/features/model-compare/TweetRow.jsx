@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
-import { colors, layout, radii, space, textStyles } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors, layout, radii, space } from '@/styles/designTokens';
 
 // A tweet a model wrote, with its thumbs up: `level` 0, 1 (a thumb up) or 2 (two, an outstanding
 // one); `onToggle` steps it on, from two back to none.
@@ -9,7 +10,7 @@ export default function TweetRow({ text, level, onToggle }) {
   const isLiked = level > 0;
   return (
     <View style={styles.row}>
-      <Text style={[textStyles.reading, styles.text]} selectable>
+      <Text selectable style={styles.text}>
         {text}
       </Text>
       <Button
@@ -41,6 +42,5 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-    color: colors.text.primary,
   },
 });

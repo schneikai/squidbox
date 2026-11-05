@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import SuperPressable from '@/components/SuperPressable';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { layout, radii, scale, space } from '@/styles/designTokens';
+import { radii, scale, space } from '@/styles/designTokens';
 
 const IMAGE_ELEMENT_HEIGHT = scale(240);
 const GAP = space.xs;
@@ -32,7 +32,7 @@ export default function PostImage({ assets, onPressAsset }) {
         <View style={[styles.frame, styles.column]}>
           <View style={[styles.half, styles.row]}>{assets.slice(0, 2).map(tile)}</View>
           <View style={[styles.half, styles.row]}>{assets.slice(2, 4).map(tile)}</View>
-          {assets.length > 4 && <ThumbnailBadge label={`+${assets.length - 4}`} style={styles.moreImages} />}
+          {assets.length > 4 && <ThumbnailBadge label={`+${assets.length - 4}`} corner="bottomRight" />}
         </View>
       );
   }
@@ -72,10 +72,5 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radii.postPicture,
     overflow: 'hidden',
-  },
-  moreImages: {
-    position: 'absolute',
-    bottom: layout.badgeInset,
-    right: layout.badgeInset,
   },
 });

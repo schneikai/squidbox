@@ -171,10 +171,8 @@ export default function ComponentGalleryScreen() {
     return (
       <>
         <Specimen name="Card">
-          <Card style={styles.fill}>
-            <View style={styles.cardContent}>
-              <Text>A card resting on the page, with text inside it.</Text>
-            </View>
+          <Card padded style={styles.fill}>
+            <Text>A card resting on the page, with text inside it.</Text>
           </Card>
         </Specimen>
         <Specimen name="OptionCard">
@@ -387,9 +385,6 @@ const styles = StyleSheet.create({
     padding: space.xxl,
     borderRadius: radii.card,
     backgroundColor: colors.overlay.scrim,
-  },
-  cardContent: {
-    padding: layout.cardInset,
   },
   popover: {
     position: 'relative',

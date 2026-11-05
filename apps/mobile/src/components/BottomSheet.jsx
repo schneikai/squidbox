@@ -9,6 +9,7 @@ import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { colors, motion, radii, space, textStyles } from '@/styles/designTokens';
 
 // Off screen before the panel has measured itself.
+// eslint-disable-next-line no-restricted-syntax -- a position far below the screen, not a spacing
 const HIDDEN_OFFSET = 1000;
 
 /**
@@ -23,7 +24,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
   const [isMounted, setIsMounted] = useState(isVisible);
   const progress = useSharedValue(0);
   const panelHeight = useSharedValue(HIDDEN_OFFSET);
-  const bottomInset = useKeyboardInset(SCREEN_PADDING);
+  const bottomInset = useKeyboardInset();
 
   useEffect(() => {
     if (isVisible) {
@@ -101,8 +102,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: space.sm,
-    marginBottom: space.sm,
+    marginVertical: space.sm,
   },
   // The content scrolls edge to edge and pads itself, so a child may reach into the side padding
   // without the scroll view clipping it.

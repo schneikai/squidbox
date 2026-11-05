@@ -4,6 +4,7 @@ import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
+import cornerStyles from '@/styles/cornerStyles';
 import { layout, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
@@ -13,13 +14,13 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
   return (
     <View style={{ width: elementWidth }}>
       <CoverImage asset={album.cover} style={{ height: elementWidth }}>
-        <View style={styles.indicators}>
+        <View style={[cornerStyles.topLeft, styles.indicators]}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />
         </View>
       </CoverImage>
 
       {Boolean(album.archivedAt) && <Badge label="Archived" tone="danger" style={styles.archived} />}
-      <Text style={[textStyles.subheadlineBold, styles.albumTitle]} numberOfLines={1} ellipsizeMode="tail">
+      <Text style={[textStyles.footnoteBold, styles.albumTitle]} numberOfLines={1} ellipsizeMode="tail">
         {album.name}
       </Text>
       <View style={styles.metaRow}>
@@ -50,9 +51,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   indicators: {
-    position: 'absolute',
-    top: layout.badgeInset,
-    left: layout.badgeInset,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.iconGapSmall,

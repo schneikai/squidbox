@@ -7,6 +7,7 @@ import { Platform, StyleSheet } from 'react-native';
 import { colors, scale } from '@/styles/designTokens';
 
 // What SwiftUI's graphical calendar leaves between its edges and its month and weekdays.
+// eslint-disable-next-line no-restricted-syntax -- SwiftUI's own inset, matched, not ours
 const IOS_CALENDAR_INSET = scale(16);
 
 export default function PostedAtCalendar({ timestamp, onChange }) {

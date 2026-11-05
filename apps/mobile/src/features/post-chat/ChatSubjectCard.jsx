@@ -64,7 +64,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
 const styles = StyleSheet.create({
   card: {
     padding: space.md,
-    gap: layout.iconGap,
+    gap: space.sm,
   },
   header: {
     flexDirection: 'row',
@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
     borderColor: colors.background.surface,
   },
   overlapping: {
+    // eslint-disable-next-line no-restricted-syntax -- the thumbs overlap by a share of their width
     marginLeft: -THUMB_SIZE * 0.4,
   },
   title: {

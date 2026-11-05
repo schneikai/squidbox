@@ -1,11 +1,12 @@
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { LogBlock, LogEmpty } from '@/components/settings-list/LogBlock';
 import { Row, Section } from '@/components/settings-list/SettingsList';
@@ -47,27 +48,29 @@ export default function BackupScreen() {
 
           {!!backupError && unsyncedCount > 0 && !isSyncing && (
             <View style={styles.panel}>
-              <Text style={[textStyles.footnote, styles.line, styles.danger]}>{backupError}</Text>
+              <Text variant="error" size="small">
+                {backupError}
+              </Text>
             </View>
           )}
 
           {isSyncing && (
             <View style={styles.panel}>
               {syncProgressMessage && (
-                <Text style={[textStyles.footnote, styles.line]}>
+                <RNText style={[textStyles.footnote, styles.line]}>
                   {syncProgressMessage.sent} / {syncProgressMessage.total}
                   {'  '}
-                  <Text style={styles.bold}>{syncProgressMessage.percent}</Text>
-                </Text>
+                  <RNText style={styles.bold}>{syncProgressMessage.percent}</RNText>
+                </RNText>
               )}
               {syncSpeedMessage && (
-                <Text style={[textStyles.footnote, styles.line]}>
+                <RNText style={[textStyles.footnote, styles.line]}>
                   {syncSpeedMessage.now}
                   {'  '}
-                  <Text style={styles.muted}>avg {syncSpeedMessage.avg}</Text>
-                </Text>
+                  <RNText style={styles.muted}>avg {syncSpeedMessage.avg}</RNText>
+                </RNText>
               )}
-              <Text style={styles.muted}>Keep the app open until backup finishes.</Text>
+              <RNText style={styles.muted}>Keep the app open until backup finishes.</RNText>
             </View>
           )}
 
@@ -103,5 +106,4 @@ const styles = StyleSheet.create({
   line: { color: colors.text.primary },
   bold: { fontWeight: '600', color: colors.text.primary },
   muted: { color: colors.text.secondary },
-  danger: { color: colors.status.danger },
 });

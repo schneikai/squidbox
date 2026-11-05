@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import useTitleMaxWidth from '@/components/floating-bars/useTitleMaxWidth';
-import { layout, sizes, space } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 /**
  * Unified floating header for modal screens — matches the floating-bar visual language.
@@ -26,7 +26,7 @@ import { layout, sizes, space } from '@/styles/designTokens';
  *   subtitle    string (optional) — a smaller grey line under a string title
  */
 
-export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + space.sm;
+export const MODAL_HEADER_HEIGHT = layout.barHeight + space.sm;
 
 export default function ModalHeader({ leading, trailing, title, subtitle }) {
   const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();

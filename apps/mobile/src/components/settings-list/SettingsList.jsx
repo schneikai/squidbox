@@ -5,7 +5,6 @@ import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
-import { SCREEN_PADDING } from '@/constants';
 import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
@@ -104,7 +103,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: sizes.iconButton,
-    paddingHorizontal: SCREEN_PADDING,
+    paddingHorizontal: layout.rowInset,
     paddingVertical: layout.rowPaddingY,
   },
   rowLabel: {

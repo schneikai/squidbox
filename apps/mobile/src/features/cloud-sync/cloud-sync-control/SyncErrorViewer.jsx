@@ -66,7 +66,7 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
 const styles = StyleSheet.create({
   list: {
     padding: SCREEN_PADDING,
-    gap: layout.iconGap,
+    gap: space.sm,
   },
   errorRow: {
     paddingHorizontal: SCREEN_PADDING,

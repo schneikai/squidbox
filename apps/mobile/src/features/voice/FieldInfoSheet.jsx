@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 
 import voiceFields from './voiceFields';
 
 import BottomSheet from '@/components/BottomSheet';
+import Text from '@/components/Text';
 import { colors, layout, radii, space, textStyles } from '@/styles/designTokens';
 
 // What goes in a field of Writing as you (`field`, a key of voiceFields): its description and three
@@ -12,12 +13,14 @@ export default function FieldInfoSheet({ field, isVisible, onClose }) {
 
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title={label}>
-      <Text style={[textStyles.reading, styles.description]}>{description}</Text>
-      <Text style={[textStyles.footnoteBold, styles.heading]}>For example</Text>
+      <RNText style={[textStyles.reading, styles.description]}>{description}</RNText>
+      <Text variant="label" style={styles.heading}>
+        For example
+      </Text>
       <View style={styles.examples}>
         {examples.map((example) => (
           <View key={example} style={styles.example}>
-            <Text style={[textStyles.reading, styles.exampleText]}>{example}</Text>
+            <Text>{example}</Text>
           </View>
         ))}
       </View>
@@ -30,7 +33,6 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   heading: {
-    color: colors.text.secondary,
     marginTop: space.lg,
     marginBottom: space.sm,
   },
@@ -42,8 +44,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     paddingHorizontal: layout.cardInset,
     paddingVertical: space.md,
-  },
-  exampleText: {
-    color: colors.text.primary,
   },
 });

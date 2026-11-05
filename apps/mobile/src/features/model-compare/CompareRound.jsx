@@ -22,7 +22,7 @@ import assetHref from '@/features/asset-list/assetHref';
 import useScrollY from '@/hooks/useScrollY';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
-import { layout, scale, space } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 
@@ -85,7 +85,7 @@ export default function CompareRound({ kind, models, savedPrompt, defaultPrompt,
         keyboardDismissMode="interactive"
         contentContainerStyle={[styles.content, { paddingBottom }]}
       >
-        <Card style={styles.promptCard}>
+        <Card padded>
           <Field label="Prompt" description="Remembered for next time.">
             <FoldingTextInput
               foldedLines={PROMPT_FOLDED_LINES}
@@ -156,9 +156,6 @@ const styles = StyleSheet.create({
     paddingTop: MODAL_HEADER_HEIGHT,
     paddingHorizontal: SCREEN_PADDING,
     gap: space.md,
-  },
-  promptCard: {
-    padding: layout.cardInset,
   },
   // As the folded text, so the prompt doesn't move when the editing starts.
   promptInput: {

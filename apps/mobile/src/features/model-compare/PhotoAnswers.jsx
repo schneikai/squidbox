@@ -6,7 +6,7 @@ import ModelAnswers from './ModelAnswers';
 
 import CoverImage from '@/components/CoverImage';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { layout, scale, space } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 
 const PHOTO_SIZE = scale(96);
 // Room between the sticky photo and whatever covers the top of the list.
@@ -52,7 +52,7 @@ function PhotoAnswers({
       <Animated.View style={stickyStyle}>
         <Pressable onPress={() => onOpenPhoto(asset)} accessibilityRole="imagebutton" accessibilityLabel="Open photo">
           <CoverImage asset={asset} style={styles.photo}>
-            <ThumbnailBadge icon="expand" style={styles.expand} />
+            <ThumbnailBadge icon="expand" corner="bottomRight" />
           </CoverImage>
         </Pressable>
       </Animated.View>
@@ -81,11 +81,6 @@ const styles = StyleSheet.create({
   photo: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
-  },
-  expand: {
-    position: 'absolute',
-    right: layout.badgeInset,
-    bottom: layout.badgeInset,
   },
   cards: {
     flex: 1,

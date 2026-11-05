@@ -1,7 +1,11 @@
-// A spacing property inside a style: a StyleSheet's or an inline `style` prop's.
-const SPACING_KEY = 'Property[key.name=/^(padding|margin|gap|rowGap|columnGap|top|left|right|bottom)/]';
-// A raw number for it: a literal other than 0, a negative one, or a scale(n).
-const RAW_NUMBER = `:matches(Literal[raw=/^[1-9]/], UnaryExpression[operator='-'][argument.type='Literal'], CallExpression[callee.name='scale'], UnaryExpression[operator='-'][argument.callee.name='scale'])`;
+// A spacing key, named or quoted: padding*, margin*, gap, rowGap, columnGap and the offsets.
+const SPACING_KEY =
+  '/^((padding|margin)(Top|Bottom|Left|Right|Horizontal|Vertical|Start|End)?|gap|rowGap|columnGap|top|left|right|bottom|start|end|inset)$/';
+// A constant named for a spacing.
+const SPACING_CONST = '/(GAP|PADDING|INSET|MARGIN|OFFSET|GUTTER)$/';
+// A number other than 0 anywhere in its value (a literal, a sum, a ternary, scale(n), -n), except
+// the 2 that halves something (`/ 2`) and an array index.
+const RAW_NUMBER = `Literal[raw=/^(?!0(\\.0*)?$)[0-9.]/]:not(BinaryExpression[operator='/'] > Literal.right):not(MemberExpression > Literal.property)`;
 const SPACING_MESSAGE = 'spacing: a space step or a layout role, not a number (styles/designTokens.js)';
 
 module.exports = {
@@ -9,16 +13,22 @@ module.exports = {
   extends: ['universe/native'],
   // React Native provides it (setUpXHR.js); universe/native doesn't list it.
   globals: { AbortController: 'readonly' },
-  rules: {
-    // Every padding, margin, gap and offset is a `space` step or a `layout` role; a number kept on
-    // purpose says why in an eslint-disable-next-line comment.
-    'no-restricted-syntax': [
-      'error',
-      {
-        selector: `CallExpression[callee.object.name='StyleSheet'][callee.property.name='create'] ${SPACING_KEY} > ${RAW_NUMBER}`,
-        message: SPACING_MESSAGE,
+  overrides: [
+    {
+      // The app's code, not its tests or scripts.
+      files: ['src/**/*.{js,jsx,ts,tsx}'],
+      rules: {
+        // Every padding, margin, gap and offset in any object (a StyleSheet, an inline style, a plain
+        // style object) and every spacing constant is a `space` step or a `layout` role; a number kept
+        // on purpose says why in an eslint-disable-next-line comment.
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector: `:matches(Property[key.name=${SPACING_KEY}], Property[key.value=${SPACING_KEY}], VariableDeclarator[id.name=${SPACING_CONST}]) ${RAW_NUMBER}`,
+            message: SPACING_MESSAGE,
+          },
+        ],
       },
-      { selector: `JSXAttribute[name.name='style'] ${SPACING_KEY} > ${RAW_NUMBER}`, message: SPACING_MESSAGE },
-    ],
-  },
+    },
+  ],
 };

@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 import TextInput from '@/components/TextInput';
 import chipFrame from '@/styles/chipFrame';
-import { colors, textStyles } from '@/styles/designTokens';
+import { colors, typography } from '@/styles/designTokens';
 
 // The input that stands in for a chip while a tag is typed: a Chip's frame with a thicker accent
 // border, so it reads as the field being typed in.
@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     borderWidth: 1.5,
     borderColor: colors.accent.base,
-    fontSize: textStyles.subheadline.fontSize, // no line height in a one-line input (TextInput)
+    fontSize: typography.subheadline, // no line height in a one-line input (TextInput)
   },
 });

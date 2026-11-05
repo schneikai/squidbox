@@ -20,6 +20,7 @@ import { motion } from '@/styles/designTokens';
 const [WIDTH, HEIGHT] = parts.size;
 const PULSE = motion.pulse.duration;
 const FAST = motion.duration.fast;
+// eslint-disable-next-line no-restricted-syntax -- room in the drawing's viewBox, not layout
 const PAD = { side: 40, top: 120 }; // room for bent arms and for the bubbles popping above the head
 const VIEW_BOX = `${-PAD.side} ${-PAD.top} ${WIDTH + 2 * PAD.side} ${HEIGHT + PAD.top + PAD.side}`;
 
@@ -61,6 +62,7 @@ const SQUEEZE_ORIGIN = `${Math.round((parts.headBase[0] / WIDTH) * 100)}% ${Math
 // ...and it blows three bubbles as the squeeze peaks; each smaller one rises a little slower, so
 // they spread out on the way up and pop one by one.
 const BUBBLE_START = 0.8 * FAST;
+// eslint-disable-next-line no-restricted-syntax -- a time between bubbles, not a spacing
 const BUBBLE_GAP = 0.2 * PULSE;
 const BUBBLES = [
   { radius: 22, delay: BUBBLE_START, drift: 22, duration: 2.2 * PULSE },

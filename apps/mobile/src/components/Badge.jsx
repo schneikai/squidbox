@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 
-import { colors, radii, textStyles } from '@/styles/designTokens';
+import { colors, layout, radii, textStyles } from '@/styles/designTokens';
 
 const TONES = {
   danger: { backgroundColor: colors.status.dangerLight, color: colors.status.danger },
@@ -19,10 +19,8 @@ const styles = StyleSheet.create({
   badge: {
     overflow: 'hidden',
     borderRadius: radii.badge,
-    // eslint-disable-next-line no-restricted-syntax -- a label's tight capsule, optically even around caps
-    paddingHorizontal: 6,
-    // eslint-disable-next-line no-restricted-syntax -- as above
-    paddingVertical: 2,
+    paddingHorizontal: layout.capsulePaddingX,
+    paddingVertical: layout.capsulePaddingY,
     ...textStyles.caption2Bold,
     textTransform: 'uppercase',
   },

@@ -4,7 +4,8 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import SelectIndicator from '@/components/SelectIndicator';
-import { colors, layout, scale, sizes, space, textStyles } from '@/styles/designTokens';
+import cornerStyles from '@/styles/cornerStyles';
+import { colors, layout, scale, sizes, textStyles } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
@@ -21,7 +22,7 @@ function AssetListItem({ asset, selection }) {
       <CornerGlow corner="topRight" size={90} isHidden={!hasPicture} />
       {!!duration && <CornerGlow corner="bottomRight" size={90} isHidden={!hasPicture} />}
       {selection && <SelectGlow selection={selection} assetId={asset.id} hasPicture={hasPicture} />}
-      <View style={styles.indicators}>
+      <View style={[cornerStyles.topRight, styles.indicators]}>
         <FavoriteAssetIndicator isFavorite={isFavorite} />
         {hasPicture && <CloudIndicator isSynced={isSynced} />}
         <NoteIndicator hasNote={!!notes} />
@@ -53,7 +54,7 @@ function SelectGlow({ selection, assetId, hasPicture }) {
 function SelectRing({ selection, assetId }) {
   const state = useSelectionState(selection, assetId);
   if (state === 'off') return null;
-  return <SelectIndicator isSelected={state === 'selected'} isOnMedia style={styles.selectIndicator} />;
+  return <SelectIndicator isSelected={state === 'selected'} isOnMedia style={cornerStyles.topLeft} />;
 }
 
 // One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no
@@ -78,7 +79,11 @@ function CornerGlow({ corner, size, isHidden = false }) {
 function VideoDuration({ duration }) {
   if (!duration) return null;
 
-  return <Text style={[textStyles.caption2Bold, styles.videoDuration]}>{formatVideoDuration(duration)}</Text>;
+  return (
+    <Text style={[textStyles.caption2Bold, cornerStyles.bottomRight, styles.videoDuration]}>
+      {formatVideoDuration(duration)}
+    </Text>
+  );
 }
 
 function FavoriteAssetIndicator({ isFavorite }) {
@@ -111,25 +116,15 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
 
+  // Bare text, not a ThumbnailBadge: the grid's cells are small and a capsule on each would crowd
+  // them (the corner glow keeps it readable).
   videoDuration: {
-    position: 'absolute',
-    bottom: layout.badgeInset,
-    right: layout.badgeInset,
     color: colors.text.inverse,
   },
 
   indicators: {
-    position: 'absolute',
-    top: layout.badgeInset,
-    right: layout.badgeInset,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs,
-  },
-
-  selectIndicator: {
-    position: 'absolute',
-    top: layout.badgeInset,
-    left: layout.badgeInset,
+    gap: layout.iconGapSmall,
   },
 });

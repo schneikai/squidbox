@@ -95,7 +95,7 @@ export default function Button({
   const box = boxFor(shape, size, iconSize, hasIconSlot);
   const fill = fillFor({ shape, variant, palette, isSelected, isInverse });
   const pillFill = shape === 'pill' && [styles.pillFill, styles[`pillFill_${size}`]];
-  const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />;
+  const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size }} />;
 
   return (
     <Pressable
@@ -159,7 +159,7 @@ function targetSlop(shape, size, box) {
   return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
 }
 
-function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }) {
+function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size }) {
   // A link keeps its label and swaps its icon for the spinner; every other button shows only the spinner.
   const spinner = <ActivityIndicator size="small" color={color} />;
   if (loading && shape !== 'link') return spinner;
@@ -290,14 +290,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: layout.iconGapSmall,
   },
-  // AddRow and PostedAtPicker undo this horizontal padding to line a link up with the text beside it.
   link_regular: {
     paddingVertical: space.md,
-    paddingHorizontal: space.xxl,
+    paddingHorizontal: layout.linkPaddingX,
   },
   link_small: {
-    paddingVertical: space.xs,
-    paddingHorizontal: space.xs,
+    padding: space.xs,
   },
   linkLabel_regular: textStyles.subheadline,
   linkLabel_small: textStyles.footnote,

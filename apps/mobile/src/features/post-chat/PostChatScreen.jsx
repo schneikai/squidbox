@@ -54,7 +54,7 @@ export default function PostChatScreen() {
   const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef(null);
   const shouldScrollRef = useRef(false);
-  const bottomInset = useKeyboardInset(8);
+  const bottomInset = useKeyboardInset();
   const messages = chat?.messages;
 
   // A new turn or a reply that landed: show the end of the chat once it's laid out.

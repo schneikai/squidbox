@@ -9,7 +9,7 @@ import TextInput from '@/components/TextInput';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
-import { layout, scale, space } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 /**
@@ -48,7 +48,7 @@ export default function PostCard({
   }
 
   return (
-    <Card style={styles.card}>
+    <Card padded style={styles.card}>
       <View style={styles.top}>
         <TextInput
           multiline
@@ -86,11 +86,9 @@ export default function PostCard({
 }
 
 const styles = StyleSheet.create({
+  // The toolbar's 44 pt row is the room under its icons.
   card: {
-    paddingTop: layout.cardInset,
-    paddingHorizontal: layout.cardInset,
     paddingBottom: space.sm,
-    gap: layout.cardGap,
   },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {

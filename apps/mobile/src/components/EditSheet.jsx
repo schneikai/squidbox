@@ -88,7 +88,7 @@ export default function EditSheet({
 // The body that fills the sheet above the keyboard (`isFilling`).
 function FillingBody({ children }) {
   const { bottom } = useSafeAreaInsets();
-  const keyboardInset = useKeyboardInset(12);
+  const keyboardInset = useKeyboardInset();
   const fillingStyle = useAnimatedStyle(() => ({
     paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
   }));

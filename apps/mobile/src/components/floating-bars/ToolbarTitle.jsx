@@ -37,9 +37,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexGrow: 1, // fills a pill held at its minWidth, so a short title stays centred in it
     flexShrink: 1,
+    // eslint-disable-next-line no-restricted-syntax -- optical: a title's ends want more room than a button's
     paddingHorizontal: layout.barPaddingX * 1.25,
   },
   twoLines: {
+    // eslint-disable-next-line no-restricted-syntax -- as above, more for two lines
     paddingHorizontal: layout.barPaddingX * 2,
   },
   title: {

@@ -3,7 +3,7 @@
 // applies at once; clearing the field changes nothing (Remove takes the time away).
 import moment from 'moment';
 
-import { colors, radii, space, textStyles } from '@/styles/designTokens';
+import { colors, radii, space, typography } from '@/styles/designTokens';
 import { LOCAL_INPUT_FORMAT } from '@/utils/date-time/constants';
 
 export default function PostedAtCalendar({ timestamp, onChange }) {
@@ -37,5 +37,5 @@ const INPUT_STYLE = {
   backgroundColor: colors.background.muted,
   color: colors.text.primary,
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', // the system font react-native-web's Text uses
-  fontSize: textStyles.body.fontSize, // one line: no line height in an input (TextInput)
+  fontSize: typography.body, // one line: no line height in an input (TextInput)
 };
