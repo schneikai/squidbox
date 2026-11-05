@@ -53,8 +53,8 @@ All paths are under `apps/mobile/src/`.
     `popup-menu-options/MenuOption` (anchored menus). `Chip` for tags (`variant` `tag`, `action`,
     `raised`, `lead`, `add`, with `isSelected`); `raised` and `lead` are the assistant's (CLAUDE.md).
   - Text: `Text` with `variant` `reading` (a post, an answer), `hint` (small grey text that
-    explains), `label` (a field's name) or `error`; `IntroText` and `SectionFooter` are hints that
-    also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
+    explains), `label` (a field's name), `error` or `assistant` (an AssistantTray's title);
+    `IntroText` and `SectionFooter` are hints that also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
     `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,

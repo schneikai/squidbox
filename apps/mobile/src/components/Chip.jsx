@@ -7,10 +7,10 @@ import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
  * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
- * by a soft shadow, a prompt button on the assistant's tray), `lead` (light violet with a semibold
- * violet label, the first action of a row: Ask anything) or `add` (the dashed Add at the end of a row,
- * with its plus). Every variant has the same frame, so a tag tapped on never
- * changes its width and moves the chips after it.
+ * by a soft shadow, a prompt button in a row of them: the assistant's tray, over the chat's
+ * composer), `lead` (light violet with a semibold violet label, the first action of a row: Ask
+ * anything) or `add` (the dashed Add at the end of a row, with its plus). Every variant has the
+ * same frame, so a tag tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), in the accent color. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
@@ -30,14 +30,13 @@ export default function Chip({
   style,
 }) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
-  const isAccent = variant === 'add' || variant === 'lead' || (variant === 'tag' && isSelected);
-  const frame = [chipFrame, styles.chip, styles[variant], variant === 'tag' && isSelected && styles.selected];
+  const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
+  const isAccent = isAccentFill || variant === 'add';
+  const frame = [chipFrame, styles.chip, styles[variant], isAccentFill && styles.accentFill];
   const content = (
     <>
       {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}>
-        {label}
-      </Text>
+      <Text style={[styles.label, isAccent && styles.accentLabel, styles[`${variant}Label`]]}>{label}</Text>
     </>
   );
 
@@ -75,7 +74,8 @@ const styles = StyleSheet.create({
   tag: {
     backgroundColor: colors.background.muted,
   },
-  selected: {
+  // A selected tag and the `lead` chip.
+  accentFill: {
     backgroundColor: colors.accent.light,
   },
   action: {
@@ -84,10 +84,7 @@ const styles = StyleSheet.create({
   },
   raised: {
     backgroundColor: colors.background.surface,
-    boxShadow: shadows.raised.boxShadow,
-  },
-  lead: {
-    backgroundColor: colors.accent.light,
+    ...shadows.raised,
   },
   add: {
     borderColor: colors.accent.border,

@@ -85,11 +85,14 @@ export default function PostCard({
   );
 }
 
+const CARD_SIDE_INSET = scale(15);
+const CARD_BOTTOM_INSET = scale(8);
+
 const styles = StyleSheet.create({
   card: {
     paddingTop: scale(14),
-    paddingHorizontal: scale(15),
-    paddingBottom: scale(8),
+    paddingHorizontal: CARD_SIDE_INSET,
+    paddingBottom: CARD_BOTTOM_INSET,
     gap: scale(10),
   },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
@@ -104,7 +107,7 @@ const styles = StyleSheet.create({
   // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
   // gap, and keeps the card's side inset below it.
   writeWithAi: {
-    marginBottom: scale(7),
+    marginBottom: CARD_SIDE_INSET - CARD_BOTTOM_INSET,
   },
   // The × lines up with the text's first line.
   remove: {

@@ -4,11 +4,12 @@ import { colors, lineHeights, typography } from '@/styles/designTokens';
 
 /**
  * Text in one of the app's roles. `variant` is what the text is:
- *   reading — long text someone reads: a post, a model's answer (the default)
- *   hint    — small grey text that explains: a screen's intro, a field's description, a section's
- *             footer
- *   label   — the small bold grey name over a field or a group
- *   error   — what went wrong, in red. `size="small"` for a line under another
+ *   reading   — long text someone reads: a post, a model's answer (the default)
+ *   hint      — small grey text that explains: a screen's intro, a field's description, a
+ *               section's footer
+ *   label     — the small bold grey name over a field or a group
+ *   error     — what went wrong, in red. `size="small"` for a line under another
+ *   assistant — the assistant's violet semibold line: an AssistantTray's title
  * `selectable` lets it be copied, `numberOfLines` cuts a long one short. style is for layout only.
  * Nested Texts (a bold lead-in) inherit the role.
  */
@@ -54,6 +55,12 @@ const styles = StyleSheet.create({
     fontSize: typography.subheadline,
     lineHeight: lineHeights.subheadline,
     color: colors.status.danger,
+  },
+  assistant: {
+    fontSize: typography.subheadline,
+    lineHeight: lineHeights.subheadline,
+    fontWeight: '600',
+    color: colors.accent.base,
   },
   errorSmall: {
     fontSize: typography.footnote,

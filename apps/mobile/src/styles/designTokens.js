@@ -83,7 +83,9 @@ export const colors = {
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet
-    assistant: palette.violet50, // the lavender tray of the assistant's actions (AssistantTray)
+    // The lavender tray of the assistant's actions (AssistantTray): the same violet as `tint` today,
+    // but its own role, so the assistant's look can change without the cards that use `tint`
+    assistant: palette.violet50,
     assistantClear: alpha(palette.violet50, 0), // `assistant` faded out, the end of a row that scrolls inside it
     note: palette.yellow100, // a sticky note's yellow (a model's note in its list, a WarningNote)
     placeholder: palette.gray300, // a picture's spot before it loads
@@ -112,7 +114,8 @@ export const shadows = {
   card: {
     boxShadow: `0 10px 40px ${alpha(palette.black, 0.05)}`,
   },
-  // A chip resting on a tinted surface (a prompt button in the assistant's tray)
+  // A chip lifted off its surface (the prompt buttons on the assistant's tray and over the chat's
+  // composer); PromptButtonRow leaves room for it
   raised: {
     boxShadow: `0 2px 8px ${alpha(palette.violet900, 0.08)}`,
   },

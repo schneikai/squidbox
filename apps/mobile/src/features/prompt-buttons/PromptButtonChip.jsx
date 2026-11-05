@@ -2,7 +2,8 @@ import Chip from '@/components/Chip';
 
 /**
  * A prompt button as a chip with its icon; a tap calls `onPress(button)`. `variant` is the Chip's:
- * `action` (outlined, the default) or `raised` (on the assistant's tray).
+ * `action` (outlined, the default) or `raised` (lifted, in a
+ * PromptButtonRow).
  */
 export default function PromptButtonChip({ button, variant = 'action', onPress, accessibilityHint }) {
   return (

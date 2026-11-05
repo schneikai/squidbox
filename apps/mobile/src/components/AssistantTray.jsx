@@ -1,11 +1,13 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import AssistantTrayContext from '@/components/AssistantTrayContext';
 import Icon from '@/components/Icon';
-import { colors, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors, radii, scale, shadows, sizes } from '@/styles/designTokens';
 
-// The inset the row's chips keep from the tray's edges (PromptButtonRow's `inset`).
-export const TRAY_INSET = scale(12);
+// The inset the row's chips keep from the tray's edges.
+const TRAY_INSET = scale(12);
 
 const FADE = [colors.background.assistantClear, colors.background.assistant];
 const FADE_START = { x: 0, y: 0 };
@@ -14,23 +16,29 @@ const FADE_END = { x: 1, y: 0 };
 /**
  * The assistant's look for a group of its actions: a lavender tray, lit along its edge, under a
  * violet sparkle and `title` (Write with AI), with `trailing` at the end of the title's line (a small
- * button). `children` is one row that scrolls sideways across the tray's full width, fading out at
- * its right edge; its chips keep `TRAY_INSET` from the tray's edges. The fade is static: it paints
- * even when the row fits. style is for layout only.
+ * button, EditPromptButtonsButton). `children` is one row that scrolls sideways across the tray's
+ * full width (PromptButtonRow), fading out at its right edge; the tray gives the row its inset and
+ * the pen its accent (AssistantTrayContext). The fade is static and only as wide as the inset, so it
+ * veils a chip passing under the edge but never one at rest or at the row's end. style is for layout
+ * only.
  */
 export default function AssistantTray({ title, trailing, children, style }) {
   return (
-    <View style={[styles.tray, style]}>
-      <View style={styles.header}>
-        <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} />
-        <Text style={styles.title}>{title}</Text>
-        {trailing}
+    <AssistantTrayContext.Provider value={TRAY_INSET}>
+      <View style={[styles.tray, style]}>
+        <View style={styles.header}>
+          <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} />
+          <Text variant="assistant" style={styles.title}>
+            {title}
+          </Text>
+          {trailing}
+        </View>
+        <View>
+          {children}
+          <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
+        </View>
       </View>
-      <View>
-        {children}
-        <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
-      </View>
-    </View>
+    </AssistantTrayContext.Provider>
   );
 }
 
@@ -41,7 +49,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.background.assistant,
-    boxShadow: shadows.litEdge.boxShadow,
+    ...shadows.litEdge,
   },
   // The title sits 2 pt further in than the chips, as the sparkle's glyph is narrower than its box.
   header: {
@@ -53,15 +61,12 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: typography.subheadline,
-    fontWeight: '600',
-    color: colors.accent.base,
   },
   fade: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
-    width: scale(32),
+    width: TRAY_INSET,
   },
 });

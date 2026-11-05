@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 
 import useChatSession from './useChatSession';
 
-import AssistantTray, { TRAY_INSET } from '@/components/AssistantTray';
+import AssistantTray from '@/components/AssistantTray';
 import Chip from '@/components/Chip';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
@@ -42,10 +42,9 @@ function WriteWithAiSection({ sessionId, style }) {
   if (!chat) return null;
 
   return (
-    <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton colorPalette="accent" />} style={style}>
+    <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton />} style={style}>
       <PromptButtonRow
         buttons={buttons ?? []}
-        inset={TRAY_INSET}
         onPress={openChat}
         leading={<Chip label={opener.label} icon={opener.icon} variant="lead" onPress={() => openChat()} />}
       />
