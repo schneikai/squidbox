@@ -4,7 +4,7 @@
 # We install ONLY the server's own dependencies (not the whole workspace — that would drag in the
 # mobile app's Expo/React Native deps and make the build huge and slow). @squidbox/shared is pure
 # TS consumed via tsx, so we vendor it as source into node_modules instead of installing it.
-FROM node:22-slim
+FROM node:24-slim
 WORKDIR /app/apps/server
 ENV NODE_ENV=production
 

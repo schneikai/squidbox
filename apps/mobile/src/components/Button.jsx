@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import FadedGroupContext from '@/components/FadedGroupContext';
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
@@ -47,8 +48,9 @@ const LINK_HIT_SLOP = { regular: 8, small: 12, caption: 16 };
  *               action (its parent stretches it across), Repost in a card.
  *   secondary — a grey fill: a disc with an `icon` or a `label` of up to 3 characters (18+), or a
  *               pill with a longer `label`, in dark text (Later beside Repost).
- *               `colorPalette="danger"` makes the disc red; `isInverse` makes it dark and
- *               translucent with a white icon, over a picture (× on a photo tile).
+ *               `colorPalette="danger"` makes the disc red, `accent` light violet with a violet
+ *               icon (the pen on the assistant's tray; a pill stays grey); `isInverse` makes it
+ *               dark and translucent with a white icon, over a picture (× on a photo tile).
  *   tertiary  — no fill (the default): a bare `icon` (a toolbar's, a row's), or with a `label` a
  *               text link (an icon may lead it).
  * `size` is `regular` (44 pt tall, discs and pills alike) or `small` (28 pt), so a pill and a disc
@@ -64,7 +66,8 @@ const LINK_HIT_SLOP = { regular: 8, small: 12, caption: 16 };
  * on a primary, the current tab, it only tells VoiceOver. `isSwitch` has VoiceOver read it as a
  * switch, for a setting it turns on and off (18+).
  * `filled` fills the icon; `iconCount={2}` doubles it, smaller, for a second step of the same mark.
- * `loading` shows a spinner and blocks presses. style is for layout only.
+ * `loading` shows a spinner and blocks presses. Off (`disabled` or `loading`) it fades, unless the
+ * surface around it fades with it (FadedGroupContext). style is for layout only.
  */
 export default function Button({
   icon,
@@ -85,6 +88,7 @@ export default function Button({
   style,
 }) {
   const hasIconSlot = useContext(IconSlotContext);
+  const isFadedByGroup = useContext(FadedGroupContext);
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
@@ -112,7 +116,7 @@ export default function Button({
         box,
         fill,
         pressed && !isInactive && pressedStyle(shape),
-        isInactive && styles.disabled,
+        isInactive && !isFadedByGroup && styles.disabled,
         style,
       ]}
     >
@@ -198,7 +202,7 @@ function fillFor({ shape, variant, palette, isSelected, isInverse }) {
   if (shape === 'pill') return styles.mutedFill;
   if (isInverse) return styles.inverseFill;
   if (palette === 'danger') return styles.dangerFill;
-  if (isSelected) return styles.selectedFill;
+  if (isSelected || palette === 'accent') return styles.accentFill;
   return styles.mutedFill;
 }
 
@@ -253,7 +257,7 @@ const styles = StyleSheet.create({
   inverseFill: {
     backgroundColor: colors.overlay.dim,
   },
-  selectedFill: {
+  accentFill: {
     backgroundColor: colors.accent.light,
   },
   dangerFill: {

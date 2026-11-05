@@ -1,25 +1,32 @@
+import { useContext } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import PromptButtonChip from './PromptButtonChip';
 
-import { space } from '@/styles/designTokens';
+import AssistantTrayContext from '@/components/AssistantTrayContext';
+import { SCREEN_PADDING } from '@/constants';
+import { raisedShadowRoom, space } from '@/styles/designTokens';
 
 /**
- * The prompt buttons (`buttons`) on one line, scrolling sideways when they don't fit: a tap calls
- * `onPress(button)`. `children` follow the buttons (Ask anything, the pen). The parent sets the
- * line's place through `style` and the chips' inset through `contentContainerStyle`.
+ * The prompt buttons (`buttons`) as lifted chips on one line, scrolling sideways when they don't fit:
+ * a tap calls `onPress(button)`. `children` go after the buttons (Ask anything on a tray, the
+ * pen). The row fills its parent's width, so the chips scroll under its edges; `inset` is
+ * the chips' distance from those edges: the AssistantTray's inside one, else the screen's padding.
  */
-export default function PromptButtonRow({ buttons, onPress, children, style, contentContainerStyle }) {
+export default function PromptButtonRow({ buttons, onPress, inset, children }) {
+  const tray = useContext(AssistantTrayContext);
+  const padding = { paddingHorizontal: inset ?? tray?.inset ?? SCREEN_PADDING };
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-      style={style}
-      contentContainerStyle={[styles.row, contentContainerStyle]}
+      style={styles.row}
+      contentContainerStyle={[styles.content, padding]}
     >
       {buttons.map((button) => (
-        <PromptButtonChip key={button.id} button={button} onPress={onPress} />
+        <PromptButtonChip key={button.id} button={button} variant="raised" onPress={onPress} />
       ))}
       {children}
     </ScrollView>
@@ -28,7 +35,13 @@ export default function PromptButtonRow({ buttons, onPress, children, style, con
 
 const styles = StyleSheet.create({
   row: {
+    marginTop: -raisedShadowRoom.top,
+    marginBottom: -raisedShadowRoom.bottom,
+  },
+  content: {
     alignItems: 'center',
     gap: space.sm,
+    paddingTop: raisedShadowRoom.top,
+    paddingBottom: raisedShadowRoom.bottom,
   },
 });

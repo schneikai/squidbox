@@ -1,4 +1,4 @@
-import { chunk, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
+import { type BaseRecord, chunk, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -31,7 +31,7 @@ import {
 } from '@/utils/assets/assetStorage';
 
 type AssetRow = schema.AssetRow;
-type Row = { id: string; updatedAt: number; deletedAt: number | null };
+type Row = Pick<BaseRecord, 'id' | 'updatedAt' | 'deletedAt'>;
 type Edge = Row & { assetId: string } & Record<string, unknown>;
 type Sent = Pick<schema.OutboxRow, 'payload' | 'fields'>;
 type Replay = Pick<schema.OutboxRow, 'collection' | 'recordId' | 'payload' | 'fields'> & { sent: Sent };

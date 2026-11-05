@@ -4,15 +4,17 @@ import { colors, textStyles } from '@/styles/designTokens';
 
 /**
  * Text in one of the app's roles. `variant` is what the text is:
- *   reading — long text someone reads: a post, a model's answer (the default). `size="small"` for a
- *             card's line (a summary, what a chat is about)
- *   hint    — small grey text that explains: a screen's intro, a field's description, a section's
- *             footer
- *   label   — the small bold grey name over a field or a group. `size="small"` for a smaller one (a
- *             video's length on a grid cell)
- *   title   — a card's or a row's bold title. `size="small"` for a smaller one (a pick row's count)
- *   status  — a grey line about what's going on: the assistant thinking, a screen's subtitle
- *   error   — what went wrong, in red. `size="small"` for a line under another
+ *   reading   — long text someone reads: a post, a model's answer (the default). `size="small"`
+ *               for a card's line (a summary, what a chat is about)
+ *   hint      — small grey text that explains: a screen's intro, a field's description, a
+ *               section's footer
+ *   label     — the small bold grey name over a field or a group. `size="small"` for a smaller
+ *               one (a video's length on a grid cell)
+ *   title     — a card's or a row's bold title. `size="small"` for a smaller one (a pick row's
+ *               count)
+ *   status    — a grey line about what's going on: the assistant thinking, a screen's subtitle
+ *   error     — what went wrong, in red. `size="small"` for a line under another
+ *   assistant — the assistant's violet semibold line, footnote size: an AssistantTray's title
  * `tone` gives the role another of the text colors: primary (a hint or label in the text's color),
  * secondary, inverse (on the accent, danger or a picture), accent, danger.
  * `selectable` lets it be copied, `numberOfLines` cuts a long one short. style is for layout only.
@@ -67,6 +69,10 @@ const styles = StyleSheet.create({
   error: {
     ...textStyles.subheadline,
     color: colors.status.danger,
+  },
+  assistant: {
+    ...textStyles.footnoteBold,
+    color: colors.accent.base,
   },
   errorSmall: textStyles.footnote,
 });

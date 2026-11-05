@@ -9,7 +9,7 @@ import TextInput from '@/components/TextInput';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
-import { scale, space } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 /**
@@ -99,10 +99,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  // The toolbar's 44 pt row already leaves room under its icons, so the divider follows at the
-  // card's gap, as far from the icons as they are from what's above them.
+  // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
+  // gap, and keeps the card's side inset below it.
   writeWithAi: {
-    marginTop: 0,
+    marginBottom: layout.cardInset - space.sm,
   },
   // The × lines up with the text's first line.
   remove: {

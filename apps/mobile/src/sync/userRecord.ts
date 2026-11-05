@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any per-user collection's table */
-import { collectionsByName } from '@squidbox/shared';
+import { type BaseRecord, collectionsByName } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -9,7 +9,7 @@ import { saveRecords } from './saveRecords';
 
 import newRecord from '@/utils/newRecord';
 
-type UserRecord = { id: string; updatedAt: number; deletedAt: number | null };
+type UserRecord = Pick<BaseRecord, 'id' | 'updatedAt' | 'deletedAt'>;
 
 /**
  * Save what the user changed (`changes`) in a collection that holds one record per user, whose id is

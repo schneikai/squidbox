@@ -10,7 +10,7 @@ import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
-import { layout } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 const OTHER_POSTS_LIMIT = 30;
 
@@ -43,7 +43,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         )}
       />
 
-      <WriteWithAi sessionId={sessionId} />
+      <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
 
       <View style={styles.related}>
         <ScreenSectionHeader title="Posted Albums" isFlush />
@@ -59,6 +59,9 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
+  },
+  writeWithAi: {
+    marginTop: space.xxl,
   },
   related: {
     marginTop: layout.sectionGap,

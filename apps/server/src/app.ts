@@ -1,6 +1,7 @@
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
-import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { upResponseSchema } from '@squidbox/shared';
+import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { loadConfig } from './config.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { authRoutes } from './auth/routes.js';
@@ -38,7 +39,9 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
   registerErrorHandler(app);
 
   const { SERVER_ID: serverId } = loadConfig();
-  app.get('/up', async () => ({ status: 'ok', serverId }));
+  app
+    .withTypeProvider<ZodTypeProvider>()
+    .get('/up', { schema: { response: { 200: upResponseSchema } } }, async () => ({ status: 'ok' as const, serverId }));
 
   await app.register(
     async (api) => {

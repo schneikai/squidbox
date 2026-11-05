@@ -51,10 +51,10 @@ All paths are under `apps/mobile/src/`.
     `favorite`), `isSelected` a toggle that is on, `isInverse` a dark surface. A close is
     `icon="close"`. `MenuButton` (a Button trigger from Button props, or a custom `trigger`) with
     `popup-menu-options/MenuOption` (anchored menus). `Chip` for tags (`variant` `tag`, `action`,
-    `add`, with `isSelected`).
+    `raised`, `lead`, `add`, with `isSelected`); `raised` and `lead` are the assistant's (CLAUDE.md).
   - Text: `Text` with `variant` `reading` (a post, an answer), `hint` (small grey text that
-    explains), `label` (a field's name) or `error`; `IntroText` and `SectionFooter` are hints that
-    also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
+    explains), `label` (a field's name), `error` or `assistant` (an AssistantTray's title);
+    `IntroText` and `SectionFooter` are hints that also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
     `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
@@ -78,7 +78,8 @@ All paths are under `apps/mobile/src/`.
   outside any pill: it stands for the user, not for an action.
 - Icon colors: every icon button is `muted` grey (Button's default), in the headers, the bottom bars
   and the tab bar alike; `colorPalette="danger"` for destructive actions and `isSelected` for a
-  setting that is on.
+  setting that is on; `colorPalette="accent"` for the editor card's toolbar. The pen on the
+  assistant's tray is a `secondary` disc with `colorPalette="accent"` (light violet, violet pen).
 
 ## Known conflicts: our decision wins
 

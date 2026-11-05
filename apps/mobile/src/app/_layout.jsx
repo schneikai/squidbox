@@ -15,6 +15,7 @@ import Text from '@/components/Text';
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
+import QuickViewHost from '@/components/quick-view/QuickViewHost';
 import sheetScreenLayout from '@/components/sheet-route/sheetScreenLayout';
 import { SHEET_OPTIONS, STACK_SCREEN_OPTIONS } from '@/components/sheet-route/stackScreenOptions';
 import AlbumsProvider from '@/features/albums-context/AlbumsProvider';
@@ -225,6 +226,7 @@ const MainApp = memo(function MainApp() {
                 <ThemeProvider value={NAVIGATION_THEME}>
                   <RootStack />
                 </ThemeProvider>
+                <QuickViewHost />
               </View>
             </FloatingBarsProvider>
           </AssetPickerProvider>

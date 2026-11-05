@@ -10,7 +10,7 @@ const OCTOPUS_SIZE = scale(150);
 // A full-screen status while the app can't show its content: a title, centred on the app
 // background, the octopus above it while `busy`, and whatever details the caller adds below it.
 // With Reduce Motion the octopus stands still, so a spinner shows that something is going on.
-export default function StatusScreen({ busy = false, title, children }) {
+export default function StatusScreen({ busy = false, title, children = null }) {
   const reduceMotion = useReduceMotion();
 
   return (

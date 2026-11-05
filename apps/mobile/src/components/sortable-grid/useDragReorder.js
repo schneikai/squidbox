@@ -106,7 +106,7 @@ export default function useDragReorder({
     onMove(x, y) {
       if (activeIndexRef.current === -1) return;
       if (!isDraggingRef.current) {
-        if (!isPastTapSlop(liftPointRef.current, x, y)) return;
+        if (!isPastTapSlop(liftPointRef.current, x, y, { isPeeking: peek.isPeeking() })) return;
         startDragging();
       }
       const content = contentPoint(x, y);
