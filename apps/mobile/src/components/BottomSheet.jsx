@@ -6,7 +6,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { colors, motion, radii, space, typography } from '@/styles/designTokens';
+import { colors, motion, radii, space, textStyles } from '@/styles/designTokens';
 
 // Off screen before the panel has measured itself.
 const HIDDEN_OFFSET = 1000;
@@ -115,8 +115,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: typography.title2,
-    fontWeight: '700',
+    ...textStyles.title2,
     color: colors.text.primary,
   },
 });

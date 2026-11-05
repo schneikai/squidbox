@@ -5,7 +5,7 @@ import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, layout, scale, space, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -30,7 +30,7 @@ export default function PhotoSetRow({ assets, detail, onPick }) {
         </View>
       )}
       <View style={styles.text}>
-        <Text style={styles.count} numberOfLines={1}>
+        <Text style={[textStyles.subheadlineBold, styles.count]} numberOfLines={1}>
           {count === 0 ? 'No photos' : pluralizeText('%{count} photo', '%{count} photos', count)}
         </Text>
         {!!detail && count > 0 && <Text style={listTextStyles.subtitle}>{detail}</Text>}
@@ -65,8 +65,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   count: {
-    fontSize: typography.subheadline,
-    fontWeight: '600',
     color: colors.text.primary,
   },
 });

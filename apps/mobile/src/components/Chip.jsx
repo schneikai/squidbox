@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, layout, lineHeights, press, sizes, space, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
@@ -88,8 +88,7 @@ const styles = StyleSheet.create({
     opacity: disabledOpacity,
   },
   label: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.primary,
   },
   accentLabel: {

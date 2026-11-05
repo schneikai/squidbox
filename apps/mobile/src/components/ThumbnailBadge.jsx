@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, layout, radii, typography } from '@/styles/designTokens';
+import { colors, layout, radii, textStyles, typography } from '@/styles/designTokens';
 
 // A small dark label over a picture (a video's length, "+3"), readable on any image. The parent
 // positions it through `style`.
@@ -28,8 +28,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.text.inverse,
-    fontSize: typography.caption2,
-    fontWeight: '600',
+    ...textStyles.caption2Bold,
     fontVariant: ['tabular-nums'],
   },
 });

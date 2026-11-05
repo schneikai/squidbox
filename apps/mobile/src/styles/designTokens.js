@@ -203,25 +203,48 @@ export const sizes = {
   popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * layout.sideGutter),
 };
 
-// Apple's iOS text styles at their default (Large) sizes, so text keeps the HIG's hierarchy.
+// The sizes and line heights textStyles are built from. Text takes a textStyle, never these; they
+// are exported for what is sized to text without being text (an icon on a text line, a slot one
+// line tall, a time's room).
 export const typography = {
-  caption2: scale(11), // the smallest text: badges over thumbnails
-  caption: scale(12), // secondary details under a title (counts, dates)
+  caption2: scale(11),
   footnote: scale(13),
   subheadline: scale(15),
-  callout: scale(16),
-  body: scale(17), // the default for text and inputs
+  body: scale(17),
   title2: scale(22),
   title1: scale(28),
 };
 
-// The line height of each text style, for text that can wrap. `reading` is looser, for long text
-// someone reads or writes (a post, a note).
 export const lineHeights = {
   caption2: scale(13),
   footnote: scale(18),
   subheadline: scale(20),
-  reading: scale(24),
+  body: scale(22),
+  reading: scale(24), // looser, for long text someone reads or writes
+  title2: scale(28),
+  title1: scale(34),
+};
+
+// Apple's iOS text styles at their default (Large) sizes with their line heights, in regular and
+// semibold: every text in the app is one of these, so there are four sizes and one weight rule.
+// `reading` is looser, for long text someone reads or writes. Titles are bold.
+export const textStyles = {
+  caption2: { fontSize: typography.caption2, lineHeight: lineHeights.caption2 }, // a log's details
+  // a badge over a thumbnail, a toolbar's subtitle, a grid cell's label
+  caption2Bold: { fontSize: typography.caption2, lineHeight: lineHeights.caption2, fontWeight: '600' },
+  footnote: { fontSize: typography.footnote, lineHeight: lineHeights.footnote }, // a hint, a footer, a log line, a video's time
+  // a field's or group's label, the caption under a post or an album, a small or disc button's label
+  footnoteBold: { fontSize: typography.footnote, lineHeight: lineHeights.footnote, fontWeight: '600' },
+  // a row's description, a menu row, a text link, an error
+  subheadline: { fontSize: typography.subheadline, lineHeight: lineHeights.subheadline },
+  // a button's label, a menu's header row, a toolbar title, the avatar's initial
+  subheadlineBold: { fontSize: typography.subheadline, lineHeight: lineHeights.subheadline, fontWeight: '600' },
+  body: { fontSize: typography.body, lineHeight: lineHeights.body }, // a list row's label and value, an input
+  // a section header, a card's or empty state's title, the first-sync count
+  bodyBold: { fontSize: typography.body, lineHeight: lineHeights.body, fontWeight: '600' },
+  reading: { fontSize: typography.body, lineHeight: lineHeights.reading }, // a post, an answer, a note, a chat bubble's text
+  title2: { fontSize: typography.title2, lineHeight: lineHeights.title2, fontWeight: '700' }, // a sheet's or status screen's title
+  title1: { fontSize: typography.title1, lineHeight: lineHeights.title1, fontWeight: '700' }, // the main screens' header
 };
 
 export const glass = {

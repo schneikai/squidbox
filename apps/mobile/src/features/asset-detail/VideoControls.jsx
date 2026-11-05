@@ -10,7 +10,7 @@ import playVideo from './playVideo';
 import Button from '@/components/Button';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, space, typography } from '@/styles/designTokens';
+import { colors, space, textStyles, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 /**
@@ -100,14 +100,14 @@ export default function VideoControls({ player, fallbackDuration }) {
         onPress={handlePlayPause}
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
       />
-      <Text style={styles.time}>{formatVideoDuration(elapsedSeconds * 1000)}</Text>
+      <Text style={[textStyles.footnote, styles.time]}>{formatVideoDuration(elapsedSeconds * 1000)}</Text>
       <VideoScrubber
         progress={progress}
         onScrubStart={handleScrubStart}
         onScrub={handleScrub}
         onScrubEnd={handleScrubEnd}
       />
-      <Text style={styles.time}>{formatVideoDuration(duration * 1000)}</Text>
+      <Text style={[textStyles.footnote, styles.time]}>{formatVideoDuration(duration * 1000)}</Text>
       <Button
         icon={muted ? 'volume-off' : 'volume-on'}
         onPress={handleToggleMute}
@@ -124,7 +124,6 @@ const styles = StyleSheet.create({
   time: {
     minWidth: typography.footnote * 3,
     marginHorizontal: space.xs,
-    fontSize: typography.footnote,
     color: colors.text.secondary,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',

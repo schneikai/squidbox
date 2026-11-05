@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 
-import { colors, radii, typography } from '@/styles/designTokens';
+import { colors, radii, textStyles } from '@/styles/designTokens';
 
 const TONES = {
   danger: { backgroundColor: colors.status.dangerLight, color: colors.status.danger },
@@ -23,8 +23,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     // eslint-disable-next-line no-restricted-syntax -- as above
     paddingVertical: 2,
-    fontSize: typography.caption2,
-    fontWeight: '700',
+    ...textStyles.caption2Bold,
     textTransform: 'uppercase',
   },
 });

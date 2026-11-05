@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
-import { colors, glass, lineHeights, space, typography } from '@/styles/designTokens';
+import { colors, glass, space, textStyles } from '@/styles/designTokens';
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
@@ -59,16 +59,12 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   label: {
-    fontSize: typography.caption,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
     color: colors.text.inverse,
     opacity: 0.8,
   },
   // The chat's message size, the same as the options' cards and the composer.
-  text: {
-    fontSize: typography.body,
-    lineHeight: lineHeights.reading,
-  },
+  text: textStyles.reading,
   userText: {
     color: colors.text.inverse,
   },

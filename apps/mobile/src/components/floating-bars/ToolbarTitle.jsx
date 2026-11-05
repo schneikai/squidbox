@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import FloatingPill from './FloatingPill';
 
-import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, sizes, textStyles } from '@/styles/designTokens';
 
 // Text in a toolbar: a FloatingPill one button tall with a one-line `title` and an optional smaller
 // `subtitle` under it (a photo's date and place). It takes no touches. style is for layout only (a max width).
@@ -43,16 +43,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.barPaddingX * 2,
   },
   title: {
-    fontSize: typography.subheadline,
-    lineHeight: scale(17),
-    fontWeight: '600',
+    ...textStyles.subheadlineBold,
     color: colors.text.primary,
     textAlign: 'center',
     flexShrink: 1,
   },
   subtitle: {
-    fontSize: typography.caption2,
-    lineHeight: lineHeights.caption2,
+    ...textStyles.caption2,
     color: colors.text.secondary,
     textAlign: 'center',
     flexShrink: 1,

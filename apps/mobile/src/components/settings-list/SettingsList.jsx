@@ -6,7 +6,7 @@ import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, layout, lineHeights, press, sizes, space, typography } from '@/styles/designTokens';
+import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     paddingVertical: layout.rowPaddingY,
   },
   rowLabel: {
-    fontSize: typography.body,
+    ...textStyles.body,
     color: colors.text.primary,
   },
   rowSmall: {
@@ -131,8 +131,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   rowDescription: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.secondary,
   },
   rowLabelDanger: {
@@ -149,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   rowValue: {
-    fontSize: typography.body,
+    ...textStyles.body,
     color: colors.text.secondary,
     textAlign: 'right',
     flexShrink: 1,

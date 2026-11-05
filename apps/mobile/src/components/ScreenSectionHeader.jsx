@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, layout, space, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 /**
  * A section label above grouped rows or content: Settings and its screens, the asset's details,
@@ -25,8 +25,7 @@ export default function ScreenSectionHeader({ title, trailing, isFlush = false }
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     color: colors.text.secondary,
     marginBottom: space.sm,
     marginLeft: layout.rowInset, // over the rows' text
@@ -34,8 +33,7 @@ const styles = StyleSheet.create({
   },
   labelInRow: {
     flex: 1,
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     color: colors.text.secondary,
     marginLeft: layout.rowInset,
   },

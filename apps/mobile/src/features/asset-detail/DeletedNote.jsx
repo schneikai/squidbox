@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, layout, radii, shadows, sizes, space, typography } from '@/styles/designTokens';
+import { colors, layout, radii, shadows, sizes, space, textStyles } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
 // The red note on a trashed photo or video (opened from a post it's still in), of `mediaType`,
@@ -10,7 +10,9 @@ export default function DeletedNote({ mediaType }) {
   return (
     <View style={[styles.note, shadows.floating]} accessibilityRole="text">
       <Icon name="trash" size={sizes.menuIcon} color={colors.text.inverse} />
-      <Text style={styles.text}>This {humanizeMediaType(mediaType).toLowerCase()} was deleted</Text>
+      <Text style={[textStyles.footnoteBold, styles.text]}>
+        This {humanizeMediaType(mediaType).toLowerCase()} was deleted
+      </Text>
     </View>
   );
 }
@@ -27,7 +29,5 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.text.inverse,
-    fontSize: typography.footnote,
-    fontWeight: '600',
   },
 });

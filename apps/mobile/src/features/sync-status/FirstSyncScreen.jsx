@@ -6,7 +6,7 @@ import StatusScreen from '@/components/StatusScreen';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import { space, typography } from '@/styles/designTokens';
+import { space, textStyles } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -64,14 +64,16 @@ export default function FirstSyncScreen() {
 
   return (
     <StatusScreen busy={!hasError} title={hasError ? "Can't reach the server" : 'Setting up your library'}>
-      <Text style={styles.subtitle}>{subtitle()}</Text>
-      {started && <Text style={styles.count}>{hasError ? `${counts} so far` : counts}</Text>}
+      <Text style={[textStyles.subheadline, styles.subtitle]}>{subtitle()}</Text>
+      {started && <Text style={[textStyles.bodyBold, styles.count]}>{hasError ? `${counts} so far` : counts}</Text>}
       {hasError ? (
         <Button label="Try again" onPress={() => requestSync()} />
       ) : (
-        <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
+        <Text style={[textStyles.footnote, styles.hint]}>Please keep the app open — it'll finish shortly.</Text>
       )}
-      {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
+      {addsDevicePhotos && (
+        <Text style={[textStyles.footnote, styles.hint]}>This iPhone’s photos are added once this is done.</Text>
+      )}
       {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
       <Button label="Sign out" onPress={handleSignOut} colorPalette="muted" />
     </StatusScreen>
@@ -79,7 +81,7 @@ export default function FirstSyncScreen() {
 }
 
 const styles = StyleSheet.create({
-  subtitle: { fontSize: typography.subheadline, opacity: 0.7, textAlign: 'center' },
-  count: { fontSize: typography.callout, fontWeight: '600', marginTop: space.sm, textAlign: 'center' },
-  hint: { fontSize: typography.footnote, opacity: 0.5, textAlign: 'center', marginTop: space.xs },
+  subtitle: { opacity: 0.7, textAlign: 'center' },
+  count: { marginTop: space.sm, textAlign: 'center' },
+  hint: { opacity: 0.5, textAlign: 'center', marginTop: space.xs },
 });

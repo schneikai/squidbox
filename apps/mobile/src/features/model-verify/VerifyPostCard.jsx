@@ -5,7 +5,7 @@ import TagChips from './TagChips';
 import Card from '@/components/Card';
 import IntroText from '@/components/IntroText';
 import Text from '@/components/Text';
-import { colors, layout, typography } from '@/styles/designTokens';
+import { colors, layout, textStyles } from '@/styles/designTokens';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 /** The post a Verify conversation started with: its media and tagged people, its tags, its caption. */
@@ -15,7 +15,7 @@ export default function VerifyPostCard({ post }) {
 
   return (
     <Card style={styles.card}>
-      <RNText style={styles.title}>
+      <RNText style={[textStyles.subheadlineBold, styles.title]}>
         New post · {media}
         {people}
       </RNText>
@@ -31,8 +31,6 @@ const styles = StyleSheet.create({
     gap: layout.cardGap,
   },
   title: {
-    fontSize: typography.subheadline,
-    fontWeight: '600',
     color: colors.text.primary,
   },
 });

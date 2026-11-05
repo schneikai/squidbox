@@ -1,7 +1,7 @@
 import { Text as RNText, StyleSheet, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, layout, lineHeights, radii, space, typography } from '@/styles/designTokens';
+import { colors, layout, radii, space, textStyles } from '@/styles/designTokens';
 
 /**
  * A warning about what's on the screen, on a yellow note with an alert icon: something to fix that
@@ -33,8 +33,7 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.primary,
   },
 });

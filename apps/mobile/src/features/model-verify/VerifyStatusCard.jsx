@@ -10,7 +10,7 @@ import verifySummary from './verifySummary';
 
 import Card from '@/components/Card';
 import IntroText from '@/components/IntroText';
-import { colors, layout, lineHeights, space, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 /**
@@ -26,7 +26,7 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
     const next = plan.sections.flatMap((section) => section.prompts)[run.turnsDone];
     return (
       <Card style={styles.card}>
-        <Text style={styles.title}>Verifying {name}</Text>
+        <Text style={[textStyles.bodyBold, styles.title]}>Verifying {name}</Text>
         {kind === 'writing' && next && <IntroText numberOfLines={2}>Now: {next}</IntroText>}
         <ProgressBar progress={run.turnsDone / run.turnsTotal} accessibilityLabel={`Verifying ${name}`} />
         <IntroText>
@@ -45,14 +45,16 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
     <Card style={styles.card}>
       <View style={styles.heading}>
         <VerifyStatusIcon status={icon} />
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[textStyles.bodyBold, styles.title]}>{title}</Text>
       </View>
       <IntroText>
         {name} · {detail}
       </IntroText>
-      {run.status === 'stopped' && stoppedText !== '' ? <Text style={styles.text}>{stoppedText}.</Text> : null}
+      {run.status === 'stopped' && stoppedText !== '' ? (
+        <Text style={[textStyles.subheadline, styles.text]}>{stoppedText}.</Text>
+      ) : null}
       {run.status === 'done' && run.result ? (
-        <Text style={styles.text}>{missSummary(run.result, plan, kind)}</Text>
+        <Text style={[textStyles.subheadline, styles.text]}>{missSummary(run.result, plan, kind)}</Text>
       ) : null}
     </Card>
   );
@@ -70,13 +72,9 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   title: {
-    fontSize: typography.body,
-    fontWeight: '600',
     color: colors.text.primary,
   },
   text: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
     color: colors.text.primary,
   },
 });

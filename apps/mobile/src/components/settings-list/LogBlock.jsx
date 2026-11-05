@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Section } from './SettingsList';
 
 import { SCREEN_PADDING } from '@/constants';
-import { colors, layout, space, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 // A Section holding a fixed-height, internally-scrolling log (sync runs, backup runs).
 export function LogBlock({ children, maxHeight = 200 }) {
@@ -33,8 +33,8 @@ export function LogEmpty({ text }) {
 const styles = StyleSheet.create({
   inner: { gap: space.sm, paddingHorizontal: SCREEN_PADDING, paddingVertical: layout.rowPaddingYCompact },
   entry: { gap: space.hair },
-  primary: { fontSize: typography.footnote, color: colors.text.primary, fontVariant: ['tabular-nums'] },
-  secondary: { fontSize: typography.caption2, color: colors.text.secondary },
-  error: { fontSize: typography.caption2, color: colors.status.danger },
-  empty: { fontSize: typography.footnote, color: colors.text.secondary },
+  primary: { ...textStyles.footnote, color: colors.text.primary, fontVariant: ['tabular-nums'] },
+  secondary: { ...textStyles.caption2, color: colors.text.secondary },
+  error: { ...textStyles.caption2, color: colors.status.danger },
+  empty: { ...textStyles.footnote, color: colors.text.secondary },
 });

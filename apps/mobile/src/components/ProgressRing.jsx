@@ -4,7 +4,7 @@ import Animated, { useSharedValue, useAnimatedProps, useAnimatedReaction, withTi
 import Svg, { Circle } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { colors, motion, scale, typography } from '@/styles/designTokens';
+import { colors, motion, scale, textStyles } from '@/styles/designTokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -86,8 +86,7 @@ const styles = StyleSheet.create({
   },
   value: {
     color: colors.text.inverse,
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     fontVariant: ['tabular-nums'],
   },
 });

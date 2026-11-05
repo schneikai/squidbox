@@ -1,6 +1,6 @@
 import { Text as RNText, StyleSheet } from 'react-native';
 
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { colors, textStyles } from '@/styles/designTokens';
 
 /**
  * Text in one of the app's roles. `variant` is what the text is:
@@ -35,28 +35,20 @@ export default function Text({
 
 const styles = StyleSheet.create({
   reading: {
-    fontSize: typography.body,
-    lineHeight: lineHeights.reading,
+    ...textStyles.reading,
     color: colors.text.primary,
   },
   hint: {
-    fontSize: typography.footnote,
-    lineHeight: lineHeights.footnote,
+    ...textStyles.footnote,
     color: colors.text.secondary,
   },
   label: {
-    fontSize: typography.footnote,
-    lineHeight: lineHeights.footnote,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
     color: colors.text.secondary,
   },
   error: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    ...textStyles.subheadline,
     color: colors.status.danger,
   },
-  errorSmall: {
-    fontSize: typography.footnote,
-    lineHeight: lineHeights.footnote,
-  },
+  errorSmall: textStyles.footnote,
 });

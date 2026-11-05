@@ -4,7 +4,7 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import SelectIndicator from '@/components/SelectIndicator';
-import { colors, layout, scale, sizes, space, typography } from '@/styles/designTokens';
+import { colors, layout, scale, sizes, space, textStyles } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
@@ -78,7 +78,7 @@ function CornerGlow({ corner, size, isHidden = false }) {
 function VideoDuration({ duration }) {
   if (!duration) return null;
 
-  return <Text style={styles.videoDuration}>{formatVideoDuration(duration)}</Text>;
+  return <Text style={[textStyles.caption2Bold, styles.videoDuration]}>{formatVideoDuration(duration)}</Text>;
 }
 
 function FavoriteAssetIndicator({ isFavorite }) {
@@ -116,8 +116,6 @@ const styles = StyleSheet.create({
     bottom: layout.badgeInset,
     right: layout.badgeInset,
     color: colors.text.inverse,
-    fontSize: typography.caption2,
-    fontWeight: '600',
   },
 
   indicators: {

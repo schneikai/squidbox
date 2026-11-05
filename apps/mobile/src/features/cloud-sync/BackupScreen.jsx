@@ -15,7 +15,7 @@ import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorV
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { colors, lineHeights, space, typography } from '@/styles/designTokens';
+import { colors, space, textStyles } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readUploadFailures } from '@/sync/readUploadFailures';
 
@@ -47,21 +47,21 @@ export default function BackupScreen() {
 
           {!!backupError && unsyncedCount > 0 && !isSyncing && (
             <View style={styles.panel}>
-              <Text style={[styles.line, styles.danger]}>{backupError}</Text>
+              <Text style={[textStyles.footnote, styles.line, styles.danger]}>{backupError}</Text>
             </View>
           )}
 
           {isSyncing && (
             <View style={styles.panel}>
               {syncProgressMessage && (
-                <Text style={styles.line}>
+                <Text style={[textStyles.footnote, styles.line]}>
                   {syncProgressMessage.sent} / {syncProgressMessage.total}
                   {'  '}
                   <Text style={styles.bold}>{syncProgressMessage.percent}</Text>
                 </Text>
               )}
               {syncSpeedMessage && (
-                <Text style={styles.line}>
+                <Text style={[textStyles.footnote, styles.line]}>
                   {syncSpeedMessage.now}
                   {'  '}
                   <Text style={styles.muted}>avg {syncSpeedMessage.avg}</Text>
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     paddingBottom: space.lg,
     gap: space.xs,
   },
-  line: { fontSize: typography.footnote, color: colors.text.primary, lineHeight: lineHeights.footnote },
+  line: { color: colors.text.primary },
   bold: { fontWeight: '600', color: colors.text.primary },
   muted: { color: colors.text.secondary },
   danger: { color: colors.status.danger },

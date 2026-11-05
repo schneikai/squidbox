@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, lineHeights, scale, space, typography } from '@/styles/designTokens';
+import { colors, scale, space, textStyles } from '@/styles/designTokens';
 
 /**
  * Centred icon + title + optional subtitle.
@@ -28,15 +28,13 @@ const styles = StyleSheet.create({
     paddingVertical: space.xxxl,
   },
   title: {
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     color: colors.text.secondary,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: typography.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: lineHeights.subheadline,
   },
 });

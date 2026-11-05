@@ -4,7 +4,7 @@ import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
-import { layout, space } from '@/styles/designTokens';
+import { layout, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -19,7 +19,7 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
       </CoverImage>
 
       {Boolean(album.archivedAt) && <Badge label="Archived" tone="danger" style={styles.archived} />}
-      <Text style={styles.albumTitle} numberOfLines={1} ellipsizeMode="tail">
+      <Text style={[textStyles.subheadlineBold, styles.albumTitle]} numberOfLines={1} ellipsizeMode="tail">
         {album.name}
       </Text>
       <View style={styles.metaRow}>
@@ -35,7 +35,6 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
 const styles = StyleSheet.create({
   albumTitle: {
     marginTop: space.xs,
-    fontWeight: '600',
   },
   metaRow: {
     flexDirection: 'row',

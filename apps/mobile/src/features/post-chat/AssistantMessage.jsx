@@ -6,7 +6,7 @@ import ChatOptionCard from './ChatOptionCard';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import { colors, layout, typography } from '@/styles/designTokens';
+import { colors, layout, textStyles } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
 const SLOW_MS = 20_000;
@@ -22,7 +22,7 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }) {
   if (reply.status === 'error') {
     return (
       <Card style={styles.status}>
-        <Text style={styles.statusText}>{reply.error}</Text>
+        <Text style={[textStyles.subheadline, styles.statusText]}>{reply.error}</Text>
         {onRetry && <Button label="Retry" size="small" onPress={onRetry} />}
       </Card>
     );
@@ -52,7 +52,7 @@ function ThinkingCard() {
   return (
     <Card style={styles.status}>
       <ActivityIndicator color={colors.text.secondary} />
-      <Text style={styles.statusText}>{isSlow ? 'Still writing…' : 'Thinking…'}</Text>
+      <Text style={[textStyles.subheadline, styles.statusText]}>{isSlow ? 'Still writing…' : 'Thinking…'}</Text>
     </Card>
   );
 }
@@ -67,7 +67,6 @@ const styles = StyleSheet.create({
   },
   statusText: {
     flex: 1,
-    fontSize: typography.subheadline,
     color: colors.text.secondary,
   },
   reply: {

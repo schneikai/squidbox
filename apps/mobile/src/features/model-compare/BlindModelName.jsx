@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
-import { colors, layout, motion, typography } from '@/styles/designTokens';
+import { colors, layout, motion, textStyles } from '@/styles/designTokens';
 
 // A compare card's title: its letter (`label`, Model A) and an eye that puts the real model name in
 // its place; a second tap hides it again. The name comes out from under a blur that fades: a blur is
@@ -31,7 +31,7 @@ export default function BlindModelName({ label, name }) {
   return (
     <View style={styles.title}>
       <View style={styles.text}>
-        <Text style={[styles.label, isShown && styles.name]} numberOfLines={1}>
+        <Text style={[textStyles.bodyBold, styles.label, isShown && styles.name]} numberOfLines={1}>
           {isShown ? name : label}
         </Text>
         {isRevealing && (
@@ -63,8 +63,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   label: {
-    fontSize: typography.callout,
-    fontWeight: '600',
     color: colors.text.primary,
   },
   name: {

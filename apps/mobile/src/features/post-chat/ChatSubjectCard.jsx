@@ -6,7 +6,7 @@ import MentionsRow from './MentionsRow';
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
-import { colors, layout, scale, space, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, textStyles } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
@@ -41,7 +41,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
             ))}
           </View>
         )}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[textStyles.subheadline, styles.title]} numberOfLines={2}>
           {title}
         </Text>
       </View>
@@ -85,7 +85,6 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: typography.subheadline,
     color: colors.text.primary,
   },
 });

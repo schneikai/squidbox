@@ -10,7 +10,7 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { layout, motion, scale, sizes, space } from '@/styles/designTokens';
+import { layout, lineHeights, motion, sizes, space } from '@/styles/designTokens';
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    lineHeight: scale(20),
+    lineHeight: lineHeights.subheadline,
     paddingLeft: space.xs,
     paddingRight: space.md,
     paddingVertical: 0,

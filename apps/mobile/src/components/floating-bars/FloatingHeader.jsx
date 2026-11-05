@@ -9,7 +9,7 @@ import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
 import SelectionActions from '@/features/asset-list/SelectionActions';
-import { colors, layout, motion, space, typography } from '@/styles/designTokens';
+import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
 
 // The main screens' header. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
@@ -86,8 +86,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   title: {
-    fontSize: typography.title1,
-    fontWeight: '700',
+    ...textStyles.title1,
     color: colors.text.primary,
     flex: 1,
   },

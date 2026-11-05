@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import voiceFields from './voiceFields';
 
 import BottomSheet from '@/components/BottomSheet';
-import { colors, layout, lineHeights, radii, space, typography } from '@/styles/designTokens';
+import { colors, layout, radii, space, textStyles } from '@/styles/designTokens';
 
 // What goes in a field of Writing as you (`field`, a key of voiceFields): its description and three
 // examples. `field` stays set while the sheet slides away after `isVisible` turned false.
@@ -12,12 +12,12 @@ export default function FieldInfoSheet({ field, isVisible, onClose }) {
 
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title={label}>
-      <Text style={styles.description}>{description}</Text>
-      <Text style={styles.heading}>For example</Text>
+      <Text style={[textStyles.reading, styles.description]}>{description}</Text>
+      <Text style={[textStyles.footnoteBold, styles.heading]}>For example</Text>
       <View style={styles.examples}>
         {examples.map((example) => (
           <View key={example} style={styles.example}>
-            <Text style={styles.exampleText}>{example}</Text>
+            <Text style={[textStyles.reading, styles.exampleText]}>{example}</Text>
           </View>
         ))}
       </View>
@@ -27,13 +27,9 @@ export default function FieldInfoSheet({ field, isVisible, onClose }) {
 
 const styles = StyleSheet.create({
   description: {
-    fontSize: typography.callout,
-    lineHeight: lineHeights.reading,
     color: colors.text.secondary,
   },
   heading: {
-    fontSize: typography.footnote,
-    fontWeight: '600',
     color: colors.text.secondary,
     marginTop: space.lg,
     marginBottom: space.sm,
@@ -48,8 +44,6 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
   },
   exampleText: {
-    fontSize: typography.callout,
-    lineHeight: lineHeights.reading,
     color: colors.text.primary,
   },
 });

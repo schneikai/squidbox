@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
-import { colors, disabledOpacity, layout, press, radii, scale, sizes, space, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, radii, scale, sizes, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 const PALETTE = {
@@ -177,15 +177,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
   return (
     <>
       {loading ? spinner : icon && <Icon name={icon} size={iconSize} color={color} />}
-      <Text
-        style={[
-          styles[`${shape}Label`],
-          styles[`${shape}Label_${size}`],
-          size === 'caption' && listTextStyles.caption,
-          shape === 'link' && palette === 'muted' && size !== 'caption' && styles.linkLabelMuted,
-          { color },
-        ]}
-      >
+      <Text style={[styles[`${shape}Label_${size}`], size === 'caption' && listTextStyles.caption, { color }]}>
         {label}
       </Text>
     </>
@@ -267,10 +259,7 @@ const styles = StyleSheet.create({
   dangerFill: {
     backgroundColor: colors.status.danger,
   },
-  discLabel: {
-    fontSize: typography.footnote,
-    fontWeight: '700',
-  },
+  discLabel: textStyles.footnoteBold,
   pair: {
     flexDirection: 'row',
     gap: space.hair,
@@ -293,15 +282,8 @@ const styles = StyleSheet.create({
     gap: layout.iconGapSmall,
     paddingHorizontal: space.md,
   },
-  pillLabel: {
-    fontWeight: '600',
-  },
-  pillLabel_regular: {
-    fontSize: typography.subheadline,
-  },
-  pillLabel_small: {
-    fontSize: typography.footnote,
-  },
+  pillLabel_regular: textStyles.subheadlineBold,
+  pillLabel_small: textStyles.footnoteBold,
   link: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -317,18 +299,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     paddingHorizontal: space.xs,
   },
-  linkLabel: {
-    fontWeight: '500',
-  },
-  linkLabel_regular: {
-    fontSize: typography.subheadline,
-  },
-  linkLabel_small: {
-    fontSize: typography.footnote,
-  },
-  linkLabelMuted: {
-    fontWeight: '400',
-  },
+  linkLabel_regular: textStyles.subheadline,
+  linkLabel_small: textStyles.footnote,
   disabled: {
     opacity: disabledOpacity,
   },
