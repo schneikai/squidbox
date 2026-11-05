@@ -6,6 +6,7 @@ import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import AssetPage from './AssetPage';
 import getSettledPage from './getSettledPage';
 import usePagerEdgeSwipe from './usePagerEdgeSwipe';
+import usePagerScrollEnd from './usePagerScrollEnd';
 
 const keyExtractor = (assetId) => assetId;
 const isWeb = Platform.OS === 'web';
@@ -110,16 +111,7 @@ function AssetPager({
   // Both end events are handled: a drag released exactly on a page boundary has no momentum phase.
   const handleScrollEnd = useCallback((event) => settleAt(event.nativeEvent.contentOffset.x), [settleAt]);
 
-  // react-native-web's ScrollView fires neither end event, so on the web the page is read from the
-  // DOM's own `scrollend`, which fires once the scroll snap has settled.
-  useEffect(() => {
-    if (!isWeb) return;
-    const node = listRef.current?.getScrollableNode?.();
-    if (!node) return;
-    const handleWebScrollEnd = () => settleAt(node.scrollLeft);
-    node.addEventListener('scrollend', handleWebScrollEnd);
-    return () => node.removeEventListener('scrollend', handleWebScrollEnd);
-  }, [listRef, settleAt]);
+  usePagerScrollEnd(listRef, settleAt);
 
   const handleZoomChange = useCallback(
     (assetId, isZoomed) => setZoomedAssetId((zoomed) => nextZoomedAssetId({ zoomed, assetId, isZoomed })),
