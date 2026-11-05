@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 
-import AssetsContext from './AssetsContext';
+import AssetsContext, { type AssetsContextValue } from './AssetsContext';
 
 import { sweepOpenLibrary } from '@/library/current';
 import * as repo from '@/sync/assetsRepository';
@@ -10,8 +10,10 @@ import { writeInBatches } from '@/sync/writeInBatches';
 
 // The asset writes: each goes through the repository and then starts a sync. Screens read assets
 // through their own live queries (assetQuery, readByIds).
-export default function AssetsProvider({ children }) {
-  const value = useMemo(
+type AssetsProviderProps = { children: ReactNode };
+
+export default function AssetsProvider({ children }: AssetsProviderProps) {
+  const value = useMemo<AssetsContextValue>(
     () => ({
       addAssetsAsync: async (list) => {
         const records = await repo.createMany(getDb(), list);

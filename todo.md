@@ -232,9 +232,10 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` and `src/library` are mostly
-TypeScript, and only their `.ts` files are typechecked (`npm run typecheck`). Convert the rest gradually, feature by feature, and widen
-the typecheck to the whole app.
+`src/sync`, `src/library`, `src/utils`, `src/hooks`, `src/lib`, the data contexts (assets, posts,
+albums), app settings and the cloud are strict TypeScript, and `npm run typecheck` checks every
+`.ts`/`.tsx` in `src` strictly. Still JavaScript: the components, the other features and the routes.
+Convert them feature by feature, then add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 

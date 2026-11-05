@@ -1,6 +1,17 @@
-import { movePositions, positionsInOrder } from '@squidbox/shared';
+import { type AlbumRecord, movePositions, positionsInOrder } from '@squidbox/shared';
 
 import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrder';
+import type { AppDb } from '@/sync/db/driver';
+import type { AlbumRow } from '@/sync/db/schema';
+import type { makeRepository } from '@/sync/repository';
+
+// A drop in the albums list: under Custom (the default) only where it landed; under another sort also
+// the order on screen after it.
+export type AlbumMove = { id: string; afterId: string | null } & (
+  { sort?: 'custom'; order?: undefined } | { sort: string; order: string[] }
+);
+
+type AlbumsRepository = Pick<ReturnType<typeof makeRepository<AlbumRecord>>, 'updateMany'>;
 
 /**
  * Puts album `id` right after album `afterId` (`null`: first) in the albums' custom order as the
@@ -13,13 +24,18 @@ import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrd
  * grid undoes the drop. Resolves to the committed-write count that includes this write
  * (AppDb.committedWrites): rows read at or after it show the move.
  */
-export default async function moveAlbum(db, repo, { id, afterId, order, sort = 'custom' }) {
+export default async function moveAlbum(
+  db: AppDb,
+  repo: AlbumsRepository,
+  { id, afterId, order, sort = 'custom' }: AlbumMove,
+): Promise<number> {
   await db.transaction(async (tx) => {
     const albums = await readAlbumsInCustomOrder(tx);
     const ids = new Set(albums.map((album) => album.id));
     if (!ids.has(id) || (sort === 'custom' && afterId !== null && !ids.has(afterId)))
       throw new Error('The album or its neighbour is gone');
-    const updates = sort === 'custom' ? movePositions(albums, id, afterId) : positionsInOrder(inOrder(albums, order));
+    // A sort but Custom comes with its order (AlbumMove).
+    const updates = sort === 'custom' ? movePositions(albums, id, afterId) : positionsInOrder(inOrder(albums, order!));
     if (Object.keys(updates).length > 0) await repo.updateMany(tx, updates);
   });
   // Read before anything else can run: the next queued write starts only after this continuation.
@@ -27,7 +43,7 @@ export default async function moveAlbum(db, repo, { id, afterId, order, sort = '
 }
 
 // The albums as `order` lists them, the ones it leaves out after them in their custom order.
-function inOrder(albums, order) {
+function inOrder(albums: AlbumRow[], order: string[]): AlbumRow[] {
   const rank = new Map(order.map((albumId, index) => [albumId, index]));
   return [...albums].sort((a, b) => (rank.get(a.id) ?? order.length) - (rank.get(b.id) ?? order.length));
 }

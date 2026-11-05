@@ -3,7 +3,11 @@
  * by their fractional-index `position`; ties go by `id`, like edges, so every sort and every device
  * agrees on one order.
  */
-export default function sortAlbumsByCustomOrder(a, b) {
+import type { AlbumRow } from '@/sync/db/schema';
+
+type OrderedAlbum = Pick<AlbumRow, 'id' | 'position' | 'createdAt'>;
+
+export default function sortAlbumsByCustomOrder(a: OrderedAlbum, b: OrderedAlbum): number {
   if (a.position == null && b.position == null) {
     const newer = (b.createdAt ?? 0) - (a.createdAt ?? 0);
     if (newer !== 0) return newer;

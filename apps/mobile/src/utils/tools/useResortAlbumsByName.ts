@@ -16,7 +16,7 @@ import { getDb } from '@/sync/db/client';
 export default function useResortAlbumsByName() {
   const { updateManyAlbums } = useAlbums();
 
-  async function resortAlbumsByNameAsync() {
+  async function resortAlbumsByNameAsync(): Promise<number> {
     const currentOrder = await readAlbumsInCustomOrder(getDb());
 
     // Highest number first, into the numeric albums' slots in the current order.
@@ -34,10 +34,10 @@ export default function useResortAlbumsByName() {
   return resortAlbumsByNameAsync;
 }
 
-function isNumericName(name) {
+function isNumericName(name: string | null | undefined): boolean {
   return /^\d+$/.test((name ?? '').trim());
 }
 
-function numericName(name) {
+function numericName(name: string | null | undefined): number {
   return Number((name ?? '').trim());
 }

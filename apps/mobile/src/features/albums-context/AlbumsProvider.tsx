@@ -1,7 +1,7 @@
-import { albumCollection } from '@squidbox/shared';
-import { useMemo } from 'react';
+import { albumCollection, type AlbumRecord } from '@squidbox/shared';
+import { type ReactNode, useMemo } from 'react';
 
-import AlbumsContext from './AlbumsContext';
+import AlbumsContext, { type AlbumsContextValue } from './AlbumsContext';
 import moveAlbum from './moveAlbum';
 
 import assetQuery from '@/features/asset-list/assetQuery';
@@ -16,11 +16,11 @@ import newRecord from '@/utils/newRecord';
 // The album writes. Membership lives in the album_assets edge collection (add/remove/reorder are
 // independent edge writes that don't clobber across devices). Screens read albums through their
 // own live queries (albumQuery, readByIds).
-const repo = makeRepository('albums', schema.albums);
+const repo = makeRepository<AlbumRecord>('albums', schema.albums);
 const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
 // A new album isn't on Custom order (no `sortOrder`) and has no place in the albums' custom order yet.
-const ALBUM_DEFAULTS = {
+const ALBUM_DEFAULTS: Partial<AlbumRecord> = {
   name: 'New Album',
   isFavorite: false,
   archivedAt: null,
@@ -31,12 +31,14 @@ const ALBUM_DEFAULTS = {
   smartAlbumType: null,
 };
 
-export default function AlbumsProvider({ children }) {
+type AlbumsProviderProps = { children: ReactNode };
+
+export default function AlbumsProvider({ children }: AlbumsProviderProps) {
   // A user action that writes the album and its edges commits once (repository transactions inside
   // `tx` become savepoints), so readers never see half of it.
-  const value = useMemo(() => {
+  const value = useMemo<AlbumsContextValue>(() => {
     const db = getDb();
-    async function updateAlbum(id, updates) {
+    async function updateAlbum(id: string, updates: Partial<AlbumRecord>) {
       await repo.update(db, id, updates);
       requestSync();
     }

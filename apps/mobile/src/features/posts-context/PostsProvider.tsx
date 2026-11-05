@@ -1,7 +1,7 @@
-import { postCollection } from '@squidbox/shared';
-import { useMemo } from 'react';
+import { postCollection, type PostRecord } from '@squidbox/shared';
+import { type ReactNode, useMemo } from 'react';
 
-import PostsContext from './PostsContext';
+import PostsContext, { type PostsContextValue } from './PostsContext';
 
 import { getDb } from '@/sync/db/client';
 import { removeThread, saveThreadPosts, setThreadPostedAt } from '@/sync/postThreads';
@@ -9,14 +9,16 @@ import * as repo from '@/sync/postsRepository';
 import { requestSync } from '@/sync/worker';
 import newRecord from '@/utils/newRecord';
 
+type PostsProviderProps = { children: ReactNode };
+
 // The post writes. Asset references live in the post_assets edge collection (`assetRefs` in, as the
 // editor emits them); a thread's following posts are `threadPosts` (`[{ id, text, assetRefs }]`,
 // postThreads). Screens read posts through their own live queries (postQuery).
 
-export default function PostsProvider({ children }) {
+export default function PostsProvider({ children }: PostsProviderProps) {
   // A user action that writes the post and its edges commits once (repository transactions inside
   // `tx` become savepoints), so readers never see half of it.
-  const value = useMemo(() => {
+  const value = useMemo<PostsContextValue>(() => {
     const db = getDb();
     return {
       addPost: async ({ assetRefs: refs = [], threadPosts = [], ...fields }) => {
@@ -51,12 +53,12 @@ export default function PostsProvider({ children }) {
 }
 
 // How saveThreadPosts builds a new following post: a new post's defaults, the thread's Posted time.
-function newPart(fields) {
+function newPart(fields: Partial<PostRecord>): PostRecord {
   return newRecord(postCollection, postDefaults, fields);
 }
 
 // A new post is unposted and offered for a repost from its creation on.
-function postDefaults({ createdAt }) {
+function postDefaults({ createdAt }: Pick<PostRecord, 'createdAt'>): Partial<PostRecord> {
   return {
     text: '',
     isFavorite: false,

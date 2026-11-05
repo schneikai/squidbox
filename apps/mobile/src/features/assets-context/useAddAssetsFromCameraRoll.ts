@@ -1,3 +1,5 @@
+import type { AssetRecord } from '@squidbox/shared';
+
 import getPickedAssetMetadataAsync from '@/features/assets-context/getPickedAssetMetadataAsync';
 import useAssets from '@/features/assets-context/useAssets';
 import { openLibraryId } from '@/library/current';
@@ -7,11 +9,19 @@ import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
-export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFinish }) {
-  const { addAssetsAsync } = useAssets();
-  const { paths: library } = useLibrary();
+type AddAssetsOptions = {
+  onStart?: () => void;
+  onProgress?: (percent: number) => void;
+  onFinish?: () => void;
+};
 
-  async function addAssetsFromCameraRollAsync() {
+export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFinish }: AddAssetsOptions) {
+  const { addAssetsAsync } = useAssets();
+  const { paths } = useLibrary();
+  // Below LibraryGate a library is always open.
+  const library = paths!;
+
+  async function addAssetsFromCameraRollAsync(): Promise<AssetRecord[]> {
     try {
       // The picker only resolves once iOS has exported the picked files, which can take seconds.
       // Starting the progress overlay as the picker opens means it is already showing when the
@@ -21,18 +31,20 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
 
       // The files go into this screen's library; the records must too (a sign-in meanwhile would
       // open another one), else the files are removed again.
-      const newAssets = [];
+      const newAssets: AssetRecord[] = [];
       try {
         for (const result of imagePickerResults) {
           // Its metadata only (the picker exported the file).
           const assetInfo = await getPickedAssetMetadataAsync(result);
           const newAsset = await buildAssetAsync(
             {
-              mediaLibraryAssetId: result.assetId,
+              // iOS always exports these with a picked file; one missing stays null or NaN, so
+              // newRecord's schema parse rejects the asset, as it always has (never 0, a wrong size).
+              mediaLibraryAssetId: result.assetId as string,
               sourceFileUri: result.uri,
               mediaType: imagePickerMediaTypeToAssetMediaType(result.type),
               // Whole numbers, as the shared asset schema has them.
-              fileSize: Math.round(result.fileSize),
+              fileSize: Math.round(result.fileSize ?? NaN),
               width: Math.round(result.width),
               height: Math.round(result.height),
               duration: result.duration,
