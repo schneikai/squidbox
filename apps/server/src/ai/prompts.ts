@@ -1,6 +1,7 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
+  contactFromScreenshotResponseSchema,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
@@ -332,7 +333,7 @@ export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: strin
   zod: z.object({ pass: z.boolean(), reason: z.string() }),
 };
 
-const CONTACT_FIELDS = ['name', 'xHandle', 'blueskyHandle', 'onlyFansHandle', 'jffHandle', 'place'] as const;
+const CONTACT_FIELDS = contactFromScreenshotResponseSchema.keyof().options;
 // A field the model left out or set to null reads as not shown.
 const contactField = z
   .string()

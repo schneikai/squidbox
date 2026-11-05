@@ -1,3 +1,4 @@
+import { CONTACT_HANDLE_FIELDS } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
@@ -15,8 +16,7 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 // The draft fields a screenshot's reading fills, from what it read: only what it found.
 function filledFrom(read, draft) {
   const fields = {};
-  for (const field of ['name', 'xHandle', 'blueskyHandle', 'onlyFansHandle', 'jffHandle'])
-    if (read[field]) fields[field] = read[field];
+  for (const field of ['name', ...CONTACT_HANDLE_FIELDS]) if (read[field]) fields[field] = read[field];
   if (read.place && !draft.places.includes(read.place)) fields.places = [read.place, ...draft.places.filter(Boolean)];
   return fields;
 }

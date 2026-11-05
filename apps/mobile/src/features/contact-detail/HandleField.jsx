@@ -1,3 +1,4 @@
+import { CONTACT_HANDLES } from '@squidbox/shared';
 import { StyleSheet, Text, View } from 'react-native';
 
 import openContactLinkAsync from './openContactLinkAsync';
@@ -11,10 +12,7 @@ import { colors, layout, scale, sizes, typography } from '@/styles/designTokens'
 const LABEL_WIDTH = scale(84);
 const DOT = scale(8);
 const OPEN_LABELS = {
-  xHandle: 'Open on X',
-  blueskyHandle: 'Open on Bluesky',
-  onlyFansHandle: 'Open on OnlyFans',
-  jffHandle: 'Open on JFF',
+  ...Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])),
   phoneNumber: 'Message on WhatsApp',
 };
 

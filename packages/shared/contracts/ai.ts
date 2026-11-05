@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
 import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
+import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -306,10 +307,10 @@ export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotR
 
 export const contactFromScreenshotResponseSchema = z.object({
   name: z.string(),
-  xHandle: z.string(),
-  blueskyHandle: z.string(),
-  onlyFansHandle: z.string(),
-  jffHandle: z.string(),
+  ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, z.string()])) as Record<
+    ContactHandleField,
+    z.ZodString
+  >),
   place: z.string(),
 });
 export type ContactFromScreenshotResponse = z.infer<typeof contactFromScreenshotResponseSchema>;

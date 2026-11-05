@@ -4,6 +4,7 @@ import {
   ASSET_TAG_LIMITS,
   assetTagSchema,
   CHAT_LIMITS,
+  CONTACT_HANDLE_FIELDS,
   normalizeHandle,
   uniqueTags,
   type ContactFromScreenshotResponse,
@@ -119,13 +120,11 @@ export const photoTagsTask: AiTask<{ tags: string[] }> = {
 // contacts store them, the name and place trimmed.
 export const contactFromScreenshotTask: AiTask<ContactFromScreenshotResponse> = {
   schema: contactSchema,
-  check: ({ name, xHandle, blueskyHandle, onlyFansHandle, jffHandle, place }) => ({
-    name: name.trim(),
-    xHandle: normalizeHandle(xHandle),
-    blueskyHandle: normalizeHandle(blueskyHandle),
-    onlyFansHandle: normalizeHandle(onlyFansHandle),
-    jffHandle: normalizeHandle(jffHandle),
-    place: place.trim(),
+  check: (read) => ({
+    ...read,
+    ...Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, normalizeHandle(read[field])])),
+    name: read.name.trim(),
+    place: read.place.trim(),
   }),
 };
 

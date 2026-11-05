@@ -1,9 +1,6 @@
-const HANDLE_REASONS = [
-  ['xHandle', 'Same X handle'],
-  ['blueskyHandle', 'Same Bluesky handle'],
-  ['onlyFansHandle', 'Same OnlyFans handle'],
-  ['jffHandle', 'Same JFF handle'],
-];
+import { CONTACT_HANDLES } from '@squidbox/shared';
+
+const HANDLE_REASONS = CONTACT_HANDLES.map(({ field, label }) => [field, `Same ${label} handle`]);
 
 /**
  * The contacts a new one may duplicate: those with one of its handles (stored fields, normalized),

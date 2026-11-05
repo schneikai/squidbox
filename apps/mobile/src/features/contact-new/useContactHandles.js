@@ -1,3 +1,4 @@
+import { CONTACT_HANDLE_FIELDS } from '@squidbox/shared';
 import { isNull } from 'drizzle-orm';
 
 import { schema } from '@/sync/db/client';
@@ -14,10 +15,7 @@ export default function useContactHandles() {
           id: c.id,
           name: c.name,
           avatarFilename: c.avatarFilename,
-          xHandle: c.xHandle,
-          blueskyHandle: c.blueskyHandle,
-          onlyFansHandle: c.onlyFansHandle,
-          jffHandle: c.jffHandle,
+          ...Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, c[field]])),
         })
         .from(c)
         .where(isNull(c.deletedAt)),

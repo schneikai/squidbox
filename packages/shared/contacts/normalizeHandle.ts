@@ -1,5 +1,7 @@
+import { CONTACT_HANDLES } from '../collections/contact';
+
 // The profile URLs a handle may be pasted as, without their scheme or `www.`.
-const PROFILE_HOSTS = ['x.com/', 'twitter.com/', 'bsky.app/profile/', 'onlyfans.com/', 'justfor.fans/'];
+const PROFILE_HOSTS: readonly string[] = CONTACT_HANDLES.flatMap(({ hosts }) => hosts);
 
 /**
  * A handle as contacts store it: trimmed and lowercased, without a leading `@`, and from a pasted
