@@ -44,7 +44,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         </View>
       ))}
 
-      <WriteWithAi sessionId={sessionId} />
+      <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
 
       <View style={styles.related}>
         <ScreenSectionHeader title="Posted Albums" isFlush />
@@ -60,6 +60,9 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
+  },
+  writeWithAi: {
+    marginTop: 24,
   },
   related: {
     marginTop: 20,

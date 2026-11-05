@@ -45,8 +45,9 @@ const LINK_HIT_SLOP = { regular: 8, small: 12 };
  *               action (its parent stretches it across), Repost in a card.
  *   secondary — a grey fill: a disc with an `icon` or a `label` of up to 3 characters (18+), or a
  *               pill with a longer `label`, in dark text (Later beside Repost).
- *               `colorPalette="danger"` makes the disc red; `isInverse` makes it dark and
- *               translucent with a white icon, over a picture (× on a photo tile).
+ *               `colorPalette="danger"` makes the disc red, `accent` light violet with a violet
+ *               icon (the pen on the assistant's tray; a pill stays grey); `isInverse` makes it
+ *               dark and translucent with a white icon, over a picture (× on a photo tile).
  *   tertiary  — no fill (the default): a bare `icon` (a toolbar's, a row's), or with a `label` a
  *               text link (an icon may lead it).
  * `size` is `regular` (44 pt tall, discs and pills alike) or `small` (28 pt), so a pill and a disc
@@ -201,7 +202,7 @@ function fillFor({ shape, variant, palette, isSelected, isInverse }) {
   if (shape === 'pill') return styles.mutedFill;
   if (isInverse) return styles.inverseFill;
   if (palette === 'danger') return styles.dangerFill;
-  if (isSelected) return styles.selectedFill;
+  if (isSelected || palette === 'accent') return styles.accentFill;
   return styles.mutedFill;
 }
 
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
   inverseFill: {
     backgroundColor: colors.overlay.dim,
   },
-  selectedFill: {
+  accentFill: {
     backgroundColor: colors.accent.light,
   },
   dangerFill: {
