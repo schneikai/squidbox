@@ -23,7 +23,13 @@ describe('placeParts', () => {
     expect(formatPlace({ city: 'Squamish' })).toBe('Squamish');
   });
 
-  it('reads a place stored as one string as its city', () => {
-    expect(formatPlace('Squamish, Canada')).toBe('Squamish, Canada');
+  it('reads a place stored as one string by its commas', () => {
+    expect(placeParts('Squamish, Canada')).toEqual({ city: 'Squamish', state: '', country: 'Canada' });
+    expect(placeParts('Denver, Colorado, United States')).toEqual({
+      city: 'Denver',
+      state: 'Colorado',
+      country: 'United States',
+    });
+    expect(placeParts('Tofino')).toEqual({ city: 'Tofino', state: '', country: '' });
   });
 });
