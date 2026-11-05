@@ -1,11 +1,12 @@
 import { memo, useSyncExternalStore } from 'react';
-import { Image, View, StyleSheet, Text } from 'react-native';
+import { Image, View, StyleSheet } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import SelectIndicator from '@/components/SelectIndicator';
+import Text from '@/components/Text';
 import cornerStyles from '@/styles/cornerStyles';
-import { colors, layout, scale, sizes, textStyles } from '@/styles/designTokens';
+import { colors, layout, scale, sizes } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
@@ -80,7 +81,9 @@ function VideoDuration({ duration }) {
   if (!duration) return null;
 
   return (
-    <Text style={[textStyles.caption2Bold, cornerStyles.bottomRight, styles.videoDuration]}>
+    // Bare text, not a ThumbnailBadge: the grid's cells are small and a capsule on each would crowd
+    // them (the corner glow keeps it readable).
+    <Text variant="label" size="small" tone="inverse" style={cornerStyles.bottomRight}>
       {formatVideoDuration(duration)}
     </Text>
   );
@@ -114,12 +117,6 @@ const styles = StyleSheet.create({
   },
   hidden: {
     opacity: 0,
-  },
-
-  // Bare text, not a ThumbnailBadge: the grid's cells are small and a capsule on each would crowd
-  // them (the corner glow keeps it readable).
-  videoDuration: {
-    color: colors.text.inverse,
   },
 
   indicators: {

@@ -1,10 +1,10 @@
-import { StyleSheet, Text as RNText, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import voiceFields from './voiceFields';
 
 import BottomSheet from '@/components/BottomSheet';
 import Text from '@/components/Text';
-import { colors, layout, radii, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, radii, space } from '@/styles/designTokens';
 
 // What goes in a field of Writing as you (`field`, a key of voiceFields): its description and three
 // examples. `field` stays set while the sheet slides away after `isVisible` turned false.
@@ -13,7 +13,7 @@ export default function FieldInfoSheet({ field, isVisible, onClose }) {
 
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title={label}>
-      <RNText style={[textStyles.reading, styles.description]}>{description}</RNText>
+      <Text tone="secondary">{description}</Text>
       <Text variant="label" style={styles.heading}>
         For example
       </Text>
@@ -29,9 +29,6 @@ export default function FieldInfoSheet({ field, isVisible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  description: {
-    color: colors.text.secondary,
-  },
   heading: {
     marginTop: space.lg,
     marginBottom: space.sm,

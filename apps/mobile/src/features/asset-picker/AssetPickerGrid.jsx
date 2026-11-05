@@ -1,12 +1,13 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
-import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/components/floating-bars/SearchSortFilterBar';
+import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useListControls from '@/hooks/useListControls';
+import { layout } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // The picker's grid of the library or of one album (`scope`, see assetQuery), always selecting, with
@@ -33,7 +34,7 @@ export default function AssetPickerGrid({ scope, exclude, selection, onScroll, s
         rows={rows}
         loadMore={loadMore}
         paddingTop={MODAL_HEADER_HEIGHT}
-        paddingBottom={bottom + SEARCH_SORT_FILTER_BAR_CLEARANCE}
+        paddingBottom={bottom + layout.barClearance}
         onScroll={onScroll}
         scrollY={scrollY}
         isSelectMode

@@ -1,6 +1,6 @@
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text as RNText, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import IntroText from '@/components/IntroText';
@@ -16,7 +16,7 @@ import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorV
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { colors, space, textStyles } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readUploadFailures } from '@/sync/readUploadFailures';
 
@@ -57,20 +57,22 @@ export default function BackupScreen() {
           {isSyncing && (
             <View style={styles.panel}>
               {syncProgressMessage && (
-                <RNText style={[textStyles.footnote, styles.line]}>
+                <Text variant="hint" tone="primary">
                   {syncProgressMessage.sent} / {syncProgressMessage.total}
                   {'  '}
-                  <RNText style={styles.bold}>{syncProgressMessage.percent}</RNText>
-                </RNText>
+                  <Text variant="label" tone="primary">
+                    {syncProgressMessage.percent}
+                  </Text>
+                </Text>
               )}
               {syncSpeedMessage && (
-                <RNText style={[textStyles.footnote, styles.line]}>
+                <Text variant="hint" tone="primary">
                   {syncSpeedMessage.now}
                   {'  '}
-                  <RNText style={styles.muted}>avg {syncSpeedMessage.avg}</RNText>
-                </RNText>
+                  <Text variant="hint">avg {syncSpeedMessage.avg}</Text>
+                </Text>
               )}
-              <RNText style={styles.muted}>Keep the app open until backup finishes.</RNText>
+              <Text variant="hint">Keep the app open until backup finishes.</Text>
             </View>
           )}
 
@@ -103,7 +105,4 @@ const styles = StyleSheet.create({
     paddingBottom: space.lg,
     gap: space.xs,
   },
-  line: { color: colors.text.primary },
-  bold: { fontWeight: '600', color: colors.text.primary },
-  muted: { color: colors.text.secondary },
 });

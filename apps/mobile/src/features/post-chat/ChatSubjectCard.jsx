@@ -1,12 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import ItSeesRow from './ItSeesRow';
 import MentionsRow from './MentionsRow';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
+import Text from '@/components/Text';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
-import { colors, layout, scale, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, scale } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
@@ -32,7 +33,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
   const mentionsFrom = mentions?.fromAlbum ? (albums?.length === 1 && albumName) || 'your albums' : 'your posts';
 
   return (
-    <Card style={styles.card}>
+    <Card padded>
       <View style={styles.header}>
         {assets.length > 0 && (
           <View style={styles.thumbs}>
@@ -41,7 +42,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
             ))}
           </View>
         )}
-        <Text style={[textStyles.subheadline, styles.title]} numberOfLines={2}>
+        <Text size="small" numberOfLines={2} style={styles.title}>
           {title}
         </Text>
       </View>
@@ -62,10 +63,6 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: space.md,
-    gap: space.sm,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -86,6 +83,5 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    color: colors.text.primary,
   },
 });

@@ -1,4 +1,4 @@
-import { StyleSheet, Text as RNText, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import ProgressBar from './ProgressBar';
 import VerifyStatusIcon from './VerifyStatusIcon';
@@ -11,7 +11,7 @@ import verifySummary from './verifySummary';
 import Card from '@/components/Card';
 import IntroText from '@/components/IntroText';
 import Text from '@/components/Text';
-import { colors, space, textStyles } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 /**
@@ -51,12 +51,8 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
       <IntroText>
         {name} · {detail}
       </IntroText>
-      {run.status === 'stopped' && stoppedText !== '' ? (
-        <RNText style={[textStyles.subheadline, styles.text]}>{stoppedText}.</RNText>
-      ) : null}
-      {run.status === 'done' && run.result ? (
-        <RNText style={[textStyles.subheadline, styles.text]}>{missSummary(run.result, plan, kind)}</RNText>
-      ) : null}
+      {run.status === 'stopped' && stoppedText !== '' ? <Text size="small">{stoppedText}.</Text> : null}
+      {run.status === 'done' && run.result ? <Text size="small">{missSummary(run.result, plan, kind)}</Text> : null}
     </Card>
   );
 }
@@ -70,8 +66,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-  },
-  text: {
-    color: colors.text.primary,
   },
 });

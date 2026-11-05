@@ -7,9 +7,6 @@ import SortFilterMenu from './SortFilterMenu';
 
 import { layout } from '@/styles/designTokens';
 
-// The room a list keeps free at its bottom, above the safe-area inset, so its end clears the bar.
-export const SEARCH_SORT_FILTER_BAR_CLEARANCE = layout.barClearance;
-
 /**
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
  * use it through FloatingActionsBar). `search` is the `searchBar` from useListControls; pass

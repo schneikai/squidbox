@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import FoldingTextInput from '@/components/FoldingTextInput';
-import { colors, scale, sizes, space } from '@/styles/designTokens';
+import { colors, lineHeights, scale, sizes, space } from '@/styles/designTokens';
 
 const MAX_INPUT_HEIGHT = scale(120);
 
@@ -44,6 +44,7 @@ export default function ChatComposer({ seed, placeholder, disabled, isWaiting, o
         onChangeText={handleChangeText}
         placeholder={placeholder}
         maxLength={CHAT_LIMITS.message}
+        minHeight={sizes.iconButton}
         style={styles.input}
         accessibilityLabel="Message"
       />
@@ -75,9 +76,9 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     maxHeight: MAX_INPUT_HEIGHT,
-    paddingVertical: space.sm,
-    // A single line as tall as the send disc beside it; a larger text size grows past it.
-    minHeight: sizes.iconButton,
+    // A single line as tall as the send disc beside it and centred on it (minHeight); a larger text
+    // size grows past it.
+    paddingVertical: (sizes.iconButton - lineHeights.reading) / 2,
   },
   send: {
     width: sizes.iconButton,

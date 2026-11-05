@@ -5,7 +5,7 @@ const SPACING_KEY =
 const SPACING_CONST = '/(GAP|PADDING|INSET|MARGIN|OFFSET|GUTTER)$/';
 // A number other than 0 anywhere in its value (a literal, a sum, a ternary, scale(n), -n), except
 // the 2 that halves something (`/ 2`) and an array index.
-const RAW_NUMBER = `Literal[raw=/^(?!0(\\.0*)?$)[0-9.]/]:not(BinaryExpression[operator='/'] > Literal.right):not(MemberExpression > Literal.property)`;
+const RAW_NUMBER = `Literal[raw=/^(?!0(\\.0*)?$)[0-9.]/]:not(BinaryExpression[operator='/'] > Literal.right[value=2]):not(MemberExpression > Literal.property)`;
 const SPACING_MESSAGE = 'spacing: a space step or a layout role, not a number (styles/designTokens.js)';
 
 module.exports = {

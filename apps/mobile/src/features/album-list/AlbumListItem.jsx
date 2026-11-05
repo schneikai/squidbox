@@ -1,11 +1,12 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text as RNText } from 'react-native';
 
 import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
+import Text from '@/components/Text';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
 import cornerStyles from '@/styles/cornerStyles';
-import { layout, space, textStyles } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -20,13 +21,13 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
       </CoverImage>
 
       {Boolean(album.archivedAt) && <Badge label="Archived" tone="danger" style={styles.archived} />}
-      <Text style={[textStyles.footnoteBold, styles.albumTitle]} numberOfLines={1} ellipsizeMode="tail">
+      <Text variant="label" tone="primary" numberOfLines={1} style={styles.albumTitle}>
         {album.name}
       </Text>
       <View style={styles.metaRow}>
-        <Text style={[listTextStyles.caption, styles.metaCount]} numberOfLines={1}>
+        <RNText style={[listTextStyles.caption, styles.metaCount]} numberOfLines={1}>
           {pluralizeText('1 Asset', '%{count} Assets', album.assetCount)}
-        </Text>
+        </RNText>
         {showLastPostedAt && <AlbumLastPostedAt album={album} style={styles.metaPosted} numberOfLines={1} />}
       </View>
     </View>

@@ -20,7 +20,7 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => pressed && press.flat}>
-      <Card style={styles.row}>
+      <Card padded style={styles.row}>
         <CoverImage asset={first} style={styles.photo} />
         <View style={styles.body}>
           {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
@@ -41,8 +41,6 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: space.md,
-    padding: space.md,
   },
   photo: {
     width: scale(72),
