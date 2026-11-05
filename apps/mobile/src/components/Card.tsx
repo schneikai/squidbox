@@ -1,6 +1,11 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, type ViewProps } from 'react-native';
 
 import { colors, layout, radii, shadows } from '@/styles/designTokens';
+
+type CardProps = ViewProps & {
+  padded?: boolean;
+  hasControlRow?: boolean;
+};
 
 /**
  * The standard card: an opaque white surface resting on the page with a soft shadow, no border.
@@ -13,7 +18,7 @@ import { colors, layout, radii, shadows } from '@/styles/designTokens';
  * the inset under it and the gap above it, so its glyphs sit cardGap from the text and cardInset
  * from the edge.
  */
-export default function Card({ padded = false, hasControlRow = false, children, style, ...rest }) {
+export default function Card({ padded = false, hasControlRow = false, children, style, ...rest }: CardProps) {
   return (
     <View style={[styles.card, padded && styles.padded, hasControlRow && styles.controlRow, style]} {...rest}>
       {children}

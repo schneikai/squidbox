@@ -280,6 +280,7 @@ export const lineHeights = {
 // Apple's iOS text styles at their default (Large) sizes with their line heights: caption2,
 // footnote, subheadline and body in regular and semibold, `reading` (body, looser) for long text
 // someone reads or writes, and the two titles, bold. Every text in the app is one of these.
+/** @satisfies {Record<string, import('react-native').TextStyle>} */
 export const textStyles = {
   caption2: { fontSize: typography.caption2, lineHeight: lineHeights.caption2 }, // a log's details
   // a badge over a thumbnail, a toolbar's subtitle, a grid cell's label

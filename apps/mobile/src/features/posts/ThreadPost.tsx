@@ -1,7 +1,23 @@
+import type { ComponentProps } from 'react';
+
 import PostRowCard from './PostRowCard';
 
 import Text from '@/components/Text';
+import type { AssetRow, PostRow } from '@/sync/db/schema';
 import isPresent from '@/utils/isPresent';
+
+type PostRowCardProps = ComponentProps<typeof PostRowCard>;
+
+type ThreadPostProps = {
+  post: Pick<PostRow, 'text'> & { postAssets: { asset: AssetRow }[] };
+  onOpenAsset?: (asset: AssetRow) => void;
+  isTextSelectable?: boolean;
+  entering?: PostRowCardProps['entering'];
+  exiting?: PostRowCardProps['exiting'];
+  style?: PostRowCardProps['style'];
+  contentStyle?: PostRowCardProps['contentStyle'];
+  contentExiting?: PostRowCardProps['contentExiting'];
+};
 
 /**
  * A following post of a thread as a row card (the post screen, an unfolded thread in the posts
@@ -21,7 +37,7 @@ export default function ThreadPost({
   style,
   contentStyle,
   contentExiting,
-}) {
+}: ThreadPostProps) {
   const [first, ...more] = post.postAssets.map((postAsset) => postAsset.asset);
 
   return (

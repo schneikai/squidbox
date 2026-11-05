@@ -14,6 +14,8 @@
  * lucide-react-native's barrel (see there).
  */
 
+import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
+
 import {
   Archive,
   ArrowDown,
@@ -188,18 +190,19 @@ const ICON_MAP = {
 };
 
 // Every name an Icon takes, e.g. for the component gallery.
-export const ICON_NAMES = Object.keys(ICON_MAP);
+export const ICON_NAMES = Object.keys(ICON_MAP) as IconName[];
 
-/**
- * @param {{
- *   name: string,
- *   size?: number,
- *   color?: string,
- *   filled?: boolean,
- *   style?: import('react-native').StyleProp<import('react-native').ViewStyle>,
- * }} props
- */
-export default function Icon({ name, size = sizes.icon, color, filled, style }) {
+export type IconName = keyof typeof ICON_MAP;
+
+type IconProps = {
+  name: IconName;
+  size?: number;
+  color?: ColorValue;
+  filled?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+export default function Icon({ name, size = sizes.icon, color, filled, style }: IconProps) {
   const IconComponent = ICON_MAP[name];
 
   if (!IconComponent) {

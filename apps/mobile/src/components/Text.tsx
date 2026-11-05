@@ -1,6 +1,18 @@
-import { Text as RNText, StyleSheet } from 'react-native';
+import type { ReactNode } from 'react';
+import { Text as RNText, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
 
 import { colors, textStyles } from '@/styles/designTokens';
+
+type TextProps = {
+  variant?: keyof typeof styles;
+  size?: 'regular' | 'small';
+  tone?: keyof typeof toneStyles;
+  children?: ReactNode;
+  selectable?: boolean;
+  numberOfLines?: number;
+  accessibilityLabel?: string;
+  style?: StyleProp<TextStyle>;
+};
 
 /**
  * Text in one of the app's roles. `variant` is what the text is:
@@ -29,10 +41,10 @@ export default function Text({
   numberOfLines,
   accessibilityLabel,
   style,
-}) {
+}: TextProps) {
   return (
     <RNText
-      style={[styles[variant], size === 'small' && styles[`${variant}Small`], tone && toneStyles[tone], style]}
+      style={[styles[variant], size === 'small' && smallStyles[variant], tone && toneStyles[tone], style]}
       selectable={selectable}
       numberOfLines={numberOfLines}
       accessibilityLabel={accessibilityLabel}
@@ -47,7 +59,6 @@ const styles = StyleSheet.create({
     ...textStyles.reading,
     color: colors.text.primary,
   },
-  readingSmall: textStyles.subheadline,
   hint: {
     ...textStyles.footnote,
     color: colors.text.secondary,
@@ -56,12 +67,10 @@ const styles = StyleSheet.create({
     ...textStyles.footnoteBold,
     color: colors.text.secondary,
   },
-  labelSmall: textStyles.caption2Bold,
   title: {
     ...textStyles.bodyBold,
     color: colors.text.primary,
   },
-  titleSmall: textStyles.subheadlineBold,
   status: {
     ...textStyles.subheadline,
     color: colors.text.secondary,
@@ -74,7 +83,14 @@ const styles = StyleSheet.create({
     ...textStyles.footnoteBold,
     color: colors.accent.base,
   },
-  errorSmall: textStyles.footnote,
+});
+
+// `size="small"`: the smaller size of a role that has one.
+const smallStyles: Partial<Record<keyof typeof styles, TextStyle>> = StyleSheet.create({
+  reading: textStyles.subheadline,
+  label: textStyles.caption2Bold,
+  title: textStyles.subheadlineBold,
+  error: textStyles.footnote,
 });
 
 const toneStyles = StyleSheet.create({

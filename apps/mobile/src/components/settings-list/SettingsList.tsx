@@ -1,5 +1,12 @@
-import { Children } from 'react';
-import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
+import { Children, isValidElement, type ReactNode } from 'react';
+import {
+  Pressable,
+  Text as RNText,
+  StyleSheet,
+  View,
+  type AccessibilityRole,
+  type AccessibilityState,
+} from 'react-native';
 
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
@@ -10,13 +17,15 @@ import { colors, layout, press, sizes, space, textStyles } from '@/styles/design
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
 
+type SectionProps = { children: ReactNode; isHeaderless?: boolean };
+
 // `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
-export function Section({ children, isHeaderless = false }) {
+export function Section({ children, isHeaderless = false }: SectionProps) {
   const kids = Children.toArray(children);
   return (
     <Card style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
-        <View key={child.key ?? i}>
+        <View key={(isValidElement(child) && child.key) || i}>
           {child}
           {i < kids.length - 1 && <Divider />}
         </View>
@@ -25,14 +34,32 @@ export function Section({ children, isHeaderless = false }) {
   );
 }
 
+type SectionFooterProps = { children: ReactNode };
+
 // iOS-style small gray explanatory text shown BELOW a grouped section.
-export function SectionFooter({ children }) {
+export function SectionFooter({ children }: SectionFooterProps) {
   return (
     <Text variant="hint" style={styles.footer}>
       {children}
     </Text>
   );
 }
+
+type RowProps = {
+  label: ReactNode;
+  description?: ReactNode;
+  leading?: ReactNode;
+  value?: string | null;
+  onPress?: () => void;
+  disabled?: boolean;
+  colorPalette?: 'danger';
+  hasChevron?: boolean;
+  isSelected?: boolean;
+  size?: 'regular' | 'small';
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
+  children?: ReactNode;
+};
 
 // The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
 // guidance prefers over truncating or shrinking text.
@@ -57,7 +84,7 @@ export function Row({
   accessibilityRole = 'button',
   accessibilityState,
   children,
-}) {
+}: RowProps) {
   const content = (
     <View style={[styles.row, size === 'small' && styles.rowSmall]}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}

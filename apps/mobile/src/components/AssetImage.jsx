@@ -29,6 +29,17 @@ function rememberShown(uri) {
 // `status` is getAssetThumbnailStatusAsync's once known. A
 // thumbnail its device hasn't backed up yet gets a crossed-out cloud on the placeholder while
 // `showNotUploaded`. `uri` shows that picture (a data URL, say) in place of an asset's thumbnail.
+// Every prop is optional (its types below, for the TypeScript files that render it).
+/**
+ * @param {{
+ *   asset?: object | null,
+ *   uri?: string,
+ *   contentFit?: 'cover' | 'contain',
+ *   placeholderColor?: string,
+ *   renderOverlay?: (hasPicture: boolean, status?: string) => import('react').ReactNode,
+ *   showNotUploaded?: boolean,
+ * }} props
+ */
 export default function AssetImage({
   asset = {},
   uri,

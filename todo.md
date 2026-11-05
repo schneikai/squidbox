@@ -179,8 +179,8 @@ so a better wording can be tried and published.
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
 - **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.js`, an
   alias of `layout.sideGutter`) still stands in 19 files, to become `layout.sideGutter` once the TS
-  migration is done with them; and `AssetQuickViewModal`'s `paddingVertical: 50` is a safe-area
-  inset in disguise, to take the real insets.
+  migration is done with them; and `QuickViewHost`'s `paddingVertical: 50`
+  (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.
 
 ## Code quality
 

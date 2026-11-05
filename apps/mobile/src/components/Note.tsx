@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type AccessibilityRole, type StyleProp, type ViewStyle } from 'react-native';
 
-import Icon from '@/components/Icon';
+import Icon, { type IconName } from '@/components/Icon';
 import { colors, layout, lineHeights, radii, sizes, space } from '@/styles/designTokens';
 
 type NoteProps = {
   tone: 'warning' | 'tint' | 'muted';
-  icon?: string;
+  icon?: IconName;
   trailing?: ReactNode;
   accessibilityRole?: AccessibilityRole;
   style?: StyleProp<ViewStyle>;
