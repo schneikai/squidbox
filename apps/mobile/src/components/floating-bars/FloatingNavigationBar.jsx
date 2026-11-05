@@ -11,9 +11,10 @@ import { layout, motion } from '@/styles/designTokens';
 
 // Keyed by the tab's route name (`app/(main)/(tabs)/`).
 const NAV_ITEMS = [
-  { key: 'index', href: '/', icon: 'grid', label: 'Library' },
-  { key: 'albums', href: '/albums', icon: 'folder', label: 'Albums' },
-  { key: 'posts', href: '/posts', icon: 'share-alt', label: 'Posts' },
+  { key: 'index', href: '/', icon: 'image', label: 'Library' },
+  { key: 'albums', href: '/albums', icon: 'images', label: 'Albums' },
+  { key: 'posts', href: '/posts', icon: 'send', label: 'Posts' },
+  { key: 'contacts', href: '/contacts', icon: 'id-card', label: 'Contacts' },
 ];
 
 const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]));

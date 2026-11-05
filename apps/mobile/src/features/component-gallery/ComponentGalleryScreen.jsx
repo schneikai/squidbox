@@ -39,9 +39,10 @@ import { colors, radii, sizes } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const TAB_ITEMS = [
-  { key: 'library', icon: 'grid', label: 'Library' },
-  { key: 'albums', icon: 'folder', label: 'Albums' },
-  { key: 'posts', icon: 'share-alt', label: 'Posts' },
+  { key: 'library', icon: 'image', label: 'Library' },
+  { key: 'albums', icon: 'images', label: 'Albums' },
+  { key: 'posts', icon: 'send', label: 'Posts' },
+  { key: 'contacts', icon: 'id-card', label: 'Contacts' },
 ];
 
 const noop = () => {};
