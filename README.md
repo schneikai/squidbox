@@ -16,6 +16,10 @@ The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`
 
 CI (`.github/workflows/ci.yml`) checks every push and pull request to `main`. Locally: `npm run check` while working (what changed since main, failures only), `npm run check:all` before a PR (lint, format, typecheck, knip and the plain tests over the whole repo), and for the DB tests, with the compose Postgres up and migrated (`npm run compose:up` and `npm run db:migrate` in `apps/server`), `npm run test:db -w apps/server` and `npm run test:e2e -w apps/mobile`. Plain `npm test` skips the DB-backed suites, and the seeded fuzz tests run a tenth of their cases; `FUZZ_DEEP=1` runs them all, as CI does.
 
+## Contacts
+
+The Contacts tab keeps the people you work with: name, photo, X, Bluesky, OnlyFans and JFF handles, phone (open on WhatsApp), places, notes and favorites, in lists of your own. A photo, an album or a post shows the contacts on it, and a contact the photos, albums and posts they are on. New contact fills itself from a copied X link or, with the assistant, from a screenshot of an X profile (`POST /ai/contact-from-screenshot`), and warns about a contact you already have. Contacts sync like everything else; their photos back up with "Back up now" (`docs/sync-design.md` §7a, §10).
+
 ## Multi-device sync
 
 The app keeps an on-device SQLite database (expo-sqlite + Drizzle) and syncs with the backend via generic pull/push: per-field last-writer-wins, tombstones for deletes, an outbox for local changes, and a cursor for incremental pulls. Collection descriptors are defined in `packages/shared`.
@@ -83,7 +87,7 @@ The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is wh
 
 ### Dev client
 
-The dev client loads JS from Metro at runtime over Expo's tunnel (an `on.expo.app` URL, through your Expo account: signed in with `eas login`, or `EXPO_TOKEN` in the cloud; it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums and posts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):
+The dev client loads JS from Metro at runtime over Expo's tunnel (an `on.expo.app` URL, through your Expo account: signed in with `eas login`, or `EXPO_TOKEN` in the cloud; it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums, posts and contacts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):
 
 ```
 npm run dev:local                    # start

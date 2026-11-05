@@ -450,6 +450,19 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
 - The upload queue (`readUnsyncedIds`) selects assets that are not `isSynced`, not deleted, not
   purged and have no `syncError`; the backup run then skips any with an outbox row (§8). It does not
   check that the local file exists; a missing file fails the upload and sets `syncError`.
+- **Contact photos** are the second kind of backed-up file. A photo is a 512 px square JPEG in the
+  library's `avatars/` folder (`LibraryPaths.avatarsDir`), its S3 key its flat name
+  `avatar-<contactId>-<n>.jpg`, a new `n` per new photo, so a device holding the old one never shows
+  it for the new. Only the name and `isAvatarSynced` sync, as one field group. "Back up now" uploads
+  them after the assets (`backupAvatars` in `sync/backupRun.ts`, over `readUnsyncedAvatarIds`: a live
+  contact with a photo not uploaded), skipping a contact with an outbox row like an asset, and marks
+  each uploaded unless the contact got another photo or was deleted meanwhile (`markAvatarSynced`).
+  Contacts have no `syncError`: a failed upload is logged and tried again on the next run, still
+  counted as waiting (`useBackupCounts`, and so the sign-out warning). The local copy stays after
+  the upload (photos are small and shown everywhere); another device fetches a backed-up one it
+  lacks through the avatar loader (`ContactAvatarLoaderProvider`, the thumbnails' queue keyed on
+  `avatarFilename`). A changed or removed photo deletes the old local file; its S3 copy stays (no
+  cleanup yet: each is a few dozen KB).
 
 ---
 
@@ -603,7 +616,12 @@ backs it up and keeps it in sync, and signing out only pauses that.
   the target's pending clocks, and what applies goes into its outbox through `saveRecords` with the
   source's clocks; it and the camera-roll matches' merges are made again inside the commit's
   transaction, onto the rows as they are then, so an edit made on the open target meanwhile isn't
-  set back.
+  set back. Contacts, contact lists and their edges come over by id like albums and posts (no file
+  to match them on); a link to a photo matched into an account photo is re-pointed at it, and edges
+  the target has live are skipped. A copied contact whose photo the source holds has it moved into
+  the target's `avatars/` folder (`MergePlan.avatars`) and is marked not backed up, so the account's
+  backup uploads it; a photo only in another account's storage is dropped, as the account can't
+  fetch it.
   - **The merge model** (`planMerge`, `applyMerge`, `mergeLibrary`): the source learns a decision
     only once the target has pushed it.
     - A committed pass marks each source record it decided on (`mergeMarks:<source>`, `MergeMark` in
@@ -852,6 +870,25 @@ columns. One record per album and asset.
 **post_assets** (assets in a post). Synced: `postId`, `assetId`, `position`, plus the base
 columns. The edge id is the `assetRefs[].id` the UI sees.
 
+**contacts** (the Contacts tab: the people the user works with). Synced: `name`, `isFavorite`,
+`favoritedAt` (when it was favorited, null once unfavorited; one field group with `isFavorite`),
+`notes`, `xHandle`, `blueskyHandle`, `onlyFansHandle`, `jffHandle` (stored without `@` or a URL,
+`normalizeHandle` in `packages/shared`), `phoneNumber`, `places` (a list of free-text places,
+"Squamish, Canada"; JSON, merges as one value), `avatarFilename` and `isAvatarSynced` (the photo,
+§7a; one field group), plus the base columns. Deleting a contact tombstones it and its edges in one
+transaction (`setContactDeleted`).
+
+**contact_lists** (Contacts → Lists). Synced: `name`, `notes`, `position` (null: kept for a later
+custom order, not written; lists are shown by name), plus the base columns. Deleting a list
+tombstones it and its members.
+
+**contact_list_members** (list membership) and **contact_links** (the contacts on a photo, album or
+post: `targetType` `asset` | `album` | `post` and `targetId`). Synced: `listId` / the target, and
+`contactId`, plus the base columns. One live record per pair. Both are written through one membership
+repository (`makeMembershipRepository` in `sync/membershipRepository.ts`): adding a pair the parent
+had restores its newest tombstone instead of inserting another, and `set` makes exactly the given
+contacts the parent's. Server 0031, app 0031.
+
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks
 the default writing model while none is chosen, `resolveModelId` on the server and in the app;
@@ -897,7 +934,8 @@ system message, filled with the persona, a sample of the user's posts and the po
 its prompt box, without system instructions), `visionTagging` (the photo tags briefing, the system
 message of every tags request, filled with Your content's themes; a Compare sends its prompt box
 instead, without them), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
-a writing Verify asks its judge after each chat turn), templates the server fills in, each that
+a writing Verify asks its judge after each chat turn) and `contactScreenshot` (the system message of a
+New contact's Get info from screenshot, no placeholders; optional, server 0032, app 0032), templates the server fills in, each that
 account's override or null for the app's default (the text published for every account in the
 server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
 `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the

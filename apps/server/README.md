@@ -14,8 +14,10 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
 - **Files:** presigned GET downloads, server-proxied streaming uploads with server-side multipart,
   and batch delete.
 - **Sync:** `/sync/pull` and `/sync/push`.
-- **AI:** `/ai/models` (Venice's live model list, cached 5 minutes) and the blind model compare
-  `/ai/compare/writing` and `/ai/compare/vision`, behind Venice's chat API
+- **AI:** `/ai/models` (Venice's live model list, cached 5 minutes), the blind model compare
+  `/ai/compare/writing` and `/ai/compare/vision`, and `POST /ai/contact-from-screenshot` (a New
+  contact's Get info from screenshot: the name, handles, phone and places read from an X profile
+  screenshot, the handles normalized), behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
   Only accounts with the `ai` feature may use them (others get 403 `ai_not_allowed`), and the
@@ -71,7 +73,8 @@ MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 
 `npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from picsum.photos
 (landscape and portrait), short stock videos with music, albums (including Favorites and Deleted),
-posts, and the assistant setup of the guy they belong to, who posts his outdoor photos on Bluesky (Writing as you, the prompt
+posts, the people he hikes, shoots and sells prints with (five contacts, two favorites, one with a
+photo, in two lists, on a photo, an album and a post), and the assistant setup of the guy they belong to, who posts his outdoor photos on Bluesky (Writing as you, the prompt
 buttons, Favorites, Instructions on the defaults). Ids are deterministic, so re-running resets the account to exactly that set. It refuses to run
 against a non-local API.
 
