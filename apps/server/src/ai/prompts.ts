@@ -227,6 +227,11 @@ export function writingBriefingText(
   });
 }
 
+/** A photo sent in a request body (`{ base64, mimeType }`) as the data URL a vision message carries. */
+export function imageDataUrl({ base64, mimeType }: { base64: string; mimeType: string }): string {
+  return `data:${mimeType};base64,${base64}`;
+}
+
 /**
  * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
  * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line

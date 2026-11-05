@@ -317,6 +317,7 @@ without file edits first. A `delete` row uploads nothing: a contact made with a 
 before any sync pushes a tombstone that may name a file the storage lacks (nothing shows a deleted
 contact; a Restore, when it comes, must treat a named file as possibly missing). A removed photo
 (null) uploads nothing. The server changes nothing for it.
+
 - **Refused** (`FileUploadRefusedError`): what fails the same way next time, an upload answered
   `400`, `403` (the dev library copy's `read_only_library`), `404`, `410` or `413`, or a file
   missing from the device. The row gets the error ("Contact photo upload refused (…)", "Contact
@@ -420,7 +421,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
     `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneParent`); deleting a thread does so for every post of it (`removeThread`). Deleting or purging an asset does not touch its edges, so a restore puts
+    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThread`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
     post still shows a deleted one (it can come back) but never a purged one, and ids that don't
     resolve are skipped.
@@ -485,10 +486,11 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   check that the local file exists; a missing file fails the upload and sets `syncError`.
 - **Contact photos** sync with their contacts, not through the backup run: `avatarFilename` is a file
   field (§4, §6). A photo is a 512 px square JPEG in the library's `avatars/` folder
-  (`LibraryPaths.avatarsDir`), its S3 key its flat name `avatar-<contactId>-<n>.jpg`, a new `n` per
+  (`LibraryPaths.avatarsDir`), its S3 key its flat name `avatar-<contactId>-<id>.jpg`, a new id per
   new photo, so a device holding the old one never shows it for the new. The sync uploads it before
   it pushes the contact, so every device that pulls the name can fetch the file: lazily, through the
-  avatar loader (`ContactAvatarLoaderProvider`, the thumbnails' queue keyed on `avatarFilename`). The
+  avatar loader (`loadAvatar` of `AssetThumbnailLoaderProvider`, a second queue beside the
+  thumbnails' one, keyed on `avatarFilename`, both through `preloadFilesAsync`). The
   local copy stays after the upload (photos are small and shown everywhere). A changed or removed
   photo deletes the old local file; an upload of the old file cut by that delete fails as a transient
   error, and the next run uploads the new one. The old S3 copy stays (no cleanup yet: each is a few
@@ -524,14 +526,14 @@ Tables (`apps/mobile/src/sync/db/schema.ts`):
 - `sync_meta(key, value)`: `cursor`, `status`, `firstSyncDone`, `owner` (whose library this
   database is, JSON, so the library list can be rebuilt from the databases), and in a device
   library merged into an account's: `mergedInto` (the merge marker, JSON `{ library, serverId,
-  userId, committed? }`: the library a merge pass is adding it to and its account, `committed` once
+userId, committed? }`: the library a merge pass is adding it to and its account, `committed` once
   a pass committed or moved files there, §7a, `library/mergeMarker.ts`), `keptFor` (the library it joined and stays
   beside) and, once the target has pushed, `mergeMarks:<its database>` (the decisions of its merge
   passes, until the source goes). The target holds `mergeMarks:<source>` from each pass's commit,
   and `mergeCommitted:<source>` (what the merge waits for, `MergeCommit`), until the merge finishes
   (§8). `lastSyncUserId`, from before libraries, is left unread.
 - `outbox(id, collection, record_id, op, payload, fields, whole_record, updated_at, created_at,
-  error)`: pending mutations, one row per record. `op` is `delete` when the payload has
+error)`: pending mutations, one row per record. `op` is `delete` when the payload has
   `deletedAt`, otherwise `upsert`. `fields` is the changed fields with their clocks (§6);
   `whole_record` marks a row from before per-field merge, pushed without them (§7). `error` is why
   the server rejected the payload (§6), null while it waits to be pushed.
@@ -650,11 +652,11 @@ backs it up and keeps it in sync, and signing out only pauses that.
   set back. Contacts, contact lists and their edges come over by id like albums and posts (no file
   to match them on); a link to a photo matched into an account photo is re-pointed at it, and edges
   the target has live are skipped. A copied contact whose photo the source holds has it moved into
-  the target's `avatars/` folder (`MergePlan.avatars`), and the account's sync uploads it before it
+  the target's `avatars/` folder (`MergePlan.fieldFiles`, by each file field's folder), and the account's sync uploads it before it
   pushes the contact (§6); a photo the source doesn't hold (only in another account's storage) is
   dropped, as the account can't fetch it, and a device edit naming one isn't replayed. Once a pass
   has moved a contact's photo, that contact's push, if the sync had held it back as missing, is
-  tried again (`retriedContacts`, `clearOutboxErrors`), next to the assets' `retried`.
+  tried again (`retriedRows` by collection, `setOutboxError`), next to the assets' `retried`.
   - **The merge model** (`planMerge`, `applyMerge`, `mergeLibrary`): the source learns a decision
     only once the target has pushed it.
     - A committed pass marks each source record it decided on (`mergeMarks:<source>`, `MergeMark` in
@@ -721,18 +723,18 @@ backs it up and keeps it in sync, and signing out only pauses that.
     once) and repairs the list. A source whose earlier target is gone joins a new library of the
     same account by the rules above. A kept source keeps no marks (nothing reads them), and the
     target's go before `keptFor` is set.
-  Before the source is removed, every file it holds for a record that ends up in the account is in
-  the target's folders or in the cloud: the files of the assets that end in the target by id, live
-  or with a purge still pending (never of one purged there for good), and, for a camera-roll match
-  whose record has no file or thumbnail in the cloud and no confirmed purge, the device's copy, moved
-  under the record's names (each destination once); its backup uploads it, a sync error it had
-  cleared. The same merge runs again at every boot while an
-  unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
-  that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, which leaves
-  a source marked for a listed library to it, inside `withSyncPaused`), so one that failed or that a
-  crash interrupted finishes then. A device library with photos
-  whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
-  merge completed, and never merged again, so it never joins a second account.
+    Before the source is removed, every file it holds for a record that ends up in the account is in
+    the target's folders or in the cloud: the files of the assets that end in the target by id, live
+    or with a purge still pending (never of one purged there for good), and, for a camera-roll match
+    whose record has no file or thumbnail in the cloud and no confirmed purge, the device's copy, moved
+    under the record's names (each destination once); its backup uploads it, a sync error it had
+    cleared. The same merge runs again at every boot while an
+    unmerged device library exists (`runPendingMerges`: `resumeMerges`, which skips a marked source
+    that is the open library and goes on after a failed one, then `mergeDeviceLibrary`, which leaves
+    a source marked for a listed library to it, inside `withSyncPaused`), so one that failed or that a
+    crash interrupted finishes then. A device library with photos
+    whose file lives in another account's storage is kept, recorded as `keptFor` the account once its
+    merge completed, and never merged again, so it never joins a second account.
 - **Signing out** drops the tokens and nothing else (`dropTokensAsync`, then a best-effort
   revoke): the same library stays open and editable, writes queue in its outbox and photos wait for
   the backup, and all of it uploads when its owner signs in again. Settings asks once, and only
@@ -856,7 +858,8 @@ SQLite tables are declared by hand per dialect from the same field list.
    in `clientCollections.ts`, and generate the SQLite migration.
 4. Add a sample record to the registry guard test.
 5. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
-   `apps/mobile/src/sync/fileUploads.ts`.
+   `apps/mobile/src/library/fileFields.ts` (the folders, the uploads, the loader and the merge
+   read it).
 
 Pull, push, outbox, apply and conflict handling then work unchanged.
 
@@ -917,8 +920,8 @@ columns. The edge id is the `assetRefs[].id` the UI sees.
 §4, §6, §7a), plus the base columns. Deleting a contact tombstones it and its edges in one
 transaction (`setContactDeleted`).
 
-**contact_lists** (Contacts → Lists). Synced: `name`, `notes`, `position` (null: kept for a later
-custom order, not written; lists are shown by name), plus the base columns. Deleting a list
+**contact_lists** (Contacts → Lists). Synced: `name`, `notes`, plus the base columns; lists are
+shown by name. Deleting a list
 tombstones it and its members.
 
 **contact_list_members** (list membership) and **contact_links** (the contacts on a photo, album or
@@ -1088,7 +1091,7 @@ counts the assets whose upload failed). The sync error viewer
 and why, with Retry All: from the Library sync screen the failed pushes (`readPushFailures`, named
 after the record: `Album "Trips"`, `Post "First words…"`, `Photo in album "Trips"`), from the Backup
 screen the failed uploads. A contact's failed row (`Contact "Maya"`, its photo's upload refused)
-opens the contact (its `href`), where the photo can be chosen again or removed: the row holds the
+opens the contact (its `href`; a failed album, post or list row opens it too), where the photo can be chosen again or removed: the row holds the
 contact's other edits with it until then. The dev library copy takes pushes but refuses uploads, so
 a contact photo added in a copy is listed here, and tried again once per foreground. The viewer
 closes itself once nothing has failed. Only Clear outbox
@@ -1101,8 +1104,8 @@ The "Library sync" screen (`apps/mobile/src/features/sync-status/SyncScreen.jsx`
 
 - **Status:** current status, last sync time, **View errors** (above, while pushes have failed)
   and **Sync now**.
-- **Developer:** cursor, pending count, and records / pending / tombstones for `assets`,
-  `albums` and `posts`.
+- **Developer:** cursor, pending count, and records / pending / tombstones for every
+  collection in `clientCollectionTables`.
 - **Sync log:** the last 30 runs with counts, duration, notes and errors.
 - **Troubleshooting:**
   - **Rebuild from server** (`fullResync`): keeps the outbox, wipes the collection tables, resets

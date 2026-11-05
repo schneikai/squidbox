@@ -1,8 +1,9 @@
-import { count, desc } from 'drizzle-orm';
+import { count, desc, sql } from 'drizzle-orm';
 
+import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
+import type { SyncDb } from './db/types';
 import { useLiveQuery } from './useLiveQuery';
-import { useRecordCounts } from './useRecordCounts';
 
 // Reactive data for the Sync Inspector, counted and ordered in SQL.
 
@@ -16,14 +17,27 @@ export interface CollectionStats {
 const SYNC_LOG_SHOWN = 30;
 const NO_ROWS: never[] = [];
 
+const COLLECTIONS = Object.entries(clientCollectionTables);
+const TABLES = COLLECTIONS.map(([, table]) => table);
+
+// Every collection's live records and tombstones, read together.
+function readCounts(db: SyncDb) {
+  return Promise.all(
+    COLLECTIONS.map(async ([name, table]) => {
+      const [row] = await db
+        .select({
+          records: sql<number>`count(*) filter (where deleted_at is null)`,
+          tombstones: sql<number>`count(*) filter (where deleted_at is not null)`,
+        })
+        .from(table);
+      return { collection: name, records: Number(row?.records ?? 0), tombstones: Number(row?.tombstones ?? 0) };
+    }),
+  );
+}
+
+/** Each registered collection's records, tombstones and pending changes, in registry order. */
 export function useCollectionStats(): CollectionStats[] {
-  const assets = useRecordCounts(schema.assets);
-  const albums = useRecordCounts(schema.albums);
-  const posts = useRecordCounts(schema.posts);
-  const contacts = useRecordCounts(schema.contacts);
-  const contactLists = useRecordCounts(schema.contactLists);
-  const contactListMembers = useRecordCounts(schema.contactListMembers);
-  const contactLinks = useRecordCounts(schema.contactLinks);
+  const counts = useLiveQuery(readCounts, TABLES) ?? NO_ROWS;
   const pending =
     useLiveQuery(
       (db) =>
@@ -34,22 +48,14 @@ export function useCollectionStats(): CollectionStats[] {
       [schema.outbox],
     ) ?? NO_ROWS;
 
+  const countsByCollection = new Map(counts.map((row) => [row.collection, row]));
   const pendingByCollection = new Map(pending.map((row) => [row.collection, row.count]));
-  const stat = (name: string, counts: { records: number; tombstones: number }): CollectionStats => ({
+  return COLLECTIONS.map(([name]) => ({
     name,
-    ...counts,
+    records: countsByCollection.get(name)?.records ?? 0,
+    tombstones: countsByCollection.get(name)?.tombstones ?? 0,
     pending: pendingByCollection.get(name) ?? 0,
-  });
-
-  return [
-    stat('assets', assets),
-    stat('albums', albums),
-    stat('posts', posts),
-    stat('contacts', contacts),
-    stat('contact_lists', contactLists),
-    stat('contact_list_members', contactListMembers),
-    stat('contact_links', contactLinks),
-  ];
+  }));
 }
 
 export function useSyncLogRows(): schema.SyncLogRow[] {

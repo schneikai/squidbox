@@ -4,7 +4,7 @@ import type { ContactFromScreenshotResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
-import { visionMessages } from './prompts.js';
+import { imageDataUrl, visionMessages } from './prompts.js';
 import { contactFromScreenshotTask, runChosenModelTask } from './tasks.js';
 
 /**
@@ -28,7 +28,7 @@ export async function readContactScreenshotAsync({
     const instructions = await readInstructions(db, user);
     return visionMessages({
       prompt: instructions.contactScreenshot,
-      imageDataUrl: `data:${image.mimeType};base64,${image.base64}`,
+      imageDataUrl: imageDataUrl(image),
     });
   }
   return runChosenModelTask({

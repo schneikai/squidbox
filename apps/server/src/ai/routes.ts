@@ -37,7 +37,7 @@ import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readContactScreenshotAsync } from './contactFromScreenshot.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
-import { compareVisionMessages, writingMessages } from './prompts.js';
+import { compareVisionMessages, imageDataUrl, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
@@ -360,10 +360,9 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         schema: { body: compareVisionRequestSchema, response: { 200: compareVisionResponseSchema } },
         handler: async (request, reply) => {
           const signal = untilClientLeaves(reply);
-          const { base64, mimeType } = request.body.image;
           const messages = compareVisionMessages({
             prompt: request.body.prompt,
-            imageDataUrl: `data:${mimeType};base64,${base64}`,
+            imageDataUrl: imageDataUrl(request.body.image),
             earlierRounds: request.body.earlierRounds,
           });
           const results = await compareRequested(request.body.modelIds, 'vision', (models) =>

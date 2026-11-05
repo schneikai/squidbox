@@ -50,7 +50,7 @@ const handleSchemas = Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [f
 
 // `contacts` — the people the user works with (the Contacts tab). The handles are stored without
 // `@` or a URL (normalizeHandle); `places` is a list of free-text places ("Squamish, Canada") that
-// merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<n>.jpg`) that
+// merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<new id>.jpg`) that
 // `avatarFilename` names, null without a photo: a file field, so the sync uploads the file before the
 // record is pushed; a new photo gets a new name, so a device holding the old one never shows it for
 // the new. Deletion is a `deletedAt` tombstone, which Restore undoes.
