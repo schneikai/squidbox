@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert } from 'react-native';
 
 import copyLiveLibraryAsync from './copyLiveLibraryAsync';
+import devAccountsFromEnv, { type DevAccount } from './devAccountsFromEnv';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
@@ -11,15 +12,15 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 // The local backend's accounts, which `npm run dev:local` passes in: the mock library and the copy of
 // the owner's live library (`isLiveLibraryCopy`), made the first time it opens. Unset in every other
 // bundle.
-const DEV_ACCOUNTS = process.env.EXPO_PUBLIC_DEV_ACCOUNTS ? JSON.parse(process.env.EXPO_PUBLIC_DEV_ACCOUNTS) : [];
+const DEV_ACCOUNTS = devAccountsFromEnv(process.env.EXPO_PUBLIC_DEV_ACCOUNTS);
 
 // One tap signs in as a local account, also while another one is signed in: its library opens and the
 // other one is parked, like any sign-in as someone else.
 export default function DevAccountsSection() {
   const { isAuthenticated, user, loginAsync } = useCloud();
-  const [pendingEmail, setPendingEmail] = useState(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  async function handleSignIn(account) {
+  async function handleSignIn(account: DevAccount) {
     setPendingEmail(account.email);
     try {
       if (account.isLiveLibraryCopy) await copyLiveLibraryAsync(account);

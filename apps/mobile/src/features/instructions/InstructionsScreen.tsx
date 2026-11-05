@@ -1,4 +1,4 @@
-import { INSTRUCTION_KINDS } from '@squidbox/shared';
+import { INSTRUCTION_KINDS, type InstructionKind } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 
 import instructionText from './instructionText';
@@ -20,7 +20,7 @@ export default function InstructionsScreen() {
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { changedKinds, error, retry } = useInstructions();
 
-  function row(kind) {
+  function row(kind: InstructionKind) {
     return (
       <Row
         key={kind}

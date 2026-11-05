@@ -65,7 +65,6 @@ All paths are under `apps/mobile/src/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
 - `features/<feature>/`: screens and their building blocks, grouped by feature; `app/` (Expo
   Router) holds the routes, thin files that render a feature's screen.
-- `obsolete-code/`: never copy patterns from it.
 
 ## Toolbars
 
