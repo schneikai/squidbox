@@ -229,6 +229,91 @@ export const modelChoices = sqliteTable('model_choices', {
 });
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 
+// Contacts (mirror @squidbox/shared contacts / contact_lists / contact_list_members / contact_links).
+// `places` is JSON text that merges as one value.
+export const contacts = sqliteTable(
+  'contacts',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    name: text('name').notNull(),
+    isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
+    favoritedAt: integer('favorited_at'),
+    notes: text('notes'),
+    xHandle: text('x_handle'),
+    blueskyHandle: text('bluesky_handle'),
+    onlyFansHandle: text('only_fans_handle'),
+    jffHandle: text('jff_handle'),
+    phoneNumber: text('phone_number'),
+    places: text('places', { mode: 'json' }).$type<string[]>().notNull(),
+    avatarFilename: text('avatar_filename'),
+    isAvatarSynced: integer('is_avatar_synced', { mode: 'boolean' }).notNull(),
+  },
+  (t) => [
+    index('contacts_live_name_idx')
+      .on(t.name, t.id)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type ContactRow = typeof contacts.$inferSelect;
+
+export const contactLists = sqliteTable('contact_lists', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  name: text('name').notNull(),
+  notes: text('notes'),
+  position: text('position'),
+});
+export type ContactListRow = typeof contactLists.$inferSelect;
+
+export const contactListMembers = sqliteTable(
+  'contact_list_members',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    listId: text('list_id').notNull(),
+    contactId: text('contact_id').notNull(),
+  },
+  (t) => [
+    index('contact_list_members_list_idx')
+      .on(t.listId, t.contactId)
+      .where(sql`${t.deletedAt} is null`),
+    index('contact_list_members_contact_idx')
+      .on(t.contactId, t.listId)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type ContactListMemberRow = typeof contactListMembers.$inferSelect;
+
+export const contactLinks = sqliteTable(
+  'contact_links',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    contactId: text('contact_id').notNull(),
+    // CONTACT_LINK_TARGETS in @squidbox/shared (imported here as types only; its Zod schema validates).
+    targetType: text('target_type', { enum: ['asset', 'album', 'post'] }).notNull(),
+    targetId: text('target_id').notNull(),
+  },
+  (t) => [
+    index('contact_links_target_idx')
+      .on(t.targetType, t.targetId, t.contactId)
+      .where(sql`${t.deletedAt} is null`),
+    index('contact_links_contact_idx')
+      .on(t.contactId, t.targetType, t.targetId)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type ContactLinkRow = typeof contactLinks.$inferSelect;
+
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),

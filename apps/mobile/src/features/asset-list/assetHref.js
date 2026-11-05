@@ -4,7 +4,7 @@ const KIND_BY_KEY = Object.fromEntries(Object.entries(assetScopeKinds).map(([kin
 
 /**
  * The asset screen's href for `assetId` in the grid's query (assetQuery's descriptor), as URL
- * params: `scope` (`library`, `favorites`, `deleted`, or `album:<id>`, `post:<id>`, `asset:<id>`),
+ * params: `scope` (`library`, `favorites`, `deleted`, or `album:<id>`, `post:<id>`, `asset:<id>`, `contact:<id>`),
  * `sort`, `filter` (comma-separated) and `search`. assetQueryFromParams reads them back.
  */
 export default function assetHref(assetId, { scope = 'library', sort, filter = [], search = '' }) {

@@ -5,6 +5,7 @@ import {
   a,
   assetOrder,
   assetScopeWhere,
+  contactTargetIds,
   fromScope,
   liveAlbumAssetIds,
   placeInPost,
@@ -31,7 +32,8 @@ const p = alias(schema.posts, 'p');
  * in order, each with its `postAssets`).
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  * @param {object} descriptor
- * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string } | { sharesAlbumWithPostId: string }} [descriptor.scope]
+ * @param {'all' | 'repostCandidates' | 'ignored' | { assetId: string } | { albumId: string } | { postId: string } | { sharesAlbumWithPostId: string } | { contactId: string }} [descriptor.scope]
+ *   (a contact's: the posts it is on)
  * @param {'postedAt:asc' | 'postedAt:desc' | 'suggestRepostAt:asc' | 'updatedAt:desc'} [descriptor.sort]
  * @param {string} [descriptor.search] a text substring, matched as the list did: Unicode-aware, literal, case-insensitive
  */
@@ -43,11 +45,13 @@ export default function postQuery({ scope = 'all', sort = 'postedAt:desc', searc
   const tables = [schema.posts, schema.postAssets, schema.assets];
   if (scope.albumId) tables.push(schema.albumAssets);
   if (scope.sharesAlbumWithPostId) tables.push(schema.albumAssets, schema.albums);
+  if (scope.contactId) tables.push(schema.contactLinks);
 
   const scopeCondition = (() => {
     if (scope === 'repostCandidates') return and(eq(p.isIgnoredForRepost, false), eq(p.hasBeenReposted, false));
     if (scope === 'ignored') return eq(p.isIgnoredForRepost, true);
     if (scope.postId) return eq(p.id, scope.postId);
+    if (scope.contactId) return sql`${p.id} in ${contactTargetIds(scope.contactId, 'post')}`;
     if (scope.assetId) return sql`${p.id} in ${postsHoldingAssets(sql`asset_id = ${scope.assetId}`)}`;
     if (scope.albumId) {
       return sql`${p.id} in ${postsHoldingAssets(sql`asset_id in ${liveAlbumAssetIds(scope.albumId)}`)}`;

@@ -24,6 +24,7 @@ import BootScreen from '@/features/boot/BootScreen';
 import CloudProvider from '@/features/cloud/CloudProvider';
 import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
+import ContactsProvider from '@/features/contacts-context/ContactsProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
 import LibraryProvider from '@/library/LibraryProvider';
@@ -186,9 +187,11 @@ function AppGate() {
     <AssetsProvider>
       <AlbumsProvider>
         <PostsProvider>
-          <CloudSyncProvider>
-            <MainApp />
-          </CloudSyncProvider>
+          <ContactsProvider>
+            <CloudSyncProvider>
+              <MainApp />
+            </CloudSyncProvider>
+          </ContactsProvider>
         </PostsProvider>
       </AlbumsProvider>
     </AssetsProvider>

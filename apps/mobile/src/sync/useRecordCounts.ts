@@ -1,12 +1,12 @@
 import { sql } from 'drizzle-orm';
+import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import * as schema from './db/schema';
 import { useLiveQuery } from './useLiveQuery';
 
 const NO_ROWS: never[] = [];
 
 /** Live counts of a collection's records: live ones and tombstones. */
-export function useRecordCounts(table: typeof schema.assets | typeof schema.albums | typeof schema.posts) {
+export function useRecordCounts(table: SQLiteTable & { deletedAt: SQLiteColumn }) {
   const [row] =
     useLiveQuery(
       (db) =>

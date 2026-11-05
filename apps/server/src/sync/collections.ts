@@ -12,6 +12,10 @@ import {
   modelChoiceCollection,
   promptButtonCollection,
   favoriteCollection,
+  contactCollection,
+  contactListCollection,
+  contactListMemberCollection,
+  contactLinkCollection,
   type CollectionDescriptor,
 } from '@squidbox/shared';
 import {
@@ -25,6 +29,10 @@ import {
   favorites,
   instructions,
   modelChoices,
+  contacts,
+  contactLists,
+  contactListMembers,
+  contactLinks,
 } from '../db/schema.js';
 
 // Server-side view of a syncable collection: its table and shared descriptor, the columns of the
@@ -79,4 +87,8 @@ export const serverCollections: Record<string, ServerCollection> = {
   favorites: serverCollection(favorites, favoriteCollection),
   instructions: serverCollection(instructions, instructionCollection),
   model_choices: serverCollection(modelChoices, modelChoiceCollection),
+  contacts: serverCollection(contacts, contactCollection),
+  contact_lists: serverCollection(contactLists, contactListCollection),
+  contact_list_members: serverCollection(contactListMembers, contactListMemberCollection),
+  contact_links: serverCollection(contactLinks, contactLinkCollection),
 };

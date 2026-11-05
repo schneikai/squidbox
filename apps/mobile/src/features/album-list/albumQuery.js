@@ -1,7 +1,7 @@
 import { and, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias, QueryBuilder } from 'drizzle-orm/sqlite-core';
 
-import { a, albumLastPostedAt, assetOrder, assetScopeWhere, fromScope } from '@/sync/assetSql';
+import { a, albumLastPostedAt, assetOrder, assetScopeWhere, contactTargetIds, fromScope } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { readByIdMap } from '@/sync/readByIds';
@@ -30,8 +30,8 @@ function firstOf(scope, sort) {
  * a live read watches.
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
  * @param {object} descriptor
- * @param {'all' | { assetIds: string[] }} [descriptor.scope] albums holding any of these assets, each
- *   with `heldCount`, how many of them it holds
+ * @param {'all' | { assetIds: string[] } | { contactId: string }} [descriptor.scope] albums holding any
+ *   of these assets, each with `heldCount`, how many of them it holds; or the albums a contact is on
  * @param {string[]} [descriptor.oldestFirstIds] the albums sorted Oldest first (getAlbumSortOrder), whose
  *   cover is then their oldest asset unless they are on custom order
  */
@@ -54,12 +54,13 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }) {
     else ${firstByDate(thisAlbum)}
   end`;
   const newestPostedAt = sql`case when al.smart_album_type is null then ${albumLastPostedAt(thisAlbum.albumId)} end`;
-  const inScope =
-    scope === 'all'
-      ? undefined
-      : sql`exists (select 1 from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`;
+  const inScope = (() => {
+    if (scope === 'all') return undefined;
+    if (scope.contactId) return sql`al.id in ${contactTargetIds(scope.contactId, 'album')}`;
+    return sql`exists (select 1 from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`;
+  })();
   const held =
-    scope === 'all'
+    scope === 'all' || scope.contactId
       ? {}
       : {
           heldCount: sql`(select count(distinct asset_id) from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`,
@@ -67,7 +68,14 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }) {
 
   return {
     descriptor: { scope, oldestFirstIds },
-    tables: [schema.albums, schema.albumAssets, schema.assets, schema.posts, schema.postAssets],
+    tables: [
+      schema.albums,
+      schema.albumAssets,
+      schema.assets,
+      schema.posts,
+      schema.postAssets,
+      ...(scope.contactId ? [schema.contactLinks] : []),
+    ],
     read(db) {
       return db.transaction(async (tx) => {
         const rows = await tx

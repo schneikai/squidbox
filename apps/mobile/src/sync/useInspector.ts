@@ -20,6 +20,10 @@ export function useCollectionStats(): CollectionStats[] {
   const assets = useRecordCounts(schema.assets);
   const albums = useRecordCounts(schema.albums);
   const posts = useRecordCounts(schema.posts);
+  const contacts = useRecordCounts(schema.contacts);
+  const contactLists = useRecordCounts(schema.contactLists);
+  const contactListMembers = useRecordCounts(schema.contactListMembers);
+  const contactLinks = useRecordCounts(schema.contactLinks);
   const pending =
     useLiveQuery(
       (db) =>
@@ -37,7 +41,15 @@ export function useCollectionStats(): CollectionStats[] {
     pending: pendingByCollection.get(name) ?? 0,
   });
 
-  return [stat('assets', assets), stat('albums', albums), stat('posts', posts)];
+  return [
+    stat('assets', assets),
+    stat('albums', albums),
+    stat('posts', posts),
+    stat('contacts', contacts),
+    stat('contact_lists', contactLists),
+    stat('contact_list_members', contactListMembers),
+    stat('contact_links', contactLinks),
+  ];
 }
 
 export function useSyncLogRows(): schema.SyncLogRow[] {
