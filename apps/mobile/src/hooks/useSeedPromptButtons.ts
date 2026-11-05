@@ -9,7 +9,7 @@ import { requestSync } from '@/sync/worker';
  * Seeds the default prompt buttons once per library, after its first full pull (which brings another
  * device's buttons and deletions; seedPromptButtons checks again). For the screens that show them.
  */
-export default function useSeedPromptButtons() {
+export default function useSeedPromptButtons(): void {
   const isFirstSyncDone = useFirstSyncDone();
 
   useEffect(() => {

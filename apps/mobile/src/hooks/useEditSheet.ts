@@ -23,6 +23,23 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
  * turns the sheet's buttons off, another tap does nothing and a swipe down keeps the sheet; once the
  * sheet is leaving nothing more is written.
  */
+/**
+ * What a write resolves to: `{ refused }` keeps the sheet open, a function is the navigate to leave
+ * with, anything else goes back. Awkward on purpose (typed as it is, not reshaped): one `finish`
+ * serves every last write of a sheet.
+ */
+export type EditSheetWrite = () => Promise<unknown>;
+
+type EditSheetOptions = {
+  isNew?: boolean;
+  isValid?: boolean;
+  isDirty: boolean;
+  save: EditSheetWrite;
+  syncsItself?: boolean;
+  isBusy?: boolean;
+  text?: string;
+};
+
 export default function useEditSheet({
   isNew = false,
   isValid = true,
@@ -31,12 +48,12 @@ export default function useEditSheet({
   syncsItself = false,
   isBusy = false,
   text,
-}) {
+}: EditSheetOptions) {
   const navigation = useNavigation();
   const haptics = useHaptics();
   const [isWriting, setIsWriting] = useState(false);
   // The text a write refused and why.
-  const [refused, setRefused] = useState(null);
+  const [refused, setRefused] = useState<{ text: string | undefined; message: string } | null>(null);
   // A ref, not state: two taps in one frame both see the state from before the first.
   const busyRef = useRef(false);
   const isSaving = isWriting || isBusy;
@@ -47,20 +64,21 @@ export default function useEditSheet({
     setIsWriting(false);
   }
 
-  async function finish(write, failure) {
+  async function finish(write: EditSheetWrite, failure: string): Promise<void> {
     if (busyRef.current) return;
     busyRef.current = true;
     setIsWriting(true);
     const writtenText = text;
     try {
       const navigate = await write();
-      if (navigate?.refused) {
-        setRefused({ text: writtenText, message: navigate.refused });
+      const refusal = (navigate as { refused?: string } | null | undefined)?.refused;
+      if (refusal) {
+        setRefused({ text: writtenText, message: refusal });
         release();
         return;
       }
       if (!syncsItself) requestSync();
-      leave(typeof navigate === 'function' ? navigate : undefined);
+      leave(typeof navigate === 'function' ? (navigate as () => void) : undefined);
     } catch (error) {
       console.error(failure, error);
       haptics.error();

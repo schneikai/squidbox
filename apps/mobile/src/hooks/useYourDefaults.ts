@@ -1,7 +1,14 @@
-import { aiModelKindSchema, MODEL_DEFAULT_VARIANTS, resolveModelDefaults } from '@squidbox/shared';
+import {
+  type AiModelKind,
+  aiModelKindSchema,
+  MODEL_DEFAULT_VARIANTS,
+  type ModelDefaults,
+  resolveModelDefaults,
+} from '@squidbox/shared';
 import { useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
+import { ownerUserId } from '@/library/ownerUserId';
 import useLibrary from '@/library/useLibrary';
 import { schema } from '@/sync/db/client';
 import { readModelPicks } from '@/sync/modelChoicesRepository';
@@ -13,17 +20,23 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * loads; `changedKinds`, the kinds whose picks differ from the published defaults (null while
  * loading).
  */
-export default function useYourDefaults() {
+export type YourDefaults = {
+  defaults: ModelDefaults | null;
+  yourDefaults: ModelDefaults | null;
+  changedKinds: AiModelKind[] | null;
+};
+
+export default function useYourDefaults(): YourDefaults {
   const { defaults } = useAiCatalog();
   const { library } = useLibrary();
-  const userId = library.owner.userId;
+  const userId = ownerUserId(library);
   const picks = useLiveQuery((db) => readModelPicks(db, userId), [schema.modelChoices], [userId]);
 
   return useMemo(() => {
     if (picks === undefined || !defaults) return { defaults, yourDefaults: null, changedKinds: null };
     const yourDefaults = Object.fromEntries(
       aiModelKindSchema.options.map((kind) => [kind, resolveModelDefaults(kind, picks, defaults)]),
-    );
+    ) as ModelDefaults;
     const changedKinds = aiModelKindSchema.options.filter((kind) =>
       MODEL_DEFAULT_VARIANTS.some((variant) => yourDefaults[kind][variant] !== defaults[kind][variant]),
     );

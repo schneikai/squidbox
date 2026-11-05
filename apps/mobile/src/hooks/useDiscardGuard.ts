@@ -19,20 +19,22 @@ const DISCARD_CONFIRMED = Symbol('DISCARD_CONFIRMED');
  * `navigate` once (`navigation.goBack()` when not given). `confirmDiscard()` asks the same question
  * before an action that would drop the changes, and resolves to true at once when there are none.
  */
-export default function useDiscardGuard(isDirty, isSaving = false) {
+export default function useDiscardGuard(isDirty: boolean, isSaving = false) {
   const navigation = useNavigation();
-  const [pending, setPending] = useState(null);
+  const [pending, setPending] = useState<{ navigate: () => void } | null>(null);
   const isAskingRef = useRef(false);
 
   usePreventRemove((isDirty || isSaving) && !pending, async ({ data }) => {
     if (isSaving || isAskingRef.current) return;
-    if (data.action[DISCARD_CONFIRMED]) {
+    // The mark rides on the action as an extra key (see DISCARD_CONFIRMED), which its type doesn't name.
+    if ((data.action as { [DISCARD_CONFIRMED]?: true })[DISCARD_CONFIRMED]) {
       navigation.dispatch(data.action);
       return;
     }
     isAskingRef.current = true;
     try {
-      if (await confirmDiscardAsync()) navigation.dispatch({ ...data.action, [DISCARD_CONFIRMED]: true });
+      if (await confirmDiscardAsync())
+        navigation.dispatch({ ...data.action, [DISCARD_CONFIRMED]: true } as typeof data.action);
     } finally {
       isAskingRef.current = false;
     }
@@ -42,11 +44,11 @@ export default function useDiscardGuard(isDirty, isSaving = false) {
     pending?.navigate();
   }, [pending]);
 
-  function leave(navigate = () => navigation.goBack()) {
+  function leave(navigate: () => void = () => navigation.goBack()) {
     setPending({ navigate });
   }
 
-  function confirmDiscard() {
+  function confirmDiscard(): Promise<boolean> {
     return isDirty ? confirmDiscardAsync() : Promise.resolve(true);
   }
 

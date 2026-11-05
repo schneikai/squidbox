@@ -7,7 +7,7 @@ import { Alert } from 'react-native';
  * already leaving isn't focused anymore and says nothing; one whose reason came while another
  * screen was on top of it closes when it is back in focus.
  */
-export default function useCloseWhen(shouldClose, message) {
+export default function useCloseWhen(shouldClose: boolean, message?: string): void {
   const navigation = useNavigation();
 
   useEffect(() => {

@@ -4,15 +4,21 @@ import { Alert } from 'react-native';
 
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import { getDb } from '@/sync/db/client';
+import type { SyncDb } from '@/sync/db/types';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 /**
  * What a screen starts from, read once per `key` (no live updates: the screen holds its own draft).
  * `read` resolves to `null` when the record is gone, which closes the screen with `goneMessage`; a
  * failed read closes it with the error. `undefined` while it reads.
  */
-export default function useSeedOrClose(read, key, goneMessage) {
+export default function useSeedOrClose<T>(
+  read: (db: SyncDb) => Promise<T | null>,
+  key: string,
+  goneMessage?: string,
+): T | null | undefined {
   const navigation = useNavigation();
-  const [seed, setSeed] = useState();
+  const [seed, setSeed] = useState<T | null>();
 
   useEffect(() => {
     let isCancelled = false;
@@ -21,7 +27,7 @@ export default function useSeedOrClose(read, key, goneMessage) {
       (error) => {
         console.error('Reading failed', error);
         if (isCancelled) return;
-        Alert.alert("Couldn't open it", error.message);
+        Alert.alert("Couldn't open it", apiErrorMessage(error));
         navigation.goBack();
       },
     );

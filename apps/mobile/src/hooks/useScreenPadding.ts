@@ -7,7 +7,10 @@ import { layout } from '@/styles/designTokens';
  * 'main'   — tab screens: content sits under the floating header and above the floating bars
  * 'detail' — stack screens: content sits under the floating detail header
  */
-export default function useScreenPadding(type = 'main') {
+export default function useScreenPadding(type: 'main' | 'detail' = 'main'): {
+  paddingTop: number;
+  paddingBottom: number;
+} {
   const insets = useSafeAreaInsets();
 
   if (type === 'detail') {

@@ -3,6 +3,7 @@ import { Alert, AppState } from 'react-native';
 
 import useHaptics from '@/hooks/useHaptics';
 import { requestSync } from '@/sync/worker';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import createAutoSaver from '@/utils/createAutoSaver';
 
 /**
@@ -12,20 +13,20 @@ import createAutoSaver from '@/utils/createAutoSaver';
  * on the device. `save(next, stored)`: see createAutoSaver. A failed save says so. Values compare by
  * their JSON.
  */
-export default function useSaveAsYouType(value, save) {
+export default function useSaveAsYouType<T>(value: T, save: (next: T, stored: T) => Promise<void> | void) {
   const haptics = useHaptics();
   const valueRef = useRef(value);
   const saveRef = useRef(save);
   const hapticsRef = useRef(haptics);
   const [saver] = useState(() =>
-    createAutoSaver({
+    createAutoSaver<T>({
       value,
-      save: (...args) => saveRef.current(...args),
+      save: (next, stored) => saveRef.current(next, stored),
       sync: requestSync,
       onError: (error) => {
         console.error('Saving failed', error);
         hapticsRef.current.error();
-        Alert.alert("Couldn't save your changes", error.message);
+        Alert.alert("Couldn't save your changes", apiErrorMessage(error));
       },
     }),
   );

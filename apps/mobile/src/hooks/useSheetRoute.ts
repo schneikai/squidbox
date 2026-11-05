@@ -1,7 +1,7 @@
 import { useNavigation, useRoute } from 'expo-router';
 import { use } from 'react';
 
-import SheetRouteContext from '@/components/sheet-route/SheetRouteContext';
+import SheetRouteContext, { type SheetRouteValue } from '@/components/sheet-route/SheetRouteContext';
 
 /**
  * The sheet this screen is presented in, or `null` outside one: `isFirstScreen` when the screen is
@@ -9,7 +9,9 @@ import SheetRouteContext from '@/components/sheet-route/SheetRouteContext';
  * pushed inside it, `close()`, which closes the whole sheet from any of its screens, and
  * `setOptions(options)`, the sheet's own (`gestureEnabled: false` keeps it from being swiped away).
  */
-export default function useSheetRoute() {
+export type SheetRoute = Pick<SheetRouteValue, 'close' | 'setOptions'> & { isFirstScreen: boolean };
+
+export default function useSheetRoute(): SheetRoute | null {
   const sheet = use(SheetRouteContext);
   const navigation = useNavigation();
   const route = useRoute();

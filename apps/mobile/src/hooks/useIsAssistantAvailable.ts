@@ -7,8 +7,9 @@ import isTestBuild from '@/utils/isTestBuild';
  * signed in (the AI endpoints need a session, and the model testing's memory lives in the library)
  * and has the `ai` feature (the server answers 403 without it).
  */
-export default function useIsAssistantAvailable() {
+export default function useIsAssistantAvailable(): boolean {
   const { library } = useLibrary();
   const hasAi = useHasFeature('ai');
-  return isTestBuild() && library.owner.kind === 'account' && hasAi;
+  // Below LibraryGate a library is always open.
+  return isTestBuild() && library!.owner.kind === 'account' && hasAi;
 }

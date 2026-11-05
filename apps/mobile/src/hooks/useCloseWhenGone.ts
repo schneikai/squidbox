@@ -5,6 +5,6 @@ import useCloseWhen from '@/hooks/useCloseWhen';
  * (deleted, e.g. by a sync, while the screen was open), `undefined` while it loads. A screen that is
  * already leaving (its own delete went back) says nothing.
  */
-export default function useCloseWhenGone(record, message) {
+export default function useCloseWhenGone(record: unknown, message?: string): void {
   useCloseWhen(record === null, message);
 }

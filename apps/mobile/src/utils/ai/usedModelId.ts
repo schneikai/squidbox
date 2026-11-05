@@ -1,6 +1,4 @@
-import type { AiModelKind, ModelDefaults } from '@squidbox/shared';
-
-import type { PersonaRow } from '@/sync/db/schema';
+import type { AiModelKind, ModelDefaults, PersonaRecord } from '@squidbox/shared';
 
 /**
  * The id of the model of `kind` the assistant uses for this account (`yourDefaults`, useYourDefaults'):
@@ -10,7 +8,7 @@ import type { PersonaRow } from '@/sync/db/schema';
 export default function usedModelId(
   yourDefaults: ModelDefaults | null | undefined,
   kind: AiModelKind,
-  persona: PersonaRow | null | undefined,
+  persona: Pick<PersonaRecord, 'adultContent'> | null | undefined,
 ): string | null {
   if (!yourDefaults || persona === undefined) return null;
   return yourDefaults[kind][persona?.adultContent ? 'unrestricted' : 'regular'];

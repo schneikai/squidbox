@@ -9,10 +9,10 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 const CACHE_MS = 5 * 60 * 1000;
 
 // One fetch in flight, shared by the screens that open while it runs.
-let inFlight = null;
+let inFlight: Promise<void> | null = null;
 
 /** Fetches the catalog now, unless a fetch is running; a failure is the store's `error`. */
-function refreshAiCatalogAsync() {
+function refreshAiCatalogAsync(): Promise<void> {
   if (inFlight) return inFlight;
   // A catalog applied meanwhile (a mark's answer) is newer than this fetch's: it stays.
   const { at } = aiCatalogStore.get();

@@ -6,6 +6,6 @@ const ruleResultText = {
   present: 'This rule is in your Rules already.',
   tooLong: `A rule can have up to ${PERSONA_LIMITS.rule} characters.`,
   full: `You can have up to ${PERSONA_LIMITS.rules} rules.`,
-};
+} as const;
 
 export default ruleResultText;

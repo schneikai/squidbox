@@ -11,10 +11,16 @@ import toggleItem from '@/utils/toggleItem';
  *   - `searchBar`, the props SearchOptionsBar expects, and `searchText`, a deferred copy of the typed
  *     text for filtering, so typing stays smooth on large lists.
  */
-export default function useListControls({ defaultSort, onSort } = {}) {
-  const listRef = useRef();
+// The one method of a list this calls: FlatList's, FlashList's or an animated one's alike.
+type ScrollableList = { scrollToOffset(params: { animated: boolean; offset: number }): void };
+
+export default function useListControls<Sort = string>({
+  defaultSort,
+  onSort,
+}: { defaultSort?: Sort; onSort?: (order: Sort) => void } = {}) {
+  const listRef = useRef<ScrollableList>(null);
   const [sortOrder, setSortOrder] = useState(defaultSort);
-  const [activeFilter, setActiveFilter] = useState([]);
+  const [activeFilter, setActiveFilter] = useState<string[]>([]);
   // Plain state on purpose: it controls a text input, and React can't drive one from a transition.
   const [typedText, setTypedText] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -23,15 +29,15 @@ export default function useListControls({ defaultSort, onSort } = {}) {
   // Not animated: the new first page lands at the top, where an animated scroll would still be passing
   // the end of the shorter list and load a second page early.
   function listScrollTop() {
-    listRef.current.scrollToOffset({ animated: false, offset: 0 });
+    listRef.current!.scrollToOffset({ animated: false, offset: 0 });
   }
 
-  function sort(order) {
+  function sort(order: Sort) {
     (onSort ?? setSortOrder)(order);
     listScrollTop();
   }
 
-  function toggleFilter(filter) {
+  function toggleFilter(filter: string) {
     if (filter === 'all') {
       setActiveFilter([]);
     } else {

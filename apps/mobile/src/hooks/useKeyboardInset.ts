@@ -8,7 +8,7 @@ import useKeyboardHeight from '@/hooks/useKeyboardHeight';
  * an animated style): the keyboard's height while it's up, the bottom safe area otherwise, plus
  * `gap`. The keyboard's height on iOS includes the bottom safe area, so the two never add up.
  */
-export default function useKeyboardInset(gap = 0) {
+export default function useKeyboardInset(gap: number = 0) {
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   return useDerivedValue(() => Math.max(bottom, keyboardHeight.value) + gap, [bottom, gap]);

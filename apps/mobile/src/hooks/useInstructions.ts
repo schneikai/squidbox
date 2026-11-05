@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHasFeature from '@/hooks/useHasFeature';
+import { ownerUserId } from '@/library/ownerUserId';
 import useLibrary from '@/library/useLibrary';
 import { getDb, schema } from '@/sync/db/client';
 import { clearInstructionsEqualTo, readInstructions } from '@/sync/instructionsRepository';
@@ -22,7 +23,7 @@ import { requestSync } from '@/sync/worker';
  */
 export default function useInstructions() {
   const { library } = useLibrary();
-  const userId = library.owner.userId;
+  const userId = ownerUserId(library);
   const isAiAdmin = useHasFeature('ai_admin');
   const { instructions: defaultTexts, error, retry } = useAiCatalog();
   const stored = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
@@ -35,7 +36,7 @@ export default function useInstructions() {
     () =>
       stored === undefined || !defaultTexts
         ? null
-        : INSTRUCTION_KINDS.filter((kind) => stored?.[kind] != null && stored[kind].trim() !== defaultTexts[kind]),
+        : INSTRUCTION_KINDS.filter((kind) => stored?.[kind] != null && stored[kind]!.trim() !== defaultTexts[kind]),
     [stored, defaultTexts],
   );
 

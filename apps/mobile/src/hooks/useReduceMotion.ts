@@ -5,7 +5,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 // Whether the system's Reduce Motion setting is on, following changes to it. Reanimated's
 // useReducedMotion is the setting at app start only; it seeds the state, so the first render is
 // right without waiting for the async query.
-export default function useReduceMotion() {
+export default function useReduceMotion(): boolean {
   const atStart = useReducedMotion();
   const [reduceMotion, setReduceMotion] = useState(atStart);
 
@@ -24,10 +24,10 @@ export default function useReduceMotion() {
 
 // One system subscription for every user: react-native-web files listeners under their source text,
 // so removing one of two would remove the other.
-const listeners = new Set();
-let subscription = null;
+const listeners = new Set<(enabled: boolean) => void>();
+let subscription: ReturnType<typeof AccessibilityInfo.addEventListener> | null = null;
 
-function subscribe(listener) {
+function subscribe(listener: (enabled: boolean) => void) {
   listeners.add(listener);
   subscription ??= AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) =>
     listeners.forEach((each) => each(enabled)),
@@ -35,7 +35,7 @@ function subscribe(listener) {
   return () => {
     listeners.delete(listener);
     if (listeners.size > 0) return;
-    subscription.remove();
+    subscription?.remove();
     subscription = null;
   };
 }

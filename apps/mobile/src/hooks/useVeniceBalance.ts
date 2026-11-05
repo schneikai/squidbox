@@ -1,3 +1,4 @@
+import type { AiBalanceResponse } from '@squidbox/shared';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
@@ -10,8 +11,8 @@ import fetchAiBalanceAsync from '@/utils/cloud-api/ai/fetchAiBalanceAsync';
  * (a compare round that ended; null holds the read, while one runs). `isError` when the last read failed; the value is null until the
  * first read is in.
  */
-export default function useVeniceBalance(refreshKey) {
-  const [state, setState] = useState({ value: null, isError: false });
+export default function useVeniceBalance(refreshKey: unknown): { value: string | null; isError: boolean } {
+  const [state, setState] = useState<{ value: string | null; isError: boolean }>({ value: null, isError: false });
 
   useFocusEffect(
     useCallback(() => {
@@ -29,7 +30,7 @@ export default function useVeniceBalance(refreshKey) {
   return state;
 }
 
-function balanceText({ usd, diem }) {
+function balanceText({ usd, diem }: AiBalanceResponse): string {
   const dollars = dollarsText(usd);
   return diem > 0 ? `${dollars} · ${diem.toFixed(2)} DIEM` : dollars;
 }

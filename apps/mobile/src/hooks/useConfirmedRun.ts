@@ -12,16 +12,21 @@ import confirmAsync from '@/utils/confirmAsync';
  * async function, for a confirm that reads what it names first; a failing read alerts the same way.
  * `isRunning` is true while either runs, for the button's `loading`, which blocks a second tap.
  */
-export default function useConfirmedRun({ title, action, destructive = false, errorTitle }) {
+type ConfirmedRunOptions = { title: string; action: string; destructive?: boolean; errorTitle: string };
+
+// The confirm's message, or an async read of it.
+export type ConfirmMessage = string | (() => Promise<string>);
+
+export default function useConfirmedRun({ title, action, destructive = false, errorTitle }: ConfirmedRunOptions) {
   const haptics = useHaptics();
   const [isRunning, setIsRunning] = useState(false);
 
-  function fail(error) {
+  function fail(error: unknown) {
     haptics.error();
     Alert.alert(errorTitle, apiErrorMessage(error));
   }
 
-  async function readMessage(message) {
+  async function readMessage(message: ConfirmMessage): Promise<string> {
     if (typeof message !== 'function') return message;
     setIsRunning(true);
     try {
@@ -31,8 +36,8 @@ export default function useConfirmedRun({ title, action, destructive = false, er
     }
   }
 
-  async function run(message, fn) {
-    let text;
+  async function run(message: ConfirmMessage, fn: () => Promise<unknown>): Promise<void> {
+    let text: string;
     try {
       text = await readMessage(message);
     } catch (error) {
