@@ -14,6 +14,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
+import { clearOutboxErrors, setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
@@ -779,6 +780,38 @@ describe('contacts', () => {
     expect(await target.select().from(schema.contacts)).toMatchObject([
       { id: maya.id, avatarFilename: 'avatar-m-2.jpg' },
     ]);
+    // Its outbox row names the photo, which the sync uploads before it pushes the contact.
+    expect((await outbox(target)).find((row) => row.recordId === maya.id)).toMatchObject({
+      payload: { avatarFilename: 'avatar-m-2.jpg' },
+      fields: { avatarFilename: expect.any(Number) },
+      uploadedFiles: [],
+    });
+  });
+
+  it('a photo a later pass delivers clears the contact’s upload refused as missing', async () => {
+    const maya = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-1.jpg' }));
+    files.add(getAvatarUri('avatar-m-1.jpg', SRC));
+    await commitPass(); // its photo not moved yet: the sync finds it missing
+    await setOutboxError(target, 'contacts', [maya.id], 'Contact photo is missing on this device');
+
+    const again = await planMerge(source, target, SRC, TGT);
+    expect(again.retriedContacts).toEqual([maya.id]);
+    await moveMergedFiles(again, SRC, TGT);
+    await clearOutboxErrors(target, 'contacts', again.retriedContacts);
+
+    expect((await outbox(target)).find((row) => row.recordId === maya.id)).toMatchObject({ error: null });
+  });
+
+  it('a device edit naming a photo the device doesn’t hold isn’t replayed onto the account’s contact', async () => {
+    const shared = makeContactRecord({ name: 'Maya', updatedAt: 5000 });
+    await upsertRows(target, 'contacts', schema.contacts, [shared]);
+    await upsertRows(source, 'contacts', schema.contacts, [shared]);
+    await contacts.update(source, shared.id, { name: 'Maya L', avatarFilename: 'avatar-m-9.jpg' });
+
+    const plan = await planMerge(source, target, SRC, TGT);
+
+    expect(plan.replays.map((replay) => Object.keys(replay.fields))).toEqual([['name']]);
+    expect(plan.avatars).toEqual([]);
   });
 
   it('a photo only in another account’s storage is dropped: the account couldn’t fetch it', async () => {

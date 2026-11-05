@@ -70,6 +70,9 @@ export interface MergePlan {
   // Records with a sync error whose original file this pass delivers: once moveMergedFiles has
   // verified it, their backup tries again, with the device's copy.
   retried: string[];
+  // The contacts whose photo this pass moves into the target: once moved, a push held back because
+  // the photo was missing is tried again.
+  retriedContacts: string[];
   keepsSource: boolean; // a photo whose file is in another account's storage stays in the source
 }
 
@@ -115,6 +118,20 @@ export async function planMerge(
     return Object.fromEntries(Object.entries(fields).filter(([, clock]) => clock > since));
   };
 
+  // The contact photos the source holds: a copy or a replay names only one of them (else the account
+  // couldn't fetch it), and they move with their contacts.
+  const sourceAvatars = await listFiles(getAvatarsDirectory(sourcePaths));
+  // A source edit's fields, but a file field naming a file the source doesn't hold.
+  const withHeldFiles = (collection: string, fields: FieldClocks, payload: Record<string, unknown>) => {
+    const unheld =
+      collection === 'contacts' &&
+      typeof payload.avatarFilename === 'string' &&
+      !sourceAvatars.has(payload.avatarFilename);
+    if (!unheld || !('avatarFilename' in fields)) return fields;
+    const { avatarFilename: _dropped, ...rest } = fields;
+    return rest;
+  };
+
   // Replays, one per record, merged onto the target's row as the server would merge it (replayOnto).
   const replays = new Map<string, Replay>();
   // A target row as this plan's replays leave it.
@@ -129,10 +146,11 @@ export async function planMerge(
     const ids = collection === 'assets' ? [...targetRows.keys()] : replayable.map((row) => row.id);
     const pending = await pendingEdits(target, collection, ids, { fields: true });
     for (const sourceRow of replayable) {
-      const fields = newEdits(collection, sourceRow.id);
+      const outboxRow = outboxOf.get(`${collection}:${sourceRow.id}`);
+      const fields = withHeldFiles(collection, newEdits(collection, sourceRow.id), outboxRow?.payload ?? {});
       mark(collection, sourceRow, { as: 'copy' });
       if (Object.keys(fields).length === 0) continue;
-      const sent = { payload: outboxOf.get(`${collection}:${sourceRow.id}`)!.payload, fields };
+      const sent = { payload: outboxRow!.payload, fields };
       const replayed = replayOnto(collection, targetRows.get(sourceRow.id)!, pending.get(sourceRow.id)?.fields, sent);
       if (replayed)
         replays.set(`${collection}:${sourceRow.id}`, { collection, recordId: sourceRow.id, ...replayed, sent });
@@ -354,7 +372,6 @@ export async function planMerge(
   // source holds moves with it, and the sync uploads it before it pushes the contact; one the source
   // doesn't hold (only in another account's storage) is dropped, as the account can't fetch it.
   const allSourceContacts = await source.select().from(schema.contacts);
-  const sourceAvatars = await listFiles(getAvatarsDirectory(sourcePaths));
   const contacts = (await freshRecords('contacts', schema.contacts, allSourceContacts)).map((contact) => {
     mark('contacts', contact, { as: 'copy' });
     if (!contact.avatarFilename) return contact;
@@ -373,10 +390,16 @@ export async function planMerge(
     schema.contacts,
     allSourceContacts.map((contact) => contact.id),
   );
+  // The contacts whose photo this pass delivers: a sync that refused their upload as missing retries.
+  const retriedContacts: string[] = [];
   for (const contact of [...contacts, ...live(allSourceContacts).filter((row) => contactsById.has(row.id))]) {
     const kept = contactsById.has(contact.id) ? afterReplays('contacts', contactsById.get(contact.id)!) : contact;
-    if (contact.avatarFilename && kept.avatarFilename === contact.avatarFilename)
-      avatars.add(contact.avatarFilename, contact.avatarFilename);
+    if (
+      contact.avatarFilename &&
+      kept.avatarFilename === contact.avatarFilename &&
+      avatars.add(contact.avatarFilename, contact.avatarFilename)
+    )
+      retriedContacts.push(contact.id);
   }
 
   // Contact edges, between records that will be in the target: a member of a live list, a link to a
@@ -460,6 +483,7 @@ export async function planMerge(
     files: files.list,
     thumbnails: thumbnails.list,
     avatars: avatars.list,
+    retriedContacts,
     retried: [...retried],
     keepsSource,
   };
