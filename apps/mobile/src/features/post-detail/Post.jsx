@@ -38,7 +38,9 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 
       <ThreadParts
         parts={post.threadPosts}
-        renderPart={(part) => <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} />}
+        renderPart={(part) => (
+          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} isTextSelectable />
+        )}
       />
 
       <WriteWithAi sessionId={sessionId} />

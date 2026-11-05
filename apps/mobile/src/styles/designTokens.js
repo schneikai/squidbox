@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { Easing } from 'react-native-reanimated';
+import { Easing, LinearTransition } from 'react-native-reanimated';
 
 const BASE_WIDTH = 390; // iPhone 14 Pro — design baseline
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -157,6 +157,13 @@ export const layout = {
   menuRowPaddingX: scale(16),
   menuRowPaddingY: scale(13),
   menuIconGap: scale(12), // between a menu row's leading icon and its label
+  // A post's card (PostView, and a thread's following post, ThreadPost): its padding, the further inset
+  // of its text on each side and below (so text starts at the same place with or without photos), and
+  // the room between its photos and its text.
+  postCardPadding: scale(10),
+  postTextInset: scale(6),
+  postTextBottom: scale(4),
+  postCardGap: scale(12),
 };
 
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
@@ -212,11 +219,16 @@ export const motion = {
   enter: { duration: durations.base, easing: Easing.out(Easing.cubic) }, // appears, decelerating into place
   exit: { duration: durations.fast, easing: Easing.in(Easing.cubic) }, // leaves, shorter and accelerating away
   move: { duration: durations.base, easing: Easing.inOut(Easing.cubic) }, // changes while staying on screen
+  fill: { duration: durations.base / 2, easing: Easing.out(Easing.cubic) }, // content filling a card over half a move
   spring: springConfig({ duration: 0.3, bounce: 0.15 }), // anything that grows, follows a finger or settles
   settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
 };
+
+// A layout transition in the move motion: views that make room or close a gap glide to their new place
+// (the prompt buttons as one is dragged or deleted, the posts below a thread that unfolds).
+export const reflow = LinearTransition.duration(motion.move.duration).easing(motion.move.easing);
 
 // How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
 // little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).

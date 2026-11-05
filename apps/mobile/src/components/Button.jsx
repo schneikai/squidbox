@@ -27,7 +27,7 @@ const FILLED_ICON_SIZES = { regular: sizes.icon, small: scale(14) };
 const ICON_SIZES = {
   disc: FILLED_ICON_SIZES,
   pill: FILLED_ICON_SIZES,
-  link: { regular: scale(16), small: scale(14), caption: scale(12) },
+  link: { regular: scale(16), small: scale(14) },
   bare: { regular: sizes.icon, small: sizes.iconSmall },
 };
 // Two icons side by side, small enough to fit the disc apart.
