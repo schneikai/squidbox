@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import readPost from '@/features/post-detail/readPost';
+import readPost from '@/features/post-list/readPost';
 import PostEditor from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
 import useSeedOrClose from '@/hooks/useSeedOrClose';

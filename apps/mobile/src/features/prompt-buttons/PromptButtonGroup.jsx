@@ -1,16 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import PromptButtonChip from './PromptButtonChip';
 import useChipReorder from './useChipReorder';
 
 import Chip from '@/components/Chip';
 import { Section } from '@/components/settings-list/SettingsList';
-import { motion, radii, shadows } from '@/styles/designTokens';
-
-// The others make room for a dragged chip, and close the gap of a deleted one, in the move motion.
-const reflow = LinearTransition.duration(motion.move.duration).easing(motion.move.easing);
+import { radii, reflow, shadows } from '@/styles/designTokens';
 
 /**
  * The prompt buttons as chips in their order, with Add at the end: a tap opens the button

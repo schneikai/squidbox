@@ -5,6 +5,7 @@ import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
 import { colors, disabledOpacity, press, radii, scale, sizes, typography } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 
 const PALETTE = {
   neutral: colors.text.primary,
@@ -35,8 +36,9 @@ const PAIR_ICON_SIZE = scale(15);
 // grey pill.
 const MAX_DISC_LABEL = 3;
 const VARIANTS = ['primary', 'secondary', 'tertiary'];
-// A link's touch reaches a little past its text: a small one's further, to make up its 44 pt.
-const LINK_HIT_SLOP = { regular: 8, small: 12 };
+// A link's touch reaches a little past its text: a small one's further, to make up its 44 pt, and a
+// caption one's (no padding around a line of about 16 pt) furthest.
+const LINK_HIT_SLOP = { regular: 8, small: 12, caption: 16 };
 
 /**
  * Every button in the app: a `variant`, an `icon` or a `label`, in one of two sizes.
@@ -45,14 +47,17 @@ const LINK_HIT_SLOP = { regular: 8, small: 12 };
  *               action (its parent stretches it across), Repost in a card.
  *   secondary — a grey fill: a disc with an `icon` or a `label` of up to 3 characters (18+), or a
  *               pill with a longer `label`, in dark text (Later beside Repost).
- *               `colorPalette="danger"` makes the disc red; `isInverse` makes it dark and
- *               translucent with a white icon, over a picture (× on a photo tile).
+ *               `colorPalette="danger"` makes the disc red, `accent` light violet with a violet
+ *               icon (the pen on the assistant's tray; a pill stays grey); `isInverse` makes it
+ *               dark and translucent with a white icon, over a picture (× on a photo tile).
  *   tertiary  — no fill (the default): a bare `icon` (a toolbar's, a row's), or with a `label` a
  *               text link (an icon may lead it).
  * `size` is `regular` (44 pt tall, discs and pills alike) or `small` (28 pt), so a pill and a disc
  * of one size line up; a bare icon is as tall as its size and only as wide as the icon. Whatever
  * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) or a picker
- * (IconSlotContext) a bare icon takes a 44 pt slot. A link has its own height, regular or small.
+ * (IconSlotContext) a bare icon takes a 44 pt slot. A link has its own height, regular or small; a
+ * link can also be `caption`: no padding, as small and bold as the caption beside it
+ * (`listTextStyles.caption`), a tap in a row of captions (a thread's "Thread · 3").
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a link is `accent`, a secondary pill `neutral` and an icon `muted` unless told,
  * wherever it sits. `isInverse` puts a link on a dark surface (the Undo bar). `isSelected` marks a
@@ -84,7 +89,7 @@ export default function Button({
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
-  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, iconCount, isInverse, palette }));
+  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
   const iconSize = ICON_SIZES[shape][size];
@@ -177,7 +182,8 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
         style={[
           styles[`${shape}Label`],
           styles[`${shape}Label_${size}`],
-          shape === 'link' && palette === 'muted' && styles.linkLabelMuted,
+          size === 'caption' && listTextStyles.caption,
+          shape === 'link' && palette === 'muted' && size !== 'caption' && styles.linkLabelMuted,
           { color },
         ]}
       >
@@ -201,7 +207,7 @@ function fillFor({ shape, variant, palette, isSelected, isInverse }) {
   if (shape === 'pill') return styles.mutedFill;
   if (isInverse) return styles.inverseFill;
   if (palette === 'danger') return styles.dangerFill;
-  if (isSelected) return styles.selectedFill;
+  if (isSelected || palette === 'accent') return styles.accentFill;
   return styles.mutedFill;
 }
 
@@ -211,10 +217,11 @@ function pressedStyle(shape) {
 }
 
 // Why these props make no button the app has, or null.
-function combinationProblem({ variant, icon, label, iconCount, isInverse, palette }) {
+function combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette }) {
   if (!icon && !label) return 'Button: needs an icon or a label';
   if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
   if (iconCount === 2 && label) return 'Button: a doubled icon has no label';
+  if (size === 'caption' && !(variant === 'tertiary' && label)) return 'Button: only a link comes in caption size';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
   if (variant === 'secondary' && (palette === 'danger' || isInverse) && label?.length > MAX_DISC_LABEL) {
     return 'Button: a red or inverse secondary is a disc; its label must fit in it';
@@ -255,7 +262,7 @@ const styles = StyleSheet.create({
   inverseFill: {
     backgroundColor: colors.overlay.dim,
   },
-  selectedFill: {
+  accentFill: {
     backgroundColor: colors.accent.light,
   },
   dangerFill: {
