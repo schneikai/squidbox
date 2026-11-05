@@ -32,7 +32,7 @@ import {
   useTwoDeviceServer,
 } from './helpers/twoDeviceServer';
 import * as serverSchema from '../../server/src/db/schema.js';
-import readPost from '../src/features/post-detail/readPost';
+import readPost from '../src/features/post-list/readPost';
 import * as repo from '../src/sync/assetsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';

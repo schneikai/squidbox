@@ -1,4 +1,4 @@
-import postQuery from '@/features/post-list/postQuery';
+import postQuery from './postQuery';
 
 /** One post with its `postAssets`, or `null` when it doesn't exist. */
 export default async function readPost(db, postId) {
