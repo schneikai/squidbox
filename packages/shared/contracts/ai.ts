@@ -94,6 +94,7 @@ export const modelDefaultRequestSchema = z
     >,
   )
   .refine((picks) => Object.values(picks).some((id) => id !== null), 'Pick at least one default');
+export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
 // PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default for
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.
