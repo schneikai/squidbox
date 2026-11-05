@@ -1,10 +1,10 @@
-import { apiErrorSchema } from '@squidbox/shared';
 import { File, type UploadProgress, type UploadResult, UploadType } from 'expo-file-system';
 
 import cancelledError from '@/features/cloud/assets/cancelledError';
 import type { SyncIdentity } from '@/library/sessionMatches';
-import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
+import envelopeMessage from '@/utils/cloud-api/envelopeMessage';
+import requireApiBaseUrl from '@/utils/cloud-api/requireApiBaseUrl';
 import requireSession from '@/utils/cloud-api/requireSession';
 
 type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?: AbortSignal };
@@ -44,11 +44,10 @@ async function doUploadAsync(
 ): Promise<UploadResult> {
   // A signal aborted before this upload starts (during the token refresh, say) fires no event.
   if (signal?.aborted) throw cancelled(filename);
-  if (!API_BASE_URL) throw new Error('This build has no API URL (EXPO_PUBLIC_API_URL)');
   // Token is passed as a query param because iOS can silently drop Authorization
   // headers on background upload tasks (NSURLSessionUploadTask limitation).
   // The API's authenticate_request supports both header and ?token= param.
-  const uploadUrl = `${API_BASE_URL}/assets/upload/${encodeURIComponent(filename)}?token=${accessToken}`;
+  const uploadUrl = `${requireApiBaseUrl()}/assets/upload/${encodeURIComponent(filename)}?token=${accessToken}`;
 
   const uploadTask = new File(fileUri).createUploadTask(uploadUrl, {
     httpMethod: 'PUT',
@@ -72,11 +71,11 @@ function assertSuccess(result: UploadResult | undefined, filename: string, signa
   }
 }
 
-// The message of the server's error envelope (apiErrorSchema), if the body is one.
+// The server's error message, if the body is its JSON error envelope (a proxy's HTML page isn't).
 function serverErrorMessage(body: string | undefined): string | undefined {
   if (!body) return undefined;
   try {
-    return apiErrorSchema.safeParse(JSON.parse(body)).data?.error.message;
+    return envelopeMessage(JSON.parse(body));
   } catch {
     return undefined;
   }
