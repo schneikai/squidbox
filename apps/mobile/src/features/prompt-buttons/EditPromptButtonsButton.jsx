@@ -7,7 +7,8 @@ import Button from '@/components/Button';
 /**
  * The small pen beside a row of prompt buttons: opens the list of prompt buttons (Settings →
  * Assistant → Prompt buttons), pushed inside the chat's sheet. Muted, like every icon button, but
- * in the accent on an AssistantTray (AssistantTrayContext), where it is part of the assistant's look.
+ * on an AssistantTray (AssistantTrayContext) a light violet disc with a violet pen, part of the
+ * assistant's look.
  */
 export default function EditPromptButtonsButton() {
   const isOnTray = useContext(AssistantTrayContext) !== null;
@@ -16,6 +17,7 @@ export default function EditPromptButtonsButton() {
     <Button
       icon="edit"
       size="small"
+      variant={isOnTray ? 'secondary' : undefined}
       colorPalette={isOnTray ? 'accent' : undefined}
       onPress={() => router.navigate('/prompt-buttons')}
       accessibilityLabel="Edit prompt buttons"

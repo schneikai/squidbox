@@ -32,6 +32,7 @@ const palette = {
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet75: '#EFEDF8', // the page gray with a touch of lavender
+  violet85: '#EAE5F8', // the page gray with 7% violet, so a lavender surface on the page still reads
   violet100: '#EFE7FD',
   violet250: '#C4AAFF', // light and saturated, the rim light on the violet
   violet300: '#C4B5FD',
@@ -83,10 +84,10 @@ export const colors = {
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     tint: palette.violet50, // a lavender card on a white sheet
-    // The lavender tray of the assistant's actions (AssistantTray): the same violet as `tint` today,
-    // but its own role, so the assistant's look can change without the cards that use `tint`
-    assistant: palette.violet50,
-    assistantClear: alpha(palette.violet50, 0), // `assistant` faded out, the end of a row that scrolls inside it
+    // The lavender tray of the assistant's actions (AssistantTray): a step deeper than the page, so it
+    // stands out on the page and in a white card alike
+    assistant: palette.violet85,
+    assistantClear: alpha(palette.violet85, 0), // `assistant` faded out, the end of a row that scrolls inside it
     note: palette.yellow100, // a sticky note's yellow (a model's note in its list, a WarningNote)
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
@@ -135,6 +136,10 @@ export const shadows = {
   // rim along its top and left, a faint shade along its bottom and right, drawn inside its edge
   litEdge: {
     boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
+  },
+  // litEdge on a lavender surface (the assistant's tray): its shaded edge in violet, not gray
+  litEdgeTint: {
+    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 0.9)}, inset -1px -1px 0 ${alpha(palette.violet600, 0.08)}`,
   },
   // litEdge on the violet, in violets: white and black would read as a hard crescent and a gray line
   litEdgeAccent: {

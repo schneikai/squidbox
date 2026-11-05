@@ -12,6 +12,9 @@ const TRAY_INSET = scale(12);
 // What the tray gives what it holds (AssistantTrayContext).
 const TRAY = { inset: TRAY_INSET };
 
+// The title's sparkle, a step larger than a chip's to sit with the body-size title.
+const SPARKLE = scale(18);
+
 const FADE = [colors.background.assistantClear, colors.background.assistant];
 const FADE_START = { x: 0, y: 0 };
 const FADE_END = { x: 1, y: 0 };
@@ -30,7 +33,7 @@ export default function AssistantTray({ title, trailing, children, style }) {
     <AssistantTrayContext.Provider value={TRAY}>
       <View style={[styles.tray, style]}>
         <View style={styles.header}>
-          <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} />
+          <Icon name="sparkle" size={SPARKLE} color={colors.accent.base} />
           <Text variant="assistant" style={styles.title}>
             {title}
           </Text>
@@ -59,7 +62,7 @@ const styles = StyleSheet.create({
   rim: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: radii.card,
-    ...shadows.litEdge,
+    ...shadows.litEdgeTint,
   },
   // The title sits 2 pt further in than the chips, as the sparkle's glyph is narrower than its box.
   header: {
