@@ -10,7 +10,7 @@ import * as posts from './postsRepository';
 // post by `threadRootId` and ordered by `(threadIndex, id)`. Every function writes inside the caller's
 // transaction, so a user action commits the first post and its following posts at once.
 
-type AssetRef = { id: string; assetId: string };
+export type AssetRef = { id: string; assetId: string };
 /** One following post as the editor emits it: `id` null for a new one. */
 export type ThreadPart = { id: string | null; text: string; assetRefs: AssetRef[] };
 type NewPart = Pick<PostRecord, 'text' | 'postedAt'> & { threadRootId: string; threadIndex: number };
