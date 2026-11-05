@@ -1,8 +1,6 @@
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import ThreadPost from './ThreadPost';
-
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadParts from '@/components/ThreadParts';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
@@ -11,6 +9,7 @@ import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
 import PostView from '@/features/posts/PostView';
+import ThreadPost from '@/features/posts/ThreadPost';
 import { layout } from '@/styles/designTokens';
 
 const OTHER_POSTS_LIMIT = 30;

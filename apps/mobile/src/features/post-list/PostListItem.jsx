@@ -23,7 +23,8 @@ const STACK_INSET = scale(12);
  * two card edges peeking out below, a stack, and shows "Thread · N" in its Posted row: a tap on it
  * (or the item's accessibility action) calls `onToggleThread(post.id)`, and while `isExpanded` the
  * thread is unfolded in place: the edges fade away and the following posts come out under the first
- * one as cards like it, joined by the thread's line; the actions stay in the first card. `post` is a
+ * one as row cards (ThreadPost, as on the post screen), joined by the thread's line; a tap on them
+ * opens the post like the rest of the item, and the actions stay in the first card. `post` is a
  * postQuery row: it carries its `postAssets` and `threadCount`; the following posts are read only
  * while unfolded.
  */
