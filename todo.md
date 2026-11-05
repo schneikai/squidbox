@@ -14,14 +14,6 @@ propose, don't add. Remove an entry once it's done.
 
 ## Bugs
 
-### [ ] The quick view stayed open once
-
-The owner's long-press preview (`AssetQuickViewModal`) once stayed up after the finger lifted, on the
-dev client. A tap now closes it, but the cause isn't confirmed. Likeliest: the quick view is a
-native `Modal`, which can take the touch from the cell under it, so the cell's press-out
-(`onLongPressOut`) never comes. An overlay inside the screen (`pointerEvents="none"`) would leave
-the touch with the cell. Check on a phone.
-
 ## Features
 
 ### [ ] Search suggestions as you type, like Apple Photos
@@ -58,7 +50,7 @@ The app is built and tested only for iOS. Needed:
   `useAddAssetsFromCameraRoll` and `copyToMediaLibraryAsync`.
 - Platform differences: edge-to-edge insets, the back button and gesture (closing modals, the
   viewer, select mode), blur (`expo-blur` is slow or flat on Android: FloatingPill,
-  BlurPopoverRenderer, AssetQuickViewModal), keyboard events, HEIC display.
+  BlurPopoverRenderer, QuickViewHost), keyboard events, HEIC display.
 - Device checks of the gesture-heavy screens: pager, zoom, swipe-up details, drag-select, album
   reorder.
 - Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
@@ -105,7 +97,7 @@ Possible paid tier later: 3 days' retention by default, 30 days for paying users
 ### [ ] Context menus on long press (photo, album, post)
 
 Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
-Favorite, Delete. Build it in JS: the existing quick view (`AssetQuickViewModal`) with a menu from
+Favorite, Delete. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
 `components/popup-menu-options` under it, opened from the grids' "hold still" step (`onPeek` in
 `components/sortable-grid/useDragReorder.js`), so moving the finger still closes it and drags, as in
 Photos, and it works on web. Unlike today's quick view, the menu stays open after the finger lifts.
