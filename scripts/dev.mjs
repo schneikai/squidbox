@@ -26,6 +26,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -34,6 +35,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
 
 const ROOT = new URL('..', import.meta.url).pathname;
+const MIGRATIONS = 'apps/mobile/src/sync/db/migrations/'; // their SQL is inlined (metroCacheArgs)
 const SERVER_DIR = `${ROOT}apps/server`;
 const MOBILE_DIR = `${ROOT}apps/mobile`;
 const SERVER_ENV = `${SERVER_DIR}/.env`;
@@ -259,7 +261,9 @@ function startMetro(args, extraEnv, { keepCache = false } = {}) {
 
 // Metro keeps its cache across starts, so a restart rebuilds only what changed. The EXPO_PUBLIC_*
 // values are baked into the cached files, though, so it starts with a cleared cache when they, the
-// packages or the Babel and Metro configs changed since the last start, and on --clear. The key is
+// packages or the Babel and Metro configs changed since the last start, and on --clear. So are the
+// migrations' SQL files (inline-import puts them into migrations.js, which a regenerated migration
+// under the same name leaves as it was): a change to one clears it too. The key is
 // saved only once Metro is up, so a start that fails before clearing the cache clears it next time.
 function metroCacheArgs(env) {
   const hash = createHash('sha256');
@@ -275,6 +279,11 @@ function metroCacheArgs(env) {
     'apps/mobile/metro.config.js',
   ]) {
     hash.update(existsSync(`${ROOT}${file}`) ? readFileSync(`${ROOT}${file}`) : '');
+  }
+  for (const file of readdirSync(`${ROOT}${MIGRATIONS}`)
+    .filter((each) => each.endsWith('.sql'))
+    .sort()) {
+    hash.update(`${file}\n`).update(readFileSync(`${ROOT}${MIGRATIONS}${file}`));
   }
   metroCacheKey = hash.digest('hex');
   const isSame = existsSync(METRO_CACHE_KEY) && readFileSync(METRO_CACHE_KEY, 'utf8') === metroCacheKey;
