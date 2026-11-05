@@ -25,6 +25,7 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
+import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { press } from '@/styles/designTokens';
@@ -74,8 +75,9 @@ export default function Album({ album }) {
   const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150, { withReadAt: true });
 
   const actions = useAssetSelectionActions(selection, query, count);
-  const hasSubHeader = !!album.archivedAt || !!album.notes;
   const isSmart = isSmartAlbum(album);
+  // A smart album has no contacts of its own.
+  const hasSubHeader = !!album.archivedAt || !!album.notes || !isSmart;
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
@@ -163,7 +165,7 @@ export default function Album({ album }) {
         }
       />
 
-      {/* Sub-header — only shown when there's an archived badge or notes */}
+      {/* Sub-header — the archived badge, the notes and the contacts on the album */}
       {hasSubHeader && (
         <View style={[styles.subHeader, { marginTop: paddingTop }]}>
           {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
@@ -174,6 +176,11 @@ export default function Album({ album }) {
             >
               <Text variant="hint">{album.notes}</Text>
             </Pressable>
+          )}
+          {!isSmart && (
+            <View style={styles.contacts}>
+              <TargetContactsSection targetType="album" targetId={album.id} isFlush />
+            </View>
           )}
         </View>
       )}
@@ -250,5 +257,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contacts: {
+    alignSelf: 'stretch',
   },
 });

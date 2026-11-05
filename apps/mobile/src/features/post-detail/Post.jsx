@@ -7,6 +7,7 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadConnector from '@/components/ThreadConnector';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
+import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
@@ -17,7 +18,7 @@ const OTHER_POSTS_LIMIT = 30;
 
 /**
  * A post and its thread: the post's card (PostView; a long press copies a post's text), then each following post's card
- * joined by a short line, then Write with AI about the post, the albums of the thread's pictures and
+ * joined by a short line, then the contacts on it, Write with AI about the post, the albums of the thread's pictures and
  * the other posts from the thread's albums. `post` is a postQuery row read by id (with its
  * `threadPosts`).
  */
@@ -43,6 +44,8 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
           <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} />
         </View>
       ))}
+
+      <TargetContactsSection targetType="post" targetId={post.id} isFlush />
 
       <WriteWithAi sessionId={sessionId} />
 

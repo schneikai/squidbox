@@ -9,6 +9,7 @@ import useDetailsPanelDrag from './useDetailsPanelDrag';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import { SCREEN_PADDING } from '@/constants';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
+import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import PhotoTagsSection from '@/features/photo-tags/PhotoTagsSection';
 import PostRows from '@/features/post-list/PostRows';
 import { colors, layout } from '@/styles/designTokens';
@@ -20,7 +21,7 @@ import formatVideoDuration from '@/utils/formatVideoDuration';
 
 /**
  * The asset's details below the photo (useDetailsPanel), as Apple Photos' Info: its note, the tags
- * the assistant sees in it (while the Assistant is available), when it was added and its size, the
+ * the assistant sees in it (while the Assistant is available), the contacts on it, when it was added and its size, the
  * albums it is in and the posts it is in (PostRows), each opening its album or post. The panel
  * (`style`) clips the details (`contentStyle`, which report `onContentLayout`); a drag anywhere on
  * it moves them along `verticalDrag`'s track (useDetailsPanelDrag, holding `pagerGesture` while it
@@ -75,6 +76,14 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }) {
       <View style={styles.tags}>
         <PhotoTagsSection asset={asset} guardPress={guardPress} />
       </View>
+
+      <TargetContactsSection
+        targetType="asset"
+        targetId={asset.id}
+        guardPress={guardPress}
+        isLive={isCurrent}
+        isFlush
+      />
 
       <View style={styles.info}>
         <Text style={listTextStyles.title}>{formatFullDateTime(asset.createdAt)}</Text>
