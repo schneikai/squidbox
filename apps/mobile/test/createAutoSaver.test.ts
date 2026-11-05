@@ -30,6 +30,20 @@ describe('createAutoSaver', () => {
     }
   });
 
+  it('saves against an adopted value only what differs from it', async () => {
+    const save = vi.fn(async () => {});
+    const { saver } = makeSaver({ name: 'a', notes: 'x' }, save);
+    await saver.adopt({ name: 'a', notes: 'y' }); // another device changed the notes
+    saver.change({ name: 'b', notes: 'y' });
+    await saver.flush();
+    expect(save.mock.calls).toEqual([
+      [
+        { name: 'b', notes: 'y' },
+        { name: 'a', notes: 'y' },
+      ],
+    ]);
+  });
+
   it('reports a failed save, stores nothing, and syncs only what was stored', async () => {
     let fails = true;
     const { saver, onError, sync } = makeSaver({ text: 'a' }, async () => {

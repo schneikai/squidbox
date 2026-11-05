@@ -17,8 +17,8 @@ const instructionText = {
     description: 'The system instructions for the model that decides if a reply passes Verify.',
   },
   contactScreenshot: {
-    title: 'Contact from screenshot',
-    description: 'What the assistant is asked when you add a contact from a profile screenshot.',
+    title: 'Get info from screenshot',
+    description: 'What the assistant is asked when you use Get info from screenshot on a new contact.',
   },
 };
 

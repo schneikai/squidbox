@@ -1,4 +1,4 @@
-import { CONTACT_HANDLE_FIELDS } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
@@ -13,11 +13,16 @@ import useHasFeature from '@/hooks/useHasFeature';
 import { colors, sizes } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// The draft fields a screenshot's reading fills, from what it read: only what it found.
+// The draft fields a screenshot's reading fills, from what it read: only what it found, within the
+// contact's limits (a place joins first and the last one goes past CONTACT_LIMITS.places).
 function filledFrom(read, draft) {
   const fields = {};
-  for (const field of ['name', ...CONTACT_HANDLE_FIELDS]) if (read[field]) fields[field] = read[field];
-  if (read.place && !draft.places.includes(read.place)) fields.places = [read.place, ...draft.places.filter(Boolean)];
+  for (const field of CONTACT_HANDLE_FIELDS)
+    if (read[field]) fields[field] = read[field].slice(0, CONTACT_LIMITS.handle);
+  if (read.name) fields.name = read.name.slice(0, CONTACT_LIMITS.name);
+  const place = read.place?.slice(0, CONTACT_LIMITS.place);
+  if (place && !draft.places.includes(place))
+    fields.places = [place, ...draft.places.filter(Boolean)].slice(0, CONTACT_LIMITS.places);
   return fields;
 }
 

@@ -1,8 +1,7 @@
-import { CONTACT_HANDLES } from '@squidbox/shared';
+import { CONTACT_HANDLE_BY_FIELD, CONTACT_HANDLES } from '@squidbox/shared';
 import { Alert, Linking } from 'react-native';
 
 const handle = (value) => encodeURIComponent(value.trim());
-const xProfileUrl = CONTACT_HANDLES.find(({ field }) => field === 'xHandle').profileUrl;
 
 // Where each field opens, in the order to try: X in its app when it is installed (its scheme fails
 // otherwise) and else on the web, the others' web profiles, and a WhatsApp chat for the phone number.
@@ -10,7 +9,10 @@ const LINKS = {
   ...Object.fromEntries(
     CONTACT_HANDLES.map(({ field, profileUrl }) => [field, (value) => [profileUrl(handle(value))]]),
   ),
-  xHandle: (value) => [`twitter://user?screen_name=${handle(value)}`, xProfileUrl(handle(value))],
+  xHandle: (value) => [
+    `twitter://user?screen_name=${handle(value)}`,
+    CONTACT_HANDLE_BY_FIELD.xHandle.profileUrl(handle(value)),
+  ],
   phoneNumber: (value) => [`https://wa.me/${value.replace(/\D/g, '').replace(/^0+/, '')}`],
 };
 

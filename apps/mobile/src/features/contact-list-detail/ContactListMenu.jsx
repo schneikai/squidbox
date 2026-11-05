@@ -1,3 +1,4 @@
+import { CONTACT_LIST_LIMITS } from '@squidbox/shared';
 import { Alert } from 'react-native';
 
 import MenuButton from '@/components/MenuButton';
@@ -14,7 +15,7 @@ export default function ContactListMenu({ list, afterDelete }) {
       'Rename list',
       undefined,
       (name) => {
-        if (name?.trim()) updateList(list.id, { name: name.trim() });
+        if (name?.trim()) updateList(list.id, { name: name.trim().slice(0, CONTACT_LIST_LIMITS.name) });
       },
       'plain-text',
       list.name,

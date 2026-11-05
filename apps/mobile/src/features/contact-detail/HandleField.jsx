@@ -1,4 +1,4 @@
-import { CONTACT_HANDLES } from '@squidbox/shared';
+import { CONTACT_HANDLES, CONTACT_LIMITS } from '@squidbox/shared';
 import { StyleSheet, Text, View } from 'react-native';
 
 import openContactLinkAsync from './openContactLinkAsync';
@@ -15,6 +15,8 @@ const OPEN_LABELS = {
   ...Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])),
   phoneNumber: 'Message on WhatsApp',
 };
+// The longest text each field takes (the synced schema's limits; a handle as typed or pasted).
+const MAX_LENGTHS = { name: CONTACT_LIMITS.name, phoneNumber: CONTACT_LIMITS.phoneNumber };
 
 /**
  * One of a contact's handles (or its phone number) as a row of a card: the label on the left, the
@@ -48,6 +50,7 @@ export default function HandleField({
         placeholder={placeholder}
         style={styles.input}
         accessibilityLabel={label}
+        maxLength={MAX_LENGTHS[field] ?? CONTACT_LIMITS.handle}
         autoCapitalize={isName ? 'words' : 'none'}
         autoCorrect={false}
         keyboardType={isPhone ? 'phone-pad' : 'default'}

@@ -1,7 +1,15 @@
 import { and, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias, QueryBuilder } from 'drizzle-orm/sqlite-core';
 
-import { a, albumLastPostedAt, assetOrder, assetScopeWhere, contactTargetIds, fromScope } from '@/sync/assetSql';
+import {
+  a,
+  albumHoldsAny,
+  albumLastPostedAt,
+  assetOrder,
+  assetScopeWhere,
+  contactTargetIds,
+  fromScope,
+} from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { readByIdMap } from '@/sync/readByIds';
@@ -57,7 +65,7 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }) {
   const inScope = (() => {
     if (scope === 'all') return undefined;
     if (scope.contactId) return sql`al.id in ${contactTargetIds(scope.contactId, 'album')}`;
-    return sql`exists (select 1 from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`;
+    return albumHoldsAny(sql.raw('al.id'), scope.assetIds);
   })();
   const held =
     scope === 'all' || scope.contactId

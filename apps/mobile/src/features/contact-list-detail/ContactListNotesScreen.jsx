@@ -1,3 +1,4 @@
+import { CONTACT_LIST_LIMITS } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 
 import NotesEditSheet from '@/components/NotesEditSheet';
@@ -15,5 +16,11 @@ export default function ContactListNotesScreen() {
 
   if (!list) return null;
 
-  return <NotesEditSheet notes={list.notes} onSave={(notes) => updateList(list.id, { notes })} />;
+  return (
+    <NotesEditSheet
+      notes={list.notes}
+      maxLength={CONTACT_LIST_LIMITS.notes}
+      onSave={(notes) => updateList(list.id, { notes })}
+    />
+  );
 }

@@ -15,7 +15,10 @@ import toggleItem from '@/utils/toggleItem';
  */
 export default function ContactListPicker({ selectedIds, onChange }) {
   const lists = useContactListRows({ withMembers: false });
-  const promptAddList = useAddListAction({ onAdded: (list) => onChange([...selectedIds, list.id]) });
+  const promptAddList = useAddListAction({
+    onAdded: (list) => onChange([...selectedIds, list.id]),
+    message: 'The list is made now, even if you close this without saving.',
+  });
 
   if (!lists) return null;
 

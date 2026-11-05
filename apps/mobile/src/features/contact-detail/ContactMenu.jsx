@@ -1,4 +1,4 @@
-import { CONTACT_HANDLES } from '@squidbox/shared';
+import { CONTACT_HANDLE_BY_FIELD } from '@squidbox/shared';
 import { router } from 'expo-router';
 import { Share } from 'react-native';
 
@@ -8,7 +8,7 @@ import addToContactListHref from '@/features/contact-list-picker/addToContactLis
 import useContacts from '@/features/contacts-context/useContacts';
 import useDeleteContact from '@/features/contacts-context/useDeleteContact';
 
-const xProfileUrl = CONTACT_HANDLES.find(({ field }) => field === 'xHandle').profileUrl;
+const xProfileUrl = CONTACT_HANDLE_BY_FIELD.xHandle.profileUrl;
 
 /**
  * The contact screen's ⋯ menu: add to a list, share the X profile (with an X handle), remove the

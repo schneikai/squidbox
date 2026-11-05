@@ -3,8 +3,8 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import useNewContactDraft from './useNewContactDraft';
 
-import Button from '@/components/Button';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import EditSheetHeader from '@/components/EditSheetHeader';
+import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import ContactListPicker from '@/features/contact-list-picker/ContactListPicker';
@@ -16,10 +16,12 @@ export default function NewContactListsScreen() {
 
   return (
     <ModalSheet>
-      <ModalHeader
-        leading={<Button icon="chevron-left" accessibilityLabel="Back" onPress={() => navigation.goBack()} />}
+      <EditSheetHeader
         title="Lists"
-        trailing={<Button variant="primary" label="Done" onPress={() => navigation.goBack()} />}
+        confirmLabel="Done"
+        canConfirm
+        onCancel={() => navigation.goBack()}
+        onConfirm={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.content}>
         <ContactListPicker selectedIds={listIds} onChange={setListIds} />

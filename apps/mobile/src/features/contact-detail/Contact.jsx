@@ -1,5 +1,6 @@
+import { CONTACT_LIMITS } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
 
 import ContactAvatarPicker from './ContactAvatarPicker';
@@ -37,18 +38,39 @@ import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 const PHOTOS_SHOWN = 6;
 
 // A contact, edited as you type (useSaveAsYouType): its avatar, name, handles, places and notes,
-// then the lists it is in and the photos, albums and posts it is on. The heart and ⋯ share the
+// then the lists it is in and the photos, albums and posts it is on. A change another device makes
+// while it is open shows in the fields not edited here since. The heart and ⋯ share the
 // header's pill; a double tap on the avatar toggles the favorite too.
 export default function Contact({ contact }) {
   const navigation = useNavigation();
   const haptics = useHaptics();
   const { toggleFavoriteContact, setAvatarAsync } = useContacts();
   const [draft, setDraft] = useState(() => contactDraft(contact));
-  const { flush } = useSaveAsYouType(storedContactFields(draft), save);
+  const [seen, setSeen] = useState(contact); // the stored contact the draft last took in
+  const saver = useSaveAsYouType(storedContactFields(draft), save);
+  const { flush } = saver;
   const lists = useListsOfContact(contact.id);
   const photoScope = { contactId: contact.id };
   const photos = usePhotos(photoScope);
+  // The saver compares with the stored contact as it is now, so a change from elsewhere isn't written back.
+  useEffect(() => {
+    saver.adopt(storedContactFields(contactDraft(contact)));
+  }, [saver, contact]);
 
+  // A stored change from elsewhere: each field still as it was stored before takes the new value.
+  if (contact.updatedAt !== seen.updatedAt) {
+    const before = contactDraft(seen);
+    const after = contactDraft(contact);
+    setSeen(contact);
+    setDraft((current) =>
+      Object.fromEntries(
+        Object.entries(current).map(([field, value]) => [
+          field,
+          JSON.stringify(value) === JSON.stringify(before[field]) ? after[field] : value,
+        ]),
+      ),
+    );
+  }
   const subtitle = [contact.places[0], `added ${dateToTimeAgo(contact.createdAt)}`].filter(Boolean).join(' · ');
 
   // Writes the fields that changed since the last save; an emptied name keeps the stored one.
@@ -113,6 +135,7 @@ export default function Contact({ contact }) {
             onBlur={() => flush()}
             placeholder={contact.name}
             textContentType="name"
+            maxLength={CONTACT_LIMITS.name}
           />
         </Field>
 
@@ -129,6 +152,7 @@ export default function Contact({ contact }) {
           onChangeText={(text) => setField('notes', text)}
           onBlur={() => flush()}
           placeholder="Add a note…"
+          maxLength={CONTACT_LIMITS.notes}
           minHeight={scale(88)}
         />
 

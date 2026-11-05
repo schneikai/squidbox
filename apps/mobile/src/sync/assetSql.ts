@@ -1,5 +1,5 @@
 import { eq, sql, type SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/sqlite-core';
+import { alias, type SQLiteColumn } from 'drizzle-orm/sqlite-core';
 
 import * as schema from './db/schema';
 import { isCanonicalEdge } from './edgeSql';
@@ -73,6 +73,11 @@ export function fromScope(select: any, scope: AssetScope, sort = 'createdAt:desc
 /** The ids of an album's assets, through its live edges. */
 export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
+}
+
+/** Whether the album `albumId` (a column, or an id) holds any of these assets, through a live edge. */
+export function albumHoldsAny(albumId: string | SQL | SQLiteColumn, assetIds: string[]): SQL {
+  return sql`exists (select 1 from album_assets where album_id = ${albumId} and deleted_at is null and ${inJson(sql.raw('asset_id'), assetIds)})`;
 }
 
 /** The ids of the photos, albums or posts (`targetType`) a contact is on, through its live links. */

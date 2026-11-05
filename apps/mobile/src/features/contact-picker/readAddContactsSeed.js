@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import assetQuery from '@/features/asset-list/assetQuery';
 import contactQuery from '@/features/contact-list/contactQuery';
+import { albumHoldsAny } from '@/sync/assetSql';
 import { schema } from '@/sync/db/client';
 import { inJson } from '@/sync/inJson';
 import { readByIds } from '@/sync/readByIds';
@@ -65,12 +66,7 @@ function albumsHolding(tx, assetIds) {
   return tx
     .select({ id: al.id, name: al.name })
     .from(al)
-    .where(
-      and(
-        isNull(al.deletedAt),
-        sql`exists (select 1 from album_assets where album_id = ${al.id} and deleted_at is null and ${inJson(sql.raw('asset_id'), assetIds)})`,
-      ),
-    )
+    .where(and(isNull(al.deletedAt), albumHoldsAny(al.id, assetIds)))
     .orderBy(asc(sql`${al.name} collate nocase`), asc(al.id));
 }
 

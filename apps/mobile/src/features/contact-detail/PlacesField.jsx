@@ -1,3 +1,4 @@
+import { CONTACT_LIMITS } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
@@ -9,7 +10,7 @@ import { layout, scale } from '@/styles/designTokens';
 
 /**
  * A contact's places as a card: one row per place, each with × to take it out, and "Add place" at
- * its end. `places` is the list as typed (an empty row is a place being added); every edit hands
+ * its end, until it holds CONTACT_LIMITS.places. `places` is the list as typed (an empty row is a place being added); every edit hands
  * the whole list to `onChange`.
  */
 export default function PlacesField({ places, onChange, onBlur }) {
@@ -29,6 +30,7 @@ export default function PlacesField({ places, onChange, onBlur }) {
               onChangeText={(text) => setPlace(index, text)}
               onBlur={onBlur}
               placeholder="City, Country"
+              maxLength={CONTACT_LIMITS.place}
               style={styles.input}
               accessibilityLabel={`Place ${index + 1}`}
               autoFocus={!place && index === places.length - 1}
@@ -42,7 +44,7 @@ export default function PlacesField({ places, onChange, onBlur }) {
           <Divider />
         </View>
       ))}
-      <AddRow label="Add place" onPress={() => onChange([...places, ''])} />
+      {places.length < CONTACT_LIMITS.places && <AddRow label="Add place" onPress={() => onChange([...places, ''])} />}
     </Card>
   );
 }

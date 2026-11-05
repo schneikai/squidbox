@@ -5,16 +5,22 @@ import ChipRow from '@/components/ChipRow';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
+import useSheetRoute from '@/hooks/useSheetRoute';
 
 const identity = (onPress) => onPress;
 
 /**
  * The Contacts section of a photo, album or post (`targetType`, `targetId`): a chip per contact on
  * it, opening the contact, and Add, which opens the Add contacts sheet (where one is taken off too).
- * `guardPress` may wrap the presses (useDetailsPanelDrag's); `isLive: false` reads them once.
+ * Inside a sheet (a photo, album or post opened in New post or Compare) the chips only show who is
+ * on it: a contact and the Add contacts sheet open from the main app, never as a second sheet or a
+ * screen that edits as you type inside a draft. `guardPress` may wrap the presses (useDetailsPanelDrag's); `isLive: false` reads them once.
  */
 export default function TargetContactsSection({ targetType, targetId, guardPress = identity, isLive, isFlush }) {
   const contacts = useContactRows({ scope: { targetType, targetId } }, { isLive });
+  const isInSheet = !!useSheetRoute();
+
+  if (isInSheet && !contacts?.length) return null;
 
   return (
     <>
@@ -25,15 +31,17 @@ export default function TargetContactsSection({ targetType, targetId, guardPress
             key={contact.id}
             label={contact.name}
             leading={<ContactAvatar contact={contact} size="chip" />}
-            onPress={guardPress(() => router.navigate(`/contact/${contact.id}`))}
+            onPress={isInSheet ? undefined : guardPress(() => router.navigate(`/contact/${contact.id}`))}
           />
         ))}
-        <Chip
-          variant="add"
-          label="Add"
-          accessibilityLabel="Add contacts"
-          onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: { targetType, targetId } }))}
-        />
+        {!isInSheet && (
+          <Chip
+            variant="add"
+            label="Add"
+            accessibilityLabel="Add contacts"
+            onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: { targetType, targetId } }))}
+          />
+        )}
       </ChipRow>
     </>
   );
