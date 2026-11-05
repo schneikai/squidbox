@@ -11,6 +11,7 @@ import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import ContactRow from '@/features/contact-list/ContactRow';
+import ContactRowMenu from '@/features/contact-list/ContactRowMenu';
 import contactQuery from '@/features/contact-list/contactQuery';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
@@ -30,7 +31,14 @@ export default function ContactList({ list }) {
   const { rows, count, loadMore } = usePagedQuery(query, 100);
 
   function renderItem({ item: contact, index }) {
-    return <ContactRow contact={contact} listId={list.id} isFirst={index === 0} isLast={index === rows.length - 1} />;
+    return (
+      <ContactRow
+        contact={contact}
+        trailing={<ContactRowMenu contact={contact} listId={list.id} />}
+        isFirst={index === 0}
+        isLast={index === rows.length - 1}
+      />
+    );
   }
 
   const header = (

@@ -66,6 +66,12 @@ describe('membershipRepository', () => {
     expect(live.map((e) => e.targetType)).toEqual(['post']);
   });
 
+  it("set makes exactly the given contacts the parent's", async () => {
+    await contactListMembers.add(db, LIST, ['a', 'b'], newId);
+    await contactListMembers.set(db, LIST, ['b', 'c'], newId);
+    expect(await liveContactIds('list-1')).toEqual(['b', 'c']);
+  });
+
   it('tombstoneParent empties one list and leaves the others', async () => {
     await contactListMembers.add(db, LIST, ['a', 'b'], newId);
     await contactListMembers.add(db, { listId: 'list-2' }, ['a'], newId);

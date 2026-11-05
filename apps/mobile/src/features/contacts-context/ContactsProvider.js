@@ -1,12 +1,11 @@
 import { contactCollection, contactListCollection } from '@squidbox/shared';
-import { and, eq, isNull } from 'drizzle-orm';
 import { useMemo } from 'react';
 
 import ContactsContext from './ContactsContext';
 
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
-import { getDb, schema } from '@/sync/db/client';
+import { getDb } from '@/sync/db/client';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
 import { requestSync } from '@/sync/worker';
 import getNewItemId from '@/utils/getNewItemId';
@@ -66,36 +65,14 @@ export default function ContactsProvider({ children }) {
         written(async (tx) => {
           for (const listId of listIds) await contactListMembers.add(tx, { listId }, contactIds, getNewItemId);
         }),
+      // Makes exactly these contacts the list's: the ones added join, the ones left out leave.
+      setListContacts: (listId, contactIds) =>
+        written((tx) => contactListMembers.set(tx, { listId }, contactIds, getNewItemId)),
       removeFromList: (listId, contactId) => written((tx) => contactListMembers.remove(tx, { listId }, [contactId])),
       // Puts exactly these contacts on the photo, album or post: the ones added get a link, the ones
       // left out lose theirs. The only way a link is removed.
-      setTargetContacts: (target, contactIds) =>
-        written(async (tx) => {
-          const live = await tx
-            .select({ contactId: schema.contactLinks.contactId })
-            .from(schema.contactLinks)
-            .where(
-              and(
-                eq(schema.contactLinks.targetType, target.targetType),
-                eq(schema.contactLinks.targetId, target.targetId),
-                isNull(schema.contactLinks.deletedAt),
-              ),
-            );
-          const wanted = new Set(contactIds);
-          const linked = new Set(live.map((row) => row.contactId));
-          const parent = { targetType: target.targetType, targetId: target.targetId };
-          await contactLinks.remove(
-            tx,
-            parent,
-            [...linked].filter((id) => !wanted.has(id)),
-          );
-          await contactLinks.add(
-            tx,
-            parent,
-            [...wanted].filter((id) => !linked.has(id)),
-            getNewItemId,
-          );
-        }),
+      setTargetContacts: ({ targetType, targetId }, contactIds) =>
+        written((tx) => contactLinks.set(tx, { targetType, targetId }, contactIds, getNewItemId)),
     };
   }, []);
 

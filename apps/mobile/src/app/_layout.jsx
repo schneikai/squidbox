@@ -254,7 +254,10 @@ function RootStack() {
       <Stack.Screen name="(main)/pick-assets" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/add-to-album" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/(chat)" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(main)/add-to-contact-list" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(main)/add-contacts" options={SHEET_OPTIONS} />
       <Stack.Screen name="(new-post)" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(new-contact)" options={SHEET_OPTIONS} />
       <Stack.Screen name="(compare)" options={SHEET_OPTIONS} dangerouslySingular={modelKind} />
       <Stack.Screen name="(editor)" options={SHEET_OPTIONS} dangerouslySingular={editorId} />
     </Stack>

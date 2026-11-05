@@ -7,7 +7,7 @@ import Icon from '@/components/Icon';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import { colors, layout, press, scale, sizes, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-import pluralize from '@/utils/pluralize';
+import pluralizeText from '@/utils/pluralizeText';
 
 const STACK_SIZE = scale(32);
 const OVERLAP = -scale(10);
@@ -30,7 +30,9 @@ export default function ContactListRows({ lists }) {
               <Text style={styles.name} numberOfLines={1}>
                 {list.name}
               </Text>
-              <Text style={listTextStyles.subtitle}>{pluralize(list.memberCount, 'contact')}</Text>
+              <Text style={listTextStyles.subtitle}>
+                {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
+              </Text>
             </View>
             <View style={styles.stack}>
               {list.firstMembers.map((member, i) => (

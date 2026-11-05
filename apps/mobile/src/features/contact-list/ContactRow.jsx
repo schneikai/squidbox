@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import ContactRowMenu from './ContactRowMenu';
 import contactSubtitle from './contactSubtitle';
 
 import Divider from '@/components/Divider';
@@ -13,19 +12,20 @@ const AVATAR_INSET = layout.sideGutter + scale(44) + 12;
 
 /**
  * A contact in a list of contacts: its avatar (with the favorite's heart), name and "place ·
- * @handle", and its ⋯ menu (ContactRowMenu; `listId` inside a list). The rows of one list read as
- * one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates the
- * rest. The row opens the contact.
+ * @handle", and `trailing` at its end (its ⋯ menu, a selection circle). The rows of one list read
+ * as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates the
+ * rest. The row opens the contact unless given `onPress`; `isSelected` tells VoiceOver it is picked.
  */
-export default function ContactRow({ contact, listId, isFirst, isLast }) {
+export default function ContactRow({ contact, trailing, onPress, isSelected, isFirst, isLast }) {
   const subtitle = contactSubtitle(contact);
 
   return (
     <View style={[styles.surface, isFirst && styles.first, isLast && styles.last]}>
       <Pressable
         style={({ pressed }) => [styles.row, pressed && press.flat]}
-        onPress={() => router.navigate(`/contact/${contact.id}`)}
+        onPress={onPress ?? (() => router.navigate(`/contact/${contact.id}`))}
         accessibilityRole="button"
+        accessibilityState={isSelected === undefined ? undefined : { selected: isSelected }}
       >
         <ContactAvatar contact={contact} isFavorite={contact.isFavorite} />
         <View style={styles.labels}>
@@ -38,7 +38,7 @@ export default function ContactRow({ contact, listId, isFirst, isLast }) {
             </Text>
           )}
         </View>
-        <ContactRowMenu contact={contact} listId={listId} />
+        {trailing}
       </Pressable>
       {!isLast && <Divider style={styles.divider} />}
     </View>

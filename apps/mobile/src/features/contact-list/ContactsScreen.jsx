@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
 import ContactRow from './ContactRow';
+import ContactRowMenu from './ContactRowMenu';
 import contactListQuery from './contactListQuery';
 import contactQuery from './contactQuery';
 import useAddListAction from './useAddListAction';
@@ -54,7 +55,14 @@ export default function ContactsScreen() {
   }
 
   function renderItem({ item: contact, index }) {
-    return <ContactRow contact={contact} isFirst={index === 0} isLast={index === rows.length - 1} />;
+    return (
+      <ContactRow
+        contact={contact}
+        trailing={<ContactRowMenu contact={contact} />}
+        isFirst={index === 0}
+        isLast={index === rows.length - 1}
+      />
+    );
   }
 
   const header = (
