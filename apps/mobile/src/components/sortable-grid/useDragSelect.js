@@ -83,7 +83,7 @@ export default function useDragSelect({
     onMove(x, y) {
       if (anchorIndexRef.current === -1) return;
       if (!isSelectingRef.current) {
-        if (!isPastTapSlop(liftPointRef.current, x, y)) return;
+        if (!isPastTapSlop(liftPointRef.current, x, y, { isPeeking: peek.isPeeking() })) return;
         startSelecting();
       }
       const index = indexAtContent(contentPoint(x, y), loadedRows.length);

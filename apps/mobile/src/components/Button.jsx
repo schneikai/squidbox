@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import FadedGroupContext from '@/components/FadedGroupContext';
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
@@ -65,7 +66,8 @@ const LINK_HIT_SLOP = { regular: 8, small: 12, caption: 16 };
  * on a primary, the current tab, it only tells VoiceOver. `isSwitch` has VoiceOver read it as a
  * switch, for a setting it turns on and off (18+).
  * `filled` fills the icon; `iconCount={2}` doubles it, smaller, for a second step of the same mark.
- * `loading` shows a spinner and blocks presses. style is for layout only.
+ * `loading` shows a spinner and blocks presses. Off (`disabled` or `loading`) it fades, unless the
+ * surface around it fades with it (FadedGroupContext). style is for layout only.
  */
 export default function Button({
   icon,
@@ -86,6 +88,7 @@ export default function Button({
   style,
 }) {
   const hasIconSlot = useContext(IconSlotContext);
+  const isFadedByGroup = useContext(FadedGroupContext);
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
@@ -113,7 +116,7 @@ export default function Button({
         box,
         fill,
         pressed && !isInactive && pressedStyle(shape),
-        isInactive && styles.disabled,
+        isInactive && !isFadedByGroup && styles.disabled,
         style,
       ]}
     >
