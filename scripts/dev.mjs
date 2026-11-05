@@ -171,8 +171,20 @@ async function setUpDatabase(copyAccountEnv) {
     () =>
       spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-q'], { cwd: SERVER_DIR }).status === 0,
   );
-  await run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
+  await waitForBuckets();
   await run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
+}
+
+// The one-shot that makes MinIO's buckets. Not `docker compose wait`: while the container is between
+// restarts (it fails until MinIO answers, `restart: on-failure`) that finds no container and fails.
+async function waitForBuckets() {
+  const state = () =>
+    spawnSync('docker', ['compose', 'ps', '-a', '--format', '{{.State}} {{.ExitCode}}', 'createbuckets'], {
+      cwd: SERVER_DIR,
+      encoding: 'utf8',
+    }).stdout.trim();
+  await waitFor('the MinIO buckets', () => state().startsWith('exited'));
+  if (state() !== 'exited 0') fail(`Creating the MinIO buckets failed (${state()})`);
 }
 
 // What the copy of the owner's library reads from: the live database and the live bucket, with the
