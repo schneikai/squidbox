@@ -7,7 +7,7 @@
  */
 import { defineConfig } from 'playwright/test';
 
-import { SERVER_URL } from './scripts/webPreview.mjs';
+import { SERVER_URL } from '../../scripts/localBackend.mjs';
 
 const isCI = !!process.env.CI;
 

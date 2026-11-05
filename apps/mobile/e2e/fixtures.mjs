@@ -13,8 +13,7 @@ import { openWebPreview } from '../scripts/webPreview.mjs';
 export const test = base.extend({
   signedIn: [true, { option: true }],
   app: async ({ signedIn }, use, testInfo) => {
-    const { page, pageErrors, consoleErrors, close } = await openWebPreview({ signedIn });
-    await page.context().tracing.start({ screenshots: true, snapshots: true });
+    const { page, pageErrors, consoleErrors, close } = await openWebPreview({ signedIn, trace: true });
 
     await use({ page });
 

@@ -33,14 +33,20 @@ import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
 
-import { backendEnv, SEED_MOCK, SERVER_DIR } from './mockData.mjs';
+import {
+  backendEnv,
+  buildWebBundleAsync,
+  METRO_URL,
+  SEED_MOCK,
+  SERVER_DIR,
+  SERVER_URL,
+  withoutKeys,
+} from './localBackend.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const MOBILE_DIR = `${ROOT}apps/mobile`;
 const SERVER_ENV = `${SERVER_DIR}/.env`;
-const SERVER_URL = 'http://localhost:3100';
 const SERVER_LOG = `${tmpdir()}/squidbox-server.log`;
-const METRO_URL = 'http://localhost:8081';
 // Expo's tunnel (on.expo.app, through the signed-in Expo account) can drop now and then; a later
 // attempt gets through. Expo ends every tunnel error with this hint.
 const TUNNEL_FAILED = /Check the Expo status page/;
@@ -288,7 +294,8 @@ function saveMetroCacheKey() {
   writeFileSync(METRO_CACHE_KEY, metroCacheKey);
 }
 
-// The web preview builds its own bundle, so this one builds none.
+// Builds the web bundle once Metro answers, so the first page load (the web preview, the UI flow
+// tests) doesn't wait on a cold build.
 async function startMetroLocally(extraEnv) {
   log('Starting Metro');
   const metro = startMetro([], extraEnv);
@@ -297,7 +304,13 @@ async function startMetroLocally(extraEnv) {
   superviseExit(metro);
   await waitFor('Metro', async () => (await fetch(`${METRO_URL}/status`).catch(() => null))?.ok);
   saveMetroCacheKey();
-  return { url: METRO_URL, bundled: Promise.resolve(true) };
+  log('Building the web bundle');
+  const started = Date.now();
+  const bundled = buildWebBundleAsync().then(
+    () => log(`Web bundle ready in ${Math.round((Date.now() - started) / 1000)}s`),
+    (error) => fail(error.message),
+  );
+  return { url: METRO_URL, bundled };
 }
 
 async function startMetroWithTunnel(extraEnv) {
@@ -353,10 +366,6 @@ async function ensureDocker() {
 
 function dockerIsUp() {
   return spawnSync('docker', ['info'], { stdio: 'ignore' }).status === 0;
-}
-
-function withoutKeys(env, isExcluded) {
-  return Object.fromEntries(Object.entries(env).filter(([key]) => !isExcluded(key)));
 }
 
 // Expo's tunnel client only honors http_proxy; the cloud workspace sets HTTPS_PROXY.

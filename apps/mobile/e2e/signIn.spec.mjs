@@ -7,6 +7,8 @@ test.describe('signed out', () => {
   test.use({ signedIn: false });
 
   test("signing in from Settings opens the account's library", async ({ app: { page } }) => {
+    // The first pull of the account comes on top of the usual test.
+    test.slow();
     const { email, password } = readSeedCredentials();
     const library = page.getByTestId('library-screen');
     await library.getByRole('button', { name: 'Settings' }).click();

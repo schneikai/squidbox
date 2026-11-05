@@ -16,30 +16,37 @@ import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { chromium, devices } from 'playwright';
 
-export const APP_URL = 'http://localhost:8081/';
-// The local API server (scripts/dev.mjs starts it).
-export const SERVER_URL = 'http://localhost:3100';
+import { METRO_URL, SERVER_DIR, SERVER_URL } from '../../../scripts/localBackend.mjs';
+
 const API_URL = `${SERVER_URL}/api/v1`;
-const SERVER_ENV = new URL('../../server/.env', import.meta.url);
+const SERVER_ENV = `${SERVER_DIR}/.env`;
 
-export async function openWebPreview({ signedIn = true, production = false } = {}) {
+// `trace`: records a Playwright trace of the context from before the page loads (the UI flow tests
+// save it when a test fails). A launched browser that fails to sign in or load the app is closed.
+export async function openWebPreview({ signedIn = true, production = false, trace = false } = {}) {
   const browser = await chromium.launch(launchOptions());
-  const context = await browser.newContext(devices['iPhone 15 Pro Max']);
-  if (signedIn) await context.addInitScript(storeSession, await loginAsync());
+  try {
+    const context = await browser.newContext(devices['iPhone 15 Pro Max']);
+    if (trace) await context.tracing.start({ screenshots: true, snapshots: true });
+    if (signedIn) await context.addInitScript(storeSession, await loginAsync());
 
-  const page = await context.newPage();
-  // Uncaught errors and console errors apart: the UI flow tests fail on the first, not the second.
-  const pageErrors = [];
-  const consoleErrors = [];
-  page.on('pageerror', (error) => pageErrors.push(error.message));
-  page.on('console', (message) => message.type() === 'error' && consoleErrors.push(message.text()));
-  if (production) await page.route(/\.bundle\?/, serveProductionBundle);
+    const page = await context.newPage();
+    // Uncaught errors and console errors apart: the UI flow tests fail on the first, not the second.
+    const pageErrors = [];
+    const consoleErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    page.on('console', (message) => message.type() === 'error' && consoleErrors.push(message.text()));
+    if (production) await page.route(/\.bundle\?/, serveProductionBundle);
 
-  // Metro builds the bundle on the first request, which can take minutes (a release bundle more so).
-  await page.goto(APP_URL, { timeout: 600_000 });
-  // Exact: "Setting up your library" (the first-sync screen) must not count as the Library tab.
-  await page.getByText('Library', { exact: true }).first().waitFor({ timeout: 600_000 });
-  return { page, pageErrors, consoleErrors, close: () => browser.close() };
+    // Metro builds the bundle on the first request, which can take minutes (a release bundle more so).
+    await page.goto(`${METRO_URL}/`, { timeout: 600_000 });
+    // Exact: "Setting up your library" (the first-sync screen) must not count as the Library tab.
+    await page.getByText('Library', { exact: true }).first().waitFor({ timeout: 600_000 });
+    return { page, pageErrors, consoleErrors, close: () => browser.close() };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
 }
 
 const SETTLE_MAX_ROUNDS = 10;
