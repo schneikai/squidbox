@@ -213,7 +213,7 @@ and mainClient.e2e no longer covers it: a migration can drop the column once no 
 ### [ ] Widen what CI checks
 
 `.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
-ESLint setup. The mobile tests aren't typechecked (`tsconfig.synccheck.json` leaves out `test/`,
+ESLint setup. The mobile tests aren't typechecked (`tsconfig.typecheck.json` leaves out `test/`,
 which already has type errors, e.g. `twoDevice.e2e.test.ts`). Nothing bundles the app, so a wrong
 named import in JS passes until a build (`npx expo export` would catch it).
 
@@ -338,11 +338,6 @@ function on the UI thread, only fails at runtime on the phone. A script could ca
 `__closure` names, and flag those used in parameter defaults or bound to a plain function, a
 React hook result or an unresolved import that the worklet calls. An audit prototyped this
 (unpolished, with hard-coded paths); make it a `scripts/checkWorklets.mjs` run by `npm run lint`.
-
-### [ ] Move off Node 20
-
-Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
-`node:20-slim`. Move both to the current LTS and run the tests.
 
 ### [ ] Database and caches through the library handle too
 
