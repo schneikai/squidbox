@@ -26,13 +26,15 @@ export default function useDiscardGuard(isDirty, isSaving = false) {
 
   usePreventRemove((isDirty || isSaving) && !pending, async ({ data }) => {
     if (isSaving || isAskingRef.current) return;
+    // The blocked action runs once the guard is off (`leave`): run while it is on, it would be
+    // blocked again and come back here, over and over.
     if (data.action[DISCARD_CONFIRMED]) {
-      navigation.dispatch(data.action);
+      leave(() => navigation.dispatch(data.action));
       return;
     }
     isAskingRef.current = true;
     try {
-      if (await confirmDiscardAsync()) navigation.dispatch({ ...data.action, [DISCARD_CONFIRMED]: true });
+      if (await confirmDiscardAsync()) leave(() => navigation.dispatch({ ...data.action, [DISCARD_CONFIRMED]: true }));
     } finally {
       isAskingRef.current = false;
     }
