@@ -10,10 +10,11 @@
     "web:preview": "node scripts/webPreview.mjs",
     "web:measure": "node scripts/measurePerformance.mjs",
     "lint": "npm run lint:files -- .",
-    "lint:files": "eslint --max-warnings 0 --cache --cache-strategy content --cache-location node_modules/.cache/eslint/",
+    "lint:files": "eslint --ext .js,.jsx,.mjs --max-warnings 0 --cache --cache-strategy content --cache-location node_modules/.cache/eslint/",
     "typecheck": "tsc -p tsconfig.synccheck.json --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/synccheck.tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ui": "playwright test",
     "test:e2e": "TEST_DATABASE_URL=postgres://squidbox:squidbox@localhost:5432/squidbox vitest run"
   },
   "dependencies": {

@@ -16,10 +16,15 @@ import { colors } from '@/styles/designTokens';
  * Any padding (bottom inset, horizontal, header offset, etc.) is the
  * caller's responsibility via the style prop.
  *
- * style applies to the root View.
+ * style applies to the root View. testID (the screen's name for the UI flow tests) is the one
+ * prop it passes through.
  */
-export default function ModalSheet({ children, style }) {
-  return <View style={[styles.root, style]}>{children}</View>;
+export default function ModalSheet({ children, style, testID }) {
+  return (
+    <View testID={testID} style={[styles.root, style]}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

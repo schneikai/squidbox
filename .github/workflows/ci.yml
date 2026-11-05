@@ -1,6 +1,7 @@
 name: ci
 
-# Needs no secrets: the DB-backed tests run against a throwaway Postgres service container.
+# Needs no secrets: the DB-backed tests run against a throwaway Postgres service container, and the UI
+# flow tests (ui-flows) against their own Docker stack (apps/server/docker-compose.yml, as dev:local runs).
 
 on:
   push:
@@ -60,3 +61,42 @@ jobs:
       - run: npm run test:e2e --workspace apps/mobile
         env:
           FUZZ_DEEP: 1
+
+  # The Playwright flows in apps/mobile/e2e on the web build. MinIO can't be a service container (it
+  # needs a command, and its buckets a one-shot), so scripts/dev.mjs --web brings up the compose stack
+  # itself (Postgres + MinIO), then the API server and Metro; the mock photos come from picsum.
+  ui-flows:
+    runs-on: ubuntu-latest
+    # Cold Docker pulls, the mock photos and the first web bundle come before the first test.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: mise.toml
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/mobile
+
+      - run: npm run test:ui --workspace apps/mobile
+        env:
+          # dev.mjs writes apps/mobile/.env.local from this (it stops without one); the local
+          # backend replaces it anyway.
+          EXPO_PUBLIC_API_URL: http://localhost:3100/api/v1
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-flows-test-results
+          path: apps/mobile/test-results

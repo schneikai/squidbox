@@ -14,7 +14,7 @@ npm workspaces. `npm install` runs once at the repo root.
 
 The backend lives in `apps/server` and runs on **Fly.io** (app `squidbox-server`, region `lhr`) with **Neon Postgres** + **AWS S3** (eu-west-1). API base: `https://squidbox-server.fly.dev/api/v1`.
 
-CI (`.github/workflows/ci.yml`) checks every push and pull request to `main`. Locally: `npm run check` while working (what changed since main, failures only), `npm run check:all` before a PR (lint, format, typecheck, knip and the plain tests over the whole repo), and for the DB tests, with the compose Postgres up and migrated (`npm run compose:up` and `npm run db:migrate` in `apps/server`), `npm run test:db -w apps/server` and `npm run test:e2e -w apps/mobile`. Plain `npm test` skips the DB-backed suites, and the seeded fuzz tests run a tenth of their cases; `FUZZ_DEEP=1` runs them all, as CI does.
+CI (`.github/workflows/ci.yml`) checks every push and pull request to `main`. Locally: `npm run check` while working (what changed since main, failures only), `npm run check:all` before a PR (lint, format, typecheck, knip and the plain tests over the whole repo), and for the DB tests, with the compose Postgres up and migrated (`npm run compose:up` and `npm run db:migrate` in `apps/server`), `npm run test:db -w apps/server` and `npm run test:e2e -w apps/mobile`. Plain `npm test` skips the DB-backed suites, and the seeded fuzz tests run a tenth of their cases; `FUZZ_DEEP=1` runs them all, as CI does. CI also runs the UI flow tests (`npm run test:ui -w apps/mobile`, see "Web preview") in a job of its own, with its own Docker stack.
 
 ## Multi-device sync
 
@@ -114,6 +114,12 @@ npm run web:preview -- shot.png      # signs in, opens the library, saves a scre
 ```
 
 Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/webPreview.mjs` (Playwright): tap, type, navigate and take screenshots. Outside the cloud workspace, run `npx playwright install chromium` once.
+
+The UI flow tests drive it too: `npm run test:ui` runs the Playwright specs in `apps/mobile/e2e/` (sign in and out, the photo pager, a new post, an album, the edit sheet's discard guard).
+
+- A run resets the mock account to the mock data set (`seed:mock`) and reuses a running `npm run dev:local -- --web`, or starts one and stops it afterwards.
+- Gestures are stand-ins: a swipe is a sideways mouse wheel, a drag-to-reorder a held mouse drag.
+- A failed test leaves a trace in `apps/mobile/test-results/` (`npx playwright show-trace <trace.zip>`).
 
 `npm run dev:local -- --web` starts everything without Expo's tunnel, which is all the web preview needs and keeps it working when the tunnel is down. Add `--production` to `web:preview` to load Metro's release bundle, without React's development overhead, for performance checks; `npm run web:measure` times reload → first grid cell, the idle JS heap and a favorite toggle on it. For a large library, `npm run seed:mock -- --assets 50000` in `apps/server/` pads the mock account (the extra assets reuse the mock photos' and videos' files).
 

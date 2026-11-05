@@ -10,7 +10,7 @@ import pluralizeText from '@/utils/pluralizeText';
 // `album` is an albumQuery row: it carries its cover and stats.
 export default function AlbumListItem({ album, elementWidth, showLastPostedAt }) {
   return (
-    <View style={{ width: elementWidth }}>
+    <View testID="album-tile" style={{ width: elementWidth }}>
       <CoverImage asset={album.cover} style={{ height: elementWidth }}>
         <View style={styles.indicators}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />

@@ -7,7 +7,14 @@
       "ignore": [".claude/skills/apple-design/**"]
     },
     "apps/mobile": {
-      "entry": ["metro.config.js", "scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{js,jsx,ts}"],
+      "entry": [
+        "metro.config.js",
+        "playwright.config.mjs",
+        "e2e/globalSetup.mjs",
+        "e2e/**/*.spec.mjs",
+        "scripts/*.{js,mjs}",
+        "src/**/*.{web,ios,android}.{js,jsx,ts}"
+      ],
       "ignore": ["src/obsolete-code/**"],
       "ignoreDependencies": ["@babel/core", "expo-updates", "expo-system-ui"],
       "ignoreUnresolved": ["babel-preset-expo"]

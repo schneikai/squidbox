@@ -8,7 +8,7 @@
  *   npm run web:preview -- shot.png --production   # release-mode bundle, for performance checks
  *
  * Test scripts can drive the page instead:
- *   const { page, errors, close } = await openWebPreview();
+ *   const { page, pageErrors, consoleErrors, close } = await openWebPreview();
  *   await page.getByText('Albums').click();
  *   await settleAsync(page);
  */
@@ -26,16 +26,18 @@ export async function openWebPreview({ signedIn = true, production = false } = {
   if (signedIn) await context.addInitScript(storeSession, await loginAsync());
 
   const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
+  // Uncaught errors and console errors apart: the UI flow tests fail on the first, not the second.
+  const pageErrors = [];
+  const consoleErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('console', (message) => message.type() === 'error' && consoleErrors.push(message.text()));
   if (production) await page.route(/\.bundle\?/, serveProductionBundle);
 
   // Metro builds the bundle on the first request, which can take minutes (a release bundle more so).
   await page.goto(APP_URL, { timeout: 600_000 });
   // Exact: "Setting up your library" (the first-sync screen) must not count as the Library tab.
   await page.getByText('Library', { exact: true }).first().waitFor({ timeout: 600_000 });
-  return { page, errors, close: () => browser.close() };
+  return { page, pageErrors, consoleErrors, close: () => browser.close() };
 }
 
 const SETTLE_MAX_ROUNDS = 10;
@@ -54,6 +56,12 @@ export async function settleAsync(page) {
   }
 }
 
+// For the scripts: what the page reported, uncaught errors first.
+export function printErrors(pageErrors, consoleErrors) {
+  if (pageErrors.length > 0) console.log(`Page errors:\n${pageErrors.join('\n')}`);
+  if (consoleErrors.length > 0) console.log(`Console errors:\n${consoleErrors.join('\n')}`);
+}
+
 // Metro builds a release bundle (no React dev checks, minified) when asked for one.
 function serveProductionBundle(route) {
   const url = new URL(route.request().url());
@@ -69,8 +77,14 @@ function launchOptions() {
   return proxy ? { args: [`--proxy-server=https=${new URL(proxy).host}`] } : {};
 }
 
-async function loginAsync() {
+// The mock account's sign-in, from the local backend's settings.
+export function readSeedCredentials() {
   const { SEED_USER_EMAIL: email, SEED_USER_PASSWORD: password } = parseEnv(readFileSync(SERVER_ENV, 'utf8'));
+  return { email, password };
+}
+
+async function loginAsync() {
+  const { email, password } = readSeedCredentials();
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -100,10 +114,12 @@ function storeSession({ accessToken, refreshToken, user, serverId }) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const out = process.argv.slice(2).find((arg) => !arg.startsWith('--')) ?? 'web-preview.png';
-  const { page, errors, close } = await openWebPreview({ production: process.argv.includes('--production') });
+  const { page, pageErrors, consoleErrors, close } = await openWebPreview({
+    production: process.argv.includes('--production'),
+  });
   await settleAsync(page);
   await page.screenshot({ path: out });
   console.log(`Screenshot: ${out}`);
-  if (errors.length > 0) console.log(`Console errors:\n${errors.join('\n')}`);
+  printErrors(pageErrors, consoleErrors);
   await close();
 }

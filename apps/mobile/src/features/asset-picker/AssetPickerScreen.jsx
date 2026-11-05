@@ -79,7 +79,7 @@ export default function AssetPickerScreen() {
   }
 
   return (
-    <ModalSheet>
+    <ModalSheet testID="asset-picker">
       <ModalHeader
         leading={
           album ? (

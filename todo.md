@@ -238,10 +238,9 @@ the typecheck to the whole app.
 
 ### [ ] Add UI tests
 
-Only pure logic is tested (`apps/mobile/test`, vitest in Node). Set up component tests (for
-example jest-expo with React Native Testing Library) and cover the key screens first: the photo
-detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
-Maestro) for the main flows later.
+The main flows have Playwright tests on the web build (`apps/mobile/e2e`, `npm run test:ui`);
+everything else is pure logic in vitest. If screens need finer checks than a flow gives, set up
+component tests (for example jest-expo with React Native Testing Library).
 
 ### [ ] iPhone simulator smoke tests in the cloud
 

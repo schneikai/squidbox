@@ -57,7 +57,7 @@ export default function NewPostScreen() {
   }
 
   return (
-    <ModalSheet>
+    <ModalSheet testID="new-post-sheet">
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="New post"

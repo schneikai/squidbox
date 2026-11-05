@@ -11,7 +11,7 @@ export default function ToolbarTitle({ title, subtitle, style }) {
     <FloatingPill style={[styles.pill, style]}>
       <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">
         {!!title && (
-          <Text style={styles.title} numberOfLines={1}>
+          <Text testID="toolbar-title" style={styles.title} numberOfLines={1}>
             {title}
           </Text>
         )}

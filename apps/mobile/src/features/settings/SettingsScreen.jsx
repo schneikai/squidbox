@@ -127,7 +127,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <Page>
+    <Page testID="settings-screen">
       <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
       <DetailScrollView>
         <ScreenSectionHeader title="Account" />

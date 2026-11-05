@@ -11,11 +11,11 @@ import { colors } from '@/styles/designTokens';
  * from bleeding through during navigation animations.
  *
  * Padding and scrolling are intentionally left to the screen itself via
- * useScreenPadding, since they vary per context.
+ * useScreenPadding, since they vary per context. testID names the screen for the UI flow tests.
  */
-export default function Page({ children, style }) {
+export default function Page({ children, style, testID }) {
   return (
-    <LinearGradient colors={colors.background.app} style={[styles.root, style]}>
+    <LinearGradient testID={testID} colors={colors.background.app} style={[styles.root, style]}>
       {children}
     </LinearGradient>
   );

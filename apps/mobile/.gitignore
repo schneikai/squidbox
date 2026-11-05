@@ -9,3 +9,7 @@
 
 # Main's client code, extracted by test/mainClient.e2e.test.ts
 /test/.main-client
+
+# Playwright output of the UI flow tests (npm run test:ui)
+/test-results
+/playwright-report

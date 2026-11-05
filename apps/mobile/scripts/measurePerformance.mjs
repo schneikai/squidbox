@@ -6,14 +6,14 @@
  *
  *   npm run web:measure
  */
-import { openWebPreview, settleAsync } from './webPreview.mjs';
+import { openWebPreview, printErrors, settleAsync } from './webPreview.mjs';
 
 const RELOADS = 3;
 const TOGGLES = 3;
 const WINDOW_MS = 3000;
 
 const syncStart = Date.now();
-const { page, errors, close } = await openWebPreview({ production: true });
+const { page, pageErrors, consoleErrors, close } = await openWebPreview({ production: true });
 const cdp = await page.context().newCDPSession(page);
 await cdp.send('Performance.enable');
 const cells = page.getByTestId('asset-cell');
@@ -41,7 +41,7 @@ for (let i = 0; i < TOGGLES; i++) {
   console.log(`favorite toggle: ${Math.max(0, ms - idleScriptMs).toFixed(0)} ms script`);
 }
 
-if (errors.length > 0) console.log(`Console errors:\n${errors.join('\n')}`);
+printErrors(pageErrors, consoleErrors);
 await close();
 
 async function scriptMsDuring(action) {
