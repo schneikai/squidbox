@@ -159,6 +159,8 @@ export default function ComponentGalleryScreen() {
               <Chip key={tag} label={tag} isSelected={selectedTags.includes(tag)} onPress={() => toggleTag(tag)} />
             ))}
             <Chip variant="action" icon="sparkle" label="Make it shorter" onPress={noop} />
+            <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
+            <Chip variant="raised" icon="scissors" label="Shorter" onPress={noop} />
             <Chip variant="add" label="Add" onPress={noop} />
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>

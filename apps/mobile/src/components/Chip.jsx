@@ -2,12 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, lineHeights, press, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography } from '@/styles/designTokens';
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
- * `isSelected`), `action` (white with a violet frame, a prompt button) or `add` (the dashed Add at
- * the end of a row, with its plus). Every variant has the same frame, so a tag tapped on never
+ * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
+ * by a soft shadow, a prompt button on the assistant's tray), `lead` (light violet with a violet
+ * label, the first action of a row: Ask anything) or `add` (the dashed Add at the end of a row,
+ * with its plus). Every variant has the same frame, so a tag tapped on never
  * changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), in the accent color. `isSelected` tells VoiceOver it's on (as
@@ -28,7 +30,7 @@ export default function Chip({
   style,
 }) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
-  const isAccent = variant === 'add' || (variant === 'tag' && isSelected);
+  const isAccent = variant === 'add' || variant === 'lead' || (variant === 'tag' && isSelected);
   const frame = [chipFrame, styles.chip, styles[variant], variant === 'tag' && isSelected && styles.selected];
   const content = (
     <>
@@ -77,6 +79,13 @@ const styles = StyleSheet.create({
   action: {
     backgroundColor: colors.background.surface,
     borderColor: colors.accent.border,
+  },
+  raised: {
+    backgroundColor: colors.background.surface,
+    boxShadow: shadows.raised.boxShadow,
+  },
+  lead: {
+    backgroundColor: colors.accent.light,
   },
   add: {
     borderColor: colors.accent.border,

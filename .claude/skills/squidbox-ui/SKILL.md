@@ -51,7 +51,7 @@ All paths are under `apps/mobile/src/`.
     `favorite`), `isSelected` a toggle that is on, `isInverse` a dark surface. A close is
     `icon="close"`. `MenuButton` (a Button trigger from Button props, or a custom `trigger`) with
     `popup-menu-options/MenuOption` (anchored menus). `Chip` for tags (`variant` `tag`, `action`,
-    `add`, with `isSelected`).
+    `raised`, `lead`, `add`, with `isSelected`); `raised` and `lead` are the assistant's (CLAUDE.md).
   - Text: `Text` with `variant` `reading` (a post, an answer), `hint` (small grey text that
     explains), `label` (a field's name) or `error`; `IntroText` and `SectionFooter` are hints that
     also set a screen's spacing. `Divider` (`list` or `menu`) between rows.

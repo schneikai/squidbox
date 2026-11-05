@@ -155,6 +155,7 @@ export default function PostChatScreen() {
       <Animated.View style={[styles.composer, composerStyle]}>
         <PromptButtonRow
           buttons={buttons ?? []}
+          chipVariant="raised"
           onPress={handlePromptButton}
           style={styles.buttons}
           contentContainerStyle={styles.buttonsContent}
@@ -204,10 +205,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   // The buttons scroll to the screen's edges, under the composer's inset.
+  // Out to the screen's edges, with room above and below for the chips' shadow.
   buttons: {
     marginHorizontal: -SCREEN_PADDING,
+    marginVertical: -4,
   },
   buttonsContent: {
     paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: 4,
   },
 });

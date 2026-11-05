@@ -101,10 +101,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  // The toolbar's 44 pt row already leaves room under its icons, so the divider follows at the
-  // card's gap, as far from the icons as they are from what's above them.
+  // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
+  // gap, and keeps the card's side inset below it.
   writeWithAi: {
-    marginTop: 0,
+    marginBottom: scale(7),
   },
   // The × lines up with the text's first line.
   remove: {
