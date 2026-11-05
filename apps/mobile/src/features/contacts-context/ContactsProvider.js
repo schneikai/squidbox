@@ -1,4 +1,4 @@
-import { contactCollection, contactListCollection } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, contactCollection, contactListCollection } from '@squidbox/shared';
 import { useMemo } from 'react';
 
 import ContactsContext from './ContactsContext';
@@ -20,10 +20,7 @@ const CONTACT_DEFAULTS = {
   isFavorite: false,
   favoritedAt: null,
   notes: null,
-  xHandle: null,
-  blueskyHandle: null,
-  onlyFansHandle: null,
-  jffHandle: null,
+  ...Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, null])),
   phoneNumber: null,
   places: [],
   avatarFilename: null,
@@ -44,20 +41,45 @@ export default function ContactsProvider({ children }) {
       return result;
     }
     return {
-      addContact: (fields) =>
-        written((tx) => contacts.create(tx, newRecord(contactCollection, CONTACT_DEFAULTS, fields))),
-      updateContact: (id, fields) => written((tx) => contacts.update(tx, id, fields)),
+      // A new contact with its photo (made from `avatarUri` first: a record never names a file that
+      // isn't there) and in `listIds`, in one write. A photo that can't be made is returned as
+      // `avatarError`, and the contact is added without it.
+      addContact: async (fields, { avatarUri, listIds = [] } = {}) => {
+        const record = newRecord(contactCollection, CONTACT_DEFAULTS, fields);
+        let avatarFilename = null;
+        let avatarError = null;
+        if (avatarUri) {
+          try {
+            avatarFilename = newAvatarFilename(record.id);
+            await makeAvatarAsync(avatarUri, avatarFilename, library);
+          } catch (error) {
+            avatarFilename = null;
+            avatarError = error;
+          }
+        }
+        const contact = await written(async (tx) => {
+          const created = await contacts.create(tx, { ...record, avatarFilename });
+          await contactListMembers.addToEach(
+            tx,
+            listIds.map((listId) => ({ listId })),
+            [created.id],
+            getNewItemId,
+          );
+          return created;
+        });
+        return { contact, avatarError };
+      },
       // favoritedAt is the time of the favoriting, null once unfavorited.
       toggleFavoriteContact: (id) =>
         written((tx) =>
           contacts.toggle(tx, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null })),
         ),
-      // A new photo gets a new name (`avatar-<id>-<n>.jpg`, the next n), so a device holding the old
-      // one never shows it for the new; the sync uploads it before it pushes the contact.
+      // A new photo gets a new name (newAvatarFilename), so a device holding the old one never shows
+      // it for the new; the sync uploads it before it pushes the contact.
       setAvatarAsync: async (id, sourceUri) => {
         const [contact] = await readByIds(db, schema.contacts, [id]);
         if (!contact) return;
-        const avatarFilename = `avatar-${id}-${avatarNumber(contact.avatarFilename) + 1}.jpg`;
+        const avatarFilename = newAvatarFilename(id);
         await makeAvatarAsync(sourceUri, avatarFilename, library);
         await written((tx) => contacts.update(tx, id, { avatarFilename }));
         if (contact.avatarFilename) deleteAvatar(contact.avatarFilename, library);
@@ -105,7 +127,7 @@ export default function ContactsProvider({ children }) {
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
 }
 
-// The n of `avatar-<id>-<n>.jpg`, 0 without a photo.
-function avatarNumber(avatarFilename) {
-  return Number(avatarFilename?.match(/-(\d+)\.jpg$/)?.[1] ?? 0);
+// A contact's photo's name, new for every photo: `avatar-<contactId>-<new id>.jpg`.
+function newAvatarFilename(contactId) {
+  return `avatar-${contactId}-${getNewItemId()}.jpg`;
 }

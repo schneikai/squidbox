@@ -10,7 +10,8 @@ import { colors, disabledOpacity, lineHeights, press, sizes, typography } from '
  * the end of a row, with its plus). Every variant has the same frame, so a tag tapped on never
  * changes its width and moves the chips after it.
  *
- * icon — leads the label (Icon name), in the accent color. `isSelected` tells VoiceOver it's on (as
+ * icon — leads the label (Icon name), in the accent color; `leading` leads it instead with a node
+ * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * style is for layout only.
@@ -19,6 +20,7 @@ export default function Chip({
   label,
   variant = 'tag',
   icon,
+  leading,
   isSelected = false,
   disabled = false,
   onPress,
@@ -29,11 +31,19 @@ export default function Chip({
 }) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
   const isAccent = variant === 'add' || (variant === 'tag' && isSelected);
-  const frame = [chipFrame, styles.chip, styles[variant], variant === 'tag' && isSelected && styles.selected];
+  const frame = [
+    chipFrame,
+    styles.chip,
+    styles[variant],
+    variant === 'tag' && isSelected && styles.selected,
+    !!leading && styles.withLeading,
+  ];
   const content = (
     <>
-      {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, isAccent && styles.accentLabel]}>{label}</Text>
+      {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />)}
+      <Text style={[styles.label, isAccent && styles.accentLabel]} numberOfLines={leading ? 1 : undefined}>
+        {label}
+      </Text>
     </>
   );
 
@@ -70,6 +80,11 @@ const styles = StyleSheet.create({
   },
   tag: {
     backgroundColor: colors.background.muted,
+  },
+  // The node sits close to the frame's start, as an avatar in a pill does.
+  withLeading: {
+    paddingLeft: 2,
+    paddingRight: 14,
   },
   selected: {
     backgroundColor: colors.accent.light,

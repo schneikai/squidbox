@@ -51,7 +51,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 
       <View style={styles.related}>
         <ScreenSectionHeader title="Posted Albums" isFlush />
-        <AssetAlbums assetIds={assetIds} emptyText="Not in an album" />
+        <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />
 
         <ScreenSectionHeader title="Other Posts" isFlush />
         <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />

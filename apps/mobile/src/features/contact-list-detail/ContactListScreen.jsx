@@ -1,13 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 
 import ContactList from './ContactList';
-import useContactList from './useContactList';
 
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
+import { schema } from '@/sync/db/client';
+import { useLiveRecord } from '@/sync/useLiveRecord';
 
 export default function ContactListScreen() {
   const { listId } = useLocalSearchParams();
-  const list = useContactList(listId);
+  const list = useLiveRecord(schema.contactLists, listId);
   useCloseWhenGone(list, 'This list was deleted');
 
   if (!list) return null;

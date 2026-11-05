@@ -7,9 +7,10 @@ import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
 import ContactRow from './ContactRow';
 import ContactRowMenu from './ContactRowMenu';
-import contactListQuery from './contactListQuery';
 import contactQuery from './contactQuery';
 import useAddListAction from './useAddListAction';
+import useContactListRows from './useContactListRows';
+import useContactRows from './useContactRows';
 
 import EmptyState from '@/components/EmptyState';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -20,7 +21,6 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -40,12 +40,13 @@ export default function ContactsScreen() {
   const scrollHandler = useFloatingBarScrollHandler();
   const promptAddList = useAddListAction();
 
-  const isContacts = segment === 'contacts';
   const query = contactQuery({ scope: 'all', search: searchText });
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
-  const favorites = useFavorites();
-  const lists = useContactLists();
+  // Each stays live only while it shows.
+  const favorites = useContactRows({ scope: 'favorites' }, { isLive: segment === 'contacts' && !searchText.trim() });
+  const lists = useContactListRows({ isLive: segment === 'lists' });
 
+  const isContacts = segment === 'contacts';
   const isSearching = !!searchText.trim();
   const data = isContacts ? rows : [];
 
@@ -123,16 +124,6 @@ export default function ContactsScreen() {
       {isContacts && <FloatingActionsBar search={searchBar} placeholder="Search contacts…" />}
     </View>
   );
-}
-
-function useFavorites() {
-  const query = contactQuery({ scope: 'favorites' });
-  return useLiveQuery(async (db) => (await query.read(db)).rows, query.tables, [query.descriptor]);
-}
-
-function useContactLists() {
-  const query = contactListQuery();
-  return useLiveQuery((db) => query.read(db), query.tables, [query.descriptor]);
 }
 
 const styles = StyleSheet.create({

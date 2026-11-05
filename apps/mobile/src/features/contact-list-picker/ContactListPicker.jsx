@@ -3,10 +3,9 @@ import { Text } from 'react-native';
 import SelectIndicator from '@/components/SelectIndicator';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import contactListQuery from '@/features/contact-list/contactListQuery';
 import useAddListAction from '@/features/contact-list/useAddListAction';
+import useContactListRows from '@/features/contact-list/useContactListRows';
 import listTextStyles from '@/styles/listTextStyles';
-import { useLiveQuery } from '@/sync/useLiveQuery';
 import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
 
@@ -15,8 +14,7 @@ import toggleItem from '@/utils/toggleItem';
  * (a new list is picked too). `selectedIds` are the picked lists' ids; `onChange` gets the new ones.
  */
 export default function ContactListPicker({ selectedIds, onChange }) {
-  const query = contactListQuery();
-  const lists = useLiveQuery((db) => query.read(db), query.tables, [query.descriptor]);
+  const lists = useContactListRows({ withMembers: false });
   const promptAddList = useAddListAction({ onAdded: (list) => onChange([...selectedIds, list.id]) });
 
   if (!lists) return null;

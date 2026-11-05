@@ -1,50 +1,42 @@
+import { CONTACT_HANDLES } from '@squidbox/shared';
 import { router } from 'expo-router';
 import { Share } from 'react-native';
 
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
 import useContacts from '@/features/contacts-context/useContacts';
-import confirmAsync from '@/utils/confirmAsync';
+import useDeleteContact from '@/features/contacts-context/useDeleteContact';
+
+const xProfileUrl = CONTACT_HANDLES.find(({ field }) => field === 'xHandle').profileUrl;
 
 /**
  * The contact screen's ⋯ menu: add to a list, share the X profile (with an X handle), remove the
  * photo (with one), delete.
  */
 export default function ContactMenu({ contact, afterDelete }) {
-  const { setContactDeleted, removeAvatar } = useContacts();
-
-  async function handleDelete() {
-    const confirmed = await confirmAsync({
-      title: `Delete ${contact.name}?`,
-      message: 'They leave your lists and the photos, albums and posts they are on.',
-      action: 'Delete contact',
-      destructive: true,
-    });
-    if (!confirmed) return;
-    afterDelete();
-    await setContactDeleted(contact.id);
-  }
+  const { removeAvatar } = useContacts();
+  const deleteContactAsync = useDeleteContact();
 
   return (
     <MenuButton accessibilityLabel="Contact options">
-      <MenuOption
-        label="Add to list"
-        icon="list"
-        onPress={() => router.navigate({ pathname: '/add-to-contact-list', params: { contactIds: contact.id } })}
-      />
+      <MenuOption label="Add to list" icon="list" onPress={() => router.navigate(addToContactListHref([contact.id]))} />
       {!!contact.xHandle && (
         <MenuOption
           label="Share profile link"
           icon="share"
-          onPress={() =>
-            Share.share({ url: `https://x.com/${contact.xHandle}`, message: `https://x.com/${contact.xHandle}` })
-          }
+          onPress={() => Share.share({ url: xProfileUrl(contact.xHandle), message: xProfileUrl(contact.xHandle) })}
         />
       )}
       {!!contact.avatarFilename && (
         <MenuOption label="Remove photo" icon="image" onPress={() => removeAvatar(contact.id)} />
       )}
-      <MenuOption label="Delete contact" icon="trash" colorPalette="danger" onPress={handleDelete} />
+      <MenuOption
+        label="Delete contact"
+        icon="trash"
+        colorPalette="danger"
+        onPress={() => deleteContactAsync(contact, { beforeDelete: afterDelete })}
+      />
     </MenuButton>
   );
 }

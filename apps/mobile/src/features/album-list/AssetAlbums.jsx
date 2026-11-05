@@ -10,13 +10,14 @@ import pluralizeText from '@/utils/pluralizeText';
 const identity = (onPress) => onPress;
 
 /**
- * The albums holding any of `assetIds`, live and in the albums' custom order, as rows that each
- * open their album and say when it was last posted; `emptyText` shows instead while there are none
- * (nothing until they've been read). `guardPress` may wrap the rows' presses (useDetailsPanelDrag's);
- * `isLive: false` reads them once (useLiveQuery's).
+ * The albums of `scope` (`{ assetIds }`: holding any of the assets; `{ contactId }`: a contact is
+ * on), live and in the albums' custom order, as rows that each open their album and say when it was
+ * last posted; `emptyText` shows instead while there are none (nothing until they've been read).
+ * `guardPress` may wrap the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once
+ * (useLiveQuery's).
  */
-export default function AssetAlbums({ assetIds, emptyText, guardPress = identity, isLive }) {
-  const albums = useAssetAlbums(assetIds, { isLive });
+export default function AssetAlbums({ scope, emptyText, guardPress = identity, isLive }) {
+  const albums = useAssetAlbums(scope, { isLive });
 
   if (!albums) return null;
   if (albums.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;

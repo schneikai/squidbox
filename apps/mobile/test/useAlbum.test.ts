@@ -39,9 +39,9 @@ describe('useAlbum', () => {
       return liveQuery.mock.lastCall![0](db);
     };
 
-    expect(await readOf('live')).toEqual({ albumId: 'live', album: expect.objectContaining({ name: 'Beach' }) });
-    expect(await readOf('gone')).toEqual({ albumId: 'gone', album: null });
-    expect(await readOf('missing')).toEqual({ albumId: 'missing', album: null });
+    expect(await readOf('live')).toEqual({ id: 'live', record: expect.objectContaining({ name: 'Beach' }) });
+    expect(await readOf('gone')).toEqual({ id: 'gone', record: null });
+    expect(await readOf('missing')).toEqual({ id: 'missing', record: null });
   });
 
   it("is undefined until its album is read, not the previous album's", () => {
@@ -50,11 +50,11 @@ describe('useAlbum', () => {
     expect(renderUseAlbum('a')).toBeUndefined();
     expect(renderUseAlbum(undefined)).toBeUndefined(); // no album asked for, nothing read yet
 
-    liveQuery.mockReturnValue({ albumId: 'a', album });
+    liveQuery.mockReturnValue({ id: 'a', record: album });
     expect(renderUseAlbum('a')).toBe(album);
     expect(renderUseAlbum('b')).toBeUndefined();
 
-    liveQuery.mockReturnValue({ albumId: 'b', album: null });
+    liveQuery.mockReturnValue({ id: 'b', record: null });
     expect(renderUseAlbum('b')).toBeNull();
     expect(renderUseAlbum(undefined)).toBeUndefined();
   });

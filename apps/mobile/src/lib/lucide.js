@@ -65,7 +65,6 @@ export { default as MessagesSquare } from 'lucide-react-native/icons/messages-sq
 export { default as MountainSnow } from 'lucide-react-native/icons/mountain-snow';
 export { default as Pause } from 'lucide-react-native/icons/pause';
 export { default as PenLine } from 'lucide-react-native/icons/pen-line';
-export { default as Phone } from 'lucide-react-native/icons/phone';
 export { default as Play } from 'lucide-react-native/icons/play';
 export { default as Plus } from 'lucide-react-native/icons/plus';
 export { default as Printer } from 'lucide-react-native/icons/printer';

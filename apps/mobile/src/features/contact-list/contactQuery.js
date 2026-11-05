@@ -1,18 +1,23 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 
+import contactSearchText, { SEARCHED_FIELDS } from './contactSearchText';
+
 import * as schema from '@/sync/db/schema';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
 
 const c = schema.contacts;
 
-// The text a search runs over: the name, the handles, the phone number and the places.
-const SEARCHED = ['name', 'xHandle', 'blueskyHandle', 'onlyFansHandle', 'jffHandle', 'phoneNumber'];
+// What rows, chips and avatars show of a contact, and a search runs over (no notes).
+const SUMMARY = Object.fromEntries(
+  ['id', 'isFavorite', 'avatarFilename', 'places', ...SEARCHED_FIELDS].map((name) => [name, c[name]]),
+);
 
 /**
  * What a contact list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one
- * transaction (no `limit` reads them all), `ids(db)` → the matching ids in the same order, `tables`
- * → what a live read watches. Live contacts only, by name (Favorites by when they were favorited,
+ * transaction (no `limit` reads them all), `summaries(db)` → all the rows without their count, only
+ * what a row shows and a search runs over (SUMMARY), `ids(db)` → the matching ids in the same order,
+ * `tables` → what a live read watches. Live contacts only, by name (Favorites by when they were favorited,
  * newest first), with an id tie-break so pages see one stable order.
  * @param {object} descriptor
  * @param {'all' | 'favorites' | { listId: string } | { targetType: 'asset' | 'album' | 'post', targetId: string | string[] }} [descriptor.scope]
@@ -44,14 +49,13 @@ export default function contactQuery({ scope = 'all', search = '' }) {
   async function matchedIds(tx) {
     if (!searchText) return null;
     const rows = await tx
-      .select({ id: c.id, places: c.places, ...Object.fromEntries(SEARCHED.map((name) => [name, c[name]])) })
+      .select({ id: c.id, places: c.places, ...Object.fromEntries(SEARCHED_FIELDS.map((name) => [name, c[name]])) })
       .from(c)
       .where(isNull(c.deletedAt));
-    const texts = rows.map((row) => ({
-      id: row.id,
-      text: [...SEARCHED.map((name) => row[name]), ...row.places].filter(Boolean).join('\n'),
-    }));
-    return matchingIds(texts, searchText);
+    return matchingIds(
+      rows.map((row) => ({ id: row.id, text: contactSearchText(row) })),
+      searchText,
+    );
   }
   const where = (ids) => and(isNull(c.deletedAt), scopeCondition, ids ? inJson(c.id, ids) : undefined);
 
@@ -70,6 +74,15 @@ export default function contactQuery({ scope = 'all', search = '' }) {
         const rows = await (limit === undefined ? query : query.limit(limit));
         return { rows, count: total };
       });
+    },
+    summaries(db) {
+      return db.transaction(async (tx) =>
+        tx
+          .select(SUMMARY)
+          .from(c)
+          .where(where(await matchedIds(tx)))
+          .orderBy(...order),
+      );
     },
     ids(db) {
       return db.transaction(async (tx) => {

@@ -1,5 +1,6 @@
+import { and, asc, isNull, sql } from 'drizzle-orm';
 import { router } from 'expo-router';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
 
 import DuplicatesCard from './DuplicatesCard';
 import QuickAddBar from './QuickAddBar';
@@ -7,21 +8,19 @@ import findDuplicates from './findDuplicates';
 import useContactHandles from './useContactHandles';
 import useNewContactDraft from './useNewContactDraft';
 
-import Button from '@/components/Button';
-import Card from '@/components/Card';
-import Divider from '@/components/Divider';
 import EditSheet from '@/components/EditSheet';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
+import ContactAvatarPicker from '@/features/contact-detail/ContactAvatarPicker';
 import HandleField from '@/features/contact-detail/HandleField';
+import HandleFieldsCard from '@/features/contact-detail/HandleFieldsCard';
 import PlacesField from '@/features/contact-detail/PlacesField';
-import { HANDLE_FIELDS, contactDraft, storedContactFields } from '@/features/contact-detail/contactFields';
-import contactListQuery from '@/features/contact-list/contactListQuery';
+import { contactDraft, storedContactFields } from '@/features/contact-detail/contactFields';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
+import { schema } from '@/sync/db/client';
+import { inJson } from '@/sync/inJson';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 const EMPTY = JSON.stringify(storedContactFields(contactDraft()));
 
@@ -30,11 +29,10 @@ const EMPTY = JSON.stringify(storedContactFields(contactDraft()));
 // fields marked. Add saves it and opens it.
 export default function NewContactScreen() {
   const haptics = useHaptics();
-  const { addContact, addToLists, setAvatarAsync } = useContacts();
+  const { addContact } = useContacts();
   const { draft, setField, avatarUri, setAvatarUri, listIds, filledFields } = useNewContactDraft();
   const handles = useContactHandles();
   const listNames = useListNames(listIds);
-
   const fields = storedContactFields(draft);
   const { matches, sharedFields } = findDuplicates(fields, handles ?? []);
   const isDirty = JSON.stringify(fields) !== EMPTY || !!avatarUri || listIds.length > 0;
@@ -47,27 +45,11 @@ export default function NewContactScreen() {
   });
 
   async function save() {
-    const contact = await addContact(fields);
+    const { contact, avatarError } = await addContact(fields, { avatarUri, listIds });
     // The contact is added either way; a photo that couldn't be made is said, not lost silently.
-    if (avatarUri) {
-      await setAvatarAsync(contact.id, avatarUri).catch((error) =>
-        Alert.alert("Couldn't add the photo", error.message),
-      );
-    }
-    if (listIds.length > 0) await addToLists([contact.id], listIds);
+    if (avatarError) Alert.alert("Couldn't add the photo", avatarError.message);
     haptics.success();
     return () => router.replace(`/contact/${contact.id}`);
-  }
-
-  async function handlePickPhoto() {
-    const [picked] =
-      (await pickImageFromMediaLibrary({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: false,
-        allowsEditing: true,
-        aspect: [1, 1],
-      })) ?? [];
-    if (picked) setAvatarUri(picked.uri);
   }
 
   // Opening a duplicate leaves the draft, after asking when it has changes.
@@ -81,12 +63,19 @@ export default function NewContactScreen() {
       <QuickAddBar />
       {matches.length > 0 && <DuplicatesCard matches={matches} onOpen={handleOpenDuplicate} />}
 
-      <View style={styles.avatar}>
-        <ContactAvatar contact={{ name: draft.name }} uri={avatarUri} size="hero" />
-        <Button label={avatarUri ? 'Change photo' : 'Add photo'} size="small" onPress={handlePickPhoto} />
-      </View>
+      <ContactAvatarPicker
+        contact={{ name: draft.name }}
+        uri={avatarUri}
+        hasPhoto={!!avatarUri}
+        onPick={setAvatarUri}
+      />
 
-      <Card>
+      <HandleFieldsCard
+        draft={draft}
+        onChange={setField}
+        fieldProps={(field) => ({ isFilled: filledFields.includes(field), isDuplicate: sharedFields.has(field) })}
+        isOpenable={false}
+      >
         <HandleField
           field="name"
           label="Name"
@@ -97,22 +86,7 @@ export default function NewContactScreen() {
           isDuplicate={sharedFields.has('name')}
           isOpenable={false}
         />
-        {HANDLE_FIELDS.map(({ field, label, placeholder }) => (
-          <View key={field}>
-            <Divider />
-            <HandleField
-              field={field}
-              label={label}
-              value={draft[field]}
-              onChangeText={(text) => setField(field, text)}
-              placeholder={placeholder}
-              isFilled={filledFields.includes(field)}
-              isDuplicate={sharedFields.has(field)}
-              isOpenable={false}
-            />
-          </View>
-        ))}
-      </Card>
+      </HandleFieldsCard>
 
       <PlacesField places={draft.places} onChange={(places) => setField('places', places)} />
 
@@ -128,16 +102,18 @@ export default function NewContactScreen() {
   );
 }
 
-// The names of the lists picked, by name.
+// The names of the lists picked, by name, live.
 function useListNames(listIds) {
-  const query = contactListQuery();
-  const lists = useLiveQuery((db) => query.read(db), query.tables, [query.descriptor]);
-  return (lists ?? []).filter((list) => listIds.includes(list.id)).map((list) => list.name);
+  const l = schema.contactLists;
+  const lists = useLiveQuery(
+    (db) =>
+      db
+        .select({ name: l.name })
+        .from(l)
+        .where(and(isNull(l.deletedAt), inJson(l.id, listIds)))
+        .orderBy(asc(sql`${l.name} collate nocase`), asc(l.id)),
+    [schema.contactLists],
+    [listIds.join(',')],
+  );
+  return (lists ?? []).map((list) => list.name);
 }
-
-const styles = StyleSheet.create({
-  avatar: {
-    alignItems: 'center',
-    gap: 4,
-  },
-});

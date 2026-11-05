@@ -7,7 +7,7 @@ const l = schema.contactLists;
 const m = schema.contactListMembers;
 
 /** The live lists `contactId` is in, by name, live; undefined while reading. */
-export default function useContactLists(contactId) {
+export default function useListsOfContact(contactId) {
   return useLiveQuery(
     (db) =>
       db

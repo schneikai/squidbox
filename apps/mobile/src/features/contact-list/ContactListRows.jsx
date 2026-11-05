@@ -1,59 +1,46 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import Card from '@/components/Card';
-import Divider from '@/components/Divider';
-import Icon from '@/components/Icon';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, layout, press, scale, sizes, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
+import { colors, scale, sizes, typography } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
-const STACK_SIZE = scale(32);
+const STACK_SIZE = sizes.avatar.small;
 const OVERLAP = -scale(10);
 
 /**
- * The contact lists (contactListQuery's rows) in one card: each list's name and count, the
+ * The contact lists (contactListQuery's rows) in one section: each list's name and count, the
  * avatars of its first members overlapping with "+N" for the rest, opening the list.
  */
 export default function ContactListRows({ lists }) {
   return (
-    <Card>
-      {lists.map((list, index) => (
-        <View key={list.id}>
-          <Pressable
-            style={({ pressed }) => [styles.row, pressed && press.flat]}
-            onPress={() => router.navigate(`/contact-list/${list.id}`)}
-            accessibilityRole="button"
-          >
-            <View style={styles.labels}>
-              <Text style={styles.name} numberOfLines={1}>
-                {list.name}
-              </Text>
-              <Text style={listTextStyles.subtitle}>
-                {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
-              </Text>
-            </View>
-            <View style={styles.stack}>
-              {list.firstMembers.map((member, i) => (
-                <ContactAvatar
-                  key={member.id}
-                  contact={member}
-                  size="small"
-                  isStacked
-                  style={i > 0 && styles.overlapped}
-                />
-              ))}
-              {list.memberCount > list.firstMembers.length && (
-                <MoreDisc count={list.memberCount - list.firstMembers.length} />
-              )}
-            </View>
-            <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-          </Pressable>
-          {index < lists.length - 1 && <Divider />}
-        </View>
+    <Section>
+      {lists.map((list) => (
+        <Row
+          key={list.id}
+          label={list.name}
+          description={pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
+          onPress={() => router.navigate(`/contact-list/${list.id}`)}
+          hasChevron
+        >
+          <View style={styles.stack}>
+            {list.firstMembers.map((member, i) => (
+              <ContactAvatar
+                key={member.id}
+                contact={member}
+                size="small"
+                isStacked
+                style={i > 0 && styles.overlapped}
+              />
+            ))}
+            {list.memberCount > list.firstMembers.length && (
+              <MoreDisc count={list.memberCount - list.firstMembers.length} />
+            )}
+          </View>
+        </Row>
       ))}
-    </Card>
+    </Section>
   );
 }
 
@@ -67,21 +54,6 @@ function MoreDisc({ count }) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: layout.sideGutter,
-    paddingVertical: 12,
-  },
-  labels: {
-    flex: 1,
-  },
-  name: {
-    fontSize: typography.body,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
   stack: {
     flexDirection: 'row',
   },

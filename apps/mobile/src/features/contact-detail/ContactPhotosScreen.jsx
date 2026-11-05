@@ -1,7 +1,5 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 
-import useContact from './useContact';
-
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetGrid from '@/features/asset-list/AssetGrid';
@@ -9,13 +7,15 @@ import assetHref from '@/features/asset-list/assetHref';
 import assetQuery from '@/features/asset-list/assetQuery';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import { schema } from '@/sync/db/client';
+import { useLiveRecord } from '@/sync/useLiveRecord';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // Every photo a contact is on, newest first, as a grid; a photo opens in that scope.
 export default function ContactPhotosScreen() {
   const { contactId } = useLocalSearchParams();
   const navigation = useNavigation();
-  const contact = useContact(contactId);
+  const contact = useLiveRecord(schema.contacts, contactId);
   useCloseWhenGone(contact, 'This contact was deleted');
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const query = assetQuery({ scope: { contactId } });

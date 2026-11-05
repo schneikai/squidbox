@@ -1,38 +1,33 @@
 import { File } from 'expo-file-system';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { getAvatarUri } from '@/utils/assets/assetStorage';
 import getImageDimensionsAsync from '@/utils/getImageDimensionsAsync';
+import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
 
 const SIZE = 512;
 const QUALITY = 0.8;
 
 /**
  * Makes a contact's photo from the picture at `sourceUri`: its centre square as a 512 px JPEG,
- * written into the library's avatars folder as `avatarFilename`.
+ * written into the library's avatars folder as `avatarFilename`. The picker crops to a square already;
+ * the cut here keeps a picture from elsewhere square too.
  */
 export default async function makeAvatarAsync(sourceUri, avatarFilename, library) {
   const { width, height } = await getImageDimensionsAsync(sourceUri);
   const side = Math.min(width, height);
-  const context = ImageManipulator.manipulate(sourceUri)
-    .crop({
+  const { uri } = await resizeToJpegAsync(sourceUri, {
+    crop: {
       originX: Math.floor((width - side) / 2),
       originY: Math.floor((height - side) / 2),
       width: side,
       height: side,
-    })
-    .resize({ width: Math.min(SIZE, side) });
-  try {
-    const image = await context.renderAsync();
-    try {
-      const { uri } = await image.saveAsync({ compress: QUALITY, format: SaveFormat.JPEG });
-      const target = new File(getAvatarUri(avatarFilename, library));
-      if (target.exists) target.delete();
-      new File(uri).move(target);
-    } finally {
-      image.release();
-    }
-  } finally {
-    context.release();
-  }
+    },
+    width: side,
+    height: side,
+    longSide: Math.min(SIZE, side),
+    quality: QUALITY,
+  });
+  const target = new File(getAvatarUri(avatarFilename, library));
+  if (target.exists) target.delete();
+  new File(uri).move(target);
 }

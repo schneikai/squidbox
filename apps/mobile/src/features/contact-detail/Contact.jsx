@@ -1,29 +1,27 @@
 import { router, useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
-import ContactAlbums from './ContactAlbums';
+import ContactAvatarPicker from './ContactAvatarPicker';
 import ContactMenu from './ContactMenu';
 import ContactPhotosStrip from './ContactPhotosStrip';
-import HandleField from './HandleField';
+import HandleFieldsCard from './HandleFieldsCard';
 import PlacesField from './PlacesField';
-import { HANDLE_FIELDS, contactDraft, storedContactFields } from './contactFields';
+import { contactDraft, storedContactFields } from './contactFields';
+import useListsOfContact from './useListsOfContact';
 
 import Button from '@/components/Button';
-import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import DetailScrollView from '@/components/DetailScrollView';
-import Divider from '@/components/Divider';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import SuperPressable from '@/components/SuperPressable';
 import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
+import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetQuery from '@/features/asset-list/assetQuery';
-import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import useContactLists from '@/features/contact-list/useContactLists';
+import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
 import useContacts from '@/features/contacts-context/useContacts';
 import PostRows from '@/features/post-list/PostRows';
 import useHaptics from '@/hooks/useHaptics';
@@ -33,8 +31,8 @@ import listTextStyles from '@/styles/listTextStyles';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+import changedValues from '@/utils/changedValues';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
-import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 const PHOTOS_SHOWN = 6;
 
@@ -47,7 +45,7 @@ export default function Contact({ contact }) {
   const { toggleFavoriteContact, setAvatarAsync } = useContacts();
   const [draft, setDraft] = useState(() => contactDraft(contact));
   const { flush } = useSaveAsYouType(storedContactFields(draft), save);
-  const lists = useContactLists(contact.id);
+  const lists = useListsOfContact(contact.id);
   const photoScope = { contactId: contact.id };
   const photos = usePhotos(photoScope);
 
@@ -55,9 +53,7 @@ export default function Contact({ contact }) {
 
   // Writes the fields that changed since the last save; an emptied name keeps the stored one.
   async function save(next, stored) {
-    const changes = Object.fromEntries(
-      Object.entries(next).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(stored[key])),
-    );
+    const changes = changedValues(stored, next);
     if (changes.name === '') delete changes.name;
     if (Object.keys(changes).length > 0) await contacts.update(getDb(), contact.id, changes);
   }
@@ -71,17 +67,9 @@ export default function Contact({ contact }) {
     toggleFavoriteContact(contact.id);
   }
 
-  async function handlePickPhoto() {
-    const [picked] =
-      (await pickImageFromMediaLibrary({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: false,
-        allowsEditing: true,
-        aspect: [1, 1],
-      })) ?? [];
-    if (!picked) return;
+  async function handlePickPhoto(uri) {
     try {
-      await setAvatarAsync(contact.id, picked.uri);
+      await setAvatarAsync(contact.id, uri);
     } catch (error) {
       Alert.alert("Couldn't change the photo", error.message);
     }
@@ -108,16 +96,14 @@ export default function Contact({ contact }) {
         }
       />
       <DetailScrollView keyboardShouldPersistTaps="handled">
-        <View style={styles.avatar}>
-          <SuperPressable onDoublePress={handleToggleFavorite} accessibilityHint="Double tap to favorite">
-            <ContactAvatar contact={contact} size="hero" isFavorite={contact.isFavorite} />
-          </SuperPressable>
-          <Button
-            label={contact.avatarFilename ? 'Change photo' : 'Add photo'}
-            size="small"
-            onPress={handlePickPhoto}
-          />
-        </View>
+        <ContactAvatarPicker
+          contact={contact}
+          hasPhoto={!!contact.avatarFilename}
+          isFavorite={contact.isFavorite}
+          onPick={handlePickPhoto}
+          onDoublePress={handleToggleFavorite}
+          style={styles.avatar}
+        />
 
         <Field label="Name">
           <TextInput
@@ -130,21 +116,7 @@ export default function Contact({ contact }) {
           />
         </Field>
 
-        <Card style={styles.card}>
-          {HANDLE_FIELDS.map(({ field, label, placeholder }, index) => (
-            <View key={field}>
-              {index > 0 && <Divider />}
-              <HandleField
-                field={field}
-                label={label}
-                value={draft[field]}
-                onChangeText={(text) => setField(field, text)}
-                onBlur={() => flush()}
-                placeholder={placeholder}
-              />
-            </View>
-          ))}
-        </Card>
+        <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.card} />
 
         <ScreenSectionHeader title="Places" />
         <PlacesField places={draft.places} onChange={(places) => setField('places', places)} onBlur={() => flush()} />
@@ -165,11 +137,7 @@ export default function Contact({ contact }) {
           {lists?.map((list) => (
             <Chip key={list.id} label={list.name} onPress={() => router.navigate(`/contact-list/${list.id}`)} />
           ))}
-          <Chip
-            variant="add"
-            label="Add to list"
-            onPress={() => router.navigate({ pathname: '/add-to-contact-list', params: { contactIds: contact.id } })}
-          />
+          <Chip variant="add" label="Add to list" onPress={() => router.navigate(addToContactListHref([contact.id]))} />
         </ChipRow>
 
         <ScreenSectionHeader
@@ -191,7 +159,7 @@ export default function Contact({ contact }) {
         )}
 
         <ScreenSectionHeader title="Albums" />
-        <ContactAlbums contactId={contact.id} emptyText="Not on an album" />
+        <AssetAlbums scope={{ contactId: contact.id }} emptyText="Not on an album" />
 
         <ScreenSectionHeader title="Posts" />
         <PostRows scope={{ contactId: contact.id }} emptyText="Not on a post" />
@@ -207,8 +175,6 @@ function usePhotos(scope) {
 
 const styles = StyleSheet.create({
   avatar: {
-    alignItems: 'center',
-    gap: 4,
     marginBottom: 16,
   },
   card: {

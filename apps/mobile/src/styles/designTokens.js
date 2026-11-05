@@ -170,6 +170,9 @@ export const sizes = {
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
   menuIcon: scale(16),
   captionIcon: scale(14), // beside a caption (a post card's thread mark)
+  // A contact's avatar (ContactAvatar's sizes): a chip's, a list stack's, a row's, the favorites
+  // row's, the contact screen's.
+  avatar: { chip: scale(20) + 8, small: scale(32), regular: scale(44), large: scale(56), hero: scale(96) },
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
   popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };

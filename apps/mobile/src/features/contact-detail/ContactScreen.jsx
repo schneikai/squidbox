@@ -1,13 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 
 import Contact from './Contact';
-import useContact from './useContact';
 
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
+import { schema } from '@/sync/db/client';
+import { useLiveRecord } from '@/sync/useLiveRecord';
 
 export default function ContactScreen() {
   const { contactId } = useLocalSearchParams();
-  const contact = useContact(contactId);
+  const contact = useLiveRecord(schema.contacts, contactId);
   useCloseWhenGone(contact, 'This contact was deleted');
 
   if (!contact) return null;

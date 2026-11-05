@@ -6,10 +6,10 @@ import contactSubtitle from './contactSubtitle';
 import Divider from '@/components/Divider';
 import SelectIndicator from '@/components/SelectIndicator';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, layout, press, radii, scale } from '@/styles/designTokens';
+import { colors, layout, press, radii, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
-const AVATAR_INSET = layout.sideGutter + scale(44) + 12;
+const AVATAR_INSET = layout.sideGutter + sizes.avatar.regular + 12;
 
 /**
  * A contact in a list of contacts: its avatar (with the favorite's heart), name and "place ·

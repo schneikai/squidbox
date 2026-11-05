@@ -5,17 +5,14 @@ import Icon from '@/components/Icon';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
 import useLibrary from '@/library/useLibrary';
-import { colors, scale } from '@/styles/designTokens';
+import { colors, scale, sizes } from '@/styles/designTokens';
 import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
-
-// The sizes it is drawn at: a chip's and a list stack's, a row's, the favorites row's, the contact screen's.
-const SIZES = { small: scale(32), regular: scale(44), large: scale(56), hero: scale(96) };
 
 /**
  * A contact's round avatar: the picture at `uri` when given, else the contact's photo (from the device,
  * or fetched from the user's storage), else its initials (a person without a
  * name yet) on the accent's soft surface, like the account button.
- * `size` is `small`, `regular`, `large` or `hero`. With `isFavorite` it wears a red heart on a white
+ * `size` is `chip`, `small`, `regular`, `large` or `hero` (sizes.avatar). With `isFavorite` it wears a red heart on a white
  * disc at its bottom right; `isStacked` rings it in white, for avatars overlapping in a stack.
  * VoiceOver reads the contact's name. style is for layout only.
  */
@@ -28,7 +25,7 @@ export default function ContactAvatar({
   style,
 }) {
   const avatarUri = useAvatarUri(contact);
-  const diameter = SIZES[size];
+  const diameter = sizes.avatar[size];
   const initials = initialsOf(contact.name);
   const heart = Math.max(scale(14), Math.round(diameter * 0.32));
   const pictureUri = uri ?? avatarUri;

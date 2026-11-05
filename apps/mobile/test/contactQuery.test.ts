@@ -13,6 +13,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
 import { makeRepository } from '../src/sync/repository';
+import { upsertRows } from '../src/sync/upsertRows';
 
 let db: SyncDb;
 let n: number;
@@ -94,8 +95,15 @@ describe('contactListQuery', () => {
     await contacts.create(db, makeContactRecord({ id: 'cleo', name: 'Cleo' }));
     await contactListMembers.add(db, { listId: list.id }, ['maya', 'ben', 'ana', 'cleo'], newId);
     await contacts.remove(db, ['cleo']);
+    // A second live edge of one pair (two devices added her at once) counts once.
+    await upsertRows(db, 'contact_list_members', schema.contactListMembers, [
+      { id: 'twin', createdAt: 2, updatedAt: 2, deletedAt: null, listId: list.id, contactId: 'ana' },
+    ]);
     const [row] = await contactListQuery().read(db);
     expect(row!.memberCount).toBe(3);
     expect(row!.firstMembers.map((m: { id: string }) => m.id)).toEqual(['ana', 'ben', 'maya']);
+    const [counted] = await contactListQuery({ withMembers: false }).read(db);
+    expect(counted).toMatchObject({ id: 'l1', memberCount: 3 });
+    expect(counted).not.toHaveProperty('firstMembers');
   });
 });

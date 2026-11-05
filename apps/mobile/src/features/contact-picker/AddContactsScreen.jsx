@@ -1,23 +1,24 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useDeferredValue, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import readAddContactsSeed from './readAddContactsSeed';
 
-import Button from '@/components/Button';
+import EditSheetHeader from '@/components/EditSheetHeader';
 import EmptyState from '@/components/EmptyState';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import ContactRow from '@/features/contact-list/ContactRow';
-import contactQuery from '@/features/contact-list/contactQuery';
+import contactSearchText from '@/features/contact-list/contactSearchText';
+import useContactRows from '@/features/contact-list/useContactRows';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { useLiveQuery } from '@/sync/useLiveQuery';
+import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
 
 /**
@@ -40,19 +41,32 @@ function AddContactsPicker({ target, seed }) {
   const { setTargetContacts, setListContacts } = useContacts();
   const [selectedIds, setSelectedIds] = useState(seed.linked);
   const [typedText, setTypedText] = useState('');
-  const searchText = useDeferredValue(typedText);
-  const contacts = useAllContacts(searchText);
-  const isDirty = JSON.stringify([...selectedIds].sort()) !== JSON.stringify([...seed.linked].sort());
-  const { sheetProps } = useEditSheet({ isDirty, save, syncsItself: true });
+  const searchText = useDeferredValue(typedText).trim().toLowerCase();
+  // Every contact, read once (and on writes); a search filters them here, so typing reads nothing.
+  const allContacts = useContactRows({ scope: 'all' });
+  const contacts = useMemo(() => {
+    if (!allContacts || !searchText) return allContacts;
+    const matched = new Set(
+      matchingIds(
+        allContacts.map((contact) => ({ id: contact.id, text: contactSearchText(contact) })),
+        searchText,
+      ),
+    );
+    return allContacts.filter((contact) => matched.has(contact.id));
+  }, [allContacts, searchText]);
+  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const linked = useMemo(() => new Set(seed.linked), [seed.linked]);
+  const sections = useMemo(() => (contacts ? toSections(contacts, seed) : []), [contacts, seed]);
 
-  const sections = contacts ? toSections(contacts, seed) : [];
+  const isDirty = selected.size !== linked.size || selectedIds.some((id) => !linked.has(id));
+  const { sheetProps } = useEditSheet({ isDirty, save, syncsItself: true });
 
   function save() {
     return target.listId ? setListContacts(target.listId, selectedIds) : setTargetContacts(target, selectedIds);
   }
 
   function renderItem({ item: contact, index, section }) {
-    const isSelected = selectedIds.includes(contact.id);
+    const isSelected = selected.has(contact.id);
     return (
       <View style={styles.gutter}>
         <ContactRow
@@ -68,27 +82,7 @@ function AddContactsPicker({ target, seed }) {
 
   return (
     <ModalSheet>
-      <ModalHeader
-        leading={
-          <Button
-            icon="close"
-            accessibilityLabel="Close"
-            onPress={sheetProps.onCancel}
-            disabled={sheetProps.isSaving}
-          />
-        }
-        title="Add contacts"
-        subtitle={seed.title}
-        trailing={
-          <Button
-            variant="primary"
-            label="Save"
-            onPress={sheetProps.onConfirm}
-            disabled={!sheetProps.canConfirm || sheetProps.isSaving}
-            loading={sheetProps.isSaving}
-          />
-        }
-      />
+      <EditSheetHeader {...sheetProps} title="Add contacts" subtitle={seed.title} />
       <SectionList
         sections={sections}
         keyExtractor={(contact) => contact.id}
@@ -116,11 +110,6 @@ function AddContactsPicker({ target, seed }) {
       />
     </ModalSheet>
   );
-}
-
-function useAllContacts(search) {
-  const query = contactQuery({ scope: 'all', search });
-  return useLiveQuery(async (db) => (await query.read(db)).rows, query.tables, [query.descriptor]);
 }
 
 // The contacts in the seed's sections, each once, where it first fits; everyone else after them.

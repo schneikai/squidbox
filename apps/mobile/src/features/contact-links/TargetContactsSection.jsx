@@ -1,11 +1,10 @@
 import { router } from 'expo-router';
 
-import ContactChip from './ContactChip';
-import useTargetContacts from './useTargetContacts';
-
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
+import useContactRows from '@/features/contact-list/useContactRows';
 
 const identity = (onPress) => onPress;
 
@@ -15,16 +14,17 @@ const identity = (onPress) => onPress;
  * `guardPress` may wrap the presses (useDetailsPanelDrag's); `isLive: false` reads them once.
  */
 export default function TargetContactsSection({ targetType, targetId, guardPress = identity, isLive, isFlush }) {
-  const contacts = useTargetContacts({ targetType, targetId }, { isLive });
+  const contacts = useContactRows({ scope: { targetType, targetId } }, { isLive });
 
   return (
     <>
       <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
       <ChipRow>
         {contacts?.map((contact) => (
-          <ContactChip
+          <Chip
             key={contact.id}
-            contact={contact}
+            label={contact.name}
+            leading={<ContactAvatar contact={contact} size="chip" />}
             onPress={guardPress(() => router.navigate(`/contact/${contact.id}`))}
           />
         ))}
