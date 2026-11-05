@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import Icon from '@/components/Icon';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
@@ -32,7 +33,8 @@ export default function ContactAvatar({
   const diameter = sizes.avatar[size];
   const initials = initialsOf(contact.name);
   const heart = Math.round(diameter * HEART_RATIO);
-  const outline = heart + 2 * Math.max(2, Math.round(heart * OUTLINE_RATIO));
+  const ring = Math.max(2, Math.round(heart * OUTLINE_RATIO));
+  const outline = heart + 2 * ring;
   const pictureUri = uri ?? avatarUri;
 
   return (
@@ -57,20 +59,12 @@ export default function ContactAvatar({
         <Icon name="user" size={Math.round(diameter * 0.45)} color={colors.accent.base} />
       )}
       {isFavorite && (
-        <View
-          style={[
-            styles.heart,
-            { width: outline, height: outline, top: -outline * HEART_OVERHANG, right: -outline * HEART_OVERHANG },
-          ]}
-        >
-          {/* Both hearts centered in one box, each laid out alike, so they share a center everywhere. */}
-          <View style={styles.heartLayer}>
-            <Icon name="heart" size={outline} color={outlineColor} filled />
-          </View>
-          <View style={styles.heartLayer}>
-            <Icon name="heart" size={heart} color={colors.status.danger} filled />
-          </View>
-        </View>
+        <FavoriteHeart
+          heart={heart}
+          ring={ring}
+          color={outlineColor}
+          style={{ top: -outline * HEART_OVERHANG, right: -outline * HEART_OVERHANG }}
+        />
       )}
     </View>
   );
@@ -81,6 +75,27 @@ export default function ContactAvatar({
 const HEART_RATIO = 0.45;
 const OUTLINE_RATIO = 0.12;
 const HEART_OVERHANG = 0.25;
+const HEART_PATH =
+  'M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5';
+
+// The red heart with a ring of the surface's color around it: one path drawn twice in one drawing
+// (the ring as a wide stroke under the fill), so the two can't drift apart at any size.
+function FavoriteHeart({ heart, ring, color, style }) {
+  const pad = (ring * 24) / heart; // the ring's width in the 24-unit drawing
+  const box = heart + 2 * ring;
+  return (
+    <Svg
+      width={box}
+      height={box}
+      viewBox={`${-pad} ${-pad} ${24 + 2 * pad} ${24 + 2 * pad}`}
+      style={[styles.heart, style]}
+      pointerEvents="none"
+    >
+      <Path d={HEART_PATH} fill={color} stroke={color} strokeWidth={2 * pad} strokeLinejoin="round" />
+      <Path d={HEART_PATH} fill={colors.status.danger} />
+    </Svg>
+  );
+}
 
 // The photos found on this device since launch, by uri: an avatar shown again (a row scrolled back,
 // the same contact in a row and a stack) skips the file check.
@@ -154,10 +169,5 @@ const styles = StyleSheet.create({
   },
   heart: {
     position: 'absolute',
-  },
-  heartLayer: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
