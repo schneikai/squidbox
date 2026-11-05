@@ -125,6 +125,10 @@ is never pulled. Together with "no hard deletes" (§7), this is a code-review ru
 - `syncError` (this device's last upload error) and `filesRemovedFor` (the purge this device
   removed a purged asset's files for, §7a) are **local-only**, on `assets`.
 - Whether a file is cached on this device is not a field. It is read from the filesystem.
+- A **file field** (`fileFields` on the descriptor: `contacts.avatarFilename`) is a synced field
+  whose value is the key of a file in the user's storage. It carries no "uploaded" flag: the sync
+  uploads the file before it pushes the record (§6), so a pulled value always names a file the
+  storage holds. Whether this device holds it is read from the filesystem, as for assets.
 
 The descriptor's `localOnly` lists local-only fields. They are stripped before an outbox row is
 written (`assetsRepository.ts`). A new device pulls metadata, including the real flag values,
@@ -300,6 +304,35 @@ the pull from updating its record (§5). Failed uploads (`syncError`) are separa
 screen's Retry All clears them (§8). A push that fails as a whole (network, server error) records
 nothing on the rows; the run fails and the next trigger retries it.
 
+**Files before the push.** A pushed live record never names a file the user's storage doesn't hold.
+Before each push request, the worker (`uploadBatchFiles` in `worker.ts`) uploads, one at a time in
+row order, the file of every `upsert` row in the batch whose file field (§9) the edit changed to a
+file the row hasn't uploaded yet, through the upload route (`PUT /assets/upload/<key>`, the run's
+`uploadFile`: `fileUploader` in `sync/fileUploads.ts`, which knows each file field's folder). Each
+upload that lands is noted on the row at once (`uploaded_files`, `markFileUploaded`, one statement,
+as it runs outside any transaction): a coalesced edit keeps the list, so a retried, rejected or
+coalesced row never uploads the same file again. A batch's uploads precede its push, so a batch of
+many photos (a merge) makes the first push wait for all of them; a later change can push the rows
+without file edits first. A `delete` row uploads nothing: a contact made with a photo and deleted
+before any sync pushes a tombstone that may name a file the storage lacks (nothing shows a deleted
+contact; a Restore, when it comes, must treat a named file as possibly missing). A removed photo
+(null) uploads nothing. The server changes nothing for it.
+- **Refused** (`FileUploadRefusedError`): what fails the same way next time, an upload answered
+  `400`, `403` (the dev library copy's `read_only_library`), `404`, `410` or `413`, or a file
+  missing from the device. The row gets the error ("Contact photo upload refused (…)", "Contact
+  photo is missing on this device: choose it again or remove it"), unless an edit replaced it
+  meanwhile, leaves the batch and waits like a rejected row; the push goes on with the rest and the
+  run's notes name the file and the reason.
+- **Failed**: anything else (`429 rate_limited`, a `401` after the refresh, a `5xx`, the network, a
+  changed session) fails the run as a failed push request does, the row untouched; the next sync
+  tries it again.
+- An abort during the uploads stops the run before the push ("stopped during push"), with no error
+  on the row.
+- A run without `uploadFile` throws rather than push a record whose file isn't in storage. The worker
+  never nulls a file field on its own: a merge pass may still deliver the file (§8), and the user's
+  way out is the record's screen. The dev Clear outbox drops the rows with their lists: a photo added
+  again uploads again.
+
 Push returns no cursor. The cursor only moves through pull (§3).
 
 **Monotonic `updatedAt`.** Local writes set `updatedAt = max(now, previous + 1)`
@@ -450,19 +483,17 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
 - The upload queue (`readUnsyncedIds`) selects assets that are not `isSynced`, not deleted, not
   purged and have no `syncError`; the backup run then skips any with an outbox row (§8). It does not
   check that the local file exists; a missing file fails the upload and sets `syncError`.
-- **Contact photos** are the second kind of backed-up file. A photo is a 512 px square JPEG in the
-  library's `avatars/` folder (`LibraryPaths.avatarsDir`), its S3 key its flat name
-  `avatar-<contactId>-<n>.jpg`, a new `n` per new photo, so a device holding the old one never shows
-  it for the new. Only the name and `isAvatarSynced` sync, as one field group. "Back up now" uploads
-  them after the assets (`backupAvatars` in `sync/backupRun.ts`, over `readUnsyncedAvatarIds`: a live
-  contact with a photo not uploaded), skipping a contact with an outbox row like an asset, and marks
-  each uploaded unless the contact got another photo or was deleted meanwhile (`markAvatarSynced`).
-  Contacts have no `syncError`: a failed upload is logged and tried again on the next run, still
-  counted as waiting (`useBackupCounts`, and so the sign-out warning). The local copy stays after
-  the upload (photos are small and shown everywhere); another device fetches a backed-up one it
-  lacks through the avatar loader (`ContactAvatarLoaderProvider`, the thumbnails' queue keyed on
-  `avatarFilename`). A changed or removed photo deletes the old local file; its S3 copy stays (no
-  cleanup yet: each is a few dozen KB).
+- **Contact photos** sync with their contacts, not through the backup run: `avatarFilename` is a file
+  field (§4, §6). A photo is a 512 px square JPEG in the library's `avatars/` folder
+  (`LibraryPaths.avatarsDir`), its S3 key its flat name `avatar-<contactId>-<n>.jpg`, a new `n` per
+  new photo, so a device holding the old one never shows it for the new. The sync uploads it before
+  it pushes the contact, so every device that pulls the name can fetch the file: lazily, through the
+  avatar loader (`ContactAvatarLoaderProvider`, the thumbnails' queue keyed on `avatarFilename`). The
+  local copy stays after the upload (photos are small and shown everywhere). A changed or removed
+  photo deletes the old local file; an upload of the old file cut by that delete fails as a transient
+  error, and the next run uploads the new one. The old S3 copy stays (no cleanup yet: each is a few
+  dozen KB). Assets stay on the backup run (large files, a manual "Back up now") until they move
+  onto file fields, the intended next step.
 
 ---
 
@@ -619,9 +650,11 @@ backs it up and keeps it in sync, and signing out only pauses that.
   set back. Contacts, contact lists and their edges come over by id like albums and posts (no file
   to match them on); a link to a photo matched into an account photo is re-pointed at it, and edges
   the target has live are skipped. A copied contact whose photo the source holds has it moved into
-  the target's `avatars/` folder (`MergePlan.avatars`) and is marked not backed up, so the account's
-  backup uploads it; a photo only in another account's storage is dropped, as the account can't
-  fetch it.
+  the target's `avatars/` folder (`MergePlan.avatars`), and the account's sync uploads it before it
+  pushes the contact (§6); a photo the source doesn't hold (only in another account's storage) is
+  dropped, as the account can't fetch it, and a device edit naming one isn't replayed. Once a pass
+  has moved a contact's photo, that contact's push, if the sync had held it back as missing, is
+  tried again (`retriedContacts`, `clearOutboxErrors`), next to the assets' `retried`.
   - **The merge model** (`planMerge`, `applyMerge`, `mergeLibrary`): the source learns a decision
     only once the target has pushed it.
     - A committed pass marks each source record it decided on (`mergeMarks:<source>`, `MergeMark` in
@@ -803,6 +836,10 @@ export const assetCollection = defineCollection({
 });
 ```
 
+A descriptor may also name `fileFields`: synced fields whose value is a file's key in the user's
+storage (`contacts`: `['avatarFilename']`), which the sync uploads before it pushes the record (§6).
+`defineCollection` throws for a name its schema lacks.
+
 The descriptor drives Zod validation on push, the inferred TypeScript types on both sides, and
 the registry (`registry.ts`) that the server's pull, push and migrate iterate. The Postgres and
 SQLite tables are declared by hand per dialect from the same field list.
@@ -818,6 +855,8 @@ SQLite tables are declared by hand per dialect from the same field list.
 3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables`
    in `clientCollections.ts`, and generate the SQLite migration.
 4. Add a sample record to the registry guard test.
+5. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
+   `apps/mobile/src/sync/fileUploads.ts`.
 
 Pull, push, outbox, apply and conflict handling then work unchanged.
 
@@ -874,8 +913,8 @@ columns. The edge id is the `assetRefs[].id` the UI sees.
 `favoritedAt` (when it was favorited, null once unfavorited; one field group with `isFavorite`),
 `notes`, `xHandle`, `blueskyHandle`, `onlyFansHandle`, `jffHandle` (stored without `@` or a URL,
 `normalizeHandle` in `packages/shared`), `phoneNumber`, `places` (a list of free-text places,
-"Squamish, Canada"; JSON, merges as one value), `avatarFilename` and `isAvatarSynced` (the photo,
-§7a; one field group), plus the base columns. Deleting a contact tombstones it and its edges in one
+"Squamish, Canada"; JSON, merges as one value), `avatarFilename` (the photo's key, a file field:
+§4, §6, §7a), plus the base columns. Deleting a contact tombstones it and its edges in one
 transaction (`setContactDeleted`).
 
 **contact_lists** (Contacts → Lists). Synced: `name`, `notes`, `position` (null: kept for a later
@@ -994,6 +1033,8 @@ gone. Imported records kept deterministic uuid v5 ids, and their files stay at t
 ## 12. Key choices
 
 - Push sends whole records plus the fields each edit changed, with their clocks (§6).
+- A live record is pushed only after the files it names are in storage; the worker uploads a
+  changed file field's file first (§6).
 - The cursor is a global `change_seq` stamped by a trigger, made safe by a per-user advisory
   lock (§3).
 - Conflicts resolve by per-field LWW, with field groups for fields that change together; a delete
@@ -1032,7 +1073,8 @@ lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cur
 - **Outbox.** A record is pending if it has an outbox row. Pending counts are queried from the
   outbox overall and per collection; `useSyncStatus` also counts the failed rows.
 - **File state.** `isFileSynced` and `isThumbnailSynced` (synced) and this device's `syncError`
-  (local-only) on each asset.
+  (local-only) on each asset. Contact photos have none beyond the outbox: a photo waiting for its
+  upload is a pending row, and a refused one a failed row (§6).
 - **Sync log.** `sync_log(ran_at, pushed, pulled, duration_ms, error, notes)` keeps the last 100
   runs. When a local change loses, the run's notes name the fields the server's record replaced
   (`albums <id>: name overwritten by server`), so an override is never silent. Rejected
@@ -1045,7 +1087,11 @@ counts the assets whose upload failed). The sync error viewer
 (`features/cloud-sync/cloud-sync-control/SyncErrorViewer.jsx`) lists either kind with what failed
 and why, with Retry All: from the Library sync screen the failed pushes (`readPushFailures`, named
 after the record: `Album "Trips"`, `Post "First words…"`, `Photo in album "Trips"`), from the Backup
-screen the failed uploads. The viewer closes itself once nothing has failed. Only Clear outbox
+screen the failed uploads. A contact's failed row (`Contact "Maya"`, its photo's upload refused)
+opens the contact (its `href`), where the photo can be chosen again or removed: the row holds the
+contact's other edits with it until then. The dev library copy takes pushes but refuses uploads, so
+a contact photo added in a copy is listed here, and tried again once per foreground. The viewer
+closes itself once nothing has failed. Only Clear outbox
 (below) gives up on a failed push; Rebuild from server keeps the outbox, failed rows included, and
 puts their edits back, so they still wait.
 
