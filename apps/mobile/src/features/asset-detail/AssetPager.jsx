@@ -108,6 +108,21 @@ function AssetPager({
     },
     [pageWidth, showIndex, edgeSwipe],
   );
+
+  // react-native-web's ScrollView fires neither end event, so on the web the page is read from the
+  // DOM's own `scrollend`, which fires once the scroll snap has settled.
+  useEffect(() => {
+    if (!isWeb) return;
+    const node = listRef.current?.getScrollableNode?.();
+    if (!node) return;
+    const handleWebScrollEnd = () => {
+      const index = getSettledPage(node.scrollLeft, pageWidth);
+      if (index >= 0) showIndex(index);
+    };
+    node.addEventListener('scrollend', handleWebScrollEnd);
+    return () => node.removeEventListener('scrollend', handleWebScrollEnd);
+  }, [listRef, pageWidth, showIndex]);
+
   const handleZoomChange = useCallback(
     (assetId, isZoomed) => setZoomedAssetId((zoomed) => nextZoomedAssetId({ zoomed, assetId, isZoomed })),
     [],

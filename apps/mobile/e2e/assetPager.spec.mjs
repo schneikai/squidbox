@@ -5,23 +5,14 @@ import { assetCells, swipeLeft } from './helpers.mjs';
 test('a swipe in the pager shows the next photo', async ({ app: { page } }) => {
   await assetCells(page.getByTestId('library-screen')).first().click();
   const screen = page.getByTestId('asset-screen');
-  const { width } = await screen.boundingBox();
+  const title = screen.getByTestId('toolbar-title');
+  // The mock library's photos are a day apart, so the next one has another date.
+  const firstTitle = await title.textContent();
 
   await swipeLeft(page, screen);
 
-  // The web pager doesn't learn the page it settles on (todo.md → "Web preview gaps"), so the test
-  // reads the list's own scroll: one page over.
-  await expect.poll(() => pagerScrollLeft(screen)).toBe(width);
+  await expect(title).not.toHaveText(firstTitle);
 });
-
-// How far the pager (the scroll-snapping list on `screen`) is scrolled.
-function pagerScrollLeft(screen) {
-  return screen.evaluate(
-    (root) =>
-      [...root.querySelectorAll('*')].find((element) => getComputedStyle(element).scrollSnapType.startsWith('x'))
-        ?.scrollLeft,
-  );
-}
 
 test('Favorite in the pager marks the photo as a favorite', async ({ app: { page } }) => {
   const library = page.getByTestId('library-screen');
