@@ -51,7 +51,7 @@ export const pushLog: { device: SyncDb; mutations: PushMutation[]; results: Push
 export const wholeRecordApps = new Set<SyncDb>();
 // The files each sync uploaded, `<collection>.<field> <filename>`, in order (a file field's, §6).
 export const uploadLog: string[] = [];
-export const uploadFile: UploadFile = async (collection, field, filename) => {
+const uploadFile: UploadFile = async (collection, field, filename) => {
   uploadLog.push(`${collection}.${field} ${filename}`);
 };
 export const albumRepo = makeRepository('albums', clientSchema.albums);
