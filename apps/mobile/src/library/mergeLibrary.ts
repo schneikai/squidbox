@@ -1,7 +1,8 @@
 import { chunk, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import { FILE_FOLDERS, fileFieldsOf, type FileFolder } from './fileFields';
 import { copyFile, fileExists, listFiles, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
@@ -28,14 +29,14 @@ import {
   getAssetFilesDirectory,
   getAssetThumbnailUri,
   getAssetThumbnailsDirectory,
-  getAvatarUri,
-  getAvatarsDirectory,
+  getFieldFileUri,
+  getFileFolderUri,
 } from '@/utils/assets/assetStorage';
 
 type AssetRow = schema.AssetRow;
 type Row = { id: string; updatedAt: number; deletedAt: number | null };
-type Edge = Row & { assetId: string } & Record<string, unknown>;
-type ContactEdge = Row & { contactId: string };
+type EdgeTable =
+  typeof schema.albumAssets | typeof schema.postAssets | typeof schema.contactListMembers | typeof schema.contactLinks;
 type Sent = Pick<schema.OutboxRow, 'payload' | 'fields'>;
 type Replay = Pick<schema.OutboxRow, 'collection' | 'recordId' | 'payload' | 'fields'> & { sent: Sent };
 // What a device photo merged into a target asset at the commit brings to it.
@@ -65,14 +66,15 @@ export interface MergePlan {
   // several entries (a file records share, from earlier builds) is copied to all but its last.
   files: [string, string][];
   thumbnails: [string, string][];
-  // The same for the contacts' photos: the ones the source holds of contacts that end up in the target.
-  avatars: [string, string][];
+  // The same for the file fields' files (library/fileFields.ts), by folder: the ones the source holds
+  // that records ending up in the target name.
+  fieldFiles: Partial<Record<FileFolder, [string, string][]>>;
   // Records with a sync error whose original file this pass delivers: once moveMergedFiles has
   // verified it, their backup tries again, with the device's copy.
   retried: string[];
-  // The contacts whose photo this pass moves into the target: once moved, a push held back because
-  // the photo was missing is tried again.
-  retriedContacts: string[];
+  // By collection, the records a file of whose this pass moves into the target: once moved, a push
+  // held back because the file was missing is tried again.
+  retriedRows: Record<string, string[]>;
   keepsSource: boolean; // a photo whose file is in another account's storage stays in the source
 }
 
@@ -118,19 +120,29 @@ export async function planMerge(
     return Object.fromEntries(Object.entries(fields).filter(([, clock]) => clock > since));
   };
 
-  // The contact photos the source holds: a copy or a replay names only one of them (else the account
-  // couldn't fetch it), and they move with their contacts.
-  const sourceAvatars = await listFiles(getAvatarsDirectory(sourcePaths));
+  // The file fields' files the source holds, by folder: a copy or a replay names only one of them
+  // (else the account couldn't fetch it), and they move with their records.
+  const heldFiles = new Map<FileFolder, Set<string>>();
+  for (const folder of FILE_FOLDERS) heldFiles.set(folder, await listFiles(getFileFolderUri(folder, sourcePaths)));
+  // A record's file fields naming a file the source doesn't hold.
+  const unheldFields = (collection: string, record: Record<string, unknown>) =>
+    fileFieldsOf(collection).flatMap(({ field, folder }) => {
+      const filename = record[field];
+      return typeof filename === 'string' && !heldFiles.get(folder)!.has(filename) ? [field] : [];
+    });
   // A source edit's fields, but a file field naming a file the source doesn't hold.
   const withHeldFiles = (collection: string, fields: FieldClocks, payload: Record<string, unknown>) => {
-    const unheld =
-      collection === 'contacts' &&
-      typeof payload.avatarFilename === 'string' &&
-      !sourceAvatars.has(payload.avatarFilename);
-    if (!unheld || !('avatarFilename' in fields)) return fields;
-    const { avatarFilename: _dropped, ...rest } = fields;
-    return rest;
+    const unheld = unheldFields(collection, payload);
+    return Object.fromEntries(Object.entries(fields).filter(([field]) => !unheld.includes(field)));
   };
+  // A copied record, a file field naming a file the source doesn't hold set to none.
+  const withHeldFileFields = <R extends Row>(collection: string, row: R): R => {
+    const unheld = unheldFields(collection, row);
+    return unheld.length === 0 ? row : { ...row, ...Object.fromEntries(unheld.map((field) => [field, null])) };
+  };
+  // The collections with file fields, their source rows and those copied: their files are planned last,
+  // once every replay is known.
+  const withFiles: { collection: string; table: SQLiteTable; sourceRows: Row[]; copied: Row[] }[] = [];
 
   // Replays, one per record, merged onto the target's row as the server would merge it (replayOnto).
   const replays = new Map<string, Replay>();
@@ -170,12 +182,14 @@ export async function planMerge(
     return { targetRows, pending };
   }
   // The live records the target has no row of: copied, unless a pass skipped them (a copy whose row
-  // is gone is copied again).
+  // is gone is copied again), a file field naming no file the source doesn't hold.
   async function freshRecords<R extends Row>(collection: string, table: SQLiteTable, sourceRows: R[]) {
     const { targetRows } = await planRecords(collection, table, sourceRows);
-    return live(sourceRows).filter(
-      (row) => !targetRows.has(row.id) && decided[`${collection}:${row.id}`]?.as !== 'skip',
-    );
+    const fresh = live(sourceRows)
+      .filter((row) => !targetRows.has(row.id) && decided[`${collection}:${row.id}`]?.as !== 'skip')
+      .map((row) => withHeldFileFields(collection, row));
+    if (fileFieldsOf(collection).length > 0) withFiles.push({ collection, table, sourceRows, copied: fresh });
+    return fresh;
   }
 
   // Assets.
@@ -313,109 +327,20 @@ export async function planMerge(
   for (const post of posts) mark('posts', post, { as: 'copy' });
 
   // Edges: an unpushed edit of an edge the target has (a removal from an album, say) is replayed
-  // like a record's; a live edge between records that will be in the target (every live, non-smart
-  // parent is) is copied, re-pointed at a matched asset, unless the target has that membership live
-  // once this plan's replays apply (a replay may tombstone the edge that has it).
-  async function planEdges<E extends Edge>(
+  // like a record's; a live edge between records that will be in the target is copied as `copiedAs`
+  // has it (re-pointed at a matched asset; null for one that isn't copied), unless the target has
+  // that edge (`keyOf`) live once this plan's replays apply (a replay may tombstone the one that has
+  // it). The target's edges are read by `lookup`.
+  async function planEdges<E extends Row>(
     collection: string,
-    edges: E[],
-    table: typeof schema.albumAssets | typeof schema.postAssets,
-    parentColumn: typeof schema.albumAssets.albumId | typeof schema.postAssets.postId,
-    parentOf: (edge: E) => string,
-    parents: Set<string>,
-  ): Promise<E[]> {
-    const fresh = await freshRecords(collection, table, edges);
-    const copied = fresh.filter((edge) => parents.has(parentOf(edge)) && assetIdMap.has(edge.assetId));
-    if (copied.length === 0) return [];
-    const existing = new Set(
-      (
-        await target
-          .select()
-          .from(table)
-          .where(and(inJson(parentColumn, [...new Set(copied.map(parentOf))]), isNull(table.deletedAt)))
-      )
-        .map((edge) => afterReplays(collection, edge as unknown as E))
-        .filter((edge) => edge.deletedAt === null)
-        .map((edge) => `${parentOf(edge)}:${edge.assetId}`),
-    );
-    const planned: E[] = [];
-    for (const edge of copied) {
-      const assetId = assetIdMap.get(edge.assetId)!;
-      if (existing.has(`${parentOf(edge)}:${assetId}`)) {
-        mark(collection, edge, { as: 'skip' }); // the target has the membership: never copied later
-        continue;
-      }
-      existing.add(`${parentOf(edge)}:${assetId}`);
-      mark(collection, edge, { as: 'copy' });
-      planned.push({ ...edge, assetId });
-    }
-    return planned;
-  }
-  const albumAssets = await planEdges(
-    'album_assets',
-    await source.select().from(schema.albumAssets),
-    schema.albumAssets,
-    schema.albumAssets.albumId,
-    (edge) => edge.albumId,
-    new Set(live(allSourceAlbums).map((album) => album.id)),
-  );
-  const postAssets = await planEdges(
-    'post_assets',
-    await source.select().from(schema.postAssets),
-    schema.postAssets,
-    schema.postAssets.postId,
-    (edge) => edge.postId,
-    new Set(live(allSourcePosts).map((post) => post.id)),
-  );
-
-  // Contacts and their lists, by their ids (no file to match them on). A copied contact's photo the
-  // source holds moves with it, and the sync uploads it before it pushes the contact; one the source
-  // doesn't hold (only in another account's storage) is dropped, as the account can't fetch it.
-  const allSourceContacts = await source.select().from(schema.contacts);
-  const contacts = (await freshRecords('contacts', schema.contacts, allSourceContacts)).map((contact) => {
-    mark('contacts', contact, { as: 'copy' });
-    if (!contact.avatarFilename) return contact;
-    return sourceAvatars.has(contact.avatarFilename) ? contact : { ...contact, avatarFilename: null };
-  });
-  const allSourceLists = await source.select().from(schema.contactLists);
-  const contactLists = await freshRecords('contact_lists', schema.contactLists, allSourceLists);
-  for (const list of contactLists) mark('contact_lists', list, { as: 'copy' });
-  // The photos of the contacts that end in the target by the same id, as the replays leave them.
-  const avatars = new Moves(
-    sourceAvatars,
-    sourceAvatars.size === 0 ? new Set() : await listFiles(getAvatarsDirectory(targetPaths)),
-  );
-  const contactsById = await readByIdMap<schema.ContactRow>(
-    target,
-    schema.contacts,
-    allSourceContacts.map((contact) => contact.id),
-  );
-  // The contacts whose photo this pass delivers: a sync that refused their upload as missing retries.
-  const retriedContacts: string[] = [];
-  for (const contact of [...contacts, ...live(allSourceContacts).filter((row) => contactsById.has(row.id))]) {
-    const kept = contactsById.has(contact.id) ? afterReplays('contacts', contactsById.get(contact.id)!) : contact;
-    if (
-      contact.avatarFilename &&
-      kept.avatarFilename === contact.avatarFilename &&
-      avatars.add(contact.avatarFilename, contact.avatarFilename)
-    )
-      retriedContacts.push(contact.id);
-  }
-
-  // Contact edges, between records that will be in the target: a member of a live list, a link to a
-  // photo (re-pointed at a matched one), album or post that comes over; the target's live edges once
-  // the replays apply are not copied again.
-  const liveContacts = new Set(live(allSourceContacts).map((contact) => contact.id));
-  const liveLists = new Set(live(allSourceLists).map((list) => list.id));
-  async function planContactEdges<E extends ContactEdge>(
-    collection: string,
-    table: typeof schema.contactListMembers | typeof schema.contactLinks,
+    table: EdgeTable,
     edges: E[],
     copiedAs: (edge: E) => E | null,
+    lookup: { column: SQLiteColumn; of: (edge: E) => string },
     keyOf: (edge: E) => string,
   ): Promise<E[]> {
     const copied = (await freshRecords(collection, table, edges)).flatMap((edge) => {
-      const planned = liveContacts.has(edge.contactId) ? copiedAs(edge) : null;
+      const planned = copiedAs(edge);
       return planned ? [planned] : [];
     });
     if (copied.length === 0) return [];
@@ -424,9 +349,7 @@ export async function planMerge(
         await target
           .select()
           .from(table)
-          .where(
-            and(inJson(table.contactId, [...new Set(copied.map((edge) => edge.contactId))]), isNull(table.deletedAt)),
-          )
+          .where(and(inJson(lookup.column, [...new Set(copied.map(lookup.of))]), isNull(table.deletedAt)))
       )
         .map((edge) => afterReplays(collection, edge as unknown as E))
         .filter((edge) => edge.deletedAt === null)
@@ -435,7 +358,7 @@ export async function planMerge(
     const planned: E[] = [];
     for (const edge of copied) {
       if (existing.has(keyOf(edge))) {
-        mark(collection, edge, { as: 'skip' });
+        mark(collection, edge, { as: 'skip' }); // the target has the edge: never copied later
         continue;
       }
       existing.add(keyOf(edge));
@@ -444,28 +367,103 @@ export async function planMerge(
     }
     return planned;
   }
-  const contactListMembers = await planContactEdges(
+  // Every live, non-smart album and every live post will be in the target.
+  const liveAlbums = new Set(live(allSourceAlbums).map((album) => album.id));
+  const livePosts = new Set(live(allSourcePosts).map((post) => post.id));
+  const repointed = <E extends { assetId: string }>(edge: E): E | null => {
+    const assetId = assetIdMap.get(edge.assetId);
+    return assetId ? { ...edge, assetId } : null;
+  };
+  const albumAssets = await planEdges(
+    'album_assets',
+    schema.albumAssets,
+    await source.select().from(schema.albumAssets),
+    (edge) => (liveAlbums.has(edge.albumId) ? repointed(edge) : null),
+    { column: schema.albumAssets.albumId, of: (edge) => edge.albumId },
+    (edge) => `${edge.albumId}:${edge.assetId}`,
+  );
+  const postAssets = await planEdges(
+    'post_assets',
+    schema.postAssets,
+    await source.select().from(schema.postAssets),
+    (edge) => (livePosts.has(edge.postId) ? repointed(edge) : null),
+    { column: schema.postAssets.postId, of: (edge) => edge.postId },
+    (edge) => `${edge.postId}:${edge.assetId}`,
+  );
+
+  // Contacts and their lists, by their ids (no file to match them on). A copied contact's photo the
+  // source holds moves with it (the file fields, below), and the sync uploads it before it pushes the
+  // contact; one the source doesn't hold (only in another account's storage) is dropped, as the
+  // account can't fetch it.
+  const allSourceContacts = await source.select().from(schema.contacts);
+  const contacts = await freshRecords('contacts', schema.contacts, allSourceContacts);
+  for (const contact of contacts) mark('contacts', contact, { as: 'copy' });
+  const allSourceLists = await source.select().from(schema.contactLists);
+  const contactLists = await freshRecords('contact_lists', schema.contactLists, allSourceLists);
+  for (const list of contactLists) mark('contact_lists', list, { as: 'copy' });
+
+  // Contact edges, between records that will be in the target: a member of a live list, a link to a
+  // photo (re-pointed at a matched one), album or post that comes over.
+  const liveContacts = new Set(live(allSourceContacts).map((contact) => contact.id));
+  const liveLists = new Set(live(allSourceLists).map((list) => list.id));
+  const byContact = { column: schema.contactLinks.contactId, of: (edge: { contactId: string }) => edge.contactId };
+  const contactListMembers = await planEdges(
     'contact_list_members',
     schema.contactListMembers,
     await source.select().from(schema.contactListMembers),
-    (edge) => (liveLists.has(edge.listId) ? edge : null),
+    (edge) => (liveContacts.has(edge.contactId) && liveLists.has(edge.listId) ? edge : null),
+    { ...byContact, column: schema.contactListMembers.contactId },
     (edge) => `${edge.listId}:${edge.contactId}`,
   );
-  const linkTargets = {
-    album: new Set(live(allSourceAlbums).map((album) => album.id)),
-    post: new Set(live(allSourcePosts).map((post) => post.id)),
-  };
-  const contactLinks = await planContactEdges(
+  const linkTargets = { album: liveAlbums, post: livePosts };
+  const contactLinks = await planEdges(
     'contact_links',
     schema.contactLinks,
     await source.select().from(schema.contactLinks),
     (edge) => {
+      if (!liveContacts.has(edge.contactId)) return null;
       if (edge.targetType !== 'asset') return linkTargets[edge.targetType].has(edge.targetId) ? edge : null;
       const assetId = assetIdMap.get(edge.targetId);
       return assetId ? { ...edge, targetId: assetId } : null;
     },
+    byContact,
     (edge) => `${edge.targetType}:${edge.targetId}:${edge.contactId}`,
   );
+
+  // The file fields' files the source holds of the records that end in the target, copied or by the
+  // same id as the replays leave them: each moves into the target's folder unless it has it, and a
+  // record whose file this pass delivers retries a push the sync held back because it was missing.
+  const fieldFiles: MergePlan['fieldFiles'] = {};
+  const retriedRows: MergePlan['retriedRows'] = {};
+  const moves = new Map<FileFolder, Moves>();
+  for (const folder of FILE_FOLDERS) {
+    const held = heldFiles.get(folder)!;
+    moves.set(
+      folder,
+      new Moves(held, held.size === 0 ? new Set() : await listFiles(getFileFolderUri(folder, targetPaths))),
+    );
+  }
+  for (const { collection, table, sourceRows, copied } of withFiles) {
+    const targetRows = await readByIdMap<Row>(
+      target,
+      table,
+      sourceRows.map((row) => row.id),
+    );
+    const retried = new Set<string>();
+    for (const row of [...copied, ...live(sourceRows).filter((each) => targetRows.has(each.id))] as Row[]) {
+      const kept = (targetRows.has(row.id) ? afterReplays(collection, targetRows.get(row.id)!) : row) as Record<
+        string,
+        unknown
+      >;
+      for (const { field, folder } of fileFieldsOf(collection)) {
+        const filename = (row as Record<string, unknown>)[field];
+        if (typeof filename === 'string' && kept[field] === filename && moves.get(folder)!.add(filename, filename))
+          retried.add(row.id);
+      }
+    }
+    if (retried.size > 0) retriedRows[collection] = [...retried];
+  }
+  for (const [folder, planned] of moves) if (planned.list.length > 0) fieldFiles[folder] = planned.list;
 
   return {
     assets,
@@ -482,8 +480,8 @@ export async function planMerge(
     marks: { source: name, decided: marks },
     files: files.list,
     thumbnails: thumbnails.list,
-    avatars: avatars.list,
-    retriedContacts,
+    fieldFiles,
+    retriedRows,
     retried: [...retried],
     keepsSource,
   };
@@ -600,7 +598,12 @@ export function writesTarget(plan: MergePlan): boolean {
  * commits its decisions first, so a retry after a failed move makes the same ones).
  */
 export function commitsTarget(plan: MergePlan): boolean {
-  return writesTarget(plan) || plan.files.length > 0 || plan.thumbnails.length > 0 || plan.avatars.length > 0;
+  return (
+    writesTarget(plan) ||
+    plan.files.length > 0 ||
+    plan.thumbnails.length > 0 ||
+    Object.values(plan.fieldFiles).some((moves) => moves.length > 0)
+  );
 }
 
 /**
@@ -676,9 +679,9 @@ export async function finishMerge(source: SyncDb, target: SyncDb, sourceName: st
 }
 
 /**
- * Moves the plan's files, thumbnails and contact photos from the source's folders into the target's (the plan has
- * only destinations the target lacked): a file in several entries is copied to all but its last,
- * before any move. A destination there by now is left as it is, a safety net that never overwrites;
+ * Moves the plan's files, thumbnails and file fields' files from the source's folders into the
+ * target's (the plan has only destinations the target lacked): a file in several entries is copied to
+ * all but its last, before any move. A destination there by now is left as it is, a safety net that never overwrites;
  * one that is then missing throws, so the source is never removed on an unverified move.
  */
 export async function moveMergedFiles(plan: MergePlan, sourcePaths: LibraryPaths, targetPaths: LibraryPaths) {
@@ -691,10 +694,12 @@ export async function moveMergedFiles(plan: MergePlan, sourcePaths: LibraryPaths
       getAssetThumbnailUri(from, sourcePaths),
       getAssetThumbnailUri(to, targetPaths),
     ]),
-    ...plan.avatars.map(([from, to]): [string, string] => [
-      getAvatarUri(from, sourcePaths),
-      getAvatarUri(to, targetPaths),
-    ]),
+    ...Object.entries(plan.fieldFiles).flatMap(([folder, planned]) =>
+      planned.map(([from, to]): [string, string] => [
+        getFieldFileUri(folder as FileFolder, from, sourcePaths),
+        getFieldFileUri(folder as FileFolder, to, targetPaths),
+      ]),
+    ),
   ];
   const last = new Map(moves.map(([from], i) => [from, i]));
   await transferAll(

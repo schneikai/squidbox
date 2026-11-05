@@ -7,7 +7,7 @@ import {
   type PushMutation,
   type PushResult,
 } from '@squidbox/shared';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, gt } from 'drizzle-orm';
 
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
@@ -15,6 +15,7 @@ import type { SyncDb } from './db/types';
 import { FileUploadRefusedError } from './fileUploadErrors';
 import {
   clearOutboxRows,
+  flagOutboxRow,
   markFileUploaded,
   pendingEdits,
   pushableOutboxRows,
@@ -142,9 +143,9 @@ async function pushPhase(
       stopped = true;
       break;
     }
-    const kept = planned.batch.flatMap((row, index) => (uploads.refused.has(row.id) ? [] : [index]));
-    const batch = kept.map((index) => planned.batch[index]!);
-    const mutations = kept.map((index) => planned.mutations[index]!);
+    const kept = (_: unknown, index: number) => !uploads.refused.has(planned.batch[index]!.id);
+    const batch = planned.batch.filter(kept);
+    const mutations = planned.mutations.filter(kept);
     const { results } = mutations.length > 0 ? await transport.push({ mutations }) : { results: [] };
     const refused = tooLarge.map((row) => ({
       id: row.recordId,
@@ -193,10 +194,7 @@ async function uploadBatchFiles(
       } catch (error) {
         if (signal.aborted) return { refused, notes, stopped: true };
         if (!(error instanceof FileUploadRefusedError)) throw error;
-        await db
-          .update(schema.outbox)
-          .set({ error: error.message })
-          .where(and(eq(schema.outbox.id, row.id), eq(schema.outbox.updatedAt, row.updatedAt)));
+        await flagOutboxRow(db, row, error.message);
         refused.add(row.id);
         notes.push(`${row.collection} ${row.recordId}: upload of ${filename} refused (${error.reason})`);
         break;

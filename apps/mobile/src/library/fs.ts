@@ -2,6 +2,7 @@ import { chunk } from '@squidbox/shared';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { OpenLibrary } from './current';
+import { FILE_FOLDERS } from './fileFields';
 import type { LibraryPaths } from './libraryPaths';
 
 import {
@@ -11,7 +12,7 @@ import {
   getDownloadsDirectory,
   getAssetThumbnailUri,
   getAssetThumbnailsDirectory,
-  getAvatarsDirectory,
+  getFileFolderUri,
 } from '@/utils/assets/assetStorage';
 import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
 import deletePath from '@/utils/files/deletePath';
@@ -46,7 +47,7 @@ export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
   for (const dir of [
     getAssetFilesDirectory(paths),
     getAssetThumbnailsDirectory(paths),
-    getAvatarsDirectory(paths),
+    ...FILE_FOLDERS.map((folder) => getFileFolderUri(folder, paths)),
     getDownloadsDirectory(paths),
   ]) {
     deletePath(dir);

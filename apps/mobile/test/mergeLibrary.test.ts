@@ -14,7 +14,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
-import { clearOutboxErrors, setOutboxError } from '../src/sync/outbox';
+import { setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
@@ -775,7 +775,7 @@ describe('contacts', () => {
     const plan = await commitPass();
     await moveMergedFiles(plan, SRC, TGT);
 
-    expect(plan.avatars).toEqual(same('avatar-m-2.jpg'));
+    expect(plan.fieldFiles).toEqual({ avatarsDir: same('avatar-m-2.jpg') });
     expect(files.has(getAvatarUri('avatar-m-2.jpg', TGT))).toBe(true);
     expect(await target.select().from(schema.contacts)).toMatchObject([
       { id: maya.id, avatarFilename: 'avatar-m-2.jpg' },
@@ -795,9 +795,9 @@ describe('contacts', () => {
     await setOutboxError(target, 'contacts', [maya.id], 'Contact photo is missing on this device');
 
     const again = await planMerge(source, target, SRC, TGT);
-    expect(again.retriedContacts).toEqual([maya.id]);
+    expect(again.retriedRows).toEqual({ contacts: [maya.id] });
     await moveMergedFiles(again, SRC, TGT);
-    await clearOutboxErrors(target, 'contacts', again.retriedContacts);
+    await setOutboxError(target, 'contacts', again.retriedRows.contacts!, null);
 
     expect((await outbox(target)).find((row) => row.recordId === maya.id)).toMatchObject({ error: null });
   });
@@ -811,7 +811,7 @@ describe('contacts', () => {
     const plan = await planMerge(source, target, SRC, TGT);
 
     expect(plan.replays.map((replay) => Object.keys(replay.fields))).toEqual([['name']]);
-    expect(plan.avatars).toEqual([]);
+    expect(plan.fieldFiles).toEqual({});
   });
 
   it('a photo only in another account’s storage is dropped: the account couldn’t fetch it', async () => {
@@ -819,7 +819,7 @@ describe('contacts', () => {
 
     const plan = await commitPass();
 
-    expect(plan.avatars).toEqual([]);
+    expect(plan.fieldFiles).toEqual({});
     expect(await target.select().from(schema.contacts)).toMatchObject([{ avatarFilename: null }]);
   });
 });

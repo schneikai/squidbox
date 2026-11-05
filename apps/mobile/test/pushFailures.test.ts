@@ -53,14 +53,14 @@ const outboxRows = () => db.select().from(schema.outbox);
 const failures = async () => (await readPushFailures(db, { limit: 50 })).rows;
 
 describe('push failures of albums, posts and edges', () => {
-  it('a rejected album push is recorded on its outbox row, read with its name and not pushed again', async () => {
+  it('a rejected album push is recorded on its outbox row, read with its name and link and not pushed again', async () => {
     const album = await albums.create(db, makeAlbumRecord({ name: 'Trips' }));
     const rejecting = server(['albums']);
     await runSyncOnce(db, rejecting.transport);
 
     expect(await outboxRows()).toMatchObject([{ recordId: album.id, error: 'schema:name' }]);
     expect(await readPushFailures(db, { limit: 50 })).toEqual({
-      rows: [{ id: expect.any(Number), title: 'Album "Trips"', error: 'schema:name' }],
+      rows: [{ id: expect.any(Number), title: 'Album "Trips"', error: 'schema:name', href: `/album/${album.id}` }],
       count: 1,
     });
     const [log] = await db.select().from(schema.syncLog);
@@ -181,7 +181,7 @@ describe('push failures of albums, posts and edges', () => {
 });
 
 describe('push failures of contacts, lists and their edges', () => {
-  it('are named after the contact, the list, or what the contact is on; a contact’s opens it', async () => {
+  it('are named after the contact, the list, or what the contact is on; a contact’s or a list’s opens it', async () => {
     const contact = await contacts.create(db, makeContactRecord({ name: 'Maya' }));
     const list = await contactLists.create(db, {
       id: crypto.randomUUID(),
@@ -201,7 +201,7 @@ describe('push failures of contacts, lists and their edges', () => {
 
     expect((await failures()).map(({ title, href }) => ({ title, href }))).toEqual([
       { title: 'Contact "Maya"', href: `/contact/${contact.id}` },
-      { title: 'List "Climbers"', href: undefined },
+      { title: 'List "Climbers"', href: `/contact-list/${list.id}` },
       { title: 'Contact in list "Climbers"', href: undefined },
       { title: 'Contact on an album', href: undefined },
     ]);

@@ -67,7 +67,7 @@ function assertSuccess(result, filename, signal) {
 function serverError(body) {
   try {
     const { error } = JSON.parse(body);
-    return typeof error === 'string' ? { message: error } : { code: error?.code ?? null, message: error?.message };
+    return { code: error?.code ?? null, message: error?.message };
   } catch {
     return {};
   }

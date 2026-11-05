@@ -4,7 +4,7 @@ import type { AssetFileNames } from './fs';
 import { MIGRATED_LIBRARY_ID, libraryPaths } from './libraryPaths';
 
 import { deleteAppDb } from '@/sync/db/client';
-import webThumbnailUrls from '@/utils/assets/thumbnails/webThumbnailUrls';
+import webFileUrls from '@/utils/assets/webFileUrls';
 
 // Web storage can't be listed, and opening a name creates its file, so a probe opens the one name
 // a web install can have had before libraries existed and looks for the migrations table; a file
@@ -34,7 +34,7 @@ export function libraryLimitMessage(error: unknown): string | null {
   return "This browser can't hold more libraries. Sign in to an account used here before, or clear this site's data (unsynced changes are lost).";
 }
 
-// Web keeps no files: thumbnails are presigned URLs (utils/assets/thumbnails/webThumbnailUrls.js),
+// Web keeps no files: thumbnails are presigned URLs (utils/assets/webFileUrls.js),
 // and an asset's file exists only in the cloud.
 export async function listFiles(): Promise<Set<string>> {
   return new Set();
@@ -45,7 +45,7 @@ export async function createLibraryFolders(): Promise<void> {}
 export async function removeLibraryFolders(): Promise<void> {}
 
 export async function removeAssetFiles(assets: AssetFileNames[]): Promise<void> {
-  for (const { thumbnailFilename } of assets) if (thumbnailFilename) webThumbnailUrls.delete(thumbnailFilename);
+  for (const { thumbnailFilename } of assets) if (thumbnailFilename) webFileUrls.delete(thumbnailFilename);
 }
 
 export function purgedFilesRemover(): (assets: AssetFileNames[]) => Promise<void> {

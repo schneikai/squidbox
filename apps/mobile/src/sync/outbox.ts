@@ -87,14 +87,28 @@ export async function clearOutboxRows(db: SyncDb, collection: string, recordIds:
   await db.delete(schema.outbox).where(recordsIn(collection, recordIds));
 }
 
-/** Records why the server rejected these records' pending payloads; a failed row waits (§6). */
+/**
+ * Records why these records' pending payloads failed (a rejection, a refused upload; §6): a failed row
+ * waits. `null` clears it, so each is pushed again.
+ */
 export async function setOutboxError(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-  error: string,
+  error: string | null,
 ): Promise<void> {
   await db.update(schema.outbox).set({ error }).where(recordsIn(collection, recordIds));
+}
+
+/**
+ * Flags this pushed row with `error`, unless an edit replaced it meanwhile (it then holds a payload
+ * nobody tried yet). One statement: it runs after a network call, outside any transaction.
+ */
+export async function flagOutboxRow(db: SyncDb, row: schema.OutboxRow, error: string): Promise<void> {
+  await db
+    .update(schema.outbox)
+    .set({ error })
+    .where(and(eq(schema.outbox.id, row.id), eq(schema.outbox.updatedAt, row.updatedAt)));
 }
 
 /**
@@ -111,7 +125,7 @@ export async function markFileUploaded(
   await db
     .update(schema.outbox)
     .set({ uploadedFiles: sql`json_insert(${schema.outbox.uploadedFiles}, '$[#]', ${filename})` })
-    .where(and(eq(schema.outbox.collection, collection), eq(schema.outbox.recordId, recordId)));
+    .where(recordsIn(collection, [recordId]));
 }
 
 // The push sends only the pushable rows; a failed one waits (§6).
@@ -121,12 +135,6 @@ export const pushableOutboxRows = isNull(schema.outbox.error);
 /** Clears the reason of every failed push, so each is pushed again (§6). */
 export async function retryFailures(db: SyncDb): Promise<void> {
   await db.update(schema.outbox).set({ error: null }).where(failedOutboxRows);
-}
-
-/** Clears the reason these records' pushes failed, so each is pushed again (§6). */
-export async function clearOutboxErrors(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
-  for (const ids of chunk(recordIds, SQL_BATCH))
-    await db.update(schema.outbox).set({ error: null }).where(recordsIn(collection, ids));
 }
 
 /** The outbox rows, failed ones included, and the failed ones: through the indexes, no payload is read. */

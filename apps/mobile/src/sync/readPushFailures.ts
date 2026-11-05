@@ -10,10 +10,18 @@ export interface PushFailure {
   id: number; // the outbox row's
   title: string; // what failed, in words: `Album "Trips"`, `Photo in post "Sunset…"`
   error: string;
-  href?: string; // where the way out is: a contact, whose photo may need choosing again
+  href?: string; // the record's screen, where the way out is (a contact whose photo needs choosing again)
 }
 
 const SNIPPET_LENGTH = 40;
+
+// The screen of a record in a collection that has one, for a failure of an edit (a deletion has none).
+const HREFS: Record<string, (id: string) => string> = {
+  albums: (id) => `/album/${id}`,
+  posts: (id) => `/post/${id}`,
+  contacts: (id) => `/contact/${id}`,
+  contact_lists: (id) => `/contact-list/${id}`,
+};
 
 /**
  * The pending changes the server rejected (sync-design §6), oldest first, each named after its record
@@ -43,7 +51,7 @@ export async function readPushFailures(
         id: row.id,
         title: describe(row, { albums, posts, lists }),
         error: row.error ?? '',
-        ...(row.collection === 'contacts' && row.op === 'upsert' && { href: `/contact/${row.recordId}` }),
+        ...(row.op === 'upsert' && HREFS[row.collection] && { href: HREFS[row.collection]!(row.recordId) }),
       })),
       count: total?.count ?? 0,
     };

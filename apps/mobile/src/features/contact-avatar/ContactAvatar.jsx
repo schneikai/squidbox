@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import useContactAvatarLoader from './useContactAvatarLoader';
-
 import Icon from '@/components/Icon';
+import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
 import useLibrary from '@/library/useLibrary';
 import { colors, scale } from '@/styles/designTokens';
@@ -64,35 +63,50 @@ export default function ContactAvatar({
   );
 }
 
+// The photos found on this device since launch, by uri: an avatar shown again (a row scrolled back,
+// the same contact in a row and a stack) skips the file check.
+const foundUris = new Set();
+const MAX_FOUND_URIS = 2000;
+
+function rememberFound(uri) {
+  if (foundUris.size >= MAX_FOUND_URIS) foundUris.delete(foundUris.values().next().value);
+  foundUris.add(uri);
+}
+
 // The uri of the contact's photo once it is on the device: one not on it yet is fetched
-// through the avatar loader while signed in; null until then, and for a contact without a photo.
+// through the loader while signed in; null until then, and for a contact without a photo.
 function useAvatarUri(contact) {
   const filename = contact.avatarFilename;
   const [shown, setShown] = useState(null); // the filename found on the device
   const { paths: library } = useLibrary();
   const { isAuthenticated } = useCloud();
-  const loader = useContactAvatarLoader();
-  const isShown = !!filename && shown === filename;
+  const { loadAvatar } = useAssetThumbnailLoader();
+  const uri = filename ? getAvatarUri(filename, library) : null;
+  const isShown = !!uri && (shown === filename || foundUris.has(uri));
 
   useEffect(() => {
     if (!filename || isShown) return undefined;
     let isCancelled = false;
     let withdraw;
+    function showFound() {
+      rememberFound(getAvatarUri(filename, library));
+      setShown(filename);
+    }
     (async () => {
       const isLocal = await hasAvatarAsync(filename, library);
       if (isCancelled) return;
-      if (isLocal) setShown(filename);
-      else if (isAuthenticated && loader) {
-        withdraw = loader.loadAvatar({ avatarFilename: filename }, (result) => result === 'done' && setShown(filename));
+      if (isLocal) showFound();
+      else if (isAuthenticated) {
+        withdraw = loadAvatar({ avatarFilename: filename }, (result) => result === 'done' && showFound());
       }
     })();
     return () => {
       isCancelled = true;
       withdraw?.();
     };
-  }, [filename, isAuthenticated, isShown, library, loader]);
+  }, [filename, isAuthenticated, isShown, library, loadAvatar]);
 
-  return isShown ? getAvatarUri(filename, library) : null;
+  return isShown ? uri : null;
 }
 
 // The first letters of the name's first two words ("Maya Lindqvist" → "ML").

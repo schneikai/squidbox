@@ -1,6 +1,8 @@
+import { collections } from '@squidbox/shared';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import UploadFailedError from '../src/features/cloud/assets/UploadFailedError';
+import { FILE_FIELDS } from '../src/library/fileFields';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { FileUploadRefusedError } from '../src/sync/fileUploadErrors';
 
@@ -8,7 +10,8 @@ const onDevice = new Set<string>();
 const upload = vi.fn();
 vi.mock('../src/library/fs', () => ({ fileExists: async (uri: string) => onDevice.has(uri) }));
 vi.mock('../src/utils/assets/assetStorage', () => ({
-  getAvatarUri: (filename: string, library: { avatarsDir: string }) => `file:///docs/${library.avatarsDir}${filename}`,
+  getFieldFileUri: (folder: string, filename: string, library: Record<string, string>) =>
+    `file:///docs/${library[folder]}${filename}`,
 }));
 vi.mock('../src/features/cloud/assets/uploadFileAsync', () => ({
   default: (...args: unknown[]) => upload(...args),
@@ -71,5 +74,12 @@ describe('fileUploader', () => {
     await expect(uploadFile('assets', 'filename', 'a.jpg', new AbortController().signal)).rejects.toThrow(
       'No folder on this device for the files of assets.filename',
     );
+  });
+});
+
+describe('FILE_FIELDS', () => {
+  it('has a folder on this device for every file field of a collection, and for nothing else', () => {
+    const fileFields = collections.flatMap(({ name, fileFields }) => fileFields.map((field) => `${name}.${field}`));
+    expect(Object.keys(FILE_FIELDS).sort()).toEqual(fileFields.sort());
   });
 });

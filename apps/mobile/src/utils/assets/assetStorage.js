@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { FILE_FOLDERS } from '@/library/fileFields';
 import deletePath from '@/utils/files/deletePath';
 
 // Where a library keeps its assets on this device: originals and thumbnails in its documents
@@ -24,9 +25,9 @@ export function getAssetThumbnailsDirectory(library) {
   return `${documentFolder()}${library.thumbnailsDir}`;
 }
 
-/** @param {{ avatarsDir: string }} library */
-export function getAvatarsDirectory(library) {
-  return `${documentFolder()}${library.avatarsDir}`;
+// The folder of a file field's files (library/fileFields.ts): `folder` is its LibraryPaths key.
+export function getFileFolderUri(folder, library) {
+  return `${documentFolder()}${library[folder]}`;
 }
 
 // The folder full-resolution files are fetched into (to save or share), each in a folder of its own,
@@ -44,9 +45,13 @@ export function getAssetThumbnailUri(thumbnailFilename, library) {
   return `${getAssetThumbnailsDirectory(library)}${thumbnailFilename}`;
 }
 
-// A contact's photo (`avatar-<contactId>-<n>.jpg`).
+export function getFieldFileUri(folder, filename, library) {
+  return `${getFileFolderUri(folder, library)}${filename}`;
+}
+
+// A contact's photo (its file field `contacts.avatarFilename`).
 export function getAvatarUri(avatarFilename, library) {
-  return `${getAvatarsDirectory(library)}${avatarFilename}`;
+  return getFieldFileUri('avatarsDir', avatarFilename, library);
 }
 
 export async function hasAvatarAsync(avatarFilename, library) {
@@ -72,7 +77,7 @@ export async function createAssetDirectoriesAsync(library) {
   for (const uri of [
     getAssetFilesDirectory(library),
     getAssetThumbnailsDirectory(library),
-    getAvatarsDirectory(library),
+    ...FILE_FOLDERS.map((folder) => getFileFolderUri(folder, library)),
   ]) {
     new Directory(uri).create({ intermediates: true, idempotent: true });
   }

@@ -38,8 +38,8 @@ vi.mock('../src/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync', () => ({
 
 const { default: preloadAssetThumbnailsAsync } =
   await import('../src/features/cloud/assets/preloadAssetThumbnailsAsync');
-const { default: preloadOnWeb } = await import('../src/features/cloud/assets/preloadAssetThumbnailsAsync.web');
-const { default: webThumbnailUrls } = await import('../src/utils/assets/thumbnails/webThumbnailUrls');
+const { default: preloadOnWeb } = await import('../src/features/cloud/assets/preloadFilesAsync.web');
+const { default: webFileUrls } = await import('../src/utils/assets/webFileUrls');
 
 const library = libraryPaths('abc');
 const thumbnails = 'file:///documents/libraries/abc/thumbnails/';
@@ -61,7 +61,7 @@ describe('preloadAssetThumbnailsAsync', () => {
     files.clear();
     downloads.length = 0;
     peak.most = 0;
-    webThumbnailUrls.clear();
+    webFileUrls.clear();
   });
 
   it('resolves the ones it has afterwards, three downloads at a time; a failed one leaves the others be', async () => {
@@ -88,13 +88,13 @@ describe('preloadAssetThumbnailsAsync', () => {
   });
 
   it('on web, keeps the URLs it got, and none once aborted', async () => {
-    webThumbnailUrls.set('here.jpg', 'url');
-    expect(await preloadOnWeb(assetsOf('here.jpg', 'new.jpg'), library)).toEqual(new Set(['here.jpg', 'new.jpg']));
+    webFileUrls.set('here.jpg', 'url');
+    expect(await preloadOnWeb(['here.jpg', 'new.jpg'], {}, library)).toEqual(new Set(['here.jpg', 'new.jpg']));
 
     const controller = new AbortController();
-    const result = preloadOnWeb(assetsOf('late.jpg'), library, controller.signal);
+    const result = preloadOnWeb(['late.jpg'], {}, library, controller.signal);
     controller.abort();
     expect(await result).toEqual(new Set());
-    expect(webThumbnailUrls.has('late.jpg')).toBe(false);
+    expect(webFileUrls.has('late.jpg')).toBe(false);
   });
 });
