@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import { colors, typography } from '@/styles/designTokens';
 
 // A list entry's main line and the smaller grey line below it (ThumbnailRow, the asset's details), and
-// the small bold grey caption under a post or an album (its date, counts, a thread's "3 posts").
+// the small bold grey caption under a post or an album (its date, counts, a thread's "Thread · 3").
 export default StyleSheet.create({
   title: {
     fontSize: typography.body,

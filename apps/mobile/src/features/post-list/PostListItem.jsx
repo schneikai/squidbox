@@ -11,7 +11,7 @@ const STACK_STEP = scale(7);
 const STACK_INSET = scale(12);
 
 /**
- * A post in the posts list, as a card (PostView) with "N posts" for a thread, and
+ * A post in the posts list, as a card (PostView) with "Thread · N" for a thread, and
  * `actions` (buttons for this post, e.g. a Repost suggestion's) under them. A thread (a post with
  * following posts) sits on two card edges peeking out below, a stack; its following posts aren't
  * shown. `post` is a postQuery row: it carries its `postAssets` and `threadCount`.
@@ -34,7 +34,7 @@ export default function PostListItem({ post, actions }) {
           isThread && (
             <View style={styles.threadMark}>
               <Icon name="thread" size={sizes.captionIcon} color={colors.text.secondary} />
-              <Text style={listTextStyles.caption}>{`${1 + threadCount} posts`}</Text>
+              <Text style={listTextStyles.caption}>{`Thread · ${1 + threadCount}`}</Text>
             </View>
           )
         }
