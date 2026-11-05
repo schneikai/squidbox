@@ -7,7 +7,7 @@ import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { press, scale, space } from '@/styles/designTokens';
+import { layout, press, radii, scale, space } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -20,7 +20,7 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => pressed && press.flat}>
-      <Card padded style={styles.row}>
+      <Card style={styles.card}>
         <CoverImage asset={first} style={styles.photo} />
         <View style={styles.body}>
           {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
@@ -39,17 +39,25 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 }
 
 const styles = StyleSheet.create({
-  row: {
+  // A post card's geometry (ThreadPost's row card): the photo close to the card's edge, the text
+  // inset so it starts where a post's text does.
+  card: {
     flexDirection: 'row',
+    padding: layout.postCardPadding,
+    gap: layout.postCardGap - layout.postTextInset,
   },
   photo: {
     width: scale(72),
     height: scale(96),
+    borderRadius: radii.postPicture,
   },
   body: {
     flex: 1,
     minWidth: 0,
     gap: space.sm,
+    paddingTop: layout.postTextInset,
+    paddingHorizontal: layout.postTextInset,
+    paddingBottom: layout.postTextBottom,
   },
   // The actions sit at the card's bottom, however many lines the text above them takes.
   actions: {
