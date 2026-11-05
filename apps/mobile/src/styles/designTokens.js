@@ -82,7 +82,7 @@ export const colors = {
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
-    tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
+    tint: palette.violet50, // a lavender card on a white sheet
     assistant: palette.violet50, // the lavender tray of the assistant's actions (AssistantTray)
     assistantClear: alpha(palette.violet50, 0), // `assistant` faded out, the end of a row that scrolls inside it
     note: palette.yellow100, // a sticky note's yellow (a model's note in its list, a WarningNote)

@@ -7,8 +7,8 @@ import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
  * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
- * by a soft shadow, a prompt button on the assistant's tray), `lead` (light violet with a violet
- * label, the first action of a row: Ask anything) or `add` (the dashed Add at the end of a row,
+ * by a soft shadow, a prompt button on the assistant's tray), `lead` (light violet with a semibold
+ * violet label, the first action of a row: Ask anything) or `add` (the dashed Add at the end of a row,
  * with its plus). Every variant has the same frame, so a tag tapped on never
  * changes its width and moves the chips after it.
  *
@@ -35,7 +35,9 @@ export default function Chip({
   const content = (
     <>
       {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, isAccent && styles.accentLabel]}>{label}</Text>
+      <Text style={[styles.label, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}>
+        {label}
+      </Text>
     </>
   );
 
@@ -101,5 +103,8 @@ const styles = StyleSheet.create({
   },
   accentLabel: {
     color: colors.accent.base,
+  },
+  leadLabel: {
+    fontWeight: '600',
   },
 });

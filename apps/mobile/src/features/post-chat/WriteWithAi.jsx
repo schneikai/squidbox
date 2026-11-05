@@ -1,21 +1,14 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
-import AssistantTray, { TRAY_INSET } from './AssistantTray';
 import useChatSession from './useChatSession';
 
+import AssistantTray, { TRAY_INSET } from '@/components/AssistantTray';
 import Chip from '@/components/Chip';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
-import { colors, scale } from '@/styles/designTokens';
-
-const FADE = [colors.background.assistantClear, colors.background.assistant];
-const FADE_START = { x: 0, y: 0 };
-const FADE_END = { x: 1, y: 0 };
 
 /**
  * "Write with AI" under a post (a posted post and its thread, the editor's card being edited), for
@@ -49,36 +42,13 @@ function WriteWithAiSection({ sessionId, style }) {
   if (!chat) return null;
 
   return (
-    <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton />} style={style}>
-      <View style={styles.line}>
-        <PromptButtonRow
-          buttons={buttons ?? []}
-          chipVariant="raised"
-          onPress={openChat}
-          leading={<Chip label={opener.label} icon={opener.icon} variant="lead" onPress={() => openChat()} />}
-          contentContainerStyle={styles.lineContent}
-        />
-        <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
-      </View>
+    <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton colorPalette="accent" />} style={style}>
+      <PromptButtonRow
+        buttons={buttons ?? []}
+        inset={TRAY_INSET}
+        onPress={openChat}
+        leading={<Chip label={opener.label} icon={opener.icon} variant="lead" onPress={() => openChat()} />}
+      />
     </AssistantTray>
   );
 }
-
-const styles = StyleSheet.create({
-  // Out to the tray's edges, so the chips scroll under its rim; room above and below for their shadow.
-  line: {
-    marginHorizontal: -TRAY_INSET,
-    marginVertical: -scale(4),
-  },
-  lineContent: {
-    paddingHorizontal: TRAY_INSET,
-    paddingVertical: scale(4),
-  },
-  fade: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: scale(32),
-  },
-});
