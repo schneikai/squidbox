@@ -9,12 +9,12 @@
  *
  * lint: eslint on apps/mobile (`lint:files` there; its config also enforces prettier). format:
  * prettier on the code in FORMAT_ROOTS. Either runs over the whole repo when its config or the
- * packages changed. typecheck: `npm run typecheck`, whole projects, incremental: the server, and in
- * the mobile app only src/sync and src/library (tsconfig.synccheck.json). tests: per app, the test
+ * packages changed. typecheck: `npm run typecheck`, whole projects, incremental: the server, and
+ * every TypeScript file in the mobile app's src (tsconfig.typecheck.json). tests: per app, the test
  * files whose imports reach a changed file, in any app (`vitest related`), or the app's whole suite
  * when its config, package, test helpers or setup, or the files its tests read from disk changed,
  * or a file was deleted or moved. A packages/shared change counts for both apps. No DB suites:
- * README says when to run those.
+ * README says when to run those. new files: no .js/.jsx added to apps/mobile/src (checkNewFiles.mjs).
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -154,6 +154,7 @@ function testRuns({ files, deleted }) {
 // A root script, without npm's own lines (its banner, its "Lifecycle script failed" error).
 const npmRun = (script) => ['npm', ['run', '--silent', script]];
 const prettier = (files) => [`${BIN}prettier`, ['--check', ...files]];
+const newFiles = [process.execPath, [`${ROOT}scripts/checkNewFiles.mjs`]];
 
 if (process.argv.includes('--format')) {
   const [command, args] = prettier([FORMAT_GLOB]);
@@ -170,6 +171,7 @@ async function plan() {
         format: { steps: [prettier([FORMAT_GLOB])] },
         typecheck: { steps: [npmRun('typecheck')] },
         knip: { steps: [npmRun('knip')] },
+        'new files': { steps: [newFiles] },
       },
       // `npm test --workspaces --if-present`, app by app: the apps are the workspaces with tests.
       tests: { steps: APPS.map((app) => vitest(app, ['run'])) },
@@ -182,6 +184,7 @@ async function plan() {
       format: format(changed.files),
       typecheck: { steps: [npmRun('typecheck')] },
       knip: null,
+      'new files': { steps: [newFiles] },
     },
     tests: runs.length === 0 ? null : { steps: runs.map((r) => r.step), note: runs.map((r) => r.name).join(', ') },
   };

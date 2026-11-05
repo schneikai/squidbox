@@ -36,6 +36,12 @@ export const refreshRequestSchema = z.object({
 });
 export type RefreshRequest = z.infer<typeof refreshRequestSchema>;
 
+// POST /auth/logout — revokes this device's refresh token.
+export const logoutRequestSchema = z.object({
+  refreshToken: z.string(),
+});
+export type LogoutRequest = z.infer<typeof logoutRequestSchema>;
+
 // Refresh returns tokens only, no user.
 export const refreshResponseSchema = z.object({
   accessToken: z.string(),

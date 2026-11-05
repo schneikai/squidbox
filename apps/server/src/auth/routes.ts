@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   loginRequestSchema,
   loginResponseSchema,
+  logoutRequestSchema,
   refreshRequestSchema,
   refreshResponseSchema,
   updateFeaturesRequestSchema,
@@ -57,7 +58,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   r.route({
     method: 'POST',
     url: '/auth/logout',
-    schema: { body: refreshRequestSchema },
+    schema: { body: logoutRequestSchema },
     handler: async (request, reply) => {
       await revokeRefreshToken(db, request.body.refreshToken);
       return reply.code(204).send();

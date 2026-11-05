@@ -115,9 +115,9 @@ async function loginAsync() {
 }
 
 // Runs in the page before every navigation: seeds the session record the web session store
-// (sessionStore.js over secureStorage.web.js) reads, once per browser context. A later load must not
+// (sessionStore.ts over secureStorage.web.ts) reads, once per browser context. A later load must not
 // write it again: the app may have rotated the refresh token (the seeded one is then revoked) or a
-// test may have deleted the session on purpose. The API lives on the page's origin (apiBaseUrl.js).
+// test may have deleted the session on purpose. The API lives on the page's origin (apiBaseUrl.ts).
 function storeSession({ accessToken, refreshToken, user, serverId }) {
   const { localStorage } = window;
   if (localStorage.getItem('webPreviewSeeded')) return;
