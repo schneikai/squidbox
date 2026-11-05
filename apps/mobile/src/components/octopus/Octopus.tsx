@@ -179,7 +179,8 @@ function Octopus({ size }: OctopusProps) {
 export default memo(Octopus);
 
 // An SVG in the traced image's pixels, placed over the octopus's box with room around it.
-function Layer({ unit, children }: { unit: number; children?: ReactNode }) {
+type LayerProps = { unit: number; children?: ReactNode };
+function Layer({ unit, children }: LayerProps) {
   return (
     <Svg
       viewBox={VIEW_BOX}

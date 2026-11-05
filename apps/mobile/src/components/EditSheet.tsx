@@ -98,7 +98,8 @@ export default function EditSheet({
 }
 
 // The body that fills the sheet above the keyboard (`isFilling`).
-function FillingBody({ children }: { children?: ReactNode }) {
+type FillingBodyProps = { children?: ReactNode };
+function FillingBody({ children }: FillingBodyProps) {
   const { bottom } = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset(12);
   const fillingStyle = useAnimatedStyle(() => ({

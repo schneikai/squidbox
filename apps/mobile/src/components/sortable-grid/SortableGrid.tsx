@@ -152,7 +152,11 @@ export default function SortableGrid<Row extends GridRow>({
     if (!heldIds) return rows;
     const byId = new Map(rows.map((row) => [row.id, row]));
     // heldOrder keeps only the rows' ids, so every one is found.
-    return heldIds.flatMap((id) => byId.get(id) ?? []);
+    return heldIds.map((id) => {
+      const row = byId.get(id);
+      if (!row) throw new Error(`SortableGrid: held id ${id} is not in the rows`);
+      return row;
+    });
   }, [rows, rowsReadAt, hold, reorderEnabled]);
   const orderedRef = useRef(ordered);
   orderedRef.current = ordered;
@@ -272,7 +276,8 @@ export default function SortableGrid<Row extends GridRow>({
     sendSlots(change.order);
     setIsWriting(true);
     try {
-      const writtenAt = await onReorder?.(change);
+      if (!onReorder) throw new Error('SortableGrid: reorderEnabled needs onReorder');
+      const writtenAt = await onReorder(change);
       // A drop that reports no write count counts as landed, so the cells follow the rows.
       setHold((current) => (current === dropped ? { ...dropped, writtenAt: writtenAt ?? -1 } : current));
     } catch (error) {

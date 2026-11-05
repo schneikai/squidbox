@@ -1,16 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import CoverImage from '@/components/CoverImage';
+import CoverImage, { type CoverImageProps } from '@/components/CoverImage';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import { colors, press, scale, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
 const THUMBNAIL_SIZE = scale(72);
 
 export type ThumbnailRowProps = {
-  asset?: ThumbnailStatusAsset;
+  asset?: CoverImageProps['asset'];
   hasThumbnail?: boolean;
   title: string;
   subtitle?: string;

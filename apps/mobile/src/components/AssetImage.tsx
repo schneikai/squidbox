@@ -5,7 +5,7 @@ import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
-import useOpenLibrary from '@/library/useOpenLibrary';
+import useLibrary from '@/library/useLibrary';
 import { colors, motion, sizes } from '@/styles/designTokens';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
@@ -59,10 +59,11 @@ export default function AssetImage({
   const [loadedUri, setLoadedUri] = useState<string | null>(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { isAuthenticated } = useCloud();
-  const { paths: library } = useOpenLibrary();
+  const { paths: library } = useLibrary();
   const { thumbnailStyle } = useAppSettings();
   const thumbnailFilename = asset?.thumbnailFilename;
-  const localUri = thumbnailFilename && getAssetThumbnailUri(thumbnailFilename, library);
+  // Without an open library there is no thumbnail to find: the placeholder shows.
+  const localUri = thumbnailFilename && library ? getAssetThumbnailUri(thumbnailFilename, library) : undefined;
   const wasShown = !!localUri && shownUris.has(localUri);
   // A recycled cell must not show the previous asset's status or picture.
   const current = found?.filename === thumbnailFilename ? found : null;
@@ -70,7 +71,7 @@ export default function AssetImage({
 
   useEffect(() => {
     const filename = thumbnailFilename;
-    if (!asset || !filename || isLocal) return;
+    if (!asset || !filename || !library || isLocal) return;
     const controller = new AbortController();
     let withdraw: (() => void) | undefined;
 

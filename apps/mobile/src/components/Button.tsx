@@ -212,17 +212,17 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
   const spinner = <ActivityIndicator size="small" color={color} />;
   if (loading && shape !== 'link') return spinner;
   if (shape === 'disc' && label) return <Text style={[styles.discLabel, { color }]}>{label}</Text>;
-  if (iconCount === 2 || shape === 'disc' || shape === 'bare') {
-    // Without an icon there is nothing to show (combinationProblem warns).
-    if (!icon) return null;
-    if (iconCount === 2) {
-      return (
-        <View style={styles.pair}>
-          <Icon name={icon} size={PAIR_ICON_SIZE} color={color} filled={filled} />
-          <Icon name={icon} size={PAIR_ICON_SIZE} color={color} filled={filled} />
-        </View>
-      );
-    }
+  // Without an icon there is nothing to show (combinationProblem warns).
+  if (!icon && (iconCount === 2 || shape === 'disc' || shape === 'bare')) return null;
+  if (iconCount === 2 && icon) {
+    return (
+      <View style={styles.pair}>
+        <Icon name={icon} size={PAIR_ICON_SIZE} color={color} filled={filled} />
+        <Icon name={icon} size={PAIR_ICON_SIZE} color={color} filled={filled} />
+      </View>
+    );
+  }
+  if ((shape === 'disc' || shape === 'bare') && icon) {
     return <Icon name={icon} size={iconSize} color={color} filled={filled} />;
   }
 

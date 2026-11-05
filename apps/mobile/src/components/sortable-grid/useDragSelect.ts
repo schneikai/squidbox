@@ -138,8 +138,8 @@ export default function useDragSelect<Row extends GridRow>({
       if (intentRef.current) set.add(id);
       else set.delete(id);
     }
-    // Without onSelect the grid never turns drag-select on.
-    onSelect?.([...set]);
+    if (!onSelect) throw new Error('SortableGrid: dragSelectEnabled needs onSelect');
+    onSelect([...set]);
   }
 
   return { gesture, onContainerLayout };

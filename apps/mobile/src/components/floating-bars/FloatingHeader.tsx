@@ -16,10 +16,14 @@ import { colors, layout, motion, typography } from '@/styles/designTokens';
 export type FloatingHeaderProps = {
   title: string;
   onAdd: () => void;
-  selection?: ReturnType<typeof useToggleSelectAssetsAction>;
-  selectionActions?: SelectionActionsProps['actions'];
-  onDelete?: SelectionActionsProps['onDelete'];
-};
+} & (
+  | {
+      selection: ReturnType<typeof useToggleSelectAssetsAction>;
+      selectionActions: SelectionActionsProps['actions'];
+      onDelete?: SelectionActionsProps['onDelete'];
+    }
+  | { selection?: undefined; selectionActions?: undefined; onDelete?: undefined }
+);
 
 // The main screens' header. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
@@ -75,7 +79,7 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
       </Animated.View>
 
       {/* Select mode pill */}
-      {selection && selectionActions && (
+      {selection && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
             <SelectionActions actions={selectionActions} onDelete={onDelete} onClose={selection.exitSelectMode} />

@@ -60,7 +60,8 @@ export default function OctopusFace({ still }: OctopusFaceProps) {
   );
 }
 
-function Eye({ eye, openness }: { eye: (typeof parts.eyes)[number]; openness: SharedValue<number> }) {
+type EyeProps = { eye: (typeof parts.eyes)[number]; openness: SharedValue<number> };
+function Eye({ eye, openness }: EyeProps) {
   const animatedProps = useAnimatedProps(() => ({ ry: eye.ry * openness.value }));
   return <AnimatedEllipse cx={eye.cx} cy={eye.cy} rx={eye.rx} animatedProps={animatedProps} fill={colors.eye} />;
 }

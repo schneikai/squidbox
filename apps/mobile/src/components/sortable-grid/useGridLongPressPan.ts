@@ -16,15 +16,16 @@ export type UseGridLongPressPanOptions = {
   enabled: boolean;
   waitsFor?: PanGesture;
   holdMs: number;
-  layout?: GridLayout;
   paddingTop: number;
   listRef?: RefObject<ScrollableList | null>;
   scrollY?: SharedValue<number>;
-  findIndexAt?: (content: Point, count: number) => number;
   onLift: (x: number, y: number) => void;
   onMove: (x: number, y: number) => void;
   onRelease: (end: { canceled: boolean }) => void;
-};
+} & (
+  | { layout: GridLayout; findIndexAt?: undefined }
+  | { layout?: GridLayout; findIndexAt: (content: Point, count: number) => number }
+);
 
 /**
  * The pan a grid's drags share (drag-select, drag-reorder): it starts after a hold of `holdMs` and
@@ -66,9 +67,7 @@ export default function useGridLongPressPan({
   }
 
   function indexAtContent(content: Point, count: number) {
-    if (findIndexAt) return findIndexAt(content, count);
-    if (!layout) throw new Error('useGridLongPressPan needs layout or findIndexAt');
-    return gridIndexAtContentPoint(content, layout, count);
+    return findIndexAt ? findIndexAt(content, count) : gridIndexAtContentPoint(content, layout, count);
   }
 
   // Reads only refs and the list, so the tick an interval started with stays valid.

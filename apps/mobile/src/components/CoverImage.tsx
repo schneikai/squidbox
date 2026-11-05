@@ -1,14 +1,11 @@
 import type { ReactNode } from 'react';
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import AssetImage from '@/components/AssetImage';
+import AssetImage, { type AssetImageProps } from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import { colors, radii, sizes } from '@/styles/designTokens';
-import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
-export type CoverImageProps = {
-  asset?: ThumbnailStatusAsset;
-  uri?: string;
+export type CoverImageProps = Pick<AssetImageProps, 'asset' | 'uri'> & {
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 };

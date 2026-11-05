@@ -74,7 +74,8 @@ export default function OctopusArm({ arm, angles, index }: OctopusArmProps) {
   );
 }
 
-function OutlinePath({ path, fill }: { path: DerivedValue<string>; fill?: string }) {
+type OutlinePathProps = { path: DerivedValue<string>; fill?: string };
+function OutlinePath({ path, fill }: OutlinePathProps) {
   const animatedProps = useAnimatedProps(() => ({ d: path.value }));
   return <AnimatedPath animatedProps={animatedProps} fill={fill} />;
 }
