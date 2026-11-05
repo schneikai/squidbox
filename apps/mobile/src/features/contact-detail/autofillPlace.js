@@ -5,8 +5,9 @@ const same = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 /**
  * `place` once its `part` was typed or picked, its empty parts filled from the `known` places (the
  * user's contacts'): a city that names exactly one known place fills its state and country, a state
- * that lies in exactly one known country fills the country. A part already filled is never changed,
- * and a city or state known in two places fills nothing.
+ * that lies in exactly one known country fills the country: only from the specific to the general, so a
+ * country fills nothing and a state never a city. A part already filled is never changed, and a city
+ * or state known in two places fills nothing.
  */
 export default function autofillPlace(place, part, known) {
   const typed = place[part];

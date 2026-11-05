@@ -21,6 +21,13 @@ describe('autofillPlace', () => {
     expect(autofillPlace(place('', 'Oregon'), 'state', KNOWN)).toEqual(place('', 'Oregon', 'United States'));
   });
 
+  it('fills only from the specific to the general: a country fills nothing, a state no city', () => {
+    expect(autofillPlace(place('', '', 'Portugal'), 'country', KNOWN)).toEqual(place('', '', 'Portugal'));
+    expect(autofillPlace(place('', 'British Columbia'), 'state', KNOWN)).toEqual(
+      place('', 'British Columbia', 'Canada'),
+    );
+  });
+
   it('a city known in two places fills nothing', () => {
     expect(autofillPlace(place('Portland'), 'city', KNOWN)).toEqual(place('Portland'));
   });
