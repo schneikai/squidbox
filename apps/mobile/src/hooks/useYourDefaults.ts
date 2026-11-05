@@ -8,7 +8,7 @@ import {
 import { useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
-import useAccountUserId from '@/library/useAccountUserId';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { schema } from '@/sync/db/client';
 import { readModelPicks } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -27,11 +27,16 @@ export type YourDefaults = {
  */
 export default function useYourDefaults(): YourDefaults {
   const { defaults } = useAiCatalog();
-  const userId = useAccountUserId();
-  const picks = useLiveQuery((db) => readModelPicks(db, userId), [schema.modelChoices], [userId]);
+  const { userId } = useOpenLibrary();
+  // None in this device's library, which has no account: the defaults stay loading there.
+  const picks = useLiveQuery(
+    async (db) => (userId === null ? null : readModelPicks(db, userId)),
+    [schema.modelChoices],
+    [userId],
+  );
 
   return useMemo(() => {
-    if (picks === undefined || !defaults) return { defaults, yourDefaults: null, changedKinds: null };
+    if (!picks || !defaults) return { defaults, yourDefaults: null, changedKinds: null };
     const yourDefaults = Object.fromEntries(
       aiModelKindSchema.options.map((kind) => [kind, resolveModelDefaults(kind, picks, defaults)]),
     ) as ModelDefaults;

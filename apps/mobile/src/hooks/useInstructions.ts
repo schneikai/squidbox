@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHasFeature from '@/hooks/useHasFeature';
-import useAccountUserId from '@/library/useAccountUserId';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { getDb, schema } from '@/sync/db/client';
 import { clearInstructionsEqualTo, readInstructions } from '@/sync/instructionsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -21,10 +21,14 @@ import { requestSync } from '@/sync/worker';
  * (useAiCatalog).
  */
 export default function useInstructions() {
-  const userId = useAccountUserId();
+  const { userId } = useOpenLibrary();
   const isAiAdmin = useHasFeature('ai_admin');
   const { instructions: defaultTexts, error, retry } = useAiCatalog();
-  const stored = useLiveQuery((db) => readInstructions(db, userId), [schema.instructions], [userId]);
+  const stored = useLiveQuery(
+    async (db) => (userId === null ? null : readInstructions(db, userId)),
+    [schema.instructions],
+    [userId],
+  );
 
   const texts = useMemo(
     () => (stored === undefined || !defaultTexts ? null : resolveInstructions(isAiAdmin ? stored : null, defaultTexts)),
@@ -42,7 +46,7 @@ export default function useInstructions() {
   );
 
   useEffect(() => {
-    if (!stored || !defaultTexts) return;
+    if (userId === null || !stored || !defaultTexts) return;
     clearInstructionsEqualTo(getDb(), userId, defaultTexts)
       .then((didClear) => didClear && requestSync())
       .catch((error) => console.error('Clearing the published instructions failed', error));

@@ -5,7 +5,7 @@ import useAiCatalog from '@/hooks/useAiCatalog';
 import usePersona from '@/hooks/usePersona';
 import useYourDefaults from '@/hooks/useYourDefaults';
 import applyAiCatalog from '@/lib/applyAiCatalog';
-import useAccountUserId from '@/library/useAccountUserId';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { addYourModel, type ModelRef, readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { clearPicks, clearPicksEqualTo, pickDefault as savePick, readModelPicks } from '@/sync/modelChoicesRepository';
@@ -37,7 +37,7 @@ import setModelDefaultsAsync from '@/utils/cloud-api/ai/setModelDefaultsAsync';
  */
 export default function useYourModels(kind: AiModelKind) {
   const { models: catalog, error, retry } = useAiCatalog();
-  const userId = useAccountUserId();
+  const { userId } = useOpenLibrary();
   // undefined while reading, null before the list was seeded
   const list = useLiveQuery(
     (db) => readModelList(db, kind),
@@ -72,9 +72,17 @@ export default function useYourModels(kind: AiModelKind) {
   const isChanged = changedKinds?.includes(kind) ?? false;
   const usedId = usedModelId(yourDefaults, kind, persona);
 
+  // The account whose picks the actions change. Only an account's library shows the screens that run
+  // them (useLeaveWhenUnavailable), so this device's library, which has none, never gets here.
+  function accountUserId(): string {
+    if (userId === null) throw new Error("This device's library has no account");
+    return userId;
+  }
+
   const pickDefault = useCallback(
     async (variant: ModelDefaultVariant, model: ModelRef | null) => {
       // Picked on a model's page, which shows once the defaults are in.
+      if (userId === null) throw new Error("This device's library has no account");
       await savePick(getDb(), userId, kind, variant, model, defaults![kind][variant]);
       requestSync();
     },
@@ -84,7 +92,7 @@ export default function useYourModels(kind: AiModelKind) {
   // Your picks over the published defaults the server has now (another admin may have changed
   // them), with the fresh catalog's models to name them; the catalog goes in front of every screen.
   async function readDefaultsToApply() {
-    const [answer, picks] = await Promise.all([fetchAiModelsAsync(), readModelPicks(getDb(), userId)]);
+    const [answer, picks] = await Promise.all([fetchAiModelsAsync(), readModelPicks(getDb(), accountUserId())]);
     applyAiCatalog(answer);
     return { models: answer.models, ids: resolveModelDefaults(kind, picks, answer.defaults) };
   }
@@ -92,11 +100,11 @@ export default function useYourModels(kind: AiModelKind) {
   // The server keeps the published default of a variant without a pick, so one another admin
   // published meanwhile stays. A failing local clean-up after a done publish is only logged.
   async function publishDefaults() {
-    const picks = await readModelPicks(getDb(), userId);
+    const picks = await readModelPicks(getDb(), accountUserId());
     const answer = await setModelDefaultsAsync(kind, modelPickIds(kind, picks));
     applyAiCatalog(answer);
     try {
-      await clearPicksEqualTo(getDb(), userId, kind, answer.defaults[kind]);
+      await clearPicksEqualTo(getDb(), accountUserId(), kind, answer.defaults[kind]);
       requestSync();
     } catch (cleanUpError) {
       console.error('Clearing the published picks failed', cleanUpError);
@@ -104,7 +112,7 @@ export default function useYourModels(kind: AiModelKind) {
   }
 
   async function resetDefaults() {
-    await clearPicks(getDb(), userId, kind);
+    await clearPicks(getDb(), accountUserId(), kind);
     requestSync();
   }
 
