@@ -4,7 +4,7 @@ import ModelListSummary from './ModelListSummary';
 
 import SelectIndicator from '@/components/SelectIndicator';
 import { SCREEN_PADDING } from '@/constants';
-import { press } from '@/styles/designTokens';
+import { layout, press, space } from '@/styles/designTokens';
 
 // A model of your list to tick for a compare, as the list shows it (`yourDefaults` the defaults this
 // account uses and `defaults` the published ones, useYourModels').
@@ -35,8 +35,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingVertical: layout.rowPaddingYCompact,
   },
 });

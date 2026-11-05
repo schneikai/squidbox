@@ -6,7 +6,7 @@ import ChatOptionCard from './ChatOptionCard';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, typography } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
 const SLOW_MS = 20_000;
@@ -61,9 +61,9 @@ const styles = StyleSheet.create({
   status: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: layout.cardGap,
+    paddingVertical: layout.cardGap,
+    paddingHorizontal: layout.cardInset,
   },
   statusText: {
     flex: 1,
@@ -71,6 +71,6 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   reply: {
-    gap: 10,
+    gap: layout.cardGap,
   },
 });

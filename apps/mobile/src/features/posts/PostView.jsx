@@ -5,7 +5,7 @@ import PostImage from './PostImage';
 import Card from '@/components/Card';
 import Text from '@/components/Text';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { layout, scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -42,12 +42,12 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: layout.postTextInset,
     paddingBottom: layout.postTextBottom,
-    gap: scale(10),
+    gap: layout.cardGap,
   },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: space.md,
     minHeight: scale(20),
   },
 });

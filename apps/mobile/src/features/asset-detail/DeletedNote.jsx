@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, radii, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, radii, shadows, sizes, space, typography } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
 // The red note on a trashed photo or video (opened from a post it's still in), of `mediaType`,
@@ -19,9 +19,9 @@ const styles = StyleSheet.create({
   note: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    gap: layout.iconGap,
+    paddingHorizontal: layout.cardInset,
+    paddingVertical: space.sm,
     borderRadius: radii.pill,
     backgroundColor: colors.status.danger,
   },

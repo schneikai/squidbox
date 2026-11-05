@@ -5,7 +5,7 @@ import UncensoredToggle from './UncensoredToggle';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import { colors } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 
 /**
  * One model's answer in a blind compare: its letter with the eye for its name, its Uncensored
@@ -28,16 +28,16 @@ export default function ModelCard({ modelId, label, name, result, children }) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 14,
-    gap: 10,
+    padding: layout.cardInset,
+    gap: layout.cardGap,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: space.md,
   },
   loading: {
-    paddingVertical: 16,
+    paddingVertical: space.lg,
   },
 });

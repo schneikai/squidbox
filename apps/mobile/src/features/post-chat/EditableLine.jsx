@@ -2,7 +2,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import Icon from '@/components/Icon';
 import IntroText from '@/components/IntroText';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, sizes, space } from '@/styles/designTokens';
 
 /**
  * A grey line of the chat card ("Sees …", "Mentions …"), its `label` in bold and the `children`
@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
   line: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   pressed: {
     opacity: 0.6,

@@ -18,6 +18,7 @@ import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import { layout, space } from '@/styles/designTokens';
 
 /**
  * One conversation of a writing Verify (route params `kind`, `modelId`, `name`, `sectionId`; an
@@ -101,13 +102,13 @@ const VerifyTurn = memo(function VerifyTurn({ turn }) {
 
 const styles = StyleSheet.create({
   content: {
-    gap: 16,
+    gap: space.lg,
   },
   briefing: {
-    padding: 14,
+    padding: layout.cardInset,
   },
   turn: {
-    gap: 10,
+    gap: layout.cardGap,
   },
   note: {
     textAlign: 'center',

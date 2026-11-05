@@ -9,7 +9,7 @@ import TextInput from '@/components/TextInput';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
-import { scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 /**
@@ -87,10 +87,10 @@ export default function PostCard({
 
 const styles = StyleSheet.create({
   card: {
-    paddingTop: scale(14),
-    paddingHorizontal: scale(15),
-    paddingBottom: scale(8),
-    gap: scale(10),
+    paddingTop: layout.cardInset,
+    paddingHorizontal: layout.cardInset,
+    paddingBottom: space.sm,
+    gap: layout.cardGap,
   },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {
@@ -109,6 +109,6 @@ const styles = StyleSheet.create({
   // The × lines up with the text's first line.
   remove: {
     flexShrink: 0,
-    marginTop: -scale(2),
+    marginTop: -space.hair,
   },
 });

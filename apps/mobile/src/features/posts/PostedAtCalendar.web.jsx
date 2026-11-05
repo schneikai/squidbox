@@ -3,7 +3,7 @@
 // applies at once; clearing the field changes nothing (Remove takes the time away).
 import moment from 'moment';
 
-import { colors, radii, scale, typography } from '@/styles/designTokens';
+import { colors, radii, space, typography } from '@/styles/designTokens';
 import { LOCAL_INPUT_FORMAT } from '@/utils/date-time/constants';
 
 export default function PostedAtCalendar({ timestamp, onChange }) {
@@ -31,7 +31,7 @@ function toLocalInputValue(timestamp) {
 const INPUT_STYLE = {
   boxSizing: 'border-box',
   width: '100%',
-  padding: scale(12),
+  padding: space.md,
   border: 'none',
   borderRadius: radii.card,
   backgroundColor: colors.background.muted,

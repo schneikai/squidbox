@@ -19,6 +19,7 @@ import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
+import { space } from '@/styles/designTokens';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -135,9 +136,9 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: MODAL_HEADER_HEIGHT,
     paddingHorizontal: SCREEN_PADDING,
-    gap: 12,
+    gap: space.md,
   },
   intro: {
-    paddingHorizontal: 4,
+    paddingHorizontal: space.xs,
   },
 });

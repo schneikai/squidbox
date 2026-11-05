@@ -7,6 +7,7 @@ import secondsText from './secondsText';
 import Badge from '@/components/Badge';
 import IntroText from '@/components/IntroText';
 import Text from '@/components/Text';
+import { space } from '@/styles/designTokens';
 
 /** Under a reply of a Verify conversation: Passed or Missed, how long it took, and why it missed. */
 export default function VerifyVerdict({ turn }) {
@@ -28,11 +29,11 @@ export default function VerifyVerdict({ turn }) {
 
 const styles = StyleSheet.create({
   verdict: {
-    gap: 4,
+    gap: space.xs,
   },
   line: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
 });

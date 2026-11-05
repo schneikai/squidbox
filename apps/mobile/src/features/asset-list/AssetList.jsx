@@ -63,6 +63,7 @@ export default function AssetList({
 
   const renderItem = useCallback(
     ({ item: asset }) => (
+      // eslint-disable-next-line no-restricted-syntax -- the grid's hairline gutter
       <View style={{ width: listItemWidth, height: listItemWidth, padding: 1 }}>{renderListItem(asset)}</View>
     ),
     [listItemWidth, renderListItem],

@@ -10,7 +10,7 @@ import verifySummary from './verifySummary';
 
 import Card from '@/components/Card';
 import IntroText from '@/components/IntroText';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, space, typography } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 /**
@@ -60,14 +60,14 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
-    gap: 8,
-    marginBottom: 8,
+    padding: layout.cardInset,
+    gap: space.sm,
+    marginBottom: space.sm,
   },
   heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   title: {
     fontSize: typography.body,

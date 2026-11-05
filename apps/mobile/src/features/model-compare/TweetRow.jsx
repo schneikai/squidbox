@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Button from '@/components/Button';
-import { colors, lineHeights, radii, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, radii, space, typography } from '@/styles/designTokens';
 
 // A tweet a model wrote, with its thumbs up: `level` 0, 1 (a thumb up) or 2 (two, an outstanding
 // one); `onToggle` steps it on, from two back to none.
@@ -32,12 +32,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     backgroundColor: colors.background.base,
     borderRadius: radii.cover,
-    paddingVertical: 10,
-    paddingLeft: 14,
-    paddingRight: 8,
+    paddingVertical: layout.rowPaddingYCompact,
+    paddingLeft: layout.cardInset,
+    paddingRight: space.sm,
   },
   text: {
     flex: 1,

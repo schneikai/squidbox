@@ -4,6 +4,7 @@ import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
+import { layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -33,14 +34,14 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
 
 const styles = StyleSheet.create({
   albumTitle: {
-    marginTop: 4,
+    marginTop: space.xs,
     fontWeight: '600',
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    gap: 6,
+    gap: layout.iconGap,
   },
   metaCount: {
     flexShrink: 0,
@@ -51,14 +52,14 @@ const styles = StyleSheet.create({
   },
   indicators: {
     position: 'absolute',
-    top: 5,
-    left: 5,
+    top: layout.badgeInset,
+    left: layout.badgeInset,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: layout.iconGapSmall,
   },
   archived: {
     alignSelf: 'flex-start',
-    marginTop: 4,
+    marginTop: space.xs,
   },
 });

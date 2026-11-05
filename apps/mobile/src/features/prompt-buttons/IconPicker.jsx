@@ -7,10 +7,10 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import IconSlotContext from '@/components/IconSlotContext';
 import useHaptics from '@/hooks/useHaptics';
-import { sizes } from '@/styles/designTokens';
+import { sizes, space } from '@/styles/designTokens';
 
-const GAP = 4;
-const PADDING = 8;
+const GAP = space.xs;
+const PADDING = space.sm;
 
 /**
  * The icon a prompt button leads with (`value`, an Icon name or null): None, then the icons it can

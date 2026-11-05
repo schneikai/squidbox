@@ -17,6 +17,7 @@ import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
+import { space } from '@/styles/designTokens';
 import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -103,6 +104,6 @@ export default function AddModelsScreen() {
 const styles = StyleSheet.create({
   search: {
     marginHorizontal: SCREEN_PADDING,
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
 });

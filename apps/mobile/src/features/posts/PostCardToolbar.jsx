@@ -4,7 +4,7 @@ import PostedAtPicker from './PostedAtPicker';
 
 import Button from '@/components/Button';
 import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
-import { scale } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
 // Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and ⊕ Add to
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: space.md,
   },
   trailing: {
     marginLeft: 'auto',

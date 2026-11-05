@@ -7,7 +7,7 @@ import useChipReorder from './useChipReorder';
 
 import Chip from '@/components/Chip';
 import { Section } from '@/components/settings-list/SettingsList';
-import { radii, reflow, shadows } from '@/styles/designTokens';
+import { layout, radii, reflow, shadows, space } from '@/styles/designTokens';
 
 /**
  * The prompt buttons as chips in their order, with Add at the end: a tap opens the button
@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    padding: 16,
+    gap: space.sm,
+    padding: layout.cardInset,
   },
   gap: {
     opacity: 0,

@@ -4,7 +4,7 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import SelectIndicator from '@/components/SelectIndicator';
-import { colors, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, scale, sizes, space, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
@@ -113,8 +113,8 @@ const styles = StyleSheet.create({
 
   videoDuration: {
     position: 'absolute',
-    bottom: 6,
-    right: 6,
+    bottom: layout.badgeInset,
+    right: layout.badgeInset,
     color: colors.text.inverse,
     fontSize: typography.caption2,
     fontWeight: '600',
@@ -122,16 +122,16 @@ const styles = StyleSheet.create({
 
   indicators: {
     position: 'absolute',
-    top: 5,
-    right: 5,
+    top: layout.badgeInset,
+    right: layout.badgeInset,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xs,
   },
 
   selectIndicator: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: layout.badgeInset,
+    left: layout.badgeInset,
   },
 });

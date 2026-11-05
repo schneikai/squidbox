@@ -6,7 +6,7 @@ import StatusScreen from '@/components/StatusScreen';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import { typography } from '@/styles/designTokens';
+import { space, typography } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -80,6 +80,6 @@ export default function FirstSyncScreen() {
 
 const styles = StyleSheet.create({
   subtitle: { fontSize: typography.subheadline, opacity: 0.7, textAlign: 'center' },
-  count: { fontSize: typography.callout, fontWeight: '600', marginTop: 8, textAlign: 'center' },
-  hint: { fontSize: typography.footnote, opacity: 0.5, textAlign: 'center', marginTop: 4 },
+  count: { fontSize: typography.callout, fontWeight: '600', marginTop: space.sm, textAlign: 'center' },
+  hint: { fontSize: typography.footnote, opacity: 0.5, textAlign: 'center', marginTop: space.xs },
 });

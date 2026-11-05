@@ -6,7 +6,7 @@ import CoverImage from '@/components/CoverImage';
 import SuperPressable from '@/components/SuperPressable';
 import Text from '@/components/Text';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { layout, scale } from '@/styles/designTokens';
+import { layout, radii, scale } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 const AnimatedCard = Animated.createAnimatedComponent(Card);
@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
   tile: {
     width: scale(84),
     height: scale(112),
+    borderRadius: radii.postPicture,
   },
   // Inset like a post's text in PostView, so it starts at the same place.
   text: {
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
   },
   more: {
     position: 'absolute',
-    bottom: scale(6),
-    right: scale(6),
+    bottom: layout.badgeInset,
+    right: layout.badgeInset,
   },
 });

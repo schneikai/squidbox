@@ -7,7 +7,7 @@ import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { press, scale } from '@/styles/designTokens';
+import { layout, press, scale, space } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -41,8 +41,8 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: scale(12),
-    padding: scale(12),
+    gap: space.md,
+    padding: space.md,
   },
   photo: {
     width: scale(72),
@@ -51,13 +51,13 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     minWidth: 0,
-    gap: scale(6),
+    gap: layout.iconGap,
   },
   // The actions sit at the card's bottom, however many lines the text above them takes.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: layout.iconGap,
     marginTop: 'auto',
   },
   more: {

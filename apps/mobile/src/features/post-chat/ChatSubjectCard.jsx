@@ -5,9 +5,8 @@ import MentionsRow from './MentionsRow';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
-import { SCREEN_PADDING } from '@/constants';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, typography } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
@@ -64,13 +63,13 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
 
 const styles = StyleSheet.create({
   card: {
-    padding: SCREEN_PADDING * 0.75,
-    gap: 6,
+    padding: space.md,
+    gap: layout.iconGap,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: layout.cardGap,
   },
   thumbs: {
     flexDirection: 'row',

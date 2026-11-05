@@ -61,6 +61,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.sideGutter,
   },
   related: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
 });

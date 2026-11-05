@@ -5,7 +5,7 @@ import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -44,13 +44,13 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingVertical: layout.rowPaddingYCompact,
   },
   thumbs: {
     flexDirection: 'row',
-    gap: 6,
+    gap: space.xs,
   },
   thumb: {
     width: THUMB_SIZE,
@@ -58,8 +58,8 @@ const styles = StyleSheet.create({
   },
   more: {
     position: 'absolute',
-    right: 2,
-    bottom: 2,
+    right: layout.badgeInsetSmall,
+    bottom: layout.badgeInsetSmall,
   },
   text: {
     flex: 1,

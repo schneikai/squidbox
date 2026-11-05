@@ -2,6 +2,8 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import PromptButtonChip from './PromptButtonChip';
 
+import { space } from '@/styles/designTokens';
+
 /**
  * The prompt buttons (`buttons`) on one line, scrolling sideways when they don't fit: a tap calls
  * `onPress(button)`. `children` follow the buttons (Ask anything, the pen). The parent sets the
@@ -27,6 +29,6 @@ export default function PromptButtonRow({ buttons, onPress, children, style, con
 const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
 });

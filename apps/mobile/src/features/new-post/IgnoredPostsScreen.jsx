@@ -11,6 +11,7 @@ import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
+import { space } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const ignored = postQuery({ scope: 'ignored', sort: 'updatedAt:desc' });
@@ -54,7 +55,7 @@ export default function IgnoredPostsScreen() {
         <PostList
           rows={rows}
           loadMore={loadMore}
-          contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING, paddingBottom: bottom + 16 }}
+          contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING, paddingBottom: bottom + space.lg }}
           renderPostActions={renderPostActions}
         />
       )}
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
   // Over the post's bottom padding (PostListItem's), like its text.
   actionContainer: {
     position: 'absolute',
-    right: 12,
-    bottom: SCREEN_PADDING + 12,
+    right: space.md,
+    bottom: SCREEN_PADDING + space.md,
   },
 });

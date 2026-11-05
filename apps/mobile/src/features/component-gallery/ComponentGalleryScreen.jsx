@@ -35,7 +35,7 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import { colors, radii, sizes } from '@/styles/designTokens';
+import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const TAB_ITEMS = [
@@ -365,31 +365,31 @@ function Specimen({ name, children }) {
 
 const styles = StyleSheet.create({
   category: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
   specimen: {
-    marginBottom: 24,
+    marginBottom: space.xxl,
   },
   variants: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
   },
   fill: {
     width: '100%',
   },
   fields: {
     width: '100%',
-    gap: 20,
+    gap: space.xl,
   },
   scrim: {
-    padding: 24,
+    padding: space.xxl,
     borderRadius: radii.card,
     backgroundColor: colors.overlay.scrim,
   },
   cardContent: {
-    padding: 16,
+    padding: layout.cardInset,
   },
   popover: {
     position: 'relative',
@@ -406,13 +406,13 @@ const styles = StyleSheet.create({
   icons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   iconCell: {
     width: 76,
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
+    gap: layout.iconGap,
+    paddingVertical: space.sm,
   },
   iconName: {
     textAlign: 'center',

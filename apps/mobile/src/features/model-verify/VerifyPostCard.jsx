@@ -5,7 +5,7 @@ import TagChips from './TagChips';
 import Card from '@/components/Card';
 import IntroText from '@/components/IntroText';
 import Text from '@/components/Text';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, typography } from '@/styles/designTokens';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 /** The post a Verify conversation started with: its media and tagged people, its tags, its caption. */
@@ -27,8 +27,8 @@ export default function VerifyPostCard({ post }) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 14,
-    gap: 10,
+    padding: layout.cardInset,
+    gap: layout.cardGap,
   },
   title: {
     fontSize: typography.subheadline,

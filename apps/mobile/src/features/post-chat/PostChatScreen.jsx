@@ -26,6 +26,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import { space } from '@/styles/designTokens';
 import confirmAsync from '@/utils/confirmAsync';
 
 const ASK_ANYTHING = 'Ask anything';
@@ -196,12 +197,12 @@ const styles = StyleSheet.create({
     paddingTop: MODAL_HEADER_HEIGHT,
     paddingHorizontal: SCREEN_PADDING,
     paddingBottom: SCREEN_PADDING,
-    gap: 12,
+    gap: space.md,
   },
   composer: {
-    paddingTop: 8,
+    paddingTop: space.sm,
     paddingHorizontal: SCREEN_PADDING,
-    gap: 8,
+    gap: space.sm,
   },
   // The buttons scroll to the screen's edges, under the composer's inset.
   buttons: {

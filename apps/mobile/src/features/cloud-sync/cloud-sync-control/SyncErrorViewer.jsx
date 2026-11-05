@@ -8,6 +8,7 @@ import ModalSheet from '@/components/ModalSheet';
 import Text from '@/components/Text';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
+import { layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -65,17 +66,17 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
 const styles = StyleSheet.create({
   list: {
     padding: SCREEN_PADDING,
-    gap: 6,
+    gap: layout.iconGap,
   },
   errorRow: {
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingVertical: space.md,
   },
   errorTitle: {
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
 
   footer: {
-    padding: 16,
+    padding: layout.cardInset,
   },
 });

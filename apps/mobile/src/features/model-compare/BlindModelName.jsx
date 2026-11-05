@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
-import { colors, motion, typography } from '@/styles/designTokens';
+import { colors, layout, motion, typography } from '@/styles/designTokens';
 
 // A compare card's title: its letter (`label`, Model A) and an eye that puts the real model name in
 // its place; a second tap hides it again. The name comes out from under a blur that fades: a blur is
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: layout.cardGap,
   },
   text: {
     flexShrink: 1,

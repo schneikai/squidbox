@@ -13,6 +13,7 @@ export default StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 11, // with its 1 pt border, the label sits space.md from the pill's edge
+    // eslint-disable-next-line no-restricted-syntax -- with its 1 pt border, the label sits space.md from the pill's edge
+    paddingHorizontal: 11,
   },
 }).frame;

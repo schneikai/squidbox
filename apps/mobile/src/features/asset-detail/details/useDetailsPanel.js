@@ -16,11 +16,12 @@ import projectRelease from '@/features/asset-detail/projectRelease';
 import settleWithin from '@/features/asset-detail/settleWithin';
 import springForRelease from '@/features/asset-detail/springForRelease';
 import useKeyboardHeight from '@/hooks/useKeyboardHeight';
+import { space } from '@/styles/designTokens';
 
 // The page's share the open panel takes; the photo covers the rest, above it.
 const OPEN_SHARE = 2 / 3;
 // Room left between the note being edited and the keyboard.
-const KEYBOARD_GAP = 16;
+const KEYBOARD_GAP = space.lg;
 
 /**
  * The asset screen's details panel, Apple Photos style: one track shared by every page of the

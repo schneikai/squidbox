@@ -4,7 +4,7 @@ import { ScaleDecorator } from 'react-native-draggable-flatlist';
 import AssetImage from '@/components/AssetImage';
 import Button from '@/components/Button';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { press, radii, scale } from '@/styles/designTokens';
+import { layout, press, radii } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // One tile of the post editor's media strip: × in its top right corner, a video's length at the bottom.
@@ -44,12 +44,12 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: 'absolute',
-    top: scale(6),
-    right: scale(6),
+    top: layout.badgeInset,
+    right: layout.badgeInset,
   },
   videoDuration: {
     position: 'absolute',
-    bottom: scale(6),
-    right: scale(6),
+    bottom: layout.badgeInset,
+    right: layout.badgeInset,
   },
 });

@@ -10,7 +10,7 @@ import playVideo from './playVideo';
 import Button from '@/components/Button';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, space, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 /**
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   time: {
     minWidth: typography.footnote * 3,
-    marginHorizontal: scale(4),
+    marginHorizontal: space.xs,
     fontSize: typography.footnote,
     color: colors.text.secondary,
     fontVariant: ['tabular-nums'],

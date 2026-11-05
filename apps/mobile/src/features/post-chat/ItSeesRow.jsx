@@ -7,7 +7,7 @@ import postTags from './postTags';
 
 import Button from '@/components/Button';
 import IntroText from '@/components/IntroText';
-import { colors } from '@/styles/designTokens';
+import { colors, space } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
 /**
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   line: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   text: {
     flex: 1,

@@ -21,6 +21,7 @@ import AddRow from '@/components/settings-list/AddRow';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
+import { space } from '@/styles/designTokens';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
@@ -125,6 +126,6 @@ export default function ModelListScreen() {
 
 const styles = StyleSheet.create({
   intro: {
-    marginHorizontal: 4,
+    marginHorizontal: space.xs,
   },
 });

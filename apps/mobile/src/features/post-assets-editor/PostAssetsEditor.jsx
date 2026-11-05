@@ -4,7 +4,7 @@ import DraggableFlatList from 'react-native-draggable-flatlist';
 import PostAsset from './PostAsset';
 
 import useHaptics from '@/hooks/useHaptics';
-import { scale } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
@@ -55,10 +55,10 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: scale(8),
+    gap: space.sm,
   },
   strip: {
-    gap: scale(8),
+    gap: space.sm,
   },
   tile: {
     width: scale(120),

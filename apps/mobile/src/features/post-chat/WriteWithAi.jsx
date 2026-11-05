@@ -11,6 +11,7 @@ import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
+import { layout } from '@/styles/designTokens';
 
 /**
  * "Write with AI" under a post's text (the editor's caption, a posted post), for an account with the
@@ -57,8 +58,8 @@ function WriteWithAiSection({ sessionId, style }) {
 const styles = StyleSheet.create({
   // Sits under the caption, a divider away from it.
   section: {
-    marginTop: 14,
-    gap: 14,
+    marginTop: layout.cardGap,
+    gap: layout.cardGap,
   },
   divider: {
     marginLeft: 0,

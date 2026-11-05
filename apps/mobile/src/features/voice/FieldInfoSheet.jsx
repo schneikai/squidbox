@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import voiceFields from './voiceFields';
 
 import BottomSheet from '@/components/BottomSheet';
-import { colors, lineHeights, radii, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, radii, space, typography } from '@/styles/designTokens';
 
 // What goes in a field of Writing as you (`field`, a key of voiceFields): its description and three
 // examples. `field` stays set while the sheet slides away after `isVisible` turned false.
@@ -35,17 +35,17 @@ const styles = StyleSheet.create({
     fontSize: typography.footnote,
     fontWeight: '600',
     color: colors.text.secondary,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: space.lg,
+    marginBottom: space.sm,
   },
   examples: {
-    gap: 8,
+    gap: space.sm,
   },
   example: {
     backgroundColor: colors.background.tint,
     borderRadius: radii.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: layout.cardInset,
+    paddingVertical: space.md,
   },
   exampleText: {
     fontSize: typography.callout,

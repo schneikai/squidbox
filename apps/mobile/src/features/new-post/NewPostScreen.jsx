@@ -11,7 +11,7 @@ import NewPostCard from '@/features/new-post/NewPostCard';
 import RepostCard from '@/features/new-post/RepostCard';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
-import { layout, scale } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readNewestRepostDate } from '@/sync/postsRepository';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -87,7 +87,7 @@ export default function NewPostScreen() {
         // More is asked for only once the first page landed (see PostList).
         onEndReached={rows ? loadMore : undefined}
         onEndReachedThreshold={2}
-        contentContainerStyle={[styles.content, { paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + 16 }]}
+        contentContainerStyle={[styles.content, { paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + space.lg }]}
       />
     </ModalSheet>
   );
@@ -98,9 +98,9 @@ const keyExtractor = (post) => post.id;
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
-    gap: scale(14),
+    gap: space.lg,
   },
   header: {
-    gap: scale(14),
+    gap: space.lg,
   },
 });

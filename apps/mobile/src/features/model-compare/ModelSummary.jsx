@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Badge from '@/components/Badge';
 import ChangedBadge from '@/components/ChangedBadge';
 import ScoreDetail from '@/components/ScoreDetail';
-import { colors, radii } from '@/styles/designTokens';
+import { colors, layout, radii, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import scoreDetailLabel from '@/utils/ai/scoreDetailLabel';
 
@@ -49,18 +49,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'flex-start',
-    columnGap: 8,
-    rowGap: 4,
-    marginTop: 4,
+    columnGap: space.sm,
+    rowGap: space.xs,
+    marginTop: space.xs,
   },
   detail: {
-    marginTop: 2,
+    marginTop: space.hair,
   },
   // A sticky note under the model.
   note: {
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    marginTop: layout.iconGap,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
     borderRadius: radii.badge,
     overflow: 'hidden',
     backgroundColor: colors.background.note,

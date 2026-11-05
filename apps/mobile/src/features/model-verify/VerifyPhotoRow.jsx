@@ -10,6 +10,7 @@ import CoverImage from '@/components/CoverImage';
 import IntroText from '@/components/IntroText';
 import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
+import { layout, space } from '@/styles/designTokens';
 
 const THUMBNAIL = 56;
 
@@ -40,9 +41,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingVertical: layout.rowPaddingYCompact,
   },
   thumbnail: {
     width: THUMBNAIL,
@@ -50,6 +51,6 @@ const styles = StyleSheet.create({
   },
   tags: {
     flex: 1,
-    gap: 6,
+    gap: layout.iconGap,
   },
 });

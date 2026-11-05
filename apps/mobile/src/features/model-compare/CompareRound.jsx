@@ -22,7 +22,7 @@ import assetHref from '@/features/asset-list/assetHref';
 import useScrollY from '@/hooks/useScrollY';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
-import { scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 
@@ -155,23 +155,23 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: MODAL_HEADER_HEIGHT,
     paddingHorizontal: SCREEN_PADDING,
-    gap: 12,
+    gap: space.md,
   },
   promptCard: {
-    padding: 14,
+    padding: layout.cardInset,
   },
   // As the folded text, so the prompt doesn't move when the editing starts.
   promptInput: {
     padding: 0,
   },
   hint: {
-    paddingHorizontal: 4,
+    paddingHorizontal: space.xs,
   },
   // The balance, and the round with this prompt with its Reset.
   status: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 4,
+    gap: space.sm,
+    paddingHorizontal: space.xs,
   },
 });

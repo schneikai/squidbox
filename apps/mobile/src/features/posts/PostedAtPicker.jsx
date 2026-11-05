@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import BottomSheet from '@/components/BottomSheet';
 import Button from '@/components/Button';
 import PostedAtCalendar from '@/features/posts/PostedAtCalendar';
-import { scale } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 export default function PostedAtPicker({ timestamp, isShown, onChange, style }) {
@@ -58,9 +58,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // The time follows the clock closely: a link pads 24 pt to its sides.
+  // The time follows the clock closely: the `xxl` undoes a regular link's horizontal padding (Button).
   time: {
-    marginLeft: -24 + scale(6),
+    marginLeft: -space.xxl + space.sm,
   },
   remove: {
     alignSelf: 'center',
