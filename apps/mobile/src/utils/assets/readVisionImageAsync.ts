@@ -1,3 +1,7 @@
+import type { AssetRecord, TagPhotoRequest } from '@squidbox/shared';
+
+import type { CloudContextValue } from '@/features/cloud/CloudContext';
+import type { LibraryPaths } from '@/library/libraryPaths';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
@@ -11,10 +15,18 @@ import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
  * (`preloadAssetThumbnailsAsync` from useCloud), which stops when `signal` aborts. Throws with why
  * when there's none to be had.
  */
+export type VisionImageDeps = Pick<CloudContextValue, 'isAuthenticated' | 'preloadAssetThumbnailsAsync'> & {
+  library: LibraryPaths;
+  signal?: AbortSignal;
+};
+
 export default async function readVisionImageAsync(
-  asset,
-  { library, isAuthenticated, preloadAssetThumbnailsAsync, signal },
-) {
+  asset: Pick<
+    AssetRecord,
+    'id' | 'filename' | 'thumbnailFilename' | 'mediaType' | 'isThumbnailSynced' | 'width' | 'height'
+  >,
+  { library, isAuthenticated, preloadAssetThumbnailsAsync, signal }: VisionImageDeps,
+): Promise<TagPhotoRequest['image']> {
   const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal });
   if (status === 'remote') {
     const names = await preloadAssetThumbnailsAsync([asset], library, signal);
@@ -30,5 +42,6 @@ export default async function readVisionImageAsync(
     quality: visionImage.quality,
     base64: true,
   });
-  return { base64, mimeType: 'image/jpeg' };
+  // Asked for with `base64: true`, so the image has it.
+  return { base64: base64!, mimeType: 'image/jpeg' };
 }

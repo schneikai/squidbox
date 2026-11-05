@@ -3,6 +3,18 @@ import { Alert } from 'react-native';
 import useProgressOverlay from './useProgressOverlay';
 
 import useHaptics from '@/hooks/useHaptics';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+
+// What an action behind the overlay gets: the batch options the providers' bulk methods take.
+export type ProgressOptions = {
+  onProgress: (done: number, total: number, current?: number) => void;
+  signal: AbortSignal;
+};
+
+// Resolves `false` when it stopped early; anything else is finished.
+export type ProgressAction = (options: ProgressOptions) => Promise<unknown>;
+
+export type RunWithProgress = (action: ProgressAction, options?: { failureTitle?: string }) => Promise<boolean>;
 
 /**
  * Runs an action behind the progress overlay with a Cancel button: `run((options) => …, { failureTitle })`
@@ -13,28 +25,29 @@ import useHaptics from '@/hooks/useHaptics';
  * is shown here with how many were done, so every caller gets it; resolves to whether the action
  * finished (the action resolves to `false` when it stopped early, as writeInBatches does).
  */
-export default function useRunWithProgress() {
+export default function useRunWithProgress(): RunWithProgress {
   const { show, hide, updateProgress } = useProgressOverlay();
   const haptics = useHaptics();
 
   return async function runWithProgress(action, { failureTitle = "Couldn't finish" } = {}) {
     const controller = new AbortController();
-    let progress = null;
-    const onProgress = (done, total, current = 0) => {
+    let progress: Progress | null = null;
+    const onProgress = (done: number, total: number, current = 0) => {
       progress = { done, total };
       updateProgress(((done + current) / total) * 100);
     };
 
     show({ onCancel: () => controller.abort() });
-    let finished;
+    let finished: unknown;
     try {
       finished = await action({ onProgress, signal: controller.signal });
     } catch (error) {
-      if (error.name !== 'AbortError') {
+      if ((error as Error | null)?.name !== 'AbortError') {
         console.error('Action failed', error);
         const done = doneText(progress);
+        const message = apiErrorMessage(error);
         haptics.error();
-        Alert.alert(failureTitle, done ? `${error.message}\n\n${done} were done before that.` : error.message);
+        Alert.alert(failureTitle, done ? `${message}\n\n${done} were done before that.` : message);
         return false;
       }
       finished = false;
@@ -50,6 +63,8 @@ export default function useRunWithProgress() {
   };
 }
 
-function doneText(progress) {
+type Progress = { done: number; total: number };
+
+function doneText(progress: Progress | null): string | null {
   return progress?.done ? `${progress.done} of ${progress.total}` : null;
 }

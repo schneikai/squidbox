@@ -11,6 +11,6 @@ const assetFileUnavailableMessages = {
     title: 'Not signed in',
     message: 'Sign in to get files that are only in the cloud.',
   },
-};
+} as const;
 
 export default assetFileUnavailableMessages;

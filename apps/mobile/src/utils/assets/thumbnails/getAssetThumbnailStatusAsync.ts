@@ -1,6 +1,8 @@
-import ensureAssetThumbnailAsync from './ensureAssetThumbnailAsync';
+import ensureAssetThumbnailAsync, { type ThumbnailAsset } from './ensureAssetThumbnailAsync';
 
+import type { LibraryPaths } from '@/library/libraryPaths';
 import { hasThumbnailAsync } from '@/utils/assets/assetStorage';
+import type { AssetFileStatus } from '@/utils/assets/files/getAssetFileStatusAsync';
 
 let hasWarned = false;
 
@@ -8,7 +10,10 @@ let hasWarned = false;
 // again from the original if need be; on web, already fetched), 'remote' (the cloud copy), or why it
 // can't: 'notUploaded' (its device hasn't backed it up yet) or 'signedOut'. Aborting `signal` (the
 // tile left) skips a thumbnail still waiting to be made.
-export default async function getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal }) {
+export default async function getAssetThumbnailStatusAsync(
+  asset: ThumbnailAsset & { isThumbnailSynced: boolean },
+  { isAuthenticated, library, signal }: { isAuthenticated: boolean; library: LibraryPaths; signal?: AbortSignal },
+): Promise<AssetFileStatus> {
   if (await hasThumbnailAsync(asset.thumbnailFilename, library)) return 'local';
   if (!asset.isThumbnailSynced) {
     const isMade = await ensureAssetThumbnailAsync(asset, { library, signal }).catch(warnOnce);
@@ -17,7 +22,7 @@ export default async function getAssetThumbnailStatusAsync(asset, { isAuthentica
   return isAuthenticated ? 'remote' : 'signedOut';
 }
 
-function warnOnce(error) {
+function warnOnce(error: unknown): false {
   if (!hasWarned) console.warn('Could not make a thumbnail again from its original', error);
   hasWarned = true;
   return false;
