@@ -1,8 +1,8 @@
 /* eslint-env node, browser */
 import { expect, test } from './fixtures.mjs';
-import { assetCells, swipeLeft } from './helpers.mjs';
+import { assetCells, button, swipeLeft } from './helpers.mjs';
 
-test('a swipe in the pager shows the next photo', async ({ app: { page } }) => {
+test('a swipe in the pager shows the next photo', async ({ page }) => {
   await assetCells(page.getByTestId('library-screen')).first().click();
   const screen = page.getByTestId('asset-screen');
   const title = screen.getByTestId('toolbar-title');
@@ -14,7 +14,7 @@ test('a swipe in the pager shows the next photo', async ({ app: { page } }) => {
   await expect(title).not.toHaveText(firstTitle);
 });
 
-test('Favorite in the pager marks the photo as a favorite', async ({ app: { page } }) => {
+test('Favorite in the pager marks the photo as a favorite', async ({ page }) => {
   const library = page.getByTestId('library-screen');
   await assetCells(library).nth(1).click();
   const screen = page.getByTestId('asset-screen');
@@ -24,8 +24,8 @@ test('Favorite in the pager marks the photo as a favorite', async ({ app: { page
   await heart.click();
   await expect(heart).toHaveAccessibleName(flipped);
 
-  await screen.getByRole('button', { name: 'Back', exact: true }).click();
+  await button(screen, 'Back').click();
   await expect(screen).toBeHidden();
   await assetCells(library).nth(1).click();
-  await expect(page.getByTestId('asset-screen').getByRole('button', { name: flipped, exact: true })).toBeVisible();
+  await expect(heart).toHaveAccessibleName(flipped);
 });

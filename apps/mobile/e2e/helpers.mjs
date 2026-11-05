@@ -1,10 +1,6 @@
 /* eslint-env node, browser */
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-
-// How long a drag-to-reorder holds before the item lifts, read from the app's source: Playwright's
-// loader can't import src/constants.js (ESM syntax in a package without "type": "module").
-const DRAG_LONG_PRESS_MS = readAppConstant('DRAG_LONG_PRESS_MS');
+import { expect } from 'playwright/test';
 
 // Helpers for the UI flow tests. Screens under a pushed screen or a sheet, and the other tabs, stay
 // in the page, so every lookup is scoped to its screen's testID.
@@ -14,9 +10,14 @@ export function uniqueName(prefix) {
   return `${prefix} ${randomUUID().slice(0, 8)}`;
 }
 
+// The button on `scope` named exactly `name` (its label or accessibilityLabel).
+export function button(scope, name) {
+  return scope.getByRole('button', { name, exact: true });
+}
+
 // Switches the main tabs with the floating navigation bar (Library, Albums or Posts).
 export async function openTab(page, label) {
-  await page.getByRole('button', { name: label, exact: true }).click();
+  await button(page, label).click();
 }
 
 export function assetCells(screen) {
@@ -34,9 +35,9 @@ export function cellAssetIds(screen) {
 // a photo (its gesture views take every touch), so a sideways mouse wheel scrolls the pager, and its
 // scroll snap settles on the next page.
 export async function swipeLeft(page, locator) {
-  const box = await locator.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(box.width, 0);
+  const { x, y, width } = await centre(locator);
+  await page.mouse.move(x, y);
+  await page.mouse.wheel(width, 0);
 }
 
 // Drag-to-reorder: a press held until the item lifts, moved onto `to`'s slot, and let go.
@@ -45,8 +46,7 @@ export async function dragCell(page, from, to) {
   const end = await centre(to);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
-  // The hold is part of the gesture: the item lifts only after it.
-  await page.waitForTimeout(DRAG_LONG_PRESS_MS + 150);
+  await expect.poll(() => hasLiftedItem(page), { message: 'the item lifts' }).toBe(true);
   await page.mouse.move(end.x, end.y, { steps: 20 });
   await page.mouse.up();
 }
@@ -57,7 +57,7 @@ export async function pickFromSquidbox(page, count) {
   const picker = page.getByTestId('asset-picker');
   const cells = assetCells(picker);
   for (let index = 0; index < count; index++) await cells.nth(index).click();
-  await picker.getByRole('button', { name: `Add ${count}`, exact: true }).click();
+  await button(picker, `Add ${count}`).click();
   await picker.waitFor({ state: 'detached' });
 }
 
@@ -68,21 +68,20 @@ export async function withDialog(page, handle, action) {
   await Promise.all([page.waitForEvent('dialog').then(handle), action()]);
 }
 
-// The post cards on `screen` (the posts list or a post), or the one showing `text`.
-export function postCards(screen, text) {
-  const cards = screen.getByTestId('post-card');
-  return text === undefined ? cards : cards.filter({ hasText: text });
+// The post cards on `screen` (the posts list or a post).
+export function postCards(screen) {
+  return screen.getByTestId('post-card');
 }
 
+// The middle of the locator's box, and its width.
 async function centre(locator) {
-  const box = await locator.boundingBox();
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const { x, y, width, height } = await locator.boundingBox();
+  return { x: x + width / 2, y: y + height / 2, width };
 }
 
-// A number constant of src/constants.js (`export const NAME = 123;`).
-function readAppConstant(name) {
-  const source = readFileSync(new URL('../src/constants.js', import.meta.url), 'utf8');
-  const value = source.match(new RegExp(`export const ${name} = (\\d+);`))?.[1];
-  if (value === undefined) throw new Error(`src/constants.js has no number ${name}; update e2e/helpers.mjs`);
-  return Number(value);
+// Whether a grid shows a lifted item: the sortable grid draws it scaled up (DRAG_LIFT_SCALE).
+function hasLiftedItem(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('*')].some((node) => new DOMMatrixReadOnly(getComputedStyle(node).transform).a > 1),
+  );
 }

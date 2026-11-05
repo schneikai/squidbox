@@ -12,4 +12,3 @@
 
 # Playwright output of the UI flow tests (npm run test:ui)
 /test-results
-/playwright-report

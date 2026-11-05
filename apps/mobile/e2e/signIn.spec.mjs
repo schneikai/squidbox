@@ -1,39 +1,45 @@
 /* eslint-env node, browser */
 import { expect, test } from './fixtures.mjs';
-import { assetCells } from './helpers.mjs';
+import { assetCells, button } from './helpers.mjs';
 import { readSeedCredentials } from '../scripts/webPreview.mjs';
+
+// Opens Settings from the library's account button.
+async function openSettings(page) {
+  await button(page.getByTestId('library-screen'), 'Settings').click();
+  return page.getByTestId('settings-screen');
+}
+
+// Back from Settings to the library, which shows its photos.
+async function expectLibraryAfterBack(page, settings) {
+  await button(settings, 'Back').click();
+  await expect(assetCells(page.getByTestId('library-screen')).first()).toBeVisible();
+}
 
 test.describe('signed out', () => {
   test.use({ signedIn: false });
 
-  test("signing in from Settings opens the account's library", async ({ app: { page } }) => {
+  test("signing in from Settings opens the account's library", async ({ page }) => {
     // The first pull of the account comes on top of the usual test.
     test.slow();
     const { email, password } = readSeedCredentials();
-    const library = page.getByTestId('library-screen');
-    await library.getByRole('button', { name: 'Settings' }).click();
-    const settings = page.getByTestId('settings-screen');
+    const settings = await openSettings(page);
     await settings.getByPlaceholder('Email').fill(email);
     await settings.getByPlaceholder('Password').fill(password);
-    await settings.getByRole('button', { name: 'Sign In', exact: true }).click();
+    await button(settings, 'Sign In').click();
 
     // The app reopens on the account's library and pulls it before Settings shows again.
     await expect(settings.getByText('Signed in as')).toBeVisible({ timeout: 120_000 });
-    await settings.getByRole('button', { name: 'Back', exact: true }).click();
-    await expect(assetCells(page.getByTestId('library-screen')).first()).toBeVisible();
+    await expectLibraryAfterBack(page, settings);
   });
 });
 
-test('signing out from Settings shows the sign-in form and keeps the library open', async ({ app: { page } }) => {
-  const library = page.getByTestId('library-screen');
-  await expect(assetCells(library).first()).toBeVisible();
-  await library.getByRole('button', { name: 'Settings' }).click();
-  const settings = page.getByTestId('settings-screen');
+test('signing out from Settings shows the sign-in form and keeps the library open', async ({ page }) => {
+  await expect(assetCells(page.getByTestId('library-screen')).first()).toBeVisible();
+  const settings = await openSettings(page);
   // No question first: the backup one shows only with media that isn't backed up, and the mock
   // account has none.
   await settings.getByText('Sign out', { exact: true }).click();
 
-  await expect(settings.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
-  await settings.getByRole('button', { name: 'Back', exact: true }).click();
-  await expect(assetCells(page.getByTestId('library-screen')).first()).toBeVisible();
+  await expect(button(settings, 'Sign In')).toBeVisible();
+  await expectLibraryAfterBack(page, settings);
 });

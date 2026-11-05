@@ -86,19 +86,23 @@ jobs:
         run: echo "version=$(npx playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
         working-directory: apps/mobile
 
-      - id: browsers
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
 
-      # A cached browser still needs its system libraries.
-      - if: steps.browsers.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+      # Downloads the browser only on a cache miss; its system libraries every time.
+      - run: npx playwright install --with-deps chromium
         working-directory: apps/mobile
-      - if: steps.browsers.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-        working-directory: apps/mobile
+
+      # Metro's transform cache, with the key dev.mjs checks before it clears it (metroCacheArgs:
+      # the packages and the Babel and Metro configs; CI has no .env.local).
+      - uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/metro-cache
+            node_modules/.cache/squidbox-dev
+          key: metro-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/mobile/babel.config.js', 'apps/mobile/metro.config.js') }}
 
       - run: npm run test:ui --workspace apps/mobile
 
@@ -106,4 +110,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ui-flows-test-results
-          path: apps/mobile/test-results
+          # The traces, and the API server's log (scripts/dev.mjs writes it to the temp folder).
+          path: |
+            apps/mobile/test-results
+            /tmp/squidbox-server.log
