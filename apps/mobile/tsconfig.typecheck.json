@@ -1,0 +1,6 @@
+{
+  // Every TypeScript file in src, strictly (tsconfig.json). test/ and the config files join once
+  // "Widen what CI checks" (todo.md) is done; then this file goes and typecheck runs tsconfig.json.
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

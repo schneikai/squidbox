@@ -94,6 +94,7 @@ export const modelDefaultRequestSchema = z
     >,
   )
   .refine((picks) => Object.values(picks).some((id) => id !== null), 'Pick at least one default');
+export type ModelDefaultRequest = z.infer<typeof modelDefaultRequestSchema>;
 
 // PUT /ai/instructions/:kind — Apply changes for everyone: the text becomes the kind's default for
 // every account. Trimmed before the instruction's checks, so a text of only spaces is empty.
@@ -221,6 +222,7 @@ const visionImageSchema = z.object({
   base64: z.string().min(1).max(VISION_IMAGE_MAX_BASE64_LENGTH),
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
+export type VisionImage = z.infer<typeof visionImageSchema>;
 
 // Each model once: every id is a paid call. The app asks each model on its own, so its card fills
 // as soon as it answers; a compare still picks COMPARE_MIN_MODELS or more.

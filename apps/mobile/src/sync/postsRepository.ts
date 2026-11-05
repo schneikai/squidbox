@@ -1,3 +1,4 @@
+import type { PostRecord } from '@squidbox/shared';
 import { and, isNull, max, sql, type SQL } from 'drizzle-orm';
 
 import { albumAssetIdsOf } from './assetSql';
@@ -6,7 +7,7 @@ import type { SyncDb } from './db/types';
 import { makeEdgeRepository } from './edgesRepository';
 import { makeRepository } from './repository';
 
-const repository = makeRepository('posts', schema.posts);
+const repository = makeRepository<PostRecord>('posts', schema.posts);
 
 /** The posts' asset references (the post_assets edge collection). */
 export const postEdges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');

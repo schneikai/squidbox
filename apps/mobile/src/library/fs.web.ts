@@ -34,7 +34,7 @@ export function libraryLimitMessage(error: unknown): string | null {
   return "This browser can't hold more libraries. Sign in to an account used here before, or clear this site's data (unsynced changes are lost).";
 }
 
-// Web keeps no files: thumbnails are presigned URLs (utils/assets/thumbnails/webThumbnailUrls.js),
+// Web keeps no files: thumbnails are presigned URLs (utils/assets/thumbnails/webThumbnailUrls.ts),
 // and an asset's file exists only in the cloud.
 export async function listFiles(): Promise<Set<string>> {
   return new Set();

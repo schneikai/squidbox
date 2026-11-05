@@ -1,4 +1,0 @@
-export const SMART_ALBUM_TYPES = {
-  FAVORITES: 'FAVORITES',
-  DELETED: 'DELETED',
-};

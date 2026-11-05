@@ -10,7 +10,7 @@
  *   filled – when true, applies fill={color} (meaningful for heart/star)
  *   style  – layout-only styles (e.g. margin)
  *
- * Icons come from src/lib/lucide.js, which imports each one from its own file rather than
+ * Icons come from src/lib/lucide.ts, which imports each one from its own file rather than
  * lucide-react-native's barrel (see there).
  */
 
