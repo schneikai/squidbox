@@ -9,11 +9,11 @@ import { raisedShadowRoom } from '@/styles/designTokens';
 
 /**
  * The prompt buttons (`buttons`) as lifted chips on one line, scrolling sideways when they don't fit:
- * a tap calls `onPress(button)`. `leading` goes before the buttons (Ask anything), `children` after
- * them (the pen). The row fills its parent's width, so the chips scroll under its edges; `inset` is
+ * a tap calls `onPress(button)`. `children` go after the buttons (Ask anything on a tray, the
+ * pen). The row fills its parent's width, so the chips scroll under its edges; `inset` is
  * the chips' distance from those edges: the AssistantTray's inside one, else the screen's padding.
  */
-export default function PromptButtonRow({ buttons, onPress, inset, leading, children }) {
+export default function PromptButtonRow({ buttons, onPress, inset, children }) {
   const tray = useContext(AssistantTrayContext);
   const padding = { paddingHorizontal: inset ?? tray?.inset ?? SCREEN_PADDING };
 
@@ -25,7 +25,6 @@ export default function PromptButtonRow({ buttons, onPress, inset, leading, chil
       style={styles.row}
       contentContainerStyle={[styles.content, padding]}
     >
-      {leading}
       {buttons.map((button) => (
         <PromptButtonChip key={button.id} button={button} variant="raised" onPress={onPress} />
       ))}

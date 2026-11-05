@@ -188,11 +188,9 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="AssistantTray">
           <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton />} style={styles.fill}>
-            <PromptButtonRow
-              buttons={PROMPT_BUTTONS}
-              onPress={noop}
-              leading={<Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />}
-            />
+            <PromptButtonRow buttons={PROMPT_BUTTONS} onPress={noop}>
+              <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
+            </PromptButtonRow>
           </AssistantTray>
         </Specimen>
         <Specimen name="OptionCard">

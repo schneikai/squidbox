@@ -12,9 +12,6 @@ const TRAY_INSET = scale(12);
 // What the tray gives what it holds (AssistantTrayContext).
 const TRAY = { inset: TRAY_INSET };
 
-// The title's sparkle, a step larger than a chip's to sit with the body-size title.
-const SPARKLE = scale(18);
-
 const FADE = [colors.background.assistantClear, colors.background.assistant];
 const FADE_START = { x: 0, y: 0 };
 const FADE_END = { x: 1, y: 0 };
@@ -24,7 +21,7 @@ const FADE_END = { x: 1, y: 0 };
  * violet sparkle and `title` (Write with AI), with `trailing` at the end of the title's line (a small
  * button, EditPromptButtonsButton). `children` is one row that scrolls sideways across the tray's
  * full width (PromptButtonRow), fading out at its right edge; the tray gives the row its inset and
- * the pen its accent (AssistantTrayContext), and draws its lit rim over the row. The fade is static
+ * the pen its accent (AssistantTrayContext), and draws its lit rim. The fade is static
  * and only as wide as the inset, so it veils a chip passing under the edge but never one at rest or
  * at the row's end. style is for layout only.
  */
@@ -33,7 +30,7 @@ export default function AssistantTray({ title, trailing, children, style }) {
     <AssistantTrayContext.Provider value={TRAY}>
       <View style={[styles.tray, style]}>
         <View style={styles.header}>
-          <Icon name="sparkle" size={SPARKLE} color={colors.accent.base} />
+          <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} />
           <Text variant="assistant" style={styles.title}>
             {title}
           </Text>
@@ -43,7 +40,6 @@ export default function AssistantTray({ title, trailing, children, style }) {
           {children}
           <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
         </View>
-        <View style={styles.rim} pointerEvents="none" />
       </View>
     </AssistantTrayContext.Provider>
   );
@@ -52,16 +48,10 @@ export default function AssistantTray({ title, trailing, children, style }) {
 const styles = StyleSheet.create({
   tray: {
     paddingVertical: TRAY_INSET,
-    gap: scale(8),
     borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.background.assistant,
-  },
-  // The lit edge, drawn over the row so the chips scrolling under the tray's edges and the fade
-  // don't cover it.
-  rim: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radii.card,
+    // The lit edge on the tray itself: iOS draws no inset shadow on an empty overlay view
     ...shadows.litEdgeTint,
   },
   // The title sits 2 pt further in than the chips, as the sparkle's glyph is narrower than its box.
@@ -70,6 +60,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(8),
     minHeight: sizes.smallButton,
+    // Space under the title as a margin: the tray keeps no gap, which iOS also applies to absolute children
+    marginBottom: scale(8),
     paddingHorizontal: TRAY_INSET + 2,
   },
   title: {

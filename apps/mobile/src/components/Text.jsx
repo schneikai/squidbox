@@ -9,7 +9,7 @@ import { colors, lineHeights, typography } from '@/styles/designTokens';
  *               section's footer
  *   label     — the small bold grey name over a field or a group
  *   error     — what went wrong, in red. `size="small"` for a line under another
- *   assistant — the assistant's violet semibold line, body size: an AssistantTray's title
+ *   assistant — the assistant's violet semibold line, footnote size: an AssistantTray's title
  * `selectable` lets it be copied, `numberOfLines` cuts a long one short. style is for layout only.
  * Nested Texts (a bold lead-in) inherit the role.
  */
@@ -57,7 +57,8 @@ const styles = StyleSheet.create({
     color: colors.status.danger,
   },
   assistant: {
-    fontSize: typography.body,
+    fontSize: typography.footnote,
+    lineHeight: lineHeights.footnote,
     fontWeight: '600',
     color: colors.accent.base,
   },

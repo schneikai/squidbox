@@ -12,8 +12,8 @@ import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 
 /**
  * "Write with AI" under a post (a posted post and its thread, the editor's card being edited), for
- * an account with the assistant: an AssistantTray with Ask anything (Back to chat once there is a
- * chat) first, then the prompt buttons, on one line that scrolls sideways and fades out at the
+ * an account with the assistant: an AssistantTray with the prompt buttons, then Ask anything (Back to
+ * chat once there is a chat) last, on one line that scrolls sideways and fades out at the
  * tray's edge. Each opens the chat about `sessionId` (inside the sheet it is in, else as a sheet), a
  * prompt button with its prompt in the composer, ready to edit and send. style is for layout only.
  */
@@ -43,11 +43,9 @@ function WriteWithAiSection({ sessionId, style }) {
 
   return (
     <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton />} style={style}>
-      <PromptButtonRow
-        buttons={buttons ?? []}
-        onPress={openChat}
-        leading={<Chip label={opener.label} icon={opener.icon} variant="lead" onPress={() => openChat()} />}
-      />
+      <PromptButtonRow buttons={buttons ?? []} onPress={openChat}>
+        <Chip label={opener.label} icon={opener.icon} variant="lead" onPress={() => openChat()} />
+      </PromptButtonRow>
     </AssistantTray>
   );
 }
