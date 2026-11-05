@@ -64,7 +64,6 @@ export const colors = {
     onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
     gradient: [palette.violet600, palette.indigo600],
     frame: palette.violet650, // the frame of a toolbar that is only the primary (FloatingPill), between the gradient's ends
-    frameDisabled: alpha(palette.violet650, 0.4), // that frame while its button is off, faded like the button (disabledOpacity)
   },
   status: {
     success: palette.green500, // a confirmation that just happened (copied)
