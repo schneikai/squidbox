@@ -63,9 +63,11 @@ export default function ContactAvatar({
             { width: outline, height: outline, top: -outline * HEART_OVERHANG, right: -outline * HEART_OVERHANG },
           ]}
         >
-          <Icon name="heart" size={outline} color={outlineColor} filled />
-          {/* Laid over the outline (both absolute, so the red one, later, paints on top on web too). */}
-          <View style={styles.heartFill}>
+          {/* Both hearts centered in one box, each laid out alike, so they share a center everywhere. */}
+          <View style={styles.heartLayer}>
+            <Icon name="heart" size={outline} color={outlineColor} filled />
+          </View>
+          <View style={styles.heartLayer}>
             <Icon name="heart" size={heart} color={colors.status.danger} filled />
           </View>
         </View>
@@ -153,7 +155,7 @@ const styles = StyleSheet.create({
   heart: {
     position: 'absolute',
   },
-  heartFill: {
+  heartLayer: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
