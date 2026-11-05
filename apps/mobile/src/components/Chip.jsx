@@ -2,13 +2,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, lineHeights, press, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography } from '@/styles/designTokens';
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
- * `isSelected`), `action` (white with a violet frame, a prompt button) or `add` (the dashed Add at
- * the end of a row, with its plus). Every variant has the same frame, so a tag tapped on never
- * changes its width and moves the chips after it.
+ * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
+ * by a soft shadow, a prompt button in a row of them: the assistant's tray, over the chat's
+ * composer), `lead` (light violet with a semibold violet label, lifted like `raised`, the
+ * assistant's own action at the end of a row of prompt buttons: Ask anything) or `add` (the
+ * dashed Add at the end of a row, with its plus). Every variant has the same frame, so a tag
+ * tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), in the accent color; `leading` leads it instead with a node
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line. `isSelected` tells VoiceOver it's on (as
@@ -30,18 +33,24 @@ export default function Chip({
   style,
 }) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
-  const isAccent = variant === 'add' || (variant === 'tag' && isSelected);
+  const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
+  const isAccent = isAccentFill || variant === 'add';
+  const isLifted = variant === 'raised' || variant === 'lead';
   const frame = [
     chipFrame,
     styles.chip,
     styles[variant],
-    variant === 'tag' && isSelected && styles.selected,
+    isAccentFill && styles.accentFill,
+    isLifted && styles.lifted,
     !!leading && styles.withLeading,
   ];
   const content = (
     <>
       {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />)}
-      <Text style={[styles.label, isAccent && styles.accentLabel]} numberOfLines={leading ? 1 : undefined}>
+      <Text
+        style={[styles.label, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}
+        numberOfLines={leading ? 1 : undefined}
+      >
         {label}
       </Text>
     </>
@@ -86,12 +95,20 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
     paddingRight: 14,
   },
-  selected: {
+  // A selected tag and the `lead` chip.
+  accentFill: {
     backgroundColor: colors.accent.light,
   },
   action: {
     backgroundColor: colors.background.surface,
     borderColor: colors.accent.border,
+  },
+  raised: {
+    backgroundColor: colors.background.surface,
+  },
+  // `raised` and `lead`.
+  lifted: {
+    ...shadows.raised,
   },
   add: {
     borderColor: colors.accent.border,
@@ -107,5 +124,8 @@ const styles = StyleSheet.create({
   },
   accentLabel: {
     color: colors.accent.base,
+  },
+  leadLabel: {
+    fontWeight: '600',
   },
 });

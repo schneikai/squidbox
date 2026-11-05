@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { Easing } from 'react-native-reanimated';
+import { Easing, LinearTransition } from 'react-native-reanimated';
 
 const BASE_WIDTH = 390; // iPhone 14 Pro — design baseline
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,6 +32,7 @@ const palette = {
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet75: '#EFEDF8', // the page gray with a touch of lavender
+  violet85: '#EAE5F8', // the page gray with 7% violet, so a lavender surface on the page still reads
   violet100: '#EFE7FD',
   violet250: '#C4AAFF', // light and saturated, the rim light on the violet
   violet300: '#C4B5FD',
@@ -84,7 +85,11 @@ export const colors = {
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
-    tint: palette.violet50, // a lavender card on a white sheet (an example to copy)
+    tint: palette.violet50, // a lavender card on a white sheet
+    // The lavender tray of the assistant's actions (AssistantTray): a step deeper than the page, so it
+    // stands out on the page and in a white card alike
+    assistant: palette.violet85,
+    assistantClear: alpha(palette.violet85, 0), // `assistant` faded out, the end of a row that scrolls inside it
     note: palette.yellow100, // a sticky note's yellow (a model's note in its list, a WarningNote)
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
@@ -103,6 +108,16 @@ export const colors = {
   },
 };
 
+// `shadows.raised`: how far down it falls and how far it blurs.
+const RAISED_OFFSET = 2;
+const RAISED_BLUR = 8;
+
+// The lit edge of a surface, drawn inside it: a `light` rim along its top and left, a `shade` along
+// its bottom and right.
+function litEdge(light, shade) {
+  return { boxShadow: `inset 1.5px 1.5px 0 ${light}, inset -1px -1px 0 ${shade}` };
+}
+
 export const shadows = {
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
@@ -111,6 +126,11 @@ export const shadows = {
   // A card resting on the page: the same soft light, lower
   card: {
     boxShadow: `0 10px 40px ${alpha(palette.black, 0.05)}`,
+  },
+  // A chip lifted off its surface (the prompt buttons on the assistant's tray and over the chat's
+  // composer); a row of them leaves `raisedShadowRoom` for it
+  raised: {
+    boxShadow: `0 ${RAISED_OFFSET}px ${RAISED_BLUR}px ${alpha(palette.violet900, 0.08)}`,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -126,14 +146,17 @@ export const shadows = {
 
   // The lit edge of a floating surface (FloatingPill, a popover), lit from the top left: a bright
   // rim along its top and left, a faint shade along its bottom and right, drawn inside its edge
-  litEdge: {
-    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
-  },
+  litEdge: litEdge(alpha(palette.white, 1), alpha(palette.black, 0.06)),
+  // litEdge on a lavender surface (the assistant's tray): its shaded edge in violet, not gray
+  litEdgeTint: litEdge(alpha(palette.white, 0.9), alpha(palette.violet600, 0.08)),
   // litEdge on the violet, in violets: white and black would read as a hard crescent and a gray line
-  litEdgeAccent: {
-    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.violet250, 0.95)}, inset -1px -1px 0 ${alpha(palette.violet900, 0.85)}`,
-  },
+  litEdgeAccent: litEdge(alpha(palette.violet250, 0.95), alpha(palette.violet900, 0.85)),
 };
+
+// The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back
+// so the row stays the chips' height: the whole shadow, which reaches its blur less its offset above
+// the chip and its blur plus its offset below, so none of it is cut off.
+export const raisedShadowRoom = { top: RAISED_BLUR - RAISED_OFFSET, bottom: RAISED_BLUR + RAISED_OFFSET };
 
 export const radii = {
   pill: 100,
@@ -159,6 +182,13 @@ export const layout = {
   menuRowPaddingX: scale(16),
   menuRowPaddingY: scale(13),
   menuIconGap: scale(12), // between a menu row's leading icon and its label
+  // A post's card (PostView, and a thread's following post, ThreadPost): its padding, the further inset
+  // of its text on each side and below (so text starts at the same place with or without photos), and
+  // the room between its photos and its text.
+  postCardPadding: scale(10),
+  postTextInset: scale(6),
+  postTextBottom: scale(4),
+  postCardGap: scale(12),
 };
 
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
@@ -169,7 +199,6 @@ export const sizes = {
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
   menuIcon: scale(16),
-  captionIcon: scale(14), // beside a caption (a post card's thread mark)
   // A contact's avatar (ContactAvatar's sizes): a chip's, a list stack's, a row's, the favorites
   // row's, the contact screen's.
   avatar: { chip: scale(20) + 8, small: scale(32), regular: scale(44), large: scale(56), hero: scale(96) },
@@ -218,11 +247,16 @@ export const motion = {
   enter: { duration: durations.base, easing: Easing.out(Easing.cubic) }, // appears, decelerating into place
   exit: { duration: durations.fast, easing: Easing.in(Easing.cubic) }, // leaves, shorter and accelerating away
   move: { duration: durations.base, easing: Easing.inOut(Easing.cubic) }, // changes while staying on screen
+  fill: { duration: durations.base / 2, easing: Easing.out(Easing.cubic) }, // content filling a card over half a move
   spring: springConfig({ duration: 0.3, bounce: 0.15 }), // anything that grows, follows a finger or settles
   settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
 };
+
+// A layout transition in the move motion: views that make room or close a gap glide to their new place
+// (the prompt buttons as one is dragged or deleted, the posts below a thread that unfolds).
+export const reflow = LinearTransition.duration(motion.move.duration).easing(motion.move.easing);
 
 // How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
 // little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).

@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import AssistantMessage from './AssistantMessage';
@@ -153,22 +153,19 @@ export default function PostChatScreen() {
         )}
       </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
-        <PromptButtonRow
-          buttons={buttons ?? []}
-          onPress={handlePromptButton}
-          style={styles.buttons}
-          contentContainerStyle={styles.buttonsContent}
-        >
+        <PromptButtonRow buttons={buttons ?? []} onPress={handlePromptButton}>
           <EditPromptButtonsButton />
         </PromptButtonRow>
-        <ChatComposer
-          key={seed.key}
-          seed={seed.turn}
-          placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
-          disabled={chat.isSending}
-          isWaiting={isWaiting}
-          onSend={send}
-        />
+        <View style={styles.composerInset}>
+          <ChatComposer
+            key={seed.key}
+            seed={seed.turn}
+            placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
+            disabled={chat.isSending}
+            isWaiting={isWaiting}
+            onSend={send}
+          />
+        </View>
       </Animated.View>
       <SystemMessageSheet
         isVisible={isSystemMessageOpen}
@@ -198,16 +195,12 @@ const styles = StyleSheet.create({
     paddingBottom: SCREEN_PADDING,
     gap: 12,
   },
+  // The prompt buttons scroll to the screen's edges; the composer keeps the screen's inset.
   composer: {
     paddingTop: 8,
-    paddingHorizontal: SCREEN_PADDING,
     gap: 8,
   },
-  // The buttons scroll to the screen's edges, under the composer's inset.
-  buttons: {
-    marginHorizontal: -SCREEN_PADDING,
-  },
-  buttonsContent: {
+  composerInset: {
     paddingHorizontal: SCREEN_PADDING,
   },
 });

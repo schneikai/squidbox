@@ -1,18 +1,21 @@
-import { router } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { useCallback, useState } from 'react';
 import Animated from 'react-native-reanimated';
 
 import PostListItem from './PostListItem';
 
-import SuperPressable from '@/components/SuperPressable';
-import { layout, scale } from '@/styles/designTokens';
+import { reflow } from '@/styles/designTokens';
+import toggleItem from '@/utils/toggleItem';
 
 const FIRST_ENTRY = { id: 'FirstListEntryComponent' };
 const keyExtractor = (post) => post.id;
 
 // The posts list: `rows` are the loaded posts of a paged query (each with its `postAssets`),
 // `loadMore` reads the next page when the end comes near. A tap on a post opens it;
-// `renderPostActions(post)` (shown in the post's card, under it) is optional.
+// `renderPostActions(post)` (shown in the post's card, under it) is optional. A thread's mark (or
+// the item's accessibility action) unfolds it in place; which are unfolded is kept per list, for as
+// long as the list is mounted. Every change of a post's place glides (`reflow`): the posts below a
+// thread that unfolds or folds, and as well any post added, removed or resized (a sync, a page of the
+// Ignored sheet), on purpose.
 export default function PostList({
   rows,
   loadMore,
@@ -23,10 +26,42 @@ export default function PostList({
   contentContainerStyle,
   onScroll,
 }) {
+  const [expandedThreadIds, setExpandedThreadIds] = useState([]);
+
   const data = FirstListEntryComponent ? [FIRST_ENTRY, ...(rows ?? [])] : rows;
   // More is asked for only once the first page landed: until then the list is just the first entry,
   // and a load-more asked then would read a second page at once.
   const onEndReached = rows ? loadMore : undefined;
+
+  // The following posts of the unfolded threads as last read, so a cell that scrolls back on screen
+  // unfolded shows them at once at its full height; a toggle drops the thread's (a new unfold reads).
+  const [unfoldedPosts] = useState(() => new Map());
+
+  const toggleThread = useCallback(
+    (postId) => {
+      unfoldedPosts.delete(postId);
+      setExpandedThreadIds((ids) => toggleItem(ids, postId));
+    },
+    [unfoldedPosts],
+  );
+
+  // PostListItem is memoized and gets only stable props (`renderPostActions` too, when the caller keeps
+  // it stable). Unfolding a thread re-runs this for the visible cells, but only that one re-renders.
+  const renderItem = useCallback(
+    ({ item: post }) =>
+      post === FIRST_ENTRY ? (
+        FirstListEntryComponent
+      ) : (
+        <PostListItem
+          post={post}
+          renderPostActions={renderPostActions}
+          isExpanded={expandedThreadIds.includes(post.id)}
+          onToggleThread={toggleThread}
+          unfoldedPosts={unfoldedPosts}
+        />
+      ),
+    [FirstListEntryComponent, renderPostActions, expandedThreadIds, toggleThread, unfoldedPosts],
+  );
 
   if (!data) return null;
 
@@ -34,15 +69,8 @@ export default function PostList({
     <Animated.FlatList
       keyboardDismissMode="on-drag"
       data={data}
-      renderItem={({ item: post }) =>
-        post === FIRST_ENTRY ? (
-          FirstListEntryComponent
-        ) : (
-          <SuperPressable onPress={() => router.navigate(`/post/${post.id}`)} style={styles.post}>
-            <PostListItem post={post} actions={renderPostActions?.(post)} />
-          </SuperPressable>
-        )
-      }
+      renderItem={renderItem}
+      itemLayoutAnimation={reflow}
       keyExtractor={keyExtractor}
       ListHeaderComponent={ListHeaderComponent}
       stickyHeaderIndices={ListHeaderComponent ? [0] : undefined}
@@ -55,13 +83,3 @@ export default function PostList({
     />
   );
 }
-
-const styles = StyleSheet.create({
-  // Nothing above a post, so the list's top padding alone sets where the first one starts; the room
-  // between posts is all below each.
-  post: {
-    flex: 1,
-    paddingHorizontal: layout.sideGutter,
-    paddingBottom: scale(14),
-  },
-});

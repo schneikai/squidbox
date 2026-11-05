@@ -1,8 +1,10 @@
+import { DEFAULT_PROMPT_BUTTONS } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
 import ActionButtons from '@/components/ActionButtons';
+import AssistantTray from '@/components/AssistantTray';
 import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -35,6 +37,8 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
+import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, radii, sizes } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
@@ -46,6 +50,9 @@ const TAB_ITEMS = [
 ];
 
 const noop = () => {};
+
+// The prompt buttons a library starts with, for the AssistantTray's row.
+const PROMPT_BUTTONS = DEFAULT_PROMPT_BUTTONS.slice(0, 4);
 
 // A popover shown open, as if it had finished growing.
 const POPOVER_SHOWN = new Animated.Value(1);
@@ -160,6 +167,8 @@ export default function ComponentGalleryScreen() {
               <Chip key={tag} label={tag} isSelected={selectedTags.includes(tag)} onPress={() => toggleTag(tag)} />
             ))}
             <Chip variant="action" icon="sparkle" label="Make it shorter" onPress={noop} />
+            <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
+            <Chip variant="raised" icon="scissors" label="Shorter" onPress={noop} />
             <Chip variant="add" label="Add" onPress={noop} />
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>
@@ -177,6 +186,13 @@ export default function ComponentGalleryScreen() {
               <Text>A card resting on the page, with text inside it.</Text>
             </View>
           </Card>
+        </Specimen>
+        <Specimen name="AssistantTray">
+          <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton />} style={styles.fill}>
+            <PromptButtonRow buttons={PROMPT_BUTTONS} onPress={noop}>
+              <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
+            </PromptButtonRow>
+          </AssistantTray>
         </Specimen>
         <Specimen name="OptionCard">
           <View style={styles.fill}>
@@ -256,6 +272,9 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="Text · label">
           <Text variant="label">A field's name</Text>
+        </Specimen>
+        <Specimen name="Text · assistant">
+          <Text variant="assistant">Write with AI</Text>
         </Specimen>
         <Specimen name="Text · error">
           <Text variant="error">Couldn't save the post.</Text>
