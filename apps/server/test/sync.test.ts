@@ -380,7 +380,10 @@ d('sync engine (Postgres)', () => {
         onlyFansHandle: null,
         jffHandle: null,
         phoneNumber: '+1 604 555 0142',
-        places: ['Squamish, British Columbia, Canada', 'Tofino, British Columbia, Canada'],
+        places: [
+          { city: 'Squamish', state: 'British Columbia', country: 'Canada' },
+          { city: 'Tofino', state: 'British Columbia', country: 'Canada' },
+        ],
         avatarFilename: null,
       }),
       contact_lists: () => ({ ...base(), name: 'Squamish', notes: null }),

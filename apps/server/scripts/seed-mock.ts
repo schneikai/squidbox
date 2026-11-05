@@ -168,7 +168,7 @@ const CONTACTS: {
     name: 'Sam Ridge',
     fields: {
       blueskyHandle: 'ridgeline.bsky.social',
-      places: ['Squamish, Canada'],
+      places: [{ city: 'Squamish', state: 'British Columbia', country: 'Canada' }],
       notes: 'Hiking buddy. Shoots on film, knows every trailhead.',
     },
     isFavorite: true,
@@ -180,7 +180,7 @@ const CONTACTS: {
     fields: {
       xHandle: 'mayalindqvist',
       blueskyHandle: 'mayalindqvist.bsky.social',
-      places: ['Tromsø, Norway'],
+      places: [{ city: 'Tromsø', state: '', country: 'Norway' }],
       notes: 'Landscape photographer. Met at the print fair; swap prints every spring.',
     },
     isFavorite: true,
@@ -188,15 +188,22 @@ const CONTACTS: {
   },
   {
     name: 'Theo Park',
-    fields: { xHandle: 'theoparkphoto', phoneNumber: '+1 303 555 0187', places: ['Denver, Colorado, United States'] },
+    fields: {
+      xHandle: 'theoparkphoto',
+      phoneNumber: '+1 303 555 0187',
+      places: [{ city: 'Denver', state: 'Colorado', country: 'United States' }],
+    },
     on: { asset: 14 },
   },
-  { name: 'Lena Ortiz', fields: { blueskyHandle: 'lenaortiz.bsky.social', places: ['Lisbon, Portugal'] } },
+  {
+    name: 'Lena Ortiz',
+    fields: { blueskyHandle: 'lenaortiz.bsky.social', places: [{ city: 'Lisbon', state: '', country: 'Portugal' }] },
+  },
   {
     name: 'Jonas Weber',
     fields: {
       blueskyHandle: 'jonasweber.bsky.social',
-      places: ['Innsbruck, Austria'],
+      places: [{ city: 'Innsbruck', state: 'Tyrol', country: 'Austria' }],
       notes: 'Runs the gallery that sells my prints.',
     },
   },

@@ -1,4 +1,4 @@
-import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS, CONTACT_PLACE_PARTS } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
@@ -10,21 +10,25 @@ import useNewContactDraft from './useNewContactDraft';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
-import { handleText } from '@/features/contact-detail/contactFields';
+import { handleText, storedPlace } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
 import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The draft fields a screenshot's reading fills, from what it read: only what it found, within the
-// contact's limits (a place joins first and the last one goes past CONTACT_LIMITS.places).
+// contact's limits (a place it read joins first, unless the draft has it, and the last one goes past
+// CONTACT_LIMITS.places).
 function filledFrom(read, draft) {
   const fields = {};
   for (const field of CONTACT_HANDLE_FIELDS)
     if (read[field]) fields[field] = handleText(field, read[field].slice(0, CONTACT_LIMITS.handle));
   if (read.name) fields.name = read.name.slice(0, CONTACT_LIMITS.name);
-  const place = read.place?.slice(0, CONTACT_LIMITS.place);
-  if (place && !draft.places.includes(place))
-    fields.places = [place, ...draft.places.filter(Boolean)].slice(0, CONTACT_LIMITS.places);
+  const place = storedPlace(
+    Object.fromEntries(CONTACT_PLACE_PARTS.map((part) => [part, (read[part] ?? '').slice(0, CONTACT_LIMITS.place)])),
+  );
+  const draftPlaces = draft.places.filter(storedPlace);
+  const isKnown = draftPlaces.some((known) => JSON.stringify(storedPlace(known)) === JSON.stringify(place));
+  if (place && !isKnown) fields.places = [place, ...draftPlaces].slice(0, CONTACT_LIMITS.places);
   return fields;
 }
 

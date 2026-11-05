@@ -1,64 +1,81 @@
-import { CONTACT_LIMITS } from '@squidbox/shared';
-import { StyleSheet, View } from 'react-native';
+import { CONTACT_LIMITS, formatPlace } from '@squidbox/shared';
+import { Fragment } from 'react';
+
+import SuggestionField from './SuggestionField';
+import { EMPTY_PLACE, storedPlace } from './contactFields';
+import usePlaceSuggestions from './usePlaceSuggestions';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
-import TextInput from '@/components/TextInput';
 import AddRow from '@/components/settings-list/AddRow';
-import { layout, scale } from '@/styles/designTokens';
+import confirmAsync from '@/utils/confirmAsync';
+
+const PARTS = [
+  { part: 'city', label: 'City', placeholder: 'City' },
+  { part: 'state', label: 'State', placeholder: 'Optional' },
+  { part: 'country', label: 'Country', placeholder: 'Country' },
+];
 
 /**
- * A contact's places as a card: one row per place, each with × to take it out, and "Add place" at
- * its end, until it holds CONTACT_LIMITS.places. `places` is the list as typed (an empty row is a place being added); every edit hands
- * the whole list to `onChange`.
+ * A contact's places as a card: each place its City, State and Country rows, offering what the
+ * user's other contacts have (usePlaceSuggestions), × on its first row to take it out (asking first
+ * when it holds any text), and "Add place" at the card's end until it holds CONTACT_LIMITS.places.
+ * `places` is the list as typed (`{ city, state, country }`, an empty one being added); every edit
+ * hands the whole list to `onChange`.
  */
 export default function PlacesField({ places, onChange, onBlur }) {
-  function setPlace(index, text) {
-    onChange(places.map((place, i) => (i === index ? text : place)));
+  const suggestions = usePlaceSuggestions();
+
+  function setPart(index, part, text) {
+    onChange(places.map((place, i) => (i === index ? { ...place, [part]: text } : place)));
+  }
+
+  async function handleRemove(index) {
+    const place = storedPlace(places[index]);
+    if (place) {
+      const isConfirmed = await confirmAsync({
+        title: `Remove ${formatPlace(place)}?`,
+        action: 'Remove',
+        destructive: true,
+      });
+      if (!isConfirmed) return;
+    }
+    onChange(places.filter((_, i) => i !== index));
   }
 
   return (
     <Card>
       {places.map((place, index) => (
-        // The index is the row: a place has no id, and rows only change at the end or by ×.
+        // The index is the place: a place has no id, and places only change at the end or by ×.
         // eslint-disable-next-line react/no-array-index-key
-        <View key={index}>
-          <View style={styles.row}>
-            <TextInput
-              value={place}
-              onChangeText={(text) => setPlace(index, text)}
-              onBlur={onBlur}
-              placeholder="City, Country"
-              maxLength={CONTACT_LIMITS.place}
-              style={styles.input}
-              accessibilityLabel={`Place ${index + 1}`}
-              autoFocus={!place && index === places.length - 1}
-            />
-            <Button
-              icon="close"
-              onPress={() => onChange(places.filter((_, i) => i !== index))}
-              accessibilityLabel="Remove place"
-            />
-          </View>
-          <Divider />
-        </View>
+        <Fragment key={index}>
+          {PARTS.map(({ part, label, placeholder }) => (
+            <Fragment key={part}>
+              <SuggestionField
+                label={label}
+                value={place[part]}
+                onChangeText={(text) => setPart(index, part, text)}
+                onBlur={onBlur}
+                suggestions={suggestions[part]}
+                placeholder={placeholder}
+                maxLength={CONTACT_LIMITS.place}
+                autoCapitalize="words"
+                autoFocus={part === 'city' && !storedPlace(place) && index === places.length - 1}
+                trailing={
+                  part === 'city' && (
+                    <Button icon="close" onPress={() => handleRemove(index)} accessibilityLabel="Remove place" />
+                  )
+                }
+              />
+              <Divider />
+            </Fragment>
+          ))}
+        </Fragment>
       ))}
-      {places.length < CONTACT_LIMITS.places && <AddRow label="Add place" onPress={() => onChange([...places, ''])} />}
+      {places.length < CONTACT_LIMITS.places && (
+        <AddRow label="Add place" onPress={() => onChange([...places, EMPTY_PLACE])} />
+      )}
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: scale(52),
-    paddingLeft: layout.sideGutter,
-    paddingRight: 4,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-  },
-});

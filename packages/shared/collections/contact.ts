@@ -4,6 +4,16 @@ import { baseRecordSchema, defineCollection, textSchema, timestampSchema } from 
 export const CONTACT_LIMITS = { name: 200, handle: 200, phoneNumber: 50, notes: 5000, places: 20, place: 200 } as const;
 
 const handleSchema = textSchema.max(CONTACT_LIMITS.handle).nullable();
+
+/** A place's parts, in the order a form shows them. */
+export const CONTACT_PLACE_PARTS = ['city', 'state', 'country'] as const;
+// A place: its city, state (optional: '' where none is given) and country, each trimmed, at least one
+// of them set.
+const placePartSchema = textSchema.max(CONTACT_LIMITS.place);
+export const contactPlaceSchema = z
+  .object({ city: placePartSchema, state: placePartSchema, country: placePartSchema })
+  .refine((place) => CONTACT_PLACE_PARTS.some((part) => place[part] !== ''), 'a place with no part set');
+export type ContactPlace = z.infer<typeof contactPlaceSchema>;
 // A contact photo's name: a flat file name (`avatar-<contactId>-<id>.jpg`), never a path, since each
 // device joins it into its avatars folder.
 const avatarFilenameSchema = textSchema.regex(/^avatar-[A-Za-z0-9-]+\.jpg$/, 'an avatar-….jpg file name');
@@ -61,8 +71,8 @@ const handleSchemas = Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [f
 >;
 
 // `contacts` — the people the user works with (the Contacts tab). The handles are stored without
-// `@` or a URL (normalizeHandle); `places` is a list of free-text places ("Squamish, Canada") that
-// merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<new id>.jpg`) that
+// `@` or a URL (normalizeHandle); `places` is a list of `{ city, state, country }` (the state
+// optional, an empty string without one) that merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<new id>.jpg`) that
 // `avatarFilename` names, null without a photo: a file field, so the sync uploads the file before the
 // record is pushed; a new photo gets a new name, so a device holding the old one never shows it for
 // the new. Deletion is a `deletedAt` tombstone, and tombstones its list memberships and links too.
@@ -75,7 +85,7 @@ export const contactCollection = defineCollection({
     notes: textSchema.max(CONTACT_LIMITS.notes).nullable(),
     ...handleSchemas,
     phoneNumber: textSchema.max(CONTACT_LIMITS.phoneNumber).nullable(),
-    places: z.array(textSchema.min(1).max(CONTACT_LIMITS.place)).max(CONTACT_LIMITS.places),
+    places: z.array(contactPlaceSchema).max(CONTACT_LIMITS.places),
     avatarFilename: avatarFilenameSchema.nullable(),
   }),
   fieldGroups: [['isFavorite', 'favoritedAt']],

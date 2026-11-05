@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { FieldClocks, VerifyResult } from '@squidbox/shared';
+import type { ContactPlace, FieldClocks, VerifyResult } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -284,7 +284,7 @@ export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 
 // --- Contacts (sync-design §10) ---
 // The people the user works with, their lists, and where they are on photos, albums and posts.
-// `places` is a jsonb string array that merges as one value.
+// `places` is a jsonb array of `{ city, state, country }` that merges as one value.
 export const contacts = pgTable(
   'contacts',
   {
@@ -298,7 +298,7 @@ export const contacts = pgTable(
     onlyFansHandle: text('only_fans_handle'),
     jffHandle: text('jff_handle'),
     phoneNumber: text('phone_number'),
-    places: jsonb('places').$type<string[]>().notNull(),
+    places: jsonb('places').$type<ContactPlace[]>().notNull(),
     avatarFilename: text('avatar_filename'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contacts_user_seq_idx').on(t.userId, t.serverSeq)],

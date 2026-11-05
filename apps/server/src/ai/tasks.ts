@@ -117,14 +117,16 @@ export const photoTagsTask: AiTask<{ tags: string[] }> = {
 };
 
 // A contact read from a profile screenshot (POST /ai/contact-from-screenshot): the handles as
-// contacts store them, the name and place trimmed.
+// contacts store them, the name and the place's parts trimmed.
 export const contactFromScreenshotTask: AiTask<ContactFromScreenshotResponse> = {
   schema: contactSchema,
   check: (read) => ({
     ...read,
     ...Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, normalizeHandle(read[field])])),
     name: read.name.trim(),
-    place: read.place.trim(),
+    city: read.city.trim(),
+    state: read.state.trim(),
+    country: read.country.trim(),
   }),
 };
 

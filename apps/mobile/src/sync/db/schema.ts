@@ -1,4 +1,4 @@
-import type { FieldClocks } from '@squidbox/shared';
+import type { ContactPlace, FieldClocks } from '@squidbox/shared';
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, real, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
@@ -231,7 +231,7 @@ export const modelChoices = sqliteTable('model_choices', {
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
 
 // Contacts (mirror @squidbox/shared contacts / contact_lists / contact_list_members / contact_links).
-// `places` is JSON text that merges as one value.
+// `places` is JSON text (`{ city, state, country }`s) that merges as one value.
 export const contacts = sqliteTable(
   'contacts',
   {
@@ -248,7 +248,7 @@ export const contacts = sqliteTable(
     onlyFansHandle: text('only_fans_handle'),
     jffHandle: text('jff_handle'),
     phoneNumber: text('phone_number'),
-    places: text('places', { mode: 'json' }).$type<string[]>().notNull(),
+    places: text('places', { mode: 'json' }).$type<ContactPlace[]>().notNull(),
     avatarFilename: text('avatar_filename'),
   },
   (t) => [

@@ -22,7 +22,14 @@ const newId = () => `edge-${++n}`;
 beforeEach(async () => {
   db = makeTestDb();
   n = 0;
-  await contacts.create(db, makeContactRecord({ id: 'maya', name: 'Maya', places: ['Squamish, Canada'] }));
+  await contacts.create(
+    db,
+    makeContactRecord({
+      id: 'maya',
+      name: 'Maya',
+      places: [{ city: 'Squamish', state: 'British Columbia', country: 'Canada' }],
+    }),
+  );
   await contacts.create(db, makeContactRecord({ id: 'ben', name: 'ben', xHandle: 'benclimbs' }));
   await contacts.create(
     db,
@@ -67,6 +74,7 @@ describe('contactQuery', () => {
 
   it('search finds a contact by a place or a handle', async () => {
     expect(await ids(contactQuery({ search: 'squam' }))).toEqual(['maya']);
+    expect(await ids(contactQuery({ search: 'british columbia' }))).toEqual(['maya']);
     expect(await ids(contactQuery({ search: 'BENCLIMBS' }))).toEqual(['ben']);
   });
 

@@ -165,7 +165,7 @@ Write handles exactly as given.`,
   contactScreenshot: [
     "Extract the profile's name, X handle, Bluesky handle, OnlyFans handle, JFF handle and location from this social media profile screenshot. Look for every username, handle or profile link visible in it: in the bio, the links and the header.",
     '',
-    'Return only a JSON object with the keys "name", "xHandle", "blueskyHandle", "onlyFansHandle", "jffHandle" and "place", each a string, and an empty string for what the screenshot doesn\'t show. Handles without @ and without a URL. "place" as "City, Country" (City, State, Country in the US), with official English names; always try to name the country, even when only the city is shown. No commentary or Markdown.',
+    'Return only a JSON object with the keys "name", "xHandle", "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the screenshot doesn\'t show. Handles without @ and without a URL. The location as its "city", "state" (the state or province, only in the US) and "country", with official English names; always try to name the country, even when only the city is shown. No commentary or Markdown.',
   ].join('\n'),
 });
 

@@ -158,7 +158,9 @@ const CONTACT_READ = {
   blueskyHandle: 'https://bsky.app/profile/maya.bsky.social',
   onlyFansHandle: '',
   jffHandle: '',
-  place: 'Squamish, British Columbia, Canada',
+  city: ' Squamish ',
+  state: '',
+  country: 'Canada',
 };
 const chatRequest = {
   context: {
@@ -513,7 +515,9 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
       blueskyHandle: 'maya.bsky.social',
       onlyFansHandle: '',
       jffHandle: '',
-      place: 'Squamish, British Columbia, Canada',
+      city: 'Squamish',
+      state: '',
+      country: 'Canada',
     });
     const [body] = chatBodies();
     expect(body.messages[0]).toEqual({ role: 'system', content: DEFAULT_INSTRUCTIONS.contactScreenshot });
