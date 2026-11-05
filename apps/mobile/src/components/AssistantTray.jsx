@@ -21,7 +21,7 @@ const FADE_END = { x: 1, y: 0 };
  * violet sparkle and `title` (Write with AI), with `trailing` at the end of the title's line (a small
  * button, EditPromptButtonsButton). `children` is one row that scrolls sideways across the tray's
  * full width (PromptButtonRow), fading out at its right edge; the tray gives the row its inset and
- * the pen its accent (AssistantTrayContext), and draws its lit rim. The fade is static
+ * the pen its accent (AssistantTrayContext), and draws its lit rim over the row. The fade is static
  * and only as wide as the inset, so it veils a chip passing under the edge but never one at rest or
  * at the row's end. style is for layout only.
  */
@@ -40,6 +40,7 @@ export default function AssistantTray({ title, trailing, children, style }) {
           {children}
           <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
         </View>
+        <View style={styles.rim} pointerEvents="none" />
       </View>
     </AssistantTrayContext.Provider>
   );
@@ -51,10 +52,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.background.assistant,
-    // The lit edge on the tray itself: iOS draws no inset shadow on an empty overlay view
-    ...shadows.litEdgeTint,
   },
   // The title sits 2 pt further in than the chips, as the sparkle's glyph is narrower than its box.
+  // The lit edge, drawn over the row so the chips scrolling under the tray's edges and the fade
+  // don't cover it.
+  rim: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.card,
+    ...shadows.litEdgeTint,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
