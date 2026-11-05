@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { Palette } from '@/components/Button';
 import Icon, { type IconName } from '@/components/Icon';
 import { colors, layout, radii, sizes, typography } from '@/styles/designTokens';
 
@@ -8,7 +9,7 @@ export type MenuItemContentProps = {
   label: string;
   icon?: IconName;
   trailing?: ReactNode;
-  colorPalette?: 'danger';
+  colorPalette?: Extract<Palette, 'danger'>;
   isSelected?: boolean;
   isHeader?: boolean;
 };

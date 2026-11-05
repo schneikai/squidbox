@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, I18nManager } from 'react-native';
+import { Animated, I18nManager, type LayoutRectangle } from 'react-native';
 
 import PopoverSurface, { type PopoverSurfaceProps } from './PopoverSurface';
 
@@ -24,8 +24,11 @@ const HORIZONTAL_NUDGE = 4; // px extra rightward shift when right-aligned
 
 // The renderer contract react-native-popup-menu calls but doesn't type: the layouts it measured and
 // passes to a renderer and its computePosition.
-type Layout = { x: number; y: number; width: number; height: number };
-type MenuLayouts = { windowLayout: Layout; triggerLayout: Layout; optionsLayout: Pick<Layout, 'width' | 'height'> };
+type MenuLayouts = {
+  windowLayout: LayoutRectangle;
+  triggerLayout: LayoutRectangle;
+  optionsLayout: Pick<LayoutRectangle, 'width' | 'height'>;
+};
 type Placement = ReturnType<typeof computePlacement>;
 
 export type BlurPopoverRendererProps = Omit<PopoverSurfaceProps, 'progress' | 'origin'> & { layouts: MenuLayouts };

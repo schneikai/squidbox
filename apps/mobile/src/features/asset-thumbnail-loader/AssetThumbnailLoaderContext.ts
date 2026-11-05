@@ -1,11 +1,11 @@
+import type { AssetRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
-import type preloadAssetThumbnailsAsync from '@/features/cloud/assets/preloadAssetThumbnailsAsync';
-
-// `loadThumbnail(asset, onResult)` (createThumbnailQueue's `request`) returns the withdraw function.
+// `loadThumbnail(asset, onResult)` (createThumbnailQueue's `request`, which keys on the thumbnail's
+// name and hands the assets to preloadAssetThumbnailsAsync) returns the withdraw function.
 export type AssetThumbnailLoader = {
   loadThumbnail: (
-    asset: Parameters<typeof preloadAssetThumbnailsAsync>[0][number],
+    asset: Pick<AssetRecord, 'thumbnailFilename'>,
     onResult: (result: 'done' | 'failed') => void,
   ) => () => void;
 };

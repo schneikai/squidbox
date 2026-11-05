@@ -1,13 +1,13 @@
 import { BlurView } from 'expo-blur';
-import { Children, isValidElement, type ReactNode } from 'react';
-import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Children, isValidElement } from 'react';
+import { StyleSheet, View, type ViewProps } from 'react-native';
 
 import type { ButtonProps } from '@/components/Button';
 import FadedGroupContext from '@/components/FadedGroupContext';
 import IconSlotContext from '@/components/IconSlotContext';
 import { colors, disabledOpacity, layout, litGlass, radii, shadows } from '@/styles/designTokens';
 
-export type FloatingPillProps = { children?: ReactNode; style?: StyleProp<ViewStyle> };
+export type FloatingPillProps = Pick<ViewProps, 'children' | 'style'>;
 
 /**
  * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall

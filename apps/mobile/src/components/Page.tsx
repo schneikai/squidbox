@@ -1,10 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
-import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
+import { StyleSheet, type ViewProps } from 'react-native';
 
 import { colors } from '@/styles/designTokens';
 
-export type PageProps = { children?: ReactNode; style?: StyleProp<ViewStyle> };
+export type PageProps = Pick<ViewProps, 'children' | 'style'>;
 
 /**
  * Standard screen root wrapper.

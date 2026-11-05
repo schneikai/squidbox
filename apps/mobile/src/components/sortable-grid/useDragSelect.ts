@@ -1,10 +1,10 @@
 import { useNavigation } from 'expo-router';
 import { type RefObject, useEffect, useRef } from 'react';
 
-import type { GridLayout } from './gridSlotOrigin';
+import type { GridLayout, GridRow } from './gridSlotOrigin';
 import isPastTapSlop from './isPastTapSlop';
 import useGridLongPressPan, { type Point, type UseGridLongPressPanOptions } from './useGridLongPressPan';
-import usePeekAfterLift from './usePeekAfterLift';
+import usePeekAfterLift, { type UsePeekAfterLiftOptions } from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
 
@@ -27,7 +27,7 @@ import useHaptics from '@/hooks/useHaptics';
 
 const LONG_PRESS_MS = 150; // hold before selecting starts (keeps normal flicks scrolling)
 
-export type UseDragSelectOptions<Row extends { id: string }> = Pick<
+export type UseDragSelectOptions<Row extends GridRow> = Pick<
   UseGridLongPressPanOptions,
   'enabled' | 'paddingTop' | 'listRef' | 'scrollY'
 > & {
@@ -36,11 +36,9 @@ export type UseDragSelectOptions<Row extends { id: string }> = Pick<
   selectedIdsRef: RefObject<string[] | undefined>;
   onSelect?: (ids: string[]) => void;
   locksSwipeBack?: boolean;
-  onPeek?: (row: Row) => void;
-  onPeekEnd?: () => void;
-};
+} & UsePeekAfterLiftOptions<Row>;
 
-export default function useDragSelect<Row extends { id: string }>({
+export default function useDragSelect<Row extends GridRow>({
   enabled,
   rows,
   layout,

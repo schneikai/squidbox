@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useRef } from 'react';
-import { View, Image, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, Image, Animated, StyleSheet, type ImageResizeMode, type StyleProp, type ViewStyle } from 'react-native';
 
 import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
@@ -33,7 +33,7 @@ function rememberShown(uri: string) {
 export type AssetImageProps = {
   asset?: ThumbnailStatusAsset;
   uri?: string;
-  contentFit?: 'cover' | 'contain';
+  contentFit?: Extract<ImageResizeMode, 'cover' | 'contain'>;
   placeholderColor?: string;
   renderOverlay?: (hasPicture: boolean, status?: ThumbnailStatus) => ReactNode;
   showNotUploaded?: boolean;
@@ -61,15 +61,16 @@ export default function AssetImage({
   const { isAuthenticated } = useCloud();
   const { paths: library } = useOpenLibrary();
   const { thumbnailStyle } = useAppSettings();
-  const localUri = asset?.thumbnailFilename && getAssetThumbnailUri(asset.thumbnailFilename, library);
+  const thumbnailFilename = asset?.thumbnailFilename;
+  const localUri = thumbnailFilename && getAssetThumbnailUri(thumbnailFilename, library);
   const wasShown = !!localUri && shownUris.has(localUri);
   // A recycled cell must not show the previous asset's status or picture.
-  const current = found?.filename === asset?.thumbnailFilename ? found : null;
+  const current = found?.filename === thumbnailFilename ? found : null;
   const isLocal = wasShown || current?.status === 'local';
 
   useEffect(() => {
-    if (!asset?.thumbnailFilename || isLocal) return;
-    const filename = asset.thumbnailFilename;
+    const filename = thumbnailFilename;
+    if (!asset || !filename || isLocal) return;
     const controller = new AbortController();
     let withdraw: (() => void) | undefined;
 
@@ -103,7 +104,7 @@ export default function AssetImage({
       controller.abort();
       withdraw?.();
     };
-  }, [asset?.thumbnailFilename, asset?.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
+  }, [thumbnailFilename, asset?.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
 
   const thumbnailUri = uri ?? (isLocal ? localUri : null);
   const hasPicture = !!thumbnailUri && (wasShown || loadedUri === thumbnailUri);
@@ -133,7 +134,7 @@ export default function AssetImage({
             shownUris.delete(thumbnailUri);
             // Shown from memory, it gets the file check a first mount would. A checked file that still
             // won't load keeps the placeholder, rather than being checked and shown over and over.
-            if (found?.filename !== asset?.thumbnailFilename) setFound({ filename: asset?.thumbnailFilename });
+            if (found?.filename !== thumbnailFilename) setFound({ filename: thumbnailFilename });
             else setFound({ ...found });
           }}
         />
@@ -142,7 +143,7 @@ export default function AssetImage({
         <LoadingPlaceholder
           color={placeholderColor}
           style={!!thumbnailUri && StyleSheet.absoluteFill}
-          still={!uri && (!asset?.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed')}
+          still={!uri && (!thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed')}
         >
           {showNotUploadedIcon && (
             <View

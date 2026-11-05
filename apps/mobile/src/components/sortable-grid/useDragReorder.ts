@@ -2,17 +2,42 @@ import { useEffect, useRef } from 'react';
 import { type SharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import gridSlotOrigin, { type GridLayout } from './gridSlotOrigin';
+import gridSlotOrigin, { type GridLayout, type GridRow } from './gridSlotOrigin';
 import isPastTapSlop from './isPastTapSlop';
 import mergeRowIds from './mergeRowIds';
 import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useGridLongPressPan, { type Point, type UseGridLongPressPanOptions } from './useGridLongPressPan';
-import usePeekAfterLift from './usePeekAfterLift';
+import usePeekAfterLift, { type UsePeekAfterLiftOptions } from './usePeekAfterLift';
 
 import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
+
+// A drop: the moved row's id, the row it now follows (`null` at the top) and the slots' new order.
+export type ReorderChange = { id: string; afterId: string | null; order: string[] };
+
+// The shared values a drag moves, owned by the grid (see useDragReorder).
+export type DragValues = {
+  positions: SharedValue<Record<string, number>>;
+  activeId: SharedValue<string | null>;
+  activeX: SharedValue<number>;
+  activeY: SharedValue<number>;
+  activeScale: SharedValue<number>;
+  shownLiftedId: SharedValue<string | null>;
+};
+
+export type UseDragReorderOptions<Row extends GridRow> = Pick<
+  UseGridLongPressPanOptions,
+  'enabled' | 'waitsFor' | 'paddingTop' | 'listRef' | 'scrollY'
+> & {
+  rows?: Row[];
+  layout: GridLayout;
+  onDragStart?: (id: string) => void;
+  onDragEnd?: (change: ReorderChange | null) => void;
+  onSettled?: () => void;
+} & DragValues &
+  UsePeekAfterLiftOptions<Row>;
 
 // Apple Photos-style drag-to-reorder for a sortable grid (an album's photos, the albums).
 //
@@ -34,30 +59,7 @@ import { motion } from '@/styles/designTokens';
 //
 // Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: see gridSlotOrigin.
 // With `waitsFor` (another gesture on the grid, drag-select), a drag starts only once it has failed.
-
-// A drop: the moved row's id, the row it now follows (`null` at the top) and the slots' new order.
-export type ReorderChange = { id: string; afterId: string | null; order: string[] };
-
-export type UseDragReorderOptions<Row extends { id: string }> = Pick<
-  UseGridLongPressPanOptions,
-  'enabled' | 'waitsFor' | 'paddingTop' | 'listRef' | 'scrollY'
-> & {
-  rows?: Row[];
-  layout: GridLayout;
-  positions: SharedValue<Record<string, number>>;
-  activeId: SharedValue<string | null>;
-  activeX: SharedValue<number>;
-  activeY: SharedValue<number>;
-  activeScale: SharedValue<number>;
-  shownLiftedId: SharedValue<string | null>;
-  onDragStart?: (id: string) => void;
-  onDragEnd?: (change: ReorderChange | null) => void;
-  onSettled?: () => void;
-  onPeek?: (row: Row) => void;
-  onPeekEnd?: () => void;
-};
-
-export default function useDragReorder<Row extends { id: string }>({
+export default function useDragReorder<Row extends GridRow>({
   enabled,
   rows,
   layout,

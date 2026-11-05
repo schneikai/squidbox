@@ -1,6 +1,7 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
+import type { Palette } from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
@@ -47,7 +48,7 @@ export type RowProps = {
   value?: string | null;
   onPress?: () => void;
   disabled?: boolean;
-  colorPalette?: 'danger';
+  colorPalette?: Extract<Palette, 'danger'>;
   hasChevron?: boolean;
   isSelected?: boolean;
   size?: 'regular' | 'small';

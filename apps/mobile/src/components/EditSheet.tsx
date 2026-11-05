@@ -15,9 +15,9 @@ export type EditSheetProps = {
   title?: string;
   confirmLabel: string;
   canConfirm: boolean;
-  isSaving: boolean;
+  isSaving?: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   actions?: ActionButtonsProps['actions'];
   isFilling?: boolean;
   children?: ReactNode;
@@ -36,7 +36,7 @@ export default function EditSheet({
   title,
   confirmLabel,
   canConfirm,
-  isSaving,
+  isSaving = false,
   onCancel,
   onConfirm,
   actions = [],

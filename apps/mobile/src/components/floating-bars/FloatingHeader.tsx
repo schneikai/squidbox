@@ -1,4 +1,5 @@
 import { useNavigation } from 'expo-router';
+import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +26,7 @@ export type FloatingHeaderProps = {
 export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }: FloatingHeaderProps) {
   const insets = useSafeAreaInsets();
   // Typed routes are off, so the tab's name goes untyped.
-  const navigation = useNavigation<{ navigate: (name: string) => void }>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const { scrollY } = useFloatingBars();
   const isSelectMode = selection?.isSelectMode ?? false;
 

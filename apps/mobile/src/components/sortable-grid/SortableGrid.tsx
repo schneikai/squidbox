@@ -22,11 +22,13 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
+import type { GridRow } from './gridSlotOrigin';
 import heldOrder, { type Hold } from './heldOrder';
 import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useDragReorder, { type ReorderChange } from './useDragReorder';
 import useDragSelect from './useDragSelect';
+import type { UsePeekAfterLiftOptions } from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
 import type { ScrollableList } from '@/hooks/useListControls';
@@ -39,7 +41,7 @@ const WINDOW_SCREENS = 2;
 // How long after a drop its click may still come (it follows the pointer's release at once).
 const CLICK_AFTER_DROP_MS = 500;
 
-export type SortableGridProps<Row extends { id: string }> = {
+export type SortableGridProps<Row extends GridRow> = {
   rows?: Row[];
   rowsReadAt?: number;
   loadMore?: () => void;
@@ -60,10 +62,8 @@ export type SortableGridProps<Row extends { id: string }> = {
   // Resolves to the drop's write count (see heldOrder), or nothing.
   onReorder?: (change: ReorderChange) => Promise<number | void>;
   moveFailedTitle: string;
-  onPeek?: (row: Row) => void;
-  onPeekEnd?: () => void;
-};
-export default function SortableGrid<Row extends { id: string }>({
+} & UsePeekAfterLiftOptions<Row>;
+export default function SortableGrid<Row extends GridRow>({
   rows,
   rowsReadAt,
   loadMore,

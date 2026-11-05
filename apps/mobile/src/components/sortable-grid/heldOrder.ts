@@ -1,3 +1,4 @@
+import type { GridRow } from './gridSlotOrigin';
 import mergeRowIds from './mergeRowIds';
 
 export type Hold = { ids: string[]; writtenAt?: number };
@@ -12,7 +13,7 @@ export type Hold = { ids: string[]; writtenAt?: number };
  */
 export default function heldOrder(
   hold: Hold | null,
-  rows: { id: string }[],
+  rows: GridRow[],
   readAt: number | undefined,
   reorderEnabled: boolean,
 ) {

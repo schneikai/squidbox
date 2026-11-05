@@ -1,27 +1,23 @@
 import type { ReactNode } from 'react';
-import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-import type { GridLayout } from './gridSlotOrigin';
+import type { GridLayout, GridRow } from './gridSlotOrigin';
+import type { DragValues } from './useDragReorder';
 
 import { shadows } from '@/styles/designTokens';
 
-export type SortableGridLiftedCellProps<Row extends { id: string }> = {
+export type SortableGridLiftedCellProps<Row extends GridRow> = {
   row: Row;
   renderItem: (row: Row) => ReactNode;
   layout: GridLayout;
   cellPadding: number;
-  activeId: SharedValue<string | null>;
-  activeX: SharedValue<number>;
-  activeY: SharedValue<number>;
-  activeScale: SharedValue<number>;
-  shownLiftedId: SharedValue<string | null>;
-};
+} & Pick<DragValues, 'activeId' | 'activeX' | 'activeY' | 'activeScale' | 'shownLiftedId'>;
 
 // The cell a drag lifted, drawn once above the grid: it follows the finger (`activeX`/`activeY`,
 // content space) and pops (`activeScale`), so the resting cells don't read those on every frame. It
 // shows once it has laid out (`shownLiftedId`), and its resting cell hides then; until that frame the
 // resting cell still shows, so the swap never leaves a gap.
-export default function SortableGridLiftedCell<Row extends { id: string }>({
+export default function SortableGridLiftedCell<Row extends GridRow>({
   row,
   renderItem,
   layout,

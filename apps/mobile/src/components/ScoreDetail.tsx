@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import Icon from '@/components/Icon';
@@ -10,8 +9,8 @@ export type ScoreDetailProps = { score?: number | null; detail: string };
  * A model's grey line inside its Text: a score above 0 and the thumbs-up icon, then ` · ${detail}`;
  * only `detail` without one. The parent Text's accessibilityLabel is scoreDetailLabel.
  */
-export default function ScoreDetail({ score, detail }: ScoreDetailProps): ReactNode {
-  if (!((score ?? 0) > 0)) return detail;
+export default function ScoreDetail({ score, detail }: ScoreDetailProps) {
+  if (!score || score <= 0) return detail;
   return (
     <>
       {`${score} `}

@@ -26,10 +26,12 @@ const PALETTE = {
   // A favorite's heart: like `muted` until it's selected, then red.
   favorite: colors.text.secondary,
 };
-type Palette = keyof typeof PALETTE;
+export type Palette = keyof typeof PALETTE;
 export type ButtonVariant = 'primary' | 'secondary' | 'tertiary';
 export type ButtonSize = 'regular' | 'small' | 'caption';
 type Shape = 'disc' | 'pill' | 'link' | 'bare';
+// A button's own box (boxFor); a link has none.
+type Box = { width?: number; height?: number };
 
 // Only these palettes have a color on a dark surface (combinationProblem warns about the others).
 const INVERSE_PALETTE: Partial<Record<Palette, string>> = {
@@ -58,10 +60,9 @@ const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'tertiary'];
 // caption one's (no padding around a line of about 16 pt) furthest.
 const LINK_HIT_SLOP: Record<ButtonSize, number> = { regular: 8, small: 12, caption: 16 };
 
-export type ButtonProps = {
+export type ButtonProps = Pick<PressableProps, 'onPress' | 'disabled' | 'accessibilityLabel' | 'accessibilityHint'> & {
   icon?: IconName;
   label?: string;
-  onPress?: PressableProps['onPress'];
   variant?: ButtonVariant;
   colorPalette?: Palette;
   size?: ButtonSize;
@@ -70,10 +71,7 @@ export type ButtonProps = {
   isSwitch?: boolean;
   filled?: boolean;
   iconCount?: 1 | 2;
-  disabled?: boolean;
   loading?: boolean;
-  accessibilityLabel?: string;
-  accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -141,7 +139,7 @@ export default function Button({
     <Pressable
       onPress={onPress}
       disabled={isInactive}
-      hitSlop={targetSlop(shape, size, box)}
+      hitSlop={targetSlop(size, box)}
       accessibilityRole={isSwitch ? 'switch' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
@@ -183,12 +181,7 @@ function defaultPalette(shape: Shape, variant: ButtonVariant): Palette {
 
 // The button's own box: a disc is its size's height square, a pill that tall, a bare icon that tall
 // and as wide as its icon (a full slot in a toolbar or a picker, IconSlotContext). A link sizes itself.
-function boxFor(
-  shape: Shape,
-  size: ButtonSize,
-  iconSize: number | undefined,
-  hasIconSlot: boolean,
-): { width?: number; height?: number } | null {
+function boxFor(shape: Shape, size: ButtonSize, iconSize: number | undefined, hasIconSlot: boolean): Box | null {
   const height = HEIGHTS[size];
   if (shape === 'disc') return { width: height, height };
   if (shape === 'pill') return { height };
@@ -197,9 +190,9 @@ function boxFor(
 }
 
 // What a touch reaches past the box, so the target is at least 44 pt each way.
-function targetSlop(shape: Shape, size: ButtonSize, box: { width?: number; height?: number } | null) {
+function targetSlop(size: ButtonSize, box: Box | null) {
   // Only a link has no box.
-  if (shape === 'link' || !box) return LINK_HIT_SLOP[size];
+  if (!box) return LINK_HIT_SLOP[size];
   const vertical = box.height === undefined ? 0 : Math.max(0, (sizes.iconButton - box.height) / 2);
   const horizontal = box.width === undefined ? 0 : Math.max(0, (sizes.iconButton - box.width) / 2);
   return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };

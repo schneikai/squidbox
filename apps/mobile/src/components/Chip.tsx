@@ -6,16 +6,14 @@ import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography
 
 export type ChipVariant = 'tag' | 'action' | 'raised' | 'lead' | 'add';
 
-export type ChipProps = {
+export type ChipProps = Pick<
+  PressableProps,
+  'onPress' | 'disabled' | 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityHint'
+> & {
   label: string;
   variant?: ChipVariant;
   icon?: IconName;
   isSelected?: boolean;
-  disabled?: boolean;
-  onPress?: PressableProps['onPress'];
-  accessibilityRole?: PressableProps['accessibilityRole'];
-  accessibilityLabel?: string;
-  accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -45,7 +43,7 @@ export default function Chip({
   accessibilityHint,
   style,
 }: ChipProps) {
-  const leadingIcon: IconName | undefined = variant === 'add' ? 'add' : icon;
+  const leadingIcon = variant === 'add' ? 'add' : icon;
   const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
   const isAccent = isAccentFill || variant === 'add';
   const isLifted = variant === 'raised' || variant === 'lead';

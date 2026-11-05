@@ -2,14 +2,14 @@ import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import SegmentedPill, { type SegmentedPillItem } from './SegmentedPill';
+import SegmentedPill, { type SegmentedPillProps } from './SegmentedPill';
 
 import { layout } from '@/styles/designTokens';
 
-export type FloatingSegmentPillProps = {
-  tabs: SegmentedPillItem[];
-  activeTab: string;
-  onTabPress: (key: string) => void;
+export type FloatingSegmentPillProps<Key extends string> = {
+  tabs: SegmentedPillProps<Key>['items'];
+  activeTab: SegmentedPillProps<Key>['activeKey'];
+  onTabPress: SegmentedPillProps<Key>['onSelect'];
   expandProgress: SharedValue<number>;
 };
 
@@ -17,7 +17,12 @@ export type FloatingSegmentPillProps = {
  * The bottom-right pill that switches between a screen's views. `tabs` are `{ key, icon, label }`; it
  * slides out while the search bar next to it is open (`expandProgress`, see SearchOptionsBar).
  */
-export default function FloatingSegmentPill({ tabs, activeTab, onTabPress, expandProgress }: FloatingSegmentPillProps) {
+export default function FloatingSegmentPill<Key extends string>({
+  tabs,
+  activeTab,
+  onTabPress,
+  expandProgress,
+}: FloatingSegmentPillProps<Key>) {
   const insets = useSafeAreaInsets();
 
   const slideStyle = useAnimatedStyle(() => ({

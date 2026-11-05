@@ -1,13 +1,8 @@
 import { memo, type ReactNode, useEffect } from 'react';
-import Animated, {
-  type SharedValue,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import gridSlotOrigin, { type GridLayout } from './gridSlotOrigin';
+import gridSlotOrigin, { type GridLayout, type GridRow } from './gridSlotOrigin';
+import type { DragValues } from './useDragReorder';
 
 import { motion } from '@/styles/designTokens';
 
@@ -18,17 +13,14 @@ import { motion } from '@/styles/designTokens';
 // back to the component's own type.
 export default memo(SortableGridCell, sameCellProps) as typeof SortableGridCell;
 
-export type SortableGridCellProps<Row extends { id: string }> = {
+export type SortableGridCellProps<Row extends GridRow> = {
   row: Row;
   renderItem: (row: Row) => ReactNode;
   initialSlot: number;
   layout: GridLayout;
   cellPadding: number;
-  positions: SharedValue<Record<string, number>>;
-  activeId: SharedValue<string | null>;
-  shownLiftedId: SharedValue<string | null>;
-};
-function SortableGridCell<Row extends { id: string }>({
+} & Pick<DragValues, 'positions' | 'activeId' | 'shownLiftedId'>;
+function SortableGridCell<Row extends GridRow>({
   row,
   renderItem,
   initialSlot,
@@ -86,7 +78,7 @@ function SortableGridCell<Row extends { id: string }>({
   );
 }
 
-function sameCellProps<Row extends { id: string }>(prev: SortableGridCellProps<Row>, next: SortableGridCellProps<Row>) {
+function sameCellProps<Row extends GridRow>(prev: SortableGridCellProps<Row>, next: SortableGridCellProps<Row>) {
   let key: keyof SortableGridCellProps<Row>;
   for (key in next) if (key !== 'initialSlot' && prev[key] !== next[key]) return false;
   return true;

@@ -1,16 +1,11 @@
 import { StyleSheet } from 'react-native';
 
-import TextInput from '@/components/TextInput';
+import TextInput, { type TextInputProps } from '@/components/TextInput';
 import chipFrame from '@/styles/chipFrame';
 import { colors, typography } from '@/styles/designTokens';
 
-export type TagInputProps = {
-  value: string;
-  onChangeText: (text: string) => void;
-  onSubmit: () => void;
-  onBlur: () => void;
-  maxLength?: number;
-};
+export type TagInputProps = Required<Pick<TextInputProps, 'value' | 'onChangeText'>> &
+  Pick<TextInputProps, 'maxLength'> & { onSubmit: () => void; onBlur: () => void };
 
 // The input that stands in for a chip while a tag is typed: a Chip's frame with a thicker accent
 // border, so it reads as the field being typed in.

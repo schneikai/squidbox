@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react';
-import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, StyleSheet, type ViewProps } from 'react-native';
 
 import { colors } from '@/styles/designTokens';
 
-export type ModalSheetProps = { children?: ReactNode; style?: StyleProp<ViewStyle> };
+export type ModalSheetProps = Pick<ViewProps, 'children' | 'style'>;
 
 /**
  * Structural container for page-sheet modal screens.

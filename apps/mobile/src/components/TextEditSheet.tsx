@@ -2,18 +2,15 @@ import { StyleSheet } from 'react-native';
 
 import EditSheet, { type EditSheetProps } from '@/components/EditSheet';
 import IntroText from '@/components/IntroText';
-import TextInput from '@/components/TextInput';
+import TextInput, { type TextInputProps } from '@/components/TextInput';
 import WarningNote from '@/components/WarningNote';
 
-export type TextEditSheetProps = Omit<EditSheetProps, 'children' | 'isFilling'> & {
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  maxLength?: number;
-  autoFocus?: boolean;
-  description?: string;
-  note?: string;
-};
+export type TextEditSheetProps = Omit<EditSheetProps, 'children' | 'isFilling'> &
+  Required<Pick<TextInputProps, 'value' | 'onChangeText'>> &
+  Pick<TextInputProps, 'placeholder' | 'maxLength' | 'autoFocus'> & {
+    description?: string | null;
+    note?: string | null;
+  };
 
 /**
  * An EditSheet that edits one text, the look of a Notes page: an optional `description` over a

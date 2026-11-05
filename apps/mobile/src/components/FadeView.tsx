@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import type { StyleProp, ViewProps, ViewStyle } from 'react-native';
+import type { ViewProps } from 'react-native';
 import Animated, { useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -8,12 +7,9 @@ import { motion } from '@/styles/designTokens';
 // Far enough to the left to be off any screen; to the left so a browser adds no scroll area for it.
 const OFFSCREEN_X = -100000;
 
-export type FadeViewProps = {
+export type FadeViewProps = Pick<ViewProps, 'style' | 'pointerEvents' | 'children'> & {
   isVisible: boolean;
-  style?: StyleProp<ViewStyle>;
-  pointerEvents?: ViewProps['pointerEvents'];
   onHidden?: () => void;
-  children?: ReactNode;
 };
 
 /**
