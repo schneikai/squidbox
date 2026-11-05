@@ -6,9 +6,12 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useContacts from '@/features/contacts-context/useContacts';
 import confirmAsync from '@/utils/confirmAsync';
 
-/** The contact screen's ⋯ menu: add to a list, share the X profile (with an X handle), delete. */
+/**
+ * The contact screen's ⋯ menu: add to a list, share the X profile (with an X handle), remove the
+ * photo (with one), delete.
+ */
 export default function ContactMenu({ contact, afterDelete }) {
-  const { setContactDeleted } = useContacts();
+  const { setContactDeleted, removeAvatar } = useContacts();
 
   async function handleDelete() {
     const confirmed = await confirmAsync({
@@ -37,6 +40,9 @@ export default function ContactMenu({ contact, afterDelete }) {
             Share.share({ url: `https://x.com/${contact.xHandle}`, message: `https://x.com/${contact.xHandle}` })
           }
         />
+      )}
+      {!!contact.avatarFilename && (
+        <MenuOption label="Remove photo" icon="image" onPress={() => removeAvatar(contact.id)} />
       )}
       <MenuOption label="Delete contact" icon="trash" colorPalette="danger" onPress={handleDelete} />
     </MenuButton>

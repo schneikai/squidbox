@@ -1,5 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
+import deletePath from '@/utils/files/deletePath';
+
 // Where a library keeps its assets on this device: originals and thumbnails in its documents
 // folders, downloaded copies in the cache. `library` is always passed (useLibrary().paths, or the
 // library a flow started with), so a late write lands in the library it belongs to. Web keeps no
@@ -22,6 +24,11 @@ export function getAssetThumbnailsDirectory(library) {
   return `${documentFolder()}${library.thumbnailsDir}`;
 }
 
+/** @param {{ avatarsDir: string }} library */
+export function getAvatarsDirectory(library) {
+  return `${documentFolder()}${library.avatarsDir}`;
+}
+
 // The folder full-resolution files are fetched into (to save or share), each in a folder of its own,
 // per library, so a removed library leaves none of its photos behind. In the cache: the OS may clear it.
 /** @param {{ downloadsDir: string }} library */
@@ -37,6 +44,20 @@ export function getAssetThumbnailUri(thumbnailFilename, library) {
   return `${getAssetThumbnailsDirectory(library)}${thumbnailFilename}`;
 }
 
+// A contact's photo (`avatar-<contactId>-<n>.jpg`).
+export function getAvatarUri(avatarFilename, library) {
+  return `${getAvatarsDirectory(library)}${avatarFilename}`;
+}
+
+export async function hasAvatarAsync(avatarFilename, library) {
+  return new File(getAvatarUri(avatarFilename, library)).exists;
+}
+
+// Removes a contact's old or removed photo from the device (the copy in the user's storage stays).
+export function deleteAvatar(avatarFilename, library) {
+  deletePath(getAvatarUri(avatarFilename, library));
+}
+
 export async function assetFileExistsAsync(filename, library) {
   return new File(getAssetFileUri(filename, library)).exists;
 }
@@ -48,7 +69,11 @@ export async function hasThumbnailAsync(thumbnailFilename, library) {
 }
 
 export async function createAssetDirectoriesAsync(library) {
-  for (const uri of [getAssetFilesDirectory(library), getAssetThumbnailsDirectory(library)]) {
+  for (const uri of [
+    getAssetFilesDirectory(library),
+    getAssetThumbnailsDirectory(library),
+    getAvatarsDirectory(library),
+  ]) {
     new Directory(uri).create({ intermediates: true, idempotent: true });
   }
 }

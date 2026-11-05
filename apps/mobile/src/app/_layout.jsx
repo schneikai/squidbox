@@ -24,6 +24,7 @@ import BootScreen from '@/features/boot/BootScreen';
 import CloudProvider from '@/features/cloud/CloudProvider';
 import useCloud from '@/features/cloud/useCloud';
 import CloudSyncProvider from '@/features/cloud-sync/CloudSyncProvider';
+import ContactAvatarLoaderProvider from '@/features/contact-avatar/ContactAvatarLoaderProvider';
 import ContactsProvider from '@/features/contacts-context/ContactsProvider';
 import PostsProvider from '@/features/posts-context/PostsProvider';
 import FirstSyncScreen from '@/features/sync-status/FirstSyncScreen';
@@ -211,25 +212,27 @@ const NAVIGATION_THEME = { ...DefaultTheme, colors: { ...DefaultTheme.colors, ba
 const MainApp = memo(function MainApp() {
   return (
     <AssetThumbnailLoaderProvider>
-      <ActionSheetProvider>
-        <MenuProvider>
-          <AssetPickerProvider>
-            <FloatingBarsProvider>
-              <View style={styles.root}>
-                <LinearGradient
-                  colors={colors.background.app}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <ThemeProvider value={NAVIGATION_THEME}>
-                  <RootStack />
-                </ThemeProvider>
-              </View>
-            </FloatingBarsProvider>
-          </AssetPickerProvider>
-        </MenuProvider>
-      </ActionSheetProvider>
+      <ContactAvatarLoaderProvider>
+        <ActionSheetProvider>
+          <MenuProvider>
+            <AssetPickerProvider>
+              <FloatingBarsProvider>
+                <View style={styles.root}>
+                  <LinearGradient
+                    colors={colors.background.app}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <ThemeProvider value={NAVIGATION_THEME}>
+                    <RootStack />
+                  </ThemeProvider>
+                </View>
+              </FloatingBarsProvider>
+            </AssetPickerProvider>
+          </MenuProvider>
+        </ActionSheetProvider>
+      </ContactAvatarLoaderProvider>
     </AssetThumbnailLoaderProvider>
   );
 });

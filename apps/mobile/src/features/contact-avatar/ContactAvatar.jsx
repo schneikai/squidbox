@@ -1,13 +1,20 @@
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import useContactAvatarLoader from './useContactAvatarLoader';
+
 import Icon from '@/components/Icon';
+import useCloud from '@/features/cloud/useCloud';
+import useLibrary from '@/library/useLibrary';
 import { colors, scale } from '@/styles/designTokens';
+import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
 
 // The sizes it is drawn at: a chip's and a list stack's, a row's, the favorites row's, the contact screen's.
 const SIZES = { small: scale(32), regular: scale(44), large: scale(56), hero: scale(96) };
 
 /**
- * A contact's round avatar: the picture at `uri` when given, else its initials (a person without a
+ * A contact's round avatar: the picture at `uri` when given, else the contact's photo (from the device,
+ * or fetched from the user's storage once backed up), else its initials (a person without a
  * name yet) on the accent's soft surface, like the account button.
  * `size` is `small`, `regular`, `large` or `hero`. With `isFavorite` it wears a red heart on a white
  * disc at its bottom right; `isStacked` rings it in white, for avatars overlapping in a stack.
@@ -21,9 +28,11 @@ export default function ContactAvatar({
   isStacked = false,
   style,
 }) {
+  const avatarUri = useAvatarUri(contact);
   const diameter = SIZES[size];
   const initials = initialsOf(contact.name);
   const heart = Math.max(scale(14), Math.round(diameter * 0.32));
+  const pictureUri = uri ?? avatarUri;
 
   return (
     <View
@@ -37,8 +46,8 @@ export default function ContactAvatar({
       accessibilityRole="image"
       accessibilityLabel={contact.name || 'New contact'}
     >
-      {uri ? (
-        <Image source={{ uri }} style={[StyleSheet.absoluteFill, { borderRadius: diameter / 2 }]} />
+      {pictureUri ? (
+        <Image source={{ uri: pictureUri }} style={[StyleSheet.absoluteFill, { borderRadius: diameter / 2 }]} />
       ) : initials ? (
         <Text style={[styles.initials, { fontSize: Math.round(diameter * 0.38) }]} numberOfLines={1}>
           {initials}
@@ -53,6 +62,39 @@ export default function ContactAvatar({
       )}
     </View>
   );
+}
+
+// The uri of the contact's photo once it is on the device: a backed-up one not on it yet is fetched
+// through the avatar loader while signed in; null until then, and for a contact without a photo.
+function useAvatarUri(contact) {
+  const filename = contact.avatarFilename;
+  const [shown, setShown] = useState(null); // the filename found on the device
+  const { paths: library } = useLibrary();
+  const { isAuthenticated } = useCloud();
+  const loader = useContactAvatarLoader();
+  const isShown = !!filename && shown === filename;
+
+  useEffect(() => {
+    if (!filename || isShown) return undefined;
+    let isCancelled = false;
+    let withdraw;
+    (async () => {
+      const isLocal = await hasAvatarAsync(filename, library);
+      if (isCancelled) return;
+      if (isLocal) setShown(filename);
+      else if (isAuthenticated && contact.isAvatarSynced && loader) {
+        withdraw = loader.loadAvatar(contact, (result) => result === 'done' && setShown(filename));
+      }
+    })();
+    return () => {
+      isCancelled = true;
+      withdraw?.();
+    };
+    // contact stands for its filename and isAvatarSynced: a new object of the same photo asks again for nothing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filename, contact.isAvatarSynced, isAuthenticated, isShown, library, loader]);
+
+  return isShown ? getAvatarUri(filename, library) : null;
 }
 
 // The first letters of the name's first two words ("Maya Lindqvist" → "ML").

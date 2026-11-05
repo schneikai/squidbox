@@ -9,12 +9,25 @@ export {
   getAssetThumbnailsDirectory,
   getDownloadsDirectory,
   getAssetFileUri,
+  getAvatarsDirectory,
   createAssetDirectoriesAsync,
 } from './assetStorage.js';
 
 export function getAssetThumbnailUri(thumbnailFilename) {
   return webThumbnailUrls.get(thumbnailFilename);
 }
+
+// A contact's photo is its presigned URL too, under its own name.
+export function getAvatarUri(avatarFilename) {
+  return webThumbnailUrls.get(avatarFilename);
+}
+
+export async function hasAvatarAsync(avatarFilename) {
+  return webThumbnailUrls.has(avatarFilename);
+}
+
+// The web preview keeps no files.
+export function deleteAvatar() {}
 
 export async function assetFileExistsAsync() {
   return false;

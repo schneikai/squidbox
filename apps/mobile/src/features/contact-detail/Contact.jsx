@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import ContactAlbums from './ContactAlbums';
 import ContactMenu from './ContactMenu';
@@ -34,6 +34,7 @@ import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
+import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 const PHOTOS_SHOWN = 6;
 
@@ -43,7 +44,7 @@ const PHOTOS_SHOWN = 6;
 export default function Contact({ contact }) {
   const navigation = useNavigation();
   const haptics = useHaptics();
-  const { toggleFavoriteContact } = useContacts();
+  const { toggleFavoriteContact, setAvatarAsync } = useContacts();
   const [draft, setDraft] = useState(() => contactDraft(contact));
   const { flush } = useSaveAsYouType(storedContactFields(draft), save);
   const lists = useContactLists(contact.id);
@@ -68,6 +69,22 @@ export default function Contact({ contact }) {
   function handleToggleFavorite() {
     haptics.selection();
     toggleFavoriteContact(contact.id);
+  }
+
+  async function handlePickPhoto() {
+    const [picked] =
+      (await pickImageFromMediaLibrary({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: false,
+        allowsEditing: true,
+        aspect: [1, 1],
+      })) ?? [];
+    if (!picked) return;
+    try {
+      await setAvatarAsync(contact.id, picked.uri);
+    } catch (error) {
+      Alert.alert("Couldn't change the photo", error.message);
+    }
   }
 
   return (
@@ -95,6 +112,11 @@ export default function Contact({ contact }) {
           <SuperPressable onDoublePress={handleToggleFavorite} accessibilityHint="Double tap to favorite">
             <ContactAvatar contact={contact} size="hero" isFavorite={contact.isFavorite} />
           </SuperPressable>
+          <Button
+            label={contact.avatarFilename ? 'Change photo' : 'Add photo'}
+            size="small"
+            onPress={handlePickPhoto}
+          />
         </View>
 
         <Field label="Name">
@@ -186,6 +208,7 @@ function usePhotos(scope) {
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
+    gap: 4,
     marginBottom: 16,
   },
   card: {

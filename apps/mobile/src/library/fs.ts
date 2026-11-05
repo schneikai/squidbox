@@ -11,6 +11,7 @@ import {
   getDownloadsDirectory,
   getAssetThumbnailUri,
   getAssetThumbnailsDirectory,
+  getAvatarsDirectory,
 } from '@/utils/assets/assetStorage';
 import deleteStaleDownloadsAsync from '@/utils/assets/files/deleteStaleDownloadsAsync';
 import deletePath from '@/utils/files/deletePath';
@@ -28,7 +29,7 @@ export async function listFiles(dir: string): Promise<Set<string>> {
   return new Set(directory.exists ? directory.list().map((entry) => decodeURIComponent(entry.name)) : []);
 }
 
-// A library's two folders, ready when it opens, before anything is written into them; downloads over
+// A library's folders, ready when it opens, before anything is written into them; downloads over
 // an hour old go.
 export async function createLibraryFolders(library: OpenLibrary): Promise<void> {
   await createAssetDirectoriesAsync(library);
@@ -42,7 +43,12 @@ export function libraryLimitMessage(_error: unknown): string | null {
 
 // A removed library's folders and its downloads cache, with everything in them.
 export async function removeLibraryFolders(paths: LibraryPaths): Promise<void> {
-  for (const dir of [getAssetFilesDirectory(paths), getAssetThumbnailsDirectory(paths), getDownloadsDirectory(paths)]) {
+  for (const dir of [
+    getAssetFilesDirectory(paths),
+    getAssetThumbnailsDirectory(paths),
+    getAvatarsDirectory(paths),
+    getDownloadsDirectory(paths),
+  ]) {
     deletePath(dir);
   }
 }

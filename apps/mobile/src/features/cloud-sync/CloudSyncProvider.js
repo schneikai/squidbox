@@ -9,7 +9,7 @@ import { removeAssetFiles } from '@/library/fs';
 import useLibrary from '@/library/useLibrary';
 import { isBackupRunning, runBackup } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
-import { getAssetFileUri, getAssetThumbnailUri } from '@/utils/assets/assetStorage';
+import { getAssetFileUri, getAssetThumbnailUri, getAvatarUri } from '@/utils/assets/assetStorage';
 import ensureAssetThumbnailAsync from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
@@ -90,6 +90,8 @@ export default function CloudSyncProvider({ children }) {
           signal,
         }),
       deleteFile: (filename) => removeAssetFiles([{ filename }], library),
+      uploadAvatar: (contact) =>
+        uploadFileAsync(contact.avatarFilename, getAvatarUri(contact.avatarFilename, library), identity, { signal }),
     });
   }
 

@@ -3,11 +3,16 @@ import { useMemo } from 'react';
 
 import ContactsContext from './ContactsContext';
 
+import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
+import useLibrary from '@/library/useLibrary';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
+import * as schema from '@/sync/db/schema';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
+import { readByIds } from '@/sync/readByIds';
 import { requestSync } from '@/sync/worker';
+import { deleteAvatar } from '@/utils/assets/assetStorage';
 import getNewItemId from '@/utils/getNewItemId';
 import newRecord from '@/utils/newRecord';
 
@@ -31,6 +36,7 @@ const LIST_DEFAULTS = { notes: null, position: null };
 // that writes a record and its edges commits once. Screens read through their own live queries
 // (contactQuery, contactListQuery).
 export default function ContactsProvider({ children }) {
+  const { paths: library } = useLibrary();
   const value = useMemo(() => {
     const db = getDb();
     async function written(write) {
@@ -47,6 +53,22 @@ export default function ContactsProvider({ children }) {
         written((tx) =>
           contacts.toggle(tx, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null })),
         ),
+      // A new photo gets a new name (`avatar-<id>-<n>.jpg`, the next n), so a device holding the old
+      // one never shows it for the new, and the backup uploads it.
+      setAvatarAsync: async (id, sourceUri) => {
+        const [contact] = await readByIds(db, schema.contacts, [id]);
+        if (!contact) return;
+        const avatarFilename = `avatar-${id}-${avatarNumber(contact.avatarFilename) + 1}.jpg`;
+        await makeAvatarAsync(sourceUri, avatarFilename, library);
+        await written((tx) => contacts.update(tx, id, { avatarFilename, isAvatarSynced: false }));
+        if (contact.avatarFilename) deleteAvatar(contact.avatarFilename, library);
+      },
+      removeAvatar: async (id) => {
+        const [contact] = await readByIds(db, schema.contacts, [id]);
+        if (!contact?.avatarFilename) return;
+        await written((tx) => contacts.update(tx, id, { avatarFilename: null, isAvatarSynced: false }));
+        deleteAvatar(contact.avatarFilename, library);
+      },
       // The contact leaves its lists and the photos, albums and posts it is on with it.
       setContactDeleted: (id) =>
         written(async (tx) => {
@@ -74,7 +96,12 @@ export default function ContactsProvider({ children }) {
       setTargetContacts: ({ targetType, targetId }, contactIds) =>
         written((tx) => contactLinks.set(tx, { targetType, targetId }, contactIds, getNewItemId)),
     };
-  }, []);
+  }, [library]);
 
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
+}
+
+// The n of `avatar-<id>-<n>.jpg`, 0 without a photo.
+function avatarNumber(avatarFilename) {
+  return Number(avatarFilename?.match(/-(\d+)\.jpg$/)?.[1] ?? 0);
 }

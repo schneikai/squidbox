@@ -8,6 +8,7 @@ describe('libraryPaths', () => {
       dbName: 'squidbox.db',
       filesDir: 'assetfiles/',
       thumbnailsDir: 'assetthumbnails/',
+      avatarsDir: 'avatars/',
       downloadsDir: 'downloads/squidbox/',
     });
   });
@@ -17,6 +18,7 @@ describe('libraryPaths', () => {
       dbName: 'library-3f2a-b1.db',
       filesDir: 'libraries/3f2a-b1/files/',
       thumbnailsDir: 'libraries/3f2a-b1/thumbnails/',
+      avatarsDir: 'libraries/3f2a-b1/avatars/',
       downloadsDir: 'downloads/3f2a-b1/',
     });
   });

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import DuplicatesCard from './DuplicatesCard';
 import QuickAddBar from './QuickAddBar';
@@ -48,7 +48,12 @@ export default function NewContactScreen() {
 
   async function save() {
     const contact = await addContact(fields);
-    if (avatarUri) await setAvatarAsync(contact.id, avatarUri);
+    // The contact is added either way; a photo that couldn't be made is said, not lost silently.
+    if (avatarUri) {
+      await setAvatarAsync(contact.id, avatarUri).catch((error) =>
+        Alert.alert("Couldn't add the photo", error.message),
+      );
+    }
     if (listIds.length > 0) await addToLists([contact.id], listIds);
     haptics.success();
     return () => router.replace(`/contact/${contact.id}`);

@@ -7,6 +7,7 @@ export interface LibraryPaths {
   dbName: string;
   filesDir: string; // relative to the app's document directory
   thumbnailsDir: string;
+  avatarsDir: string; // contacts' photos
   downloadsDir: string; // relative to the app's cache directory: full-resolution files fetched to save or view
 }
 
@@ -14,12 +15,19 @@ export function libraryPaths(id: string): LibraryPaths {
   if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Invalid library id: ${id}`);
   const downloadsDir = `downloads/${id}/`;
   if (id === MIGRATED_LIBRARY_ID) {
-    return { dbName: MIGRATED_DB_NAME, filesDir: 'assetfiles/', thumbnailsDir: 'assetthumbnails/', downloadsDir };
+    return {
+      dbName: MIGRATED_DB_NAME,
+      filesDir: 'assetfiles/',
+      thumbnailsDir: 'assetthumbnails/',
+      avatarsDir: 'avatars/',
+      downloadsDir,
+    };
   }
   return {
     dbName: `library-${id}.db`,
     filesDir: `libraries/${id}/files/`,
     thumbnailsDir: `libraries/${id}/thumbnails/`,
+    avatarsDir: `libraries/${id}/avatars/`,
     downloadsDir,
   };
 }
