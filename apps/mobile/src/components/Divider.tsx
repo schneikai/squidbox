@@ -1,8 +1,8 @@
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { colors, layout, space } from '@/styles/designTokens';
 
-type DividerProps = { variant?: 'list' | 'menu'; style?: StyleProp<ViewStyle> };
+export type DividerProps = { variant?: 'list' | 'menu'; style?: StyleProp<ViewStyle> };
 
 // The hairline between rows. `variant`: `list` (the default) between the rows of a grouped list,
 // inset to the rows' text; `menu` between groups of menu rows, e.g. a destructive action and the

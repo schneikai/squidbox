@@ -1,15 +1,12 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import AssetImage from '@/components/AssetImage';
+import AssetImage, { type AssetImageProps } from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { colors, radii, sizes } from '@/styles/designTokens';
-import type { AssetRow } from '@/sync/db/schema';
 
-type CoverImageProps = {
-  asset?: Pick<AssetRow, 'thumbnailFilename'> | null;
-  uri?: string;
+export type CoverImageProps = Pick<AssetImageProps, 'asset' | 'uri'> & {
   moreCount?: number;
   moreCorner?: 'bottomRight' | 'bottomRightSmall';
   style?: StyleProp<ViewStyle>;

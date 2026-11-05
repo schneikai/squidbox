@@ -1,10 +1,9 @@
-import type { ReactNode } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { ViewProps } from 'react-native';
 
 import Note from '@/components/Note';
 import Text from '@/components/Text';
 
-type WarningNoteProps = { children: ReactNode; style?: StyleProp<ViewStyle> };
+export type WarningNoteProps = Pick<ViewProps, 'children' | 'style'>;
 
 /**
  * A warning about what's on the screen, on a yellow note with an alert icon: something to fix that

@@ -99,7 +99,7 @@ Possible paid tier later: 3 days' retention by default, 30 days for paying users
 Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
 Favorite, Delete. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
 `components/popup-menu-options` under it, opened from the grids' "hold still" step (`onPeek` in
-`components/sortable-grid/useDragReorder.js`), so moving the finger still closes it and drags, as in
+`components/sortable-grid/useDragReorder.ts`), so moving the finger still closes it and drags, as in
 Photos, and it works on web. Unlike today's quick view, the menu stays open after the finger lifts.
 Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iOS only and takes the
 touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
@@ -175,7 +175,7 @@ so a better wording can be tried and published.
   outside the header pill) but has no better idea for now. Tried and dropped: a 3pt frame with the
   avatar inside the pill. Revisit when an idea comes up.
 - **Dark mode.** The tokens are ready for it (`colors` are semantic roles over a private `palette`
-  in `styles/designTokens.js`), but there is no dark set yet: add one and pick it with
+  in `styles/designTokens.ts`), but there is no dark set yet: add one and pick it with
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
 - **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.js`, an
   alias of `layout.sideGutter`) still stands in 19 files, to become `layout.sideGutter` once the TS
@@ -225,10 +225,11 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`src/sync`, `src/library`, `src/utils`, `src/hooks`, `src/lib`, the data contexts (assets, posts,
-albums), app settings and the cloud are strict TypeScript, and `npm run typecheck` checks every
-`.ts`/`.tsx` in `src` strictly. Still JavaScript: the components, the other features and the routes.
-Convert them feature by feature, then add `test/` to the check and turn `allowJs` off.
+`src/sync`, `src/library`, `src/utils`, `src/hooks`, `src/lib`, `src/components`, `src/styles`, the
+data contexts (assets, posts, albums), app settings, the cloud, the thumbnail loader's context and
+`SelectionActions` are strict TypeScript, and `npm run typecheck` checks every `.ts`/`.tsx` in `src`
+strictly. Still JavaScript: the other features and the routes. Convert them feature by feature, then
+add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 

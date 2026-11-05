@@ -1,16 +1,22 @@
 import type { ReactNode } from 'react';
-import { Text as RNText, StyleSheet, type StyleProp, type TextStyle } from 'react-native';
+import {
+  Text as RNText,
+  StyleSheet,
+  type StyleProp,
+  type TextProps as RNTextProps,
+  type TextStyle,
+} from 'react-native';
 
 import { colors, textStyles } from '@/styles/designTokens';
 
-type TextProps = {
-  variant?: keyof typeof styles;
+export type TextVariant = keyof typeof styles;
+export type TextTone = keyof typeof toneStyles;
+
+export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'accessibilityLabel'> & {
+  variant?: TextVariant;
   size?: 'regular' | 'small';
-  tone?: keyof typeof toneStyles;
+  tone?: TextTone;
   children?: ReactNode;
-  selectable?: boolean;
-  numberOfLines?: number;
-  accessibilityLabel?: string;
   style?: StyleProp<TextStyle>;
 };
 
@@ -86,7 +92,7 @@ const styles = StyleSheet.create({
 });
 
 // `size="small"`: the smaller size of a role that has one.
-const smallStyles: Partial<Record<keyof typeof styles, TextStyle>> = StyleSheet.create({
+const smallStyles: Partial<Record<TextVariant, TextStyle>> = StyleSheet.create({
   reading: textStyles.subheadline,
   label: textStyles.caption2Bold,
   title: textStyles.subheadlineBold,

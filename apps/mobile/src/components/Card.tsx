@@ -2,7 +2,7 @@ import { View, StyleSheet, type ViewProps } from 'react-native';
 
 import { colors, layout, radii, shadows } from '@/styles/designTokens';
 
-type CardProps = ViewProps & {
+export type CardProps = ViewProps & {
   padded?: boolean;
   hasControlRow?: boolean;
 };

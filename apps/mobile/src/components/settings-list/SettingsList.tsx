@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ReactNode } from 'react';
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import {
   Pressable,
   Text as RNText,
@@ -8,6 +8,7 @@ import {
   type AccessibilityState,
 } from 'react-native';
 
+import type { Palette } from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
@@ -17,7 +18,7 @@ import { colors, layout, press, sizes, space, textStyles } from '@/styles/design
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
 
-type SectionProps = { children: ReactNode; isHeaderless?: boolean };
+export type SectionProps = { children: ReactNode; isHeaderless?: boolean };
 
 // `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
 export function Section({ children, isHeaderless = false }: SectionProps) {
@@ -25,7 +26,8 @@ export function Section({ children, isHeaderless = false }: SectionProps) {
   return (
     <Card style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
-        <View key={(isValidElement(child) && child.key) || i}>
+        // A text child has no key.
+        <View key={(isValidElement(child) ? child.key : null) ?? i}>
           {child}
           {i < kids.length - 1 && <Divider />}
         </View>
@@ -34,7 +36,7 @@ export function Section({ children, isHeaderless = false }: SectionProps) {
   );
 }
 
-type SectionFooterProps = { children: ReactNode };
+export type SectionFooterProps = { children?: ReactNode };
 
 // iOS-style small gray explanatory text shown BELOW a grouped section.
 export function SectionFooter({ children }: SectionFooterProps) {
@@ -45,14 +47,14 @@ export function SectionFooter({ children }: SectionFooterProps) {
   );
 }
 
-type RowProps = {
-  label: ReactNode;
-  description?: ReactNode;
+export type RowProps = {
+  label: string | ReactElement;
+  description?: string | null;
   leading?: ReactNode;
   value?: string | null;
   onPress?: () => void;
   disabled?: boolean;
-  colorPalette?: 'danger';
+  colorPalette?: Extract<Palette, 'danger'>;
   hasChevron?: boolean;
   isSelected?: boolean;
   size?: 'regular' | 'small';

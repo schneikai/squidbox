@@ -1,0 +1,25 @@
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+
+import Button from '@/components/Button';
+import EmptyState from '@/components/EmptyState';
+import { colors, space } from '@/styles/designTokens';
+
+export type CatalogStatusProps = { title?: string; error?: string | null; retry: () => void };
+
+// Where Venice's models (or what else loads from the server) will be: a spinner while they load, or
+// `title` and why they couldn't with Try again (`error` and `retry`, as useAiCatalog has them).
+export default function CatalogStatus({ title = "Couldn't load the models", error, retry }: CatalogStatusProps) {
+  if (!error) return <ActivityIndicator style={styles.status} color={colors.text.secondary} />;
+  return (
+    <View>
+      <EmptyState icon="alert" title={title} subtitle={error} />
+      <Button label="Try again" onPress={retry} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  status: {
+    paddingVertical: space.xxxl,
+  },
+});

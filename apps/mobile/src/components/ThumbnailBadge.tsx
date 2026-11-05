@@ -4,7 +4,7 @@ import Icon, { type IconName } from '@/components/Icon';
 import cornerStyles from '@/styles/cornerStyles';
 import { colors, layout, radii, textStyles, typography } from '@/styles/designTokens';
 
-type ThumbnailBadgeProps = {
+export type ThumbnailBadgeProps = {
   icon?: IconName;
   label?: string;
   corner?: keyof typeof cornerStyles;
