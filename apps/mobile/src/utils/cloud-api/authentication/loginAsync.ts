@@ -8,10 +8,10 @@ import type { Session } from '@/library/session';
 // Signs in and resolves the session the server answered with; the caller stores it once its
 // library is open.
 export default async function loginAsync(email: string, password: string): Promise<Session> {
-  const body: LoginRequest = { email, password };
+  if (!API_BASE_URL) throw new Error('This build has no API URL (EXPO_PUBLIC_API_URL)');
   const {
     data: { accessToken, refreshToken, user, serverId },
-  } = await api.post<LoginResponse>('auth/login', body);
+  } = await api.post<LoginResponse>('auth/login', { email, password } satisfies LoginRequest);
   return {
     serverId,
     userId: user.id,

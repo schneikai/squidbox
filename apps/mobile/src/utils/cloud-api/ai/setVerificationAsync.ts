@@ -11,10 +11,9 @@ export default async function setVerificationAsync(
   modelId: string,
   isVerified: boolean,
 ): Promise<AiModelsResponse> {
-  const body: VerificationRequest = { isVerified };
   const { data } = await apiWithAuthentication.put<AiModelsResponse>(
     `ai/verification/${kind}/${encodeURIComponent(modelId)}`,
-    body,
+    { isVerified } satisfies VerificationRequest,
   );
   return data;
 }

@@ -11,7 +11,9 @@ export default async function getAssetFileDownloadUrlsAsync(
   fileKeys: string[],
   { expiresIn }: DownloadUrlOptions = {},
 ): Promise<[key: string, url: string][]> {
-  const body: DownloadUrlsRequest = { keys: fileKeys, ...(expiresIn !== undefined && { expiresIn }) };
-  const { data } = await apiWithAuthentication.post<DownloadUrlsResponse>('assets/download-urls', body);
+  const { data } = await apiWithAuthentication.post<DownloadUrlsResponse>('assets/download-urls', {
+    keys: fileKeys,
+    ...(expiresIn !== undefined && { expiresIn }),
+  } satisfies DownloadUrlsRequest);
   return (data?.urls ?? []).map(({ key, url }) => [key, url]);
 }

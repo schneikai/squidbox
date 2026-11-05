@@ -3,13 +3,11 @@
 // the envelope are the shared contract (packages/shared/contracts/server.ts), which the app reads.
 import type { ApiError, ApiErrorCode } from '@squidbox/shared';
 
-export type ErrorCode = ApiErrorCode;
-
 export class AppError extends Error {
   readonly statusCode: number;
-  readonly code: ErrorCode;
+  readonly code: ApiErrorCode;
 
-  constructor(statusCode: number, code: ErrorCode, message: string) {
+  constructor(statusCode: number, code: ApiErrorCode, message: string) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
@@ -51,7 +49,7 @@ export class AppError extends Error {
   }
 }
 
-export function errorBody(code: ErrorCode, message: string): ApiError {
+export function errorBody(code: ApiErrorCode, message: string): ApiError {
   return { error: { code, message } };
 }
 

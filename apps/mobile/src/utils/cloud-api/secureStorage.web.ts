@@ -1,14 +1,12 @@
-import type * as native from './secureStorage';
-
 // Web is a dev preview (see README → "Web preview"), where SecureStore doesn't exist.
-export async function getItemAsync(key: string): ReturnType<typeof native.getItemAsync> {
+export async function getItemAsync(key: string): Promise<string | null> {
   return localStorage.getItem(key);
 }
 
-export async function setItemAsync(key: string, value: string): ReturnType<typeof native.setItemAsync> {
+export async function setItemAsync(key: string, value: string): Promise<void> {
   localStorage.setItem(key, value);
 }
 
-export async function deleteItemAsync(key: string): ReturnType<typeof native.deleteItemAsync> {
+export async function deleteItemAsync(key: string): Promise<void> {
   localStorage.removeItem(key);
 }

@@ -9,7 +9,7 @@ import { dropTokensAsync, getSession, updateSession } from './sessionStore';
 // error leaves everything for the next launch.
 export default async function initializeCloudAsync(): Promise<void> {
   const session = getSession();
-  if (!session?.tokens || session.apiBaseUrl === API_BASE_URL) return;
+  if (!API_BASE_URL || !session?.tokens || session.apiBaseUrl === API_BASE_URL) return;
 
   const serverId = await fetchServerIdAsync();
   if (serverId === undefined) return;
@@ -17,7 +17,7 @@ export default async function initializeCloudAsync(): Promise<void> {
   else await updateSession((current) => (current ? { ...current, apiBaseUrl: API_BASE_URL } : current));
 }
 
-// The server's identity (null when it reports none), or undefined when it can't be reached.
+// The server's identity (null from a server too old to report one), or undefined when it can't be reached.
 async function fetchServerIdAsync(): Promise<string | null | undefined> {
   try {
     const { data } = await api.get<UpResponse>(`${SERVER_URL}/up`);

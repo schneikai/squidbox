@@ -24,8 +24,7 @@ export default function refreshAccessTokenAsync(identity?: SyncIdentity): Promis
 
 async function refreshOnceAsync(refreshToken: string): Promise<string> {
   try {
-    const body: RefreshRequest = { refreshToken };
-    const { data } = await api.post<RefreshResponse>('auth/refresh', body);
+    const { data } = await api.post<RefreshResponse>('auth/refresh', { refreshToken } satisfies RefreshRequest);
     const tokens = { accessToken: data.accessToken, refreshToken: data.refreshToken };
     if (!(await replaceTokensAsync(refreshToken, tokens))) throw new SessionChangedError();
     return data.accessToken;

@@ -1,3 +1,4 @@
+import { apiErrorSchema } from '@squidbox/shared';
 import { File, type UploadProgress, type UploadResult, UploadType } from 'expo-file-system';
 
 import cancelledError from '@/features/cloud/assets/cancelledError';
@@ -6,13 +7,13 @@ import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
 import requireSession from '@/utils/cloud-api/requireSession';
 
+type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?: AbortSignal };
+
 // Uploads a file to the API which proxies it to S3 synchronously.
 // The API only responds 200 after S3 confirms the upload, so no extra validation is needed.
 // The access token is read fresh for `identity`, the user the upload runs for, and refused once
 // someone else is signed in (requireSession). `onProgress({ bytesSent, totalBytes })` follows it;
 // aborting `signal` cancels it, which rejects with an `AbortError` (like downloadAssetFileAsync).
-type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?: AbortSignal };
-
 export default async function uploadFileAsync(
   filename: string,
   fileUri: string,
@@ -43,6 +44,7 @@ async function doUploadAsync(
 ): Promise<UploadResult> {
   // A signal aborted before this upload starts (during the token refresh, say) fires no event.
   if (signal?.aborted) throw cancelled(filename);
+  if (!API_BASE_URL) throw new Error('This build has no API URL (EXPO_PUBLIC_API_URL)');
   // Token is passed as a query param because iOS can silently drop Authorization
   // headers on background upload tasks (NSURLSessionUploadTask limitation).
   // The API's authenticate_request supports both header and ?token= param.
@@ -66,7 +68,16 @@ async function doUploadAsync(
 function assertSuccess(result: UploadResult | undefined, filename: string, signal?: AbortSignal) {
   if (signal?.aborted) throw cancelled(filename);
   if (!result || result.status < 200 || result.status >= 300) {
-    const serverError = result?.body ? JSON.parse(result.body)?.error : null;
-    throw new Error(serverError || `Upload failed with status ${result?.status}`);
+    throw new Error(serverErrorMessage(result?.body) ?? `Upload failed with status ${result?.status}`);
+  }
+}
+
+// The message of the server's error envelope (apiErrorSchema), if the body is one.
+function serverErrorMessage(body: string | undefined): string | undefined {
+  if (!body) return undefined;
+  try {
+    return apiErrorSchema.safeParse(JSON.parse(body)).data?.error.message;
+  } catch {
+    return undefined;
   }
 }

@@ -10,10 +10,8 @@ export default async function setUncensoredAsync(
   modelId: string,
   uncensored: UncensoredRequest['uncensored'],
 ): Promise<AiModelsResponse> {
-  const body: UncensoredRequest = { uncensored };
-  const { data } = await apiWithAuthentication.put<AiModelsResponse>(
-    `ai/uncensored/${encodeURIComponent(modelId)}`,
-    body,
-  );
+  const { data } = await apiWithAuthentication.put<AiModelsResponse>(`ai/uncensored/${encodeURIComponent(modelId)}`, {
+    uncensored,
+  } satisfies UncensoredRequest);
   return data;
 }

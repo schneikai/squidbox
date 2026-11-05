@@ -1,4 +1,4 @@
-import type { RefreshRequest } from '@squidbox/shared';
+import type { LogoutRequest } from '@squidbox/shared';
 
 import api from '../api';
 
@@ -6,8 +6,7 @@ import api from '../api';
 // route needs no access token, so a failure (offline, a token the server no longer knows) changes
 // nothing for the user.
 export default async function logoutAsync(refreshToken: string): Promise<void> {
-  const body: RefreshRequest = { refreshToken };
   try {
-    await api.post('auth/logout', body);
+    await api.post('auth/logout', { refreshToken } satisfies LogoutRequest);
   } catch {}
 }
