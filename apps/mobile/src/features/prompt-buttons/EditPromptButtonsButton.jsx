@@ -4,6 +4,9 @@ import { useContext } from 'react';
 import AssistantTrayContext from '@/components/AssistantTrayContext';
 import Button from '@/components/Button';
 
+// The pen on an AssistantTray.
+const TRAY_LOOK = { variant: 'secondary', colorPalette: 'accent' };
+
 /**
  * The small pen beside a row of prompt buttons: opens the list of prompt buttons (Settings →
  * Assistant → Prompt buttons), pushed inside the chat's sheet. Muted, like every icon button, but
@@ -11,14 +14,13 @@ import Button from '@/components/Button';
  * assistant's look.
  */
 export default function EditPromptButtonsButton() {
-  const isOnTray = useContext(AssistantTrayContext) !== null;
+  const look = useContext(AssistantTrayContext) !== null ? TRAY_LOOK : null;
 
   return (
     <Button
       icon="edit"
       size="small"
-      variant={isOnTray ? 'secondary' : undefined}
-      colorPalette={isOnTray ? 'accent' : undefined}
+      {...look}
       onPress={() => router.navigate('/prompt-buttons')}
       accessibilityLabel="Edit prompt buttons"
     />

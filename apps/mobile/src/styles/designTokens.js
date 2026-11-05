@@ -106,6 +106,16 @@ export const colors = {
   },
 };
 
+// `shadows.raised`: how far down it falls and how far it blurs.
+const RAISED_OFFSET = 2;
+const RAISED_BLUR = 8;
+
+// The lit edge of a surface, drawn inside it: a `light` rim along its top and left, a `shade` along
+// its bottom and right.
+function litEdge(light, shade) {
+  return { boxShadow: `inset 1.5px 1.5px 0 ${light}, inset -1px -1px 0 ${shade}` };
+}
+
 export const shadows = {
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
@@ -118,7 +128,7 @@ export const shadows = {
   // A chip lifted off its surface (the prompt buttons on the assistant's tray and over the chat's
   // composer); a row of them leaves `raisedShadowRoom` for it
   raised: {
-    boxShadow: `0 2px 8px ${alpha(palette.violet900, 0.08)}`,
+    boxShadow: `0 ${RAISED_OFFSET}px ${RAISED_BLUR}px ${alpha(palette.violet900, 0.08)}`,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -134,18 +144,17 @@ export const shadows = {
 
   // The lit edge of a floating surface (FloatingPill, a popover), lit from the top left: a bright
   // rim along its top and left, a faint shade along its bottom and right, drawn inside its edge
-  litEdge: {
-    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 1)}, inset -1px -1px 0 ${alpha(palette.black, 0.06)}`,
-  },
+  litEdge: litEdge(alpha(palette.white, 1), alpha(palette.black, 0.06)),
   // litEdge on a lavender surface (the assistant's tray): its shaded edge in violet, not gray
-  litEdgeTint: {
-    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.white, 0.9)}, inset -1px -1px 0 ${alpha(palette.violet600, 0.08)}`,
-  },
+  litEdgeTint: litEdge(alpha(palette.white, 0.9), alpha(palette.violet600, 0.08)),
   // litEdge on the violet, in violets: white and black would read as a hard crescent and a gray line
-  litEdgeAccent: {
-    boxShadow: `inset 1.5px 1.5px 0 ${alpha(palette.violet250, 0.95)}, inset -1px -1px 0 ${alpha(palette.violet900, 0.85)}`,
-  },
+  litEdgeAccent: litEdge(alpha(palette.violet250, 0.95), alpha(palette.violet900, 0.85)),
 };
+
+// The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back
+// so the row stays the chips' height: the whole shadow, which reaches its blur less its offset above
+// the chip and its blur plus its offset below, so none of it is cut off.
+export const raisedShadowRoom = { top: RAISED_BLUR - RAISED_OFFSET, bottom: RAISED_BLUR + RAISED_OFFSET };
 
 export const radii = {
   pill: 100,
@@ -235,10 +244,6 @@ export const motion = {
 
 // How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
 // little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).
-// The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back
-// so the row stays the chips' height: the whole shadow (2 pt down, 8 pt blur), so none of it is cut off.
-export const raisedShadowRoom = scale(10);
-
 export const press = {
   filled: { opacity: 0.85, transform: [{ scale: 0.96 }] },
   flat: { opacity: 0.6 },

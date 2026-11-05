@@ -78,8 +78,8 @@ All paths are under `apps/mobile/src/`.
   outside any pill: it stands for the user, not for an action.
 - Icon colors: every icon button is `muted` grey (Button's default), in the headers, the bottom bars
   and the tab bar alike; `colorPalette="danger"` for destructive actions and `isSelected` for a
-  setting that is on; `colorPalette="accent"` for the editor card's toolbar and the pen on the
-  assistant's tray.
+  setting that is on; `colorPalette="accent"` for the editor card's toolbar. The pen on the
+  assistant's tray is a `secondary` disc with `colorPalette="accent"` (light violet, violet pen).
 
 ## Known conflicts: our decision wins
 

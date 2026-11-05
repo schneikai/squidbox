@@ -35,11 +35,13 @@ export default function PromptButtonRow({ buttons, onPress, inset, children }) {
 
 const styles = StyleSheet.create({
   row: {
-    marginVertical: -raisedShadowRoom,
+    marginTop: -raisedShadowRoom.top,
+    marginBottom: -raisedShadowRoom.bottom,
   },
   content: {
     alignItems: 'center',
     gap: 8,
-    paddingVertical: raisedShadowRoom,
+    paddingTop: raisedShadowRoom.top,
+    paddingBottom: raisedShadowRoom.bottom,
   },
 });

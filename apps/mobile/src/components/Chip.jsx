@@ -9,8 +9,9 @@ import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography
  * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
  * by a soft shadow, a prompt button in a row of them: the assistant's tray, over the chat's
  * composer), `lead` (light violet with a semibold violet label, lifted like `raised`, the
- * assistant's own action at the end of a row of prompt buttons: Ask anything) or `add` (the dashed Add at the end of a row, with its plus). Every variant has the
- * same frame, so a tag tapped on never changes its width and moves the chips after it.
+ * assistant's own action at the end of a row of prompt buttons: Ask anything) or `add` (the
+ * dashed Add at the end of a row, with its plus). Every variant has the same frame, so a tag
+ * tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), in the accent color. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
@@ -32,7 +33,8 @@ export default function Chip({
   const leadingIcon = variant === 'add' ? 'add' : icon;
   const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
   const isAccent = isAccentFill || variant === 'add';
-  const frame = [chipFrame, styles.chip, styles[variant], isAccentFill && styles.accentFill];
+  const isLifted = variant === 'raised' || variant === 'lead';
+  const frame = [chipFrame, styles.chip, styles[variant], isAccentFill && styles.accentFill, isLifted && styles.lifted];
   const content = (
     <>
       {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
@@ -86,9 +88,9 @@ const styles = StyleSheet.create({
   },
   raised: {
     backgroundColor: colors.background.surface,
-    ...shadows.raised,
   },
-  lead: {
+  // `raised` and `lead`.
+  lifted: {
     ...shadows.raised,
   },
   add: {
