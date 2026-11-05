@@ -80,7 +80,7 @@ export { default as Smartphone } from 'lucide-react-native/icons/smartphone';
 export { default as Sparkle } from 'lucide-react-native/icons/sparkle';
 export { default as SpellCheck } from 'lucide-react-native/icons/spell-check';
 export { default as SquareCheck } from 'lucide-react-native/icons/square-check';
-export { default as SquareUserRound } from 'lucide-react-native/icons/square-user-round';
+export { default as UserRound } from 'lucide-react-native/icons/user-round';
 export { default as Star } from 'lucide-react-native/icons/star';
 export { default as Tag } from 'lucide-react-native/icons/tag';
 export { default as ThumbsUp } from 'lucide-react-native/icons/thumbs-up';
