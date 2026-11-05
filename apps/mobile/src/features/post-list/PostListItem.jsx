@@ -33,8 +33,8 @@ export default function PostListItem({ post, actions }) {
         meta={
           isThread && (
             <View style={styles.threadMark}>
-              <Icon name="thread" size={sizes.captionIcon} color={colors.accent.base} />
-              <Text style={listTextStyles.captionAccent}>{`${1 + threadCount} posts`}</Text>
+              <Icon name="thread" size={sizes.captionIcon} color={colors.text.secondary} />
+              <Text style={listTextStyles.caption}>{`${1 + threadCount} posts`}</Text>
             </View>
           )
         }
@@ -64,7 +64,9 @@ const styles = StyleSheet.create({
     right: STACK_INSET * 2,
     bottom: 0,
   },
+  // Right-aligned in the Posted row, quiet like the date beside it.
   threadMark: {
+    marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(4),
