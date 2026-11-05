@@ -231,8 +231,8 @@ export const motion = {
 // How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
 // little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).
 // The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back
-// so the row stays the chips' height. It clips the shadow's soft tail on purpose, as the mockups do.
-export const raisedShadowRoom = scale(4);
+// so the row stays the chips' height: the whole shadow (2 pt down, 8 pt blur), so none of it is cut off.
+export const raisedShadowRoom = scale(10);
 
 export const press = {
   filled: { opacity: 0.85, transform: [{ scale: 0.96 }] },

@@ -8,8 +8,8 @@ import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
  * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
  * by a soft shadow, a prompt button in a row of them: the assistant's tray, over the chat's
- * composer), `lead` (light violet with a semibold violet label, the first action of a row: Ask
- * anything) or `add` (the dashed Add at the end of a row, with its plus). Every variant has the
+ * composer), `lead` (light violet with a semibold violet label, lifted like `raised`, the first
+ * action of a row: Ask anything) or `add` (the dashed Add at the end of a row, with its plus). Every variant has the
  * same frame, so a tag tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), in the accent color. `isSelected` tells VoiceOver it's on (as
@@ -86,6 +86,9 @@ const styles = StyleSheet.create({
   },
   raised: {
     backgroundColor: colors.background.surface,
+    ...shadows.raised,
+  },
+  lead: {
     ...shadows.raised,
   },
   add: {
