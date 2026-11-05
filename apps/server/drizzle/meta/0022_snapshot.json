@@ -118,8 +118,12 @@
           "name": "album_assets_user_id_users_id_fk",
           "tableFrom": "album_assets",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -127,7 +131,10 @@
       "compositePrimaryKeys": {
         "album_assets_user_id_id_pk": {
           "name": "album_assets_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -264,8 +271,12 @@
           "name": "albums_user_id_users_id_fk",
           "tableFrom": "albums",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -273,7 +284,10 @@
       "compositePrimaryKeys": {
         "albums_user_id_id_pk": {
           "name": "albums_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -558,8 +572,12 @@
           "name": "assets_user_id_users_id_fk",
           "tableFrom": "assets",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -567,7 +585,10 @@
       "compositePrimaryKeys": {
         "assets_user_id_id_pk": {
           "name": "assets_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -662,8 +683,12 @@
           "name": "favorites_user_id_users_id_fk",
           "tableFrom": "favorites",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -671,7 +696,10 @@
       "compositePrimaryKeys": {
         "favorites_user_id_id_pk": {
           "name": "favorites_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -772,8 +800,12 @@
           "name": "instructions_user_id_users_id_fk",
           "tableFrom": "instructions",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -781,7 +813,10 @@
       "compositePrimaryKeys": {
         "instructions_user_id_id_pk": {
           "name": "instructions_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -876,8 +911,12 @@
           "name": "model_choices_user_id_users_id_fk",
           "tableFrom": "model_choices",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -885,7 +924,10 @@
       "compositePrimaryKeys": {
         "model_choices_user_id_id_pk": {
           "name": "model_choices_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -992,8 +1034,12 @@
           "name": "personas_user_id_users_id_fk",
           "tableFrom": "personas",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1001,7 +1047,10 @@
       "compositePrimaryKeys": {
         "personas_user_id_id_pk": {
           "name": "personas_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1123,8 +1172,12 @@
           "name": "post_assets_user_id_users_id_fk",
           "tableFrom": "post_assets",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1132,7 +1185,10 @@
       "compositePrimaryKeys": {
         "post_assets_user_id_id_pk": {
           "name": "post_assets_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1257,8 +1313,12 @@
           "name": "posts_user_id_users_id_fk",
           "tableFrom": "posts",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1266,7 +1326,10 @@
       "compositePrimaryKeys": {
         "posts_user_id_id_pk": {
           "name": "posts_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1379,8 +1442,12 @@
           "name": "prompt_buttons_user_id_users_id_fk",
           "tableFrom": "prompt_buttons",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1388,7 +1455,10 @@
       "compositePrimaryKeys": {
         "prompt_buttons_user_id_id_pk": {
           "name": "prompt_buttons_user_id_id_pk",
-          "columns": ["user_id", "id"]
+          "columns": [
+            "user_id",
+            "id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1467,8 +1537,12 @@
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1478,7 +1552,9 @@
         "refresh_tokens_token_unique": {
           "name": "refresh_tokens_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -1543,7 +1619,9 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},
