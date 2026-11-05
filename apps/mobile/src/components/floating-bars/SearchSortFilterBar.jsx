@@ -46,7 +46,7 @@ export default function SearchSortFilterBar({
       }
       hasActiveState={activeFilter.length > 0}
       placeholder={placeholder}
-      bottom={bottom + layout.barBottom}
+      bottom={bottom + layout.barMargin}
       left={layout.sideGutter}
       maxWidth={screenWidth - layout.sideGutter * 2}
     />

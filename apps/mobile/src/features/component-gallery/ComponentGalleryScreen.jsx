@@ -18,6 +18,7 @@ import EmptyState from '@/components/EmptyState';
 import Field from '@/components/Field';
 import Icon, { ICON_NAMES } from '@/components/Icon';
 import IntroText from '@/components/IntroText';
+import Note from '@/components/Note';
 import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
 import ProgressRing from '@/components/ProgressRing';
@@ -204,6 +205,11 @@ export default function ComponentGalleryScreen() {
             <ChatBubble side="user" label="New post" text="Write a post about the sunrise hike" />
             <ChatBubble side="assistant" text="Here are three takes on your sunrise hike." />
           </View>
+        </Specimen>
+        <Specimen name="Note">
+          <Note tone="tint" style={styles.fill}>
+            <Text>Golden hour on the ridge, worth the early start.</Text>
+          </Note>
         </Specimen>
         <Specimen name="WarningNote">
           <WarningNote style={styles.fill}>This instruction text is missing its {'{voice}'} placeholder.</WarningNote>

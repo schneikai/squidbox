@@ -7,11 +7,11 @@ import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import Text from '@/components/Text';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
-import { colors, layout, scale } from '@/styles/designTokens';
+import { colors, layout, sizes } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
-const THUMB_SIZE = scale(36);
+const THUMB_SIZE = sizes.thumbnailSmall;
 const SUBJECTS = { draft: 'New post', edit: 'Edit post', post: 'This post' };
 
 /**
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: layout.cardGap,
+    gap: layout.rowLeadingGap,
   },
   thumbs: {
     flexDirection: 'row',

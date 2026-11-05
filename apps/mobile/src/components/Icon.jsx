@@ -190,6 +190,15 @@ const ICON_MAP = {
 // Every name an Icon takes, e.g. for the component gallery.
 export const ICON_NAMES = Object.keys(ICON_MAP);
 
+/**
+ * @param {{
+ *   name: string,
+ *   size?: number,
+ *   color?: string,
+ *   filled?: boolean,
+ *   style?: import('react-native').StyleProp<import('react-native').ViewStyle>,
+ * }} props
+ */
 export default function Icon({ name, size = sizes.icon, color, filled, style }) {
   const IconComponent = ICON_MAP[name];
 

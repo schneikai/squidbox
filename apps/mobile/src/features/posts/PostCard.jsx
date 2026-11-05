@@ -48,7 +48,7 @@ export default function PostCard({
   }
 
   return (
-    <Card padded style={styles.card}>
+    <Card padded hasControlRow>
       <View style={styles.top}>
         <TextInput
           multiline
@@ -69,7 +69,11 @@ export default function PostCard({
           />
         )}
       </View>
-      <PostAssetsEditor postAssets={postAssets} onChange={(value) => onChange(key, { postAssets: value })} />
+      <PostAssetsEditor
+        postAssets={postAssets}
+        onChange={(value) => onChange(key, { postAssets: value })}
+        style={styles.assets}
+      />
       <PostCardToolbar
         isFirst={isFirst}
         exclude={postAssets.map((postAsset) => postAsset.asset.id)}
@@ -86,10 +90,6 @@ export default function PostCard({
 }
 
 const styles = StyleSheet.create({
-  // The toolbar's 44 pt row is the room under its icons.
-  card: {
-    paddingBottom: space.sm,
-  },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {
     flexDirection: 'row',
@@ -99,10 +99,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  // A card's gap from the text and the toolbar (the card's gap is the toolbar's slack).
+  assets: {
+    marginVertical: layout.cardGap - layout.controlRowSlack,
+  },
   // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
   // gap, and keeps the card's side inset below it.
   writeWithAi: {
-    marginBottom: layout.cardInset - space.sm,
+    marginTop: layout.cardGap - layout.controlRowSlack,
+    marginBottom: layout.cardInset - layout.controlRowSlack,
   },
   // The × lines up with the text's first line.
   remove: {

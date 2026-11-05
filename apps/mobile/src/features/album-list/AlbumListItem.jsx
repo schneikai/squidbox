@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    gap: layout.iconGap,
+    gap: space.sm,
   },
   metaCount: {
     flexShrink: 0,

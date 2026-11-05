@@ -3,8 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import voiceFields from './voiceFields';
 
 import BottomSheet from '@/components/BottomSheet';
+import Note from '@/components/Note';
 import Text from '@/components/Text';
-import { colors, layout, radii, space } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 
 // What goes in a field of Writing as you (`field`, a key of voiceFields): its description and three
 // examples. `field` stays set while the sheet slides away after `isVisible` turned false.
@@ -19,9 +20,9 @@ export default function FieldInfoSheet({ field, isVisible, onClose }) {
       </Text>
       <View style={styles.examples}>
         {examples.map((example) => (
-          <View key={example} style={styles.example}>
+          <Note key={example} tone="tint">
             <Text>{example}</Text>
-          </View>
+          </Note>
         ))}
       </View>
     </BottomSheet>
@@ -35,11 +36,5 @@ const styles = StyleSheet.create({
   },
   examples: {
     gap: space.sm,
-  },
-  example: {
-    backgroundColor: colors.background.tint,
-    borderRadius: radii.card,
-    paddingHorizontal: layout.cardInset,
-    paddingVertical: space.md,
   },
 });

@@ -10,7 +10,7 @@ import modelKindText from './modelKindText';
 import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import IntroText from '@/components/IntroText';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
@@ -19,7 +19,7 @@ import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { space } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -97,7 +97,7 @@ export default function ComparePickScreen() {
         title="Compare"
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom }]}>
-        <IntroText style={styles.intro}>{modelKindText[kind].pickIntro}</IntroText>
+        <IntroText isScreenIntro>{modelKindText[kind].pickIntro}</IntroText>
         {rows ? (
           <Section>
             {models.map(({ id, name, model, score }) => (
@@ -134,11 +134,8 @@ export default function ComparePickScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: MODAL_HEADER_HEIGHT,
+    paddingTop: layout.sheetContentTop,
     paddingHorizontal: SCREEN_PADDING,
     gap: space.md,
-  },
-  intro: {
-    paddingHorizontal: space.xs,
   },
 });

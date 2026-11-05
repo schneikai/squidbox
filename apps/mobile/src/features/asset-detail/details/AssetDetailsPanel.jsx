@@ -7,11 +7,10 @@ import AssetNote from './AssetNote';
 import useDetailsPanelDrag from './useDetailsPanelDrag';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import { SCREEN_PADDING } from '@/constants';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import PhotoTagsSection from '@/features/photo-tags/PhotoTagsSection';
 import PostRows from '@/features/post-list/PostRows';
-import { colors, layout } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 import formatFullDateTime from '@/utils/date-time/formatFullDateTime';
@@ -26,7 +25,7 @@ import formatVideoDuration from '@/utils/formatVideoDuration';
  * it moves them along `verticalDrag`'s track (useDetailsPanelDrag, holding `pagerGesture` while it
  * runs). While the note is edited, `onEditingBottomChange(bottom)` says where its field ends within
  * the details (0 once done). Only the current page's (`isCurrent`) stay live and editable; a
- * neighbour's are read once, ready to swipe in. Everything lines up on one inset, SCREEN_PADDING.
+ * neighbour's are read once, ready to swipe in. Everything lines up on the screen's gutter.
  */
 export default function AssetDetailsPanel({
   asset,
@@ -45,7 +44,7 @@ export default function AssetDetailsPanel({
     <GestureDetector gesture={gesture}>
       <Animated.View style={[styles.panel, style]}>
         <Animated.View
-          style={[styles.content, { paddingBottom: bottom + layout.barBottom }, contentStyle]}
+          style={[styles.content, { paddingBottom: bottom + layout.barMargin }, contentStyle]}
           onLayout={onContentLayout}
         >
           <AssetDetails
@@ -108,13 +107,14 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: SCREEN_PADDING,
-    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: space.lg,
+    paddingHorizontal: layout.sideGutter,
   },
+  // The panel's blocks are apart as a screen's sections are.
   tags: {
-    marginTop: SCREEN_PADDING,
+    marginTop: layout.sectionGap,
   },
   info: {
-    marginTop: SCREEN_PADDING,
+    marginTop: layout.sectionGap,
   },
 });

@@ -23,8 +23,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.iconGap,
+    // A chip's height (chipFrame), with room for its text at the sides.
+    minHeight: sizes.smallButton + space.sm,
     paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
     borderRadius: radii.pill,
     backgroundColor: colors.status.danger,
   },

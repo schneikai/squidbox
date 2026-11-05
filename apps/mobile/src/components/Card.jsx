@@ -8,11 +8,14 @@ import { colors, layout, radii, shadows } from '@/styles/designTokens';
  * Use for: content cards, input areas, media frames.
  * Do NOT use for: toolbars, chat bubbles, floating pills (FloatingPill).
  * `padded` gives it a card's inset and the gap between its parts (content cards); without it the
- * content reaches the edges (media frames, inputs).
+ * content reaches the edges (media frames, inputs). `hasControlRow`, on a padded card that ends in
+ * a row of 44 pt controls (a toolbar, a chat option's actions), lets that row's own room make up
+ * the inset under it and the gap above it, so its glyphs sit cardGap from the text and cardInset
+ * from the edge.
  */
-export default function Card({ padded = false, children, style, ...rest }) {
+export default function Card({ padded = false, hasControlRow = false, children, style, ...rest }) {
   return (
-    <View style={[styles.card, padded && styles.padded, style]} {...rest}>
+    <View style={[styles.card, padded && styles.padded, hasControlRow && styles.controlRow, style]} {...rest}>
       {children}
     </View>
   );
@@ -28,5 +31,9 @@ const styles = StyleSheet.create({
   padded: {
     padding: layout.cardInset,
     gap: layout.cardGap,
+  },
+  controlRow: {
+    paddingBottom: layout.controlRowSlack,
+    gap: layout.controlRowSlack,
   },
 });

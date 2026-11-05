@@ -10,8 +10,8 @@ import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list.
-export default function PostAssetsEditor({ postAssets, onChange }) {
+// hold one to reorder, × to take it out. `onChange` gets the new list. style is for layout only.
+export default function PostAssetsEditor({ postAssets, onChange, style }) {
   const haptics = useHaptics();
 
   const countInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
@@ -29,7 +29,7 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
   if (postAssets.length === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <DraggableFlatList
         data={postAssets}
         horizontal

@@ -9,10 +9,10 @@ import turnStatus from './turnStatus';
 import CoverImage from '@/components/CoverImage';
 import IntroText from '@/components/IntroText';
 import Text from '@/components/Text';
-import { SCREEN_PADDING } from '@/constants';
-import { layout, space } from '@/styles/designTokens';
+import { Row } from '@/components/settings-list/SettingsList';
+import { scale, space } from '@/styles/designTokens';
 
-const THUMBNAIL = 56;
+const THUMBNAIL = scale(56);
 
 // Memoized: a poll that brings a new photo's tags renders only its row.
 export default memo(VerifyPhotoRow);
@@ -25,32 +25,31 @@ function VerifyPhotoRow({ uri, turn, isRunning }) {
   const status = turnStatus(turn, isRunning);
 
   return (
-    <View style={styles.row}>
-      <VerifyStatusIcon status={status} />
-      <CoverImage uri={uri ?? undefined} style={styles.thumbnail} />
-      <View style={styles.tags}>
-        {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
-        {turn?.items.length > 0 && <TagChips tags={turn.items} />}
-        {status === 'missed' && <Text variant="error">Missed: {missReason(turn)}</Text>}
-      </View>
-    </View>
+    <Row
+      leading={
+        <>
+          <VerifyStatusIcon status={status} />
+          <CoverImage uri={uri ?? undefined} style={styles.thumbnail} />
+        </>
+      }
+      label={
+        <View style={styles.tags}>
+          {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
+          {turn?.items.length > 0 && <TagChips tags={turn.items} />}
+          {status === 'missed' && <Text variant="error">Missed: {missReason(turn)}</Text>}
+        </View>
+      }
+      size="small"
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: layout.rowPaddingYCompact,
-  },
   thumbnail: {
     width: THUMBNAIL,
     height: THUMBNAIL,
   },
   tags: {
-    flex: 1,
-    gap: layout.iconGap,
+    gap: space.sm,
   },
 });

@@ -170,8 +170,9 @@ export const space = {
 
 const SIDE_GUTTER = space.lg;
 const CARD_INSET = space.lg;
-const BAR_BOTTOM = space.lg;
-const POST_CARD_PADDING = space.sm;
+const BAR_MARGIN = space.lg;
+const OBJECT_INSET = space.md;
+const POST_CARD_PADDING = OBJECT_INSET;
 const CARD_RADIUS = 16;
 
 // Fixed sizes of controls and icons; they scale with the screen like everything else.
@@ -182,11 +183,14 @@ export const sizes = {
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
   menuIcon: scale(16),
+  thumbnail: scale(72), // a list row's leading picture (ThumbnailRow)
+  thumbnailSmall: scale(36), // a small leading picture: a pick row's, what a chat is about
+  postTile: { width: scale(84), height: scale(112) }, // a post's picture as a row card's tile (PostRowCard)
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
   popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
-const BAR_HEIGHT = sizes.iconButton + BAR_BOTTOM * 2;
+const BAR_HEIGHT = sizes.iconButton + BAR_MARGIN * 2;
 
 // What a spacing means, on the scale: cards, rows, tiles and the app's chrome take a role, never a
 // step, so one kind of thing has one spacing everywhere.
@@ -195,10 +199,17 @@ export const layout = {
   cardInset: CARD_INSET, // a card's or a sheet's inset (Card `padded`)
   rowInset: space.lg, // a list row's text inset, and its divider's, header's, footer's and intro's
   cardGap: space.md, // between the parts of a card or the rows of a form
+  // Objects on a card (pictures, chips, a tray's row) sit one step closer to its edge than text,
+  // which starts at cardInset.
+  objectInset: OBJECT_INSET,
+  // Above and below a row of 44 pt controls at a card's end: with the row's 12 pt of room around its
+  // 20 pt glyphs, they sit cardGap from the text and cardInset from the edge.
+  controlRowSlack: space.xs,
+  rowLeadingGap: space.md, // a row's leading thumbnail, icon or indicator from its text; a card's thumbnail header too
   rowPaddingY: space.lg, // a settings row's vertical padding
   rowPaddingYCompact: space.md, // a row beside a thumbnail, a small settings row, a log block, a pick row
   badgeInset: space.sm, // a badge from a tile's or a grid cell's corner (ThumbnailBadge `corner`)
-  badgeInsetSmall: space.hair, // a badge from the corner of a small (34 pt) thumbnail
+  badgeInsetSmall: space.hair, // a badge from the corner of a small (36 pt) thumbnail
   capsulePaddingX: space.xs + space.hair, // a small label's capsule around its text (Badge, ThumbnailBadge)
   capsulePaddingY: space.hair,
   sectionGap: space.xl, // between a screen's sections
@@ -207,7 +218,8 @@ export const layout = {
   linkPaddingX: space.xxl, // a regular text link's side padding (Button); AddRow and PostedAtPicker undo it
   keyboardGap: space.md, // between the keyboard (or the safe area) and what sits on it (useKeyboardInset)
   gridGutter: 1, // the hairline between a grid's cells: a line, not a step
-  barBottom: BAR_BOTTOM, // between the bottom bars and the home indicator's safe area
+  barMargin: BAR_MARGIN, // a bar's room from the screen's edge, top or bottom (the safe area's), and a sheet header's
+  barGap: space.lg, // between two pills in a bar
   barHeight: BAR_HEIGHT, // a floating bar's row with the room around it
   barClearance: BAR_HEIGHT + space.lg, // what content keeps free under the bottom bars
   barPaddingX: space.sm,
@@ -215,6 +227,8 @@ export const layout = {
   toolbarFrame: 3, // the glass frame around a toolbar's buttons, its lit rim inside it (FloatingPill)
   contentTop: scale(88), // clears the floating header
   contentBottom: scale(128), // clears the floating bottom bars
+  sheetContentTop: BAR_HEIGHT + space.sm, // a sheet's content under its header (ModalHeader)
+  contentEnd: space.lg, // what a screen's or a sheet's content keeps above the bottom safe area
   popoverGap: 25, // between a trigger button and the popover that opens from it
   introGap: space.md, // between a screen's intro text (IntroText at its top) and the content below it
   actionsGap: space.xxl, // between a screen's content and its text actions under it (ActionButtons)
@@ -227,7 +241,7 @@ export const layout = {
   postCardPadding: POST_CARD_PADDING,
   postTextInset: CARD_INSET - POST_CARD_PADDING,
   postTextBottom: space.xs,
-  postCardGap: space.md,
+  postCardGap: space.md, // the same as cardGap
 };
 
 export const radii = {
@@ -237,6 +251,8 @@ export const radii = {
   postPicture: CARD_RADIUS - POST_CARD_PADDING, // a post card's pictures, concentric with the card's corner
   modal: 20,
   badge: 6, // a small label inside content (Badge)
+  bubble: 18, // a chat bubble's corners
+  bubbleTail: 4, // a chat bubble's corner on its sender's side, under the last line
 };
 
 // The sizes and line heights textStyles are built from. Text takes a textStyle, never these; they

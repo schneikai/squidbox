@@ -7,7 +7,7 @@ import Text from '@/components/Text';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import { space } from '@/styles/designTokens';
+import {} from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -93,6 +93,7 @@ export default function FirstSyncScreen() {
 
 const styles = StyleSheet.create({
   centred: { textAlign: 'center' },
-  count: { marginTop: space.sm, textAlign: 'center' },
-  hint: { textAlign: 'center', marginTop: space.xs },
+  // StatusScreen's gap spaces the column.
+  count: { textAlign: 'center' },
+  hint: { textAlign: 'center' },
 });

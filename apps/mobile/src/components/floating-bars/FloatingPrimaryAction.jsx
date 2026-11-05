@@ -11,7 +11,7 @@ export default function FloatingPrimaryAction({ children, align = 'stretch' }) {
   const { bottom } = useSafeAreaInsets();
   return (
     <View
-      style={[styles.container, align === 'center' && styles.center, { bottom: bottom + layout.barBottom }]}
+      style={[styles.container, align === 'center' && styles.center, { bottom: bottom + layout.barMargin }]}
       pointerEvents="box-none"
     >
       {children}

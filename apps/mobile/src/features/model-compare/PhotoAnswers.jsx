@@ -6,7 +6,7 @@ import ModelAnswers from './ModelAnswers';
 
 import CoverImage from '@/components/CoverImage';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { scale, space } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 
 const PHOTO_SIZE = scale(96);
 // Room between the sticky photo and whatever covers the top of the list.
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: space.md,
+    gap: layout.rowLeadingGap,
   },
   photo: {
     width: PHOTO_SIZE,

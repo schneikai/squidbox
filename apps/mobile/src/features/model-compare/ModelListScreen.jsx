@@ -1,6 +1,5 @@
 import { COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { StyleSheet } from 'react-native';
 
 import ModelDefaultsActions from './ModelDefaultsActions';
 import ModelRow from './ModelRow';
@@ -21,7 +20,7 @@ import AddRow from '@/components/settings-list/AddRow';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
-import { space } from '@/styles/designTokens';
+import {} from '@/styles/designTokens';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import confirmAsync from '@/utils/confirmAsync';
@@ -107,7 +106,7 @@ export default function ModelListScreen() {
         }
       />
       <DetailScrollView contentContainerStyle={{ paddingBottom }}>
-        <IntroText style={styles.intro}>{text.intro}</IntroText>
+        <IntroText isScreenIntro>{text.intro}</IntroText>
         <ScreenSectionHeader title="Your models" />
         {renderModels()}
       </DetailScrollView>
@@ -123,9 +122,3 @@ export default function ModelListScreen() {
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  intro: {
-    marginHorizontal: space.xs,
-  },
-});

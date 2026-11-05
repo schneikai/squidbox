@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
-import { colors, press, scale, sizes, space } from '@/styles/designTokens';
+import { colors, press, scale, sizes } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 
 /**
@@ -17,7 +17,7 @@ export default function NewPostCard({ onPress }) {
       accessibilityLabel="New post"
       style={({ pressed }) => pressed && press.flat}
     >
-      <Card padded style={styles.card}>
+      <Card padded hasControlRow>
         <Text style={[textareaTextStyle, styles.placeholder]}>What's new?</Text>
         <View style={styles.toolbar}>
           <Icon name="image" size={sizes.icon} color={colors.accent.base} />
@@ -29,9 +29,6 @@ export default function NewPostCard({ onPress }) {
 
 // The editor's first card (PostCard, PostCardToolbar) without its text field and buttons.
 const styles = StyleSheet.create({
-  card: {
-    paddingBottom: space.sm, // as PostCard's: the toolbar's row is the room under its icon
-  },
   placeholder: {
     minHeight: scale(84),
     color: colors.text.tertiary,

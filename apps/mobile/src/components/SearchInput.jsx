@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
 import TextInput from '@/components/TextInput';
-import { colors, sizes, space } from '@/styles/designTokens';
+import { colors, layout, sizes, space } from '@/styles/designTokens';
 
 /**
  * A TextInput for search terms: no autocorrect or autocapitalization. `variant` is where it sits:
@@ -30,8 +30,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: space.md,
-    gap: space.sm,
+    // A row's: the magnifier is its leading icon, the text starts where a row's with an icon does.
+    paddingHorizontal: layout.rowInset,
+    paddingVertical: space.md,
+    gap: layout.rowLeadingGap,
   },
   input: {
     flex: 1,

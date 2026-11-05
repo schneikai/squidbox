@@ -1,15 +1,7 @@
-import { StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
+import PostRowCard from './PostRowCard';
 
-import Card from '@/components/Card';
-import CoverImage from '@/components/CoverImage';
-import SuperPressable from '@/components/SuperPressable';
 import Text from '@/components/Text';
-import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { layout, radii, scale } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
-
-const AnimatedCard = Animated.createAnimatedComponent(Card);
 
 /**
  * A following post of a thread as a row card (the post screen, an unfolded thread in the posts
@@ -31,49 +23,19 @@ export default function ThreadPost({
   contentExiting,
 }) {
   const [first, ...more] = post.postAssets.map((postAsset) => postAsset.asset);
-  const tile = first && (
-    <CoverImage asset={first} style={styles.tile}>
-      {more.length > 0 && <ThumbnailBadge label={`+${more.length}`} corner="bottomRight" />}
-    </CoverImage>
-  );
 
   return (
-    <AnimatedCard entering={entering} exiting={exiting} style={[styles.card, style]}>
-      <Animated.View exiting={contentExiting} style={[styles.content, contentStyle]}>
-        {tile && onOpenAsset ? <SuperPressable onPress={() => onOpenAsset(first)}>{tile}</SuperPressable> : tile}
-        {isPresent(post.text) && (
-          <Text selectable={isTextSelectable} style={[styles.text, tile && styles.textBesideTile]}>
-            {post.text}
-          </Text>
-        )}
-      </Animated.View>
-    </AnimatedCard>
+    <PostRowCard
+      asset={first}
+      moreCount={more.length}
+      onPressAsset={onOpenAsset && (() => onOpenAsset(first))}
+      entering={entering}
+      exiting={exiting}
+      style={style}
+      contentStyle={contentStyle}
+      contentExiting={contentExiting}
+    >
+      {isPresent(post.text) && <Text selectable={isTextSelectable}>{post.text}</Text>}
+    </PostRowCard>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    padding: layout.postCardPadding,
-  },
-  // The text's own inset makes up the rest of the room between the tile and the text.
-  content: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: layout.postCardGap - layout.postTextInset,
-  },
-  tile: {
-    width: scale(84),
-    height: scale(112),
-    borderRadius: radii.postPicture,
-  },
-  // Inset like a post's text in PostView, so it starts at the same place.
-  text: {
-    flex: 1,
-    paddingHorizontal: layout.postTextInset,
-    paddingBottom: layout.postTextBottom,
-  },
-  // Its first line a little below the tile's top.
-  textBesideTile: {
-    paddingTop: layout.postTextInset,
-  },
-});

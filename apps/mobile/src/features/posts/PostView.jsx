@@ -5,7 +5,7 @@ import PostImage from './PostImage';
 import Card from '@/components/Card';
 import Text from '@/components/Text';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { layout, scale, space } from '@/styles/designTokens';
+import { layout, scale } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -22,7 +22,7 @@ export default function PostView({ post, onPressAsset, isTextSelectable = false,
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}
-      <View style={styles.body}>
+      <View style={[styles.body, !isPresent(postAssets) && styles.bodyTextOnly]}>
         {isPresent(text) && <Text selectable={isTextSelectable}>{text}</Text>}
         <View style={styles.meta}>
           <PostPostedAt postedAt={postedAt} />
@@ -44,10 +44,14 @@ const styles = StyleSheet.create({
     paddingBottom: layout.postTextBottom,
     gap: layout.cardGap,
   },
+  // Without pictures the text starts as far from the card's top as from its sides.
+  bodyTextOnly: {
+    paddingTop: layout.postTextInset,
+  },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    gap: layout.cardGap,
     minHeight: scale(20),
   },
 });

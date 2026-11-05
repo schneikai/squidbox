@@ -9,7 +9,7 @@ import { colors, space } from '@/styles/designTokens';
 export default function CatalogStatus({ title = "Couldn't load the models", error, retry }) {
   if (!error) return <ActivityIndicator style={styles.status} color={colors.text.secondary} />;
   return (
-    <View style={styles.status}>
+    <View>
       <EmptyState icon="alert" title={title} subtitle={error} />
       <Button label="Try again" onPress={retry} />
     </View>

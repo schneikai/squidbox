@@ -40,7 +40,9 @@ export function SectionFooter({ children }) {
 // goes before it (an icon), `description` is secondary text under it. `hasChevron` ends it with a
 // chevron (it opens a screen), `isSelected` with the accent check (the current one).
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
-// long list. `disabled` keeps it from taking presses.
+// long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
+// (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
+// `leading` may be several parts (a status icon and a thumbnail), set in a row.
 export function Row({
   label,
   description,
@@ -52,6 +54,8 @@ export function Row({
   hasChevron,
   isSelected = false,
   size = 'regular',
+  accessibilityRole = 'button',
+  accessibilityState,
   children,
 }) {
   const content = (
@@ -70,7 +74,12 @@ export function Row({
         {children}
         {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
         {hasChevron && (
-          <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={styles.chevron} />
+          <Icon
+            name="chevron-right"
+            size={sizes.iconSmall}
+            color={colors.text.tertiary}
+            style={value && styles.chevronAfterValue}
+          />
         )}
       </View>
     </View>
@@ -81,8 +90,8 @@ export function Row({
       <Pressable
         onPress={onPress}
         disabled={disabled}
-        accessibilityRole="button"
-        accessibilityState={{ disabled, selected: isSelected }}
+        accessibilityRole={accessibilityRole}
+        accessibilityState={{ disabled, selected: isSelected, ...accessibilityState }}
         style={({ pressed }) => pressed && !disabled && press.flat}
       >
         {content}
@@ -113,11 +122,15 @@ const styles = StyleSheet.create({
   rowSmall: {
     paddingVertical: layout.rowPaddingYCompact,
   },
-  chevron: {
+  // A value's chevron a little apart from it; a bare label's sits at rowRight's gap, like ThumbnailRow's.
+  chevronAfterValue: {
     marginLeft: space.xs,
   },
   rowLeading: {
-    marginRight: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.rowLeadingGap,
+    marginRight: layout.rowLeadingGap,
   },
   rowText: {
     flex: 1,

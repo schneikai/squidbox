@@ -6,7 +6,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
 import Text from '@/components/Text';
-import { motion, space } from '@/styles/designTokens';
+import { layout, motion } from '@/styles/designTokens';
 
 // A compare card's title: its letter (`label`, Model A) and an eye that puts the real model name in
 // its place; a second tap hides it again. The name comes out from under a blur that fades: a blur is
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.md,
+    gap: layout.rowLeadingGap,
   },
   text: {
     flexShrink: 1,

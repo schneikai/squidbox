@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.sm,
-    padding: layout.cardInset,
+    padding: layout.objectInset,
   },
   gap: {
     opacity: 0,

@@ -72,7 +72,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, childre
   }
 
   return (
-    <View style={[styles.container, { bottom: insets.bottom + layout.barBottom }]} pointerEvents="box-none">
+    <View style={[styles.container, { bottom: insets.bottom + layout.barMargin }]} pointerEvents="box-none">
       {children}
       <View style={styles.row} pointerEvents="box-none">
         {/* Left pill — share + favorite + download */}
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: layout.sideGutter,
     right: layout.sideGutter,
-    gap: layout.barBottom,
+    gap: layout.barGap,
     zIndex: 100,
   },
   row: {

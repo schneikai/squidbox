@@ -7,7 +7,7 @@ import Text from '@/components/Text';
 import { colors, layout, radii, raisedShadowRoom, shadows, sizes, space } from '@/styles/designTokens';
 
 // The inset the row's chips keep from the tray's edges.
-const TRAY_INSET = space.md;
+const TRAY_INSET = layout.objectInset;
 
 // What the tray gives what it holds (AssistantTrayContext).
 const TRAY = { inset: TRAY_INSET };

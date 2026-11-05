@@ -1,7 +1,5 @@
-import { Text as RNText, StyleSheet, View } from 'react-native';
-
-import Icon from '@/components/Icon';
-import { colors, layout, lineHeights, radii, sizes, space, textStyles } from '@/styles/designTokens';
+import Note from '@/components/Note';
+import Text from '@/components/Text';
 
 /**
  * A warning about what's on the screen, on a yellow note with an alert icon: something to fix that
@@ -10,29 +8,8 @@ import { colors, layout, lineHeights, radii, sizes, space, textStyles } from '@/
  */
 export default function WarningNote({ children, style }) {
   return (
-    <View style={[styles.note, style]} accessibilityRole="alert">
-      <Icon name="alert" size={sizes.iconSmall} color={colors.text.primary} style={styles.icon} />
-      <RNText style={styles.text}>{children}</RNText>
-    </View>
+    <Note tone="warning" icon="alert" accessibilityRole="alert" style={style}>
+      <Text size="small">{children}</Text>
+    </Note>
   );
 }
-
-const styles = StyleSheet.create({
-  note: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.md,
-    paddingHorizontal: layout.cardInset,
-    paddingVertical: space.md,
-    borderRadius: radii.card,
-    backgroundColor: colors.background.note,
-  },
-  icon: {
-    marginTop: (lineHeights.subheadline - sizes.iconSmall) / 2, // centred on the text's first line
-  },
-  text: {
-    flex: 1,
-    ...textStyles.subheadline,
-    color: colors.text.primary,
-  },
-});

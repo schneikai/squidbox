@@ -3,10 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import CoverImage from '@/components/CoverImage';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import { colors, press, scale, sizes, space } from '@/styles/designTokens';
+import { colors, layout, press, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-
-const THUMBNAIL_SIZE = scale(72);
 
 /**
  * A row of a list of albums or posts, as Apple Photos lists albums: `asset`'s thumbnail
@@ -43,12 +41,13 @@ export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtit
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: space.md,
+    gap: layout.rowLeadingGap,
   },
+  // The row's vertical room is on the thumbnail, not the row, so the divider stays at its bottom.
   thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    marginVertical: space.sm,
+    width: sizes.thumbnail,
+    height: sizes.thumbnail,
+    marginVertical: layout.rowPaddingYCompact,
   },
   text: {
     flex: 1,

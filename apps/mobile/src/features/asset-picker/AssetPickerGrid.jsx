@@ -1,6 +1,5 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
@@ -33,7 +32,7 @@ export default function AssetPickerGrid({ scope, exclude, selection, onScroll, s
         listRef={listRef}
         rows={rows}
         loadMore={loadMore}
-        paddingTop={MODAL_HEADER_HEIGHT}
+        paddingTop={layout.sheetContentTop}
         paddingBottom={bottom + layout.barClearance}
         onScroll={onScroll}
         scrollY={scrollY}

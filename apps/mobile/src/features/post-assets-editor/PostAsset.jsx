@@ -37,8 +37,9 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
 }
 
 const styles = StyleSheet.create({
+  // A thumbnail outside a post's card, like every CoverImage.
   tile: {
-    borderRadius: radii.card,
+    borderRadius: radii.cover,
     overflow: 'hidden',
   },
 });

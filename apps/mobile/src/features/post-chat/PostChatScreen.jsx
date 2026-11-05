@@ -14,7 +14,7 @@ import useWritingModelName from './useWritingModelName';
 
 import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
@@ -26,7 +26,7 @@ import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
-import { space } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import confirmAsync from '@/utils/confirmAsync';
 
 const ASK_ANYTHING = 'Ask anything';
@@ -191,9 +191,9 @@ function ModelNameHeader(headerProps) {
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: MODAL_HEADER_HEIGHT,
+    paddingTop: layout.sheetContentTop,
     paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: SCREEN_PADDING,
+    paddingBottom: layout.contentEnd,
     gap: space.md,
   },
   // The prompt buttons scroll to the screen's edges; the composer keeps the screen's inset.

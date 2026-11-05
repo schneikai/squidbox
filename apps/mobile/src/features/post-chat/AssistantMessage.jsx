@@ -22,7 +22,7 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }) {
 
   if (reply.status === 'error') {
     return (
-      <Card style={styles.status}>
+      <Card padded style={styles.status}>
         <Text variant="status" style={styles.statusText}>
           {reply.error}
         </Text>
@@ -53,7 +53,7 @@ function ThinkingCard() {
   }, []);
 
   return (
-    <Card style={styles.status}>
+    <Card padded style={styles.status}>
       <ActivityIndicator color={colors.text.secondary} />
       <Text variant="status" style={styles.statusText}>
         {isSlow ? 'Still writing…' : 'Thinking…'}

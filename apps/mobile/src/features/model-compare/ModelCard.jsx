@@ -5,7 +5,7 @@ import UncensoredToggle from './UncensoredToggle';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import { colors, space } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 
 /**
  * One model's answer in a blind compare: its letter with the eye for its name, its Uncensored
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: space.md,
+    gap: layout.rowLeadingGap,
   },
   loading: {
     paddingVertical: space.lg,

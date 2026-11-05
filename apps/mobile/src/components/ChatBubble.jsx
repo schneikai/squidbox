@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
-import { colors, glass, space, textStyles } from '@/styles/designTokens';
+import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
@@ -46,17 +46,17 @@ const styles = StyleSheet.create({
     paddingRight: OTHER_SIDE_WIDTH,
   },
   bubble: {
-    borderRadius: 18,
+    borderRadius: radii.bubble,
     paddingVertical: space.sm,
     paddingHorizontal: BUBBLE_PADDING_X,
     gap: space.xs,
   },
   // The corner that points at the speaker's side.
   userCorner: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: radii.bubbleTail,
   },
   assistantCorner: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: radii.bubbleTail,
   },
   label: {
     ...textStyles.footnoteBold,

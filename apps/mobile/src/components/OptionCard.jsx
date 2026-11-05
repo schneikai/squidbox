@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import { space } from '@/styles/designTokens';
+import {} from '@/styles/designTokens';
 
 /**
  * One post the assistant wrote: its text, and under it the row of actions in `children` when given
@@ -13,7 +13,7 @@ export default function OptionCard({ text, children }) {
   const hasActions = children != null;
 
   return (
-    <Card padded style={hasActions && styles.withActions}>
+    <Card padded hasControlRow={hasActions}>
       <Text selectable>{text}</Text>
       {hasActions && <View style={styles.actions}>{children}</View>}
     </Card>
@@ -21,11 +21,6 @@ export default function OptionCard({ text, children }) {
 }
 
 const styles = StyleSheet.create({
-  // The action buttons' own 44 pt row is the room under them.
-  withActions: {
-    paddingBottom: space.xs,
-    gap: space.xs,
-  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',

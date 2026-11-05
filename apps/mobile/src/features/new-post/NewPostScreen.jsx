@@ -1,16 +1,16 @@
 import { router, useNavigation } from 'expo-router';
 import { useEffect } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import NewPostCard from '@/features/new-post/NewPostCard';
 import RepostCard from '@/features/new-post/RepostCard';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { readNewestRepostDate } from '@/sync/postsRepository';
@@ -26,7 +26,7 @@ const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt
 export default function NewPostScreen() {
   const navigation = useNavigation();
   const { updatePost } = usePosts();
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet');
 
   const { rows, count, loadMore } = usePagedQuery(candidates, 20);
 
@@ -87,7 +87,7 @@ export default function NewPostScreen() {
         // More is asked for only once the first page landed (see PostList).
         onEndReached={rows ? loadMore : undefined}
         onEndReachedThreshold={2}
-        contentContainerStyle={[styles.content, { paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + space.lg }]}
+        contentContainerStyle={[styles.content, padding]}
       />
     </ModalSheet>
   );

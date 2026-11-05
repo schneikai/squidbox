@@ -5,7 +5,7 @@ import cornerStyles from '@/styles/cornerStyles';
 import { colors, layout, radii, textStyles, typography } from '@/styles/designTokens';
 
 // A small dark label over a picture (a video's length, "+3"), readable on any image. `corner`
-// (topLeft, topRight, bottomRight) puts it in that corner of its parent at the badge inset; style is
+// (topLeft, topRight, bottomRight, bottomRightSmall on a small thumbnail) puts it in that corner of its parent at the badge inset; style is
 // for layout only.
 export default function ThumbnailBadge({ icon, label, corner, style }) {
   return (

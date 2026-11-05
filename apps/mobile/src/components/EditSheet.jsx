@@ -1,13 +1,13 @@
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ActionButtons from '@/components/ActionButtons';
 import Button from '@/components/Button';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import { layout } from '@/styles/designTokens';
 
@@ -31,7 +31,7 @@ export default function EditSheet({
   isFilling = false,
   children,
 }) {
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet');
   const isSheetRoute = useSheetRoute()?.isFirstScreen ?? true;
 
   const sheetActions = actions.map((action) => ({ ...action, disabled: action.disabled || isSaving }));
@@ -76,7 +76,7 @@ export default function EditSheet({
       <ScrollView
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + SCREEN_PADDING }]}
+        contentContainerStyle={[styles.content, padding]}
       >
         {children}
         <ActionButtons actions={sheetActions} isScreenEnd />
@@ -87,23 +87,22 @@ export default function EditSheet({
 
 // The body that fills the sheet above the keyboard (`isFilling`).
 function FillingBody({ children }) {
-  const { bottom } = useSafeAreaInsets();
+  const { paddingTop, paddingBottom } = useScreenPadding('sheet');
   const keyboardInset = useKeyboardInset();
   const fillingStyle = useAnimatedStyle(() => ({
-    paddingBottom: Math.max(bottom + SCREEN_PADDING, keyboardInset.value),
+    paddingTop,
+    paddingBottom: Math.max(paddingBottom, keyboardInset.value),
   }));
   return <Animated.View style={[styles.filling, fillingStyle]}>{children}</Animated.View>;
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING,
     paddingHorizontal: SCREEN_PADDING,
     gap: layout.cardGap,
   },
   filling: {
     flex: 1,
-    paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING,
     paddingHorizontal: SCREEN_PADDING,
   },
 });

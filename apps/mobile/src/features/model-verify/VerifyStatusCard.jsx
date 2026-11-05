@@ -26,7 +26,7 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
   if (run.status === 'running') {
     const next = plan.sections.flatMap((section) => section.prompts)[run.turnsDone];
     return (
-      <Card padded style={styles.card}>
+      <Card padded>
         <Text variant="title">Verifying {name}</Text>
         {kind === 'writing' && next && <IntroText numberOfLines={2}>Now: {next}</IntroText>}
         <ProgressBar progress={run.turnsDone / run.turnsTotal} accessibilityLabel={`Verifying ${name}`} />
@@ -43,7 +43,7 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
   const stoppedText = [run.error, allBeforePassed && `${before} passed`].filter(Boolean).join('. ');
 
   return (
-    <Card padded style={styles.card}>
+    <Card padded>
       <View style={styles.heading}>
         <VerifyStatusIcon status={icon} />
         <Text variant="title">{title}</Text>
@@ -58,13 +58,9 @@ export default function VerifyStatusCard({ kind, name, run, plan }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: space.sm,
-    marginBottom: space.sm,
-  },
   heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: space.sm, // an icon from its title
   },
 });

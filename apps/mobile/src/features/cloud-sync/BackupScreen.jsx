@@ -10,13 +10,12 @@ import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { LogBlock, LogEmpty } from '@/components/settings-list/LogBlock';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import { SCREEN_PADDING } from '@/constants';
 import useAssets from '@/features/assets-context/useAssets';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { space } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readUploadFailures } from '@/sync/readUploadFailures';
 
@@ -101,8 +100,8 @@ export default function BackupScreen() {
 
 const styles = StyleSheet.create({
   panel: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: space.lg,
+    paddingHorizontal: layout.rowInset,
+    paddingBottom: layout.rowPaddingY,
     gap: space.xs,
   },
 });
