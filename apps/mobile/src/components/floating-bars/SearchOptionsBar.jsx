@@ -32,7 +32,7 @@ import { layout, motion, scale, sizes } from '@/styles/designTokens';
  *   onOpenSearch     – () => void
  *   onCloseSearch    – () => void  (Cancel: leave search and clear the query)
  *   onChangeSearch   – (text: string) => void
- *   optionsMenu      – the options button's menu (MenuOption rows)
+ *   optionsMenu      – the options button's menu (MenuOption rows); without it the bar is search only
  *   hasActiveState   – boolean  (options button highlighted while a filter is active)
  *   placeholder      – string   (default "Search…")
  *   bottom           – number
@@ -75,8 +75,9 @@ export default function SearchOptionsBar({
     onCloseSearch();
   }
 
+  const collapsedWidth = optionsMenu ? COLLAPSED_WIDTH : SEARCH_ONLY_WIDTH;
   const containerStyle = useAnimatedStyle(() => ({
-    width: interpolate(expandProgress.value, [0, 1], [COLLAPSED_WIDTH, maxWidth], Extrapolation.CLAMP),
+    width: interpolate(expandProgress.value, [0, 1], [collapsedWidth, maxWidth], Extrapolation.CLAMP),
     // The `bottom` prop already holds the bottom safe area: only what the keyboard adds over it.
     bottom: bottom + keyboardInset.value - safeBottom,
   }));
@@ -106,16 +107,13 @@ export default function SearchOptionsBar({
         <Button icon="search" onPress={handleOpen} accessibilityLabel="Search" />
 
         {/* Collapsed: options button */}
-        <Animated.View style={collapsedStyle}>
-          <MenuButton
-            icon="options"
-
-            isSelected={hasActiveState}
-            accessibilityLabel="Sort and filter"
-          >
-            {optionsMenu}
-          </MenuButton>
-        </Animated.View>
+        {optionsMenu && (
+          <Animated.View style={collapsedStyle}>
+            <MenuButton icon="options" isSelected={hasActiveState} accessibilityLabel="Sort and filter">
+              {optionsMenu}
+            </MenuButton>
+          </Animated.View>
+        )}
 
         {/* Expanded: the field, with the native clear button inside */}
         <Animated.View style={[styles.expandedRow, expandedStyle]}>
@@ -145,6 +143,7 @@ const PILL_GAP = 8;
 // A pill's width around its buttons: the frame on each side.
 const PILL_CHROME = layout.toolbarFrame * 2;
 const COLLAPSED_WIDTH = sizes.iconButton * 2 + PILL_CHROME;
+const SEARCH_ONLY_WIDTH = sizes.iconButton + PILL_CHROME;
 const CANCEL_PILL_WIDTH = sizes.iconButton + PILL_CHROME;
 const CANCEL_SLOT_WIDTH = CANCEL_PILL_WIDTH + PILL_GAP;
 
