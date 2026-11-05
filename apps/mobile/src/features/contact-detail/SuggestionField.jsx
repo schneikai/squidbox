@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
+import IconSlotContext from '@/components/IconSlotContext';
 import TextInput from '@/components/TextInput';
 import { colors, layout, scale, typography } from '@/styles/designTokens';
 
@@ -47,7 +48,8 @@ export default function SuggestionField({ label, value, onChangeText, onBlur, su
           style={styles.input}
           {...inputProps}
         />
-        {trailing}
+        {/* A full 44 pt slot, so its icon sits in from the card's edge. */}
+        <IconSlotContext.Provider value>{trailing}</IconSlotContext.Provider>
       </View>
       {shown.length > 0 && (
         <View style={styles.suggestions}>

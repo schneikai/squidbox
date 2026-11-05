@@ -6,6 +6,7 @@ import openContactLinkAsync from './openContactLinkAsync';
 
 import Button from '@/components/Button';
 import Icon from '@/components/Icon';
+import IconSlotContext from '@/components/IconSlotContext';
 import TextInput from '@/components/TextInput';
 import { colors, layout, scale, typography } from '@/styles/designTokens';
 
@@ -59,12 +60,14 @@ export default function HandleField({
       {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
       {isFilled && <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />}
       {isOpenable && !!value.trim() && (
-        <Button
-          icon={isPhone ? 'message-circle' : 'external-link'}
-          colorPalette="accent"
-          onPress={() => openContactLinkAsync(field, value)}
-          accessibilityLabel={OPEN_LABELS[field]}
-        />
+        // A full 44 pt slot, so its icon sits as far in from the card's edge as the rows' text does.
+        <IconSlotContext.Provider value>
+          <Button
+            icon={isPhone ? 'message-circle' : 'external-link'}
+            onPress={() => openContactLinkAsync(field, value)}
+            accessibilityLabel={OPEN_LABELS[field]}
+          />
+        </IconSlotContext.Provider>
       )}
     </View>
   );
