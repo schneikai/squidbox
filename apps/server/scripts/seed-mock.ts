@@ -408,7 +408,6 @@ const contactLists: ContactListRecord[] = CONTACT_LISTS.map((list, index) => ({
   ...baseRecord(`contact-list:${index}`, now - 14 * DAY),
   name: list.name,
   notes: list.notes,
-  position: null,
 }));
 const contactListMembers: ContactListMemberRecord[] = CONTACT_LISTS.flatMap((list, index) =>
   list.members.map((member) => ({

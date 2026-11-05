@@ -311,7 +311,6 @@ export const contactLists = pgTable(
     ...syncableBase(),
     name: text('name').notNull(),
     notes: text('notes'),
-    position: text('position'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_lists_user_seq_idx').on(t.userId, t.serverSeq)],
 );

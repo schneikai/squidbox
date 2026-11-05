@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { makeTestDb } from './helpers/testDb';
+import { makeMeasuredTestDb, makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
@@ -50,10 +50,10 @@ describe('membershipRepository', () => {
     expect(outbox).toHaveLength(1);
   });
 
-  it('tombstoneChild takes a contact off every parent and leaves the other contacts', async () => {
+  it('tombstoneWhere a contact takes it off every parent and leaves the other contacts', async () => {
     await contactLinks.add(db, { targetType: 'asset', targetId: 'p1' }, ['a', 'b'], newId);
     await contactLinks.add(db, { targetType: 'album', targetId: 'p1' }, ['a'], newId);
-    await contactLinks.tombstoneChild(db, 'a');
+    await contactLinks.tombstoneWhere(db, { contactId: 'a' });
     const live = (await db.select().from(schema.contactLinks)).filter((e) => e.deletedAt === null);
     expect(live.map((e) => [e.targetType, e.contactId])).toEqual([['asset', 'b']]);
   });
@@ -66,16 +66,40 @@ describe('membershipRepository', () => {
     expect(live.map((e) => e.targetType)).toEqual(['post']);
   });
 
-  it("set makes exactly the given contacts the parent's", async () => {
-    await contactListMembers.add(db, LIST, ['a', 'b'], newId);
-    await contactListMembers.set(db, LIST, ['b', 'c'], newId);
-    expect(await liveContactIds('list-1')).toEqual(['b', 'c']);
+  it("set makes exactly the given contacts the parent's, restoring a removed one's edge", async () => {
+    await contactListMembers.add(db, LIST, ['a', 'b', 'd'], newId);
+    await contactListMembers.remove(db, LIST, ['d']);
+    await contactListMembers.set(db, LIST, ['b', 'c', 'd'], newId);
+    expect(await liveContactIds('list-1')).toEqual(['b', 'c', 'd']);
+    expect((await members()).filter((e) => e.contactId === 'd')).toMatchObject([{ id: 'edge-3', deletedAt: null }]);
   });
 
-  it('tombstoneParent empties one list and leaves the others', async () => {
+  it('addToEach puts the contacts in every list, a removed one restored, the rest left as they are', async () => {
+    await contactListMembers.add(db, LIST, ['a'], newId);
+    await contactListMembers.remove(db, LIST, ['a']);
+    await contactListMembers.add(db, { listId: 'list-3' }, ['z'], newId);
+    await contactListMembers.addToEach(db, [LIST, { listId: 'list-2' }], ['a', 'b'], newId);
+    expect(await liveContactIds('list-1')).toEqual(['a', 'b']);
+    expect(await liveContactIds('list-2')).toEqual(['a', 'b']);
+    expect(await liveContactIds('list-3')).toEqual(['z']);
+    expect((await members()).filter((e) => e.listId === 'list-1' && e.contactId === 'a')).toHaveLength(1);
+  });
+
+  it('add, set and addToEach read the parent’s edges through its index, never the whole table', async () => {
+    const measured = makeMeasuredTestDb();
+    const work = await measured.measure(async () => {
+      await contactListMembers.add(measured.db, LIST, ['a'], newId);
+      await contactListMembers.set(measured.db, LIST, ['a', 'b'], newId);
+      await contactListMembers.addToEach(measured.db, [LIST, { listId: 'list-2' }], ['c'], newId);
+      await contactLinks.add(measured.db, { targetType: 'post', targetId: 'p' }, ['a'], newId);
+    });
+    expect(work.fullScans.filter((line) => !line.startsWith('SCAN json_each'))).toEqual([]);
+  });
+
+  it('tombstoneWhere a list empties it and leaves the others', async () => {
     await contactListMembers.add(db, LIST, ['a', 'b'], newId);
     await contactListMembers.add(db, { listId: 'list-2' }, ['a'], newId);
-    await contactListMembers.tombstoneParent(db, LIST);
+    await contactListMembers.tombstoneWhere(db, LIST);
     expect(await liveContactIds('list-1')).toEqual([]);
     expect(await liveContactIds('list-2')).toEqual(['a']);
   });

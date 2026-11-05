@@ -726,7 +726,6 @@ describe('contacts', () => {
       deletedAt: null,
       name: 'Climbers',
       notes: 'n',
-      position: null,
     });
     await contactListMembers.add(source, { listId: list.id }, [maya.id, jon.id, gone.id], newEdgeId);
     await contactLinks.add(source, { targetType: 'asset', targetId: photo.id }, [maya.id], newEdgeId);

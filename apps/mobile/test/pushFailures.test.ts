@@ -190,7 +190,6 @@ describe('push failures of contacts, lists and their edges', () => {
       deletedAt: null,
       name: 'Climbers',
       notes: null,
-      position: null,
     });
     let n = 0;
     const newId = () => `00000000-0000-4000-8000-00000000000${++n}`;

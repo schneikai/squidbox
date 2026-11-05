@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any membership table */
-import { and, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, or, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { nextVersion, tombstone } from './clock';
@@ -24,77 +24,102 @@ export function makeMembershipRepository(
   { parent: parentFields, child: childField }: { parent: string[]; child: string },
 ) {
   const t = table as any;
+  const matches = (match: Parent): SQL => and(...Object.entries(match).map(([field, value]) => eq(t[field], value)))!;
   const isParent = (parent: Parent): SQL => and(...parentFields.map((field) => eq(t[field], parent[field])))!;
+  const parentKey = (edge: Parent) => JSON.stringify(parentFields.map((field) => edge[field]));
   const read = (tx: SyncDb, where: SQL | undefined) => tx.select().from(table).where(where) as Promise<any[]>;
   const tombstoneAll = (tx: SyncDb, edges: any[]) =>
     saveRecords(tx, collection, table, edges.map(tombstone), { previous: edges });
 
-  /**
-   * Puts these children in the parent: a pair with a live edge is skipped, one whose edges are all
-   * tombstones gets its newest one restored, the rest get a new edge.
-   */
-  async function add(db: SyncDb, parent: Parent, childIds: string[], newId: () => string): Promise<void> {
-    if (childIds.length === 0) return;
+  // Writes the parents' edges so the `added` children are in each and the `removed` ones out of it,
+  // from `edges` (theirs of those children, tombstones included, through the parent index): a pair
+  // with a live edge is kept, one whose edges are all tombstones gets its newest one restored, the
+  // rest get a new edge.
+  async function write(
+    tx: SyncDb,
+    parents: Parent[],
+    edges: any[],
+    { added, removed = [] }: { added: string[]; removed?: string[] },
+    newId: () => string,
+  ): Promise<void> {
+    const adding = new Set(added);
+    const leaving = new Set(removed);
+    const live = new Set(edges.filter((e) => e.deletedAt === null).map((e) => `${parentKey(e)}:${e[childField]}`));
+    const restoring = new Map<string, any>();
+    for (const e of edges.filter((edge) => adding.has(edge[childField]))) {
+      const pair = `${parentKey(e)}:${e[childField]}`;
+      if (!live.has(pair) && (restoring.get(pair)?.updatedAt ?? -1) < e.updatedAt) restoring.set(pair, e);
+    }
+    const now = Date.now();
+    const created = parents.flatMap((parent) =>
+      [...adding]
+        .filter((id) => !live.has(`${parentKey(parent)}:${id}`) && !restoring.has(`${parentKey(parent)}:${id}`))
+        .map((id) => ({ id: newId(), createdAt: now, updatedAt: now, deletedAt: null, ...parent, [childField]: id })),
+    );
+    await tombstoneAll(
+      tx,
+      edges.filter((e) => e.deletedAt === null && leaving.has(e[childField])),
+    );
+    const restored = [...restoring.values()];
+    await saveRecords(
+      tx,
+      collection,
+      table,
+      restored.map((e) => nextVersion(e, { deletedAt: null })),
+      { previous: restored },
+    );
+    await saveRecords(tx, collection, table, created, { isNew: true });
+  }
+
+  /** Puts these children in every one of the parents, in one transaction and one read. */
+  async function addToEach(db: SyncDb, parents: Parent[], childIds: string[], newId: () => string): Promise<void> {
+    if (childIds.length === 0 || parents.length === 0) return;
     await db.transaction(async (tx) => {
-      const edges = await read(tx, and(isParent(parent), inJson(t[childField], childIds)));
-      const live = new Set(edges.filter((e) => e.deletedAt === null).map((e) => e[childField]));
-      const removed = new Map<string, any>();
-      for (const e of edges)
-        if (!live.has(e[childField]) && (removed.get(e[childField])?.updatedAt ?? -1) < e.updatedAt)
-          removed.set(e[childField], e);
-      const now = Date.now();
-      const restored = [...removed.values()].map((e) => nextVersion(e, { deletedAt: null }));
-      const created = [...new Set(childIds)]
-        .filter((id) => !live.has(id) && !removed.has(id))
-        .map((id) => ({ id: newId(), createdAt: now, updatedAt: now, deletedAt: null, ...parent, [childField]: id }));
-      await saveRecords(tx, collection, table, restored, { previous: [...removed.values()] });
-      await saveRecords(tx, collection, table, created, { isNew: true });
+      const edges = await read(tx, and(or(...parents.map(isParent)), inJson(t[childField], childIds)));
+      await write(tx, parents, edges, { added: childIds }, newId);
     });
   }
 
-  /** Tombstones every live edge of these children in the parent. */
-  async function remove(db: SyncDb, parent: Parent, childIds: string[]): Promise<void> {
-    if (childIds.length === 0) return;
-    await db.transaction(async (tx) =>
-      tombstoneAll(tx, await read(tx, and(isParent(parent), inJson(t[childField], childIds), isNull(t.deletedAt)))),
-    );
-  }
-
   return {
-    add,
-    remove,
+    addToEach,
 
-    /** Makes exactly these children the parent's: the others leave it (add and remove, in one transaction). */
+    /** Puts these children in the parent (one transaction, one read of its edges). */
+    add: (db: SyncDb, parent: Parent, childIds: string[], newId: () => string) =>
+      addToEach(db, [parent], childIds, newId),
+
+    /** Tombstones every live edge of these children in the parent. */
+    async remove(db: SyncDb, parent: Parent, childIds: string[]): Promise<void> {
+      if (childIds.length === 0) return;
+      await db.transaction(async (tx) =>
+        tombstoneAll(tx, await read(tx, and(isParent(parent), inJson(t[childField], childIds), isNull(t.deletedAt)))),
+      );
+    },
+
+    /**
+     * Makes exactly these children the parent's: the others leave it, from one read of the parent's
+     * edges, in one transaction.
+     */
     async set(db: SyncDb, parent: Parent, childIds: string[], newId: () => string): Promise<void> {
       await db.transaction(async (tx) => {
-        const live = new Set(
-          (await read(tx, and(isParent(parent), isNull(t.deletedAt)))).map((e) => e[childField] as string),
-        );
+        const edges = await read(tx, isParent(parent));
+        const live = new Set(edges.filter((e) => e.deletedAt === null).map((e) => e[childField] as string));
         const wanted = new Set(childIds);
-        await remove(
+        await write(
           tx,
-          parent,
-          [...live].filter((id) => !wanted.has(id)),
-        );
-        await add(
-          tx,
-          parent,
-          [...wanted].filter((id) => !live.has(id)),
+          [parent],
+          edges,
+          { added: [...wanted].filter((id) => !live.has(id)), removed: [...live].filter((id) => !wanted.has(id)) },
           newId,
         );
       });
     },
 
-    /** Tombstones every live edge of the parent (its list was deleted). */
-    async tombstoneParent(db: SyncDb, parent: Parent): Promise<void> {
-      await db.transaction(async (tx) => tombstoneAll(tx, await read(tx, and(isParent(parent), isNull(t.deletedAt)))));
-    },
-
-    /** Tombstones every live edge of the child (its contact was deleted). */
-    async tombstoneChild(db: SyncDb, childId: string): Promise<void> {
-      await db.transaction(async (tx) =>
-        tombstoneAll(tx, await read(tx, and(eq(t[childField], childId), isNull(t.deletedAt)))),
-      );
+    /**
+     * Tombstones every live edge that `match` names: a parent's (`{ listId }`, its list was deleted)
+     * or a child's (`{ contactId }`, its contact was deleted).
+     */
+    async tombstoneWhere(db: SyncDb, match: Parent): Promise<void> {
+      await db.transaction(async (tx) => tombstoneAll(tx, await read(tx, and(matches(match), isNull(t.deletedAt)))));
     },
   };
 }

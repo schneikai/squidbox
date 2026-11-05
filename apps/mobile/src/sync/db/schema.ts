@@ -252,8 +252,9 @@ export const contacts = sqliteTable(
     avatarFilename: text('avatar_filename'),
   },
   (t) => [
+    // By name as the app sorts it (nocase), so a page of contacts reads the index in order.
     index('contacts_live_name_idx')
-      .on(t.name, t.id)
+      .on(sql`${t.name} collate nocase`, t.id)
       .where(sql`${t.deletedAt} is null`),
   ],
 );
@@ -266,7 +267,6 @@ export const contactLists = sqliteTable('contact_lists', {
   deletedAt: integer('deleted_at'),
   name: text('name').notNull(),
   notes: text('notes'),
-  position: text('position'),
 });
 export type ContactListRow = typeof contactLists.$inferSelect;
 
@@ -281,9 +281,8 @@ export const contactListMembers = sqliteTable(
     contactId: text('contact_id').notNull(),
   },
   (t) => [
-    index('contact_list_members_list_idx')
-      .on(t.listId, t.contactId)
-      .where(sql`${t.deletedAt} is null`),
+    // Tombstones included: adding a contact again restores its edge (membershipRepository).
+    index('contact_list_members_list_idx').on(t.listId, t.contactId),
     index('contact_list_members_contact_idx')
       .on(t.contactId, t.listId)
       .where(sql`${t.deletedAt} is null`),
@@ -299,14 +298,13 @@ export const contactLinks = sqliteTable(
     updatedAt: integer('updated_at').notNull(),
     deletedAt: integer('deleted_at'),
     contactId: text('contact_id').notNull(),
-    // CONTACT_LINK_TARGETS in @squidbox/shared (imported here as types only; its Zod schema validates).
+    // The values of CONTACT_LINK_TARGETS in @squidbox/shared, whose Zod schema validates them.
     targetType: text('target_type', { enum: ['asset', 'album', 'post'] }).notNull(),
     targetId: text('target_id').notNull(),
   },
   (t) => [
-    index('contact_links_target_idx')
-      .on(t.targetType, t.targetId, t.contactId)
-      .where(sql`${t.deletedAt} is null`),
+    // Tombstones included, as contact_list_members_list_idx.
+    index('contact_links_target_idx').on(t.targetType, t.targetId, t.contactId),
     index('contact_links_contact_idx')
       .on(t.contactId, t.targetType, t.targetId)
       .where(sql`${t.deletedAt} is null`),

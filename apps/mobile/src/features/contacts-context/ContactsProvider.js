@@ -28,7 +28,7 @@ const CONTACT_DEFAULTS = {
   places: [],
   avatarFilename: null,
 };
-const LIST_DEFAULTS = { notes: null, position: null };
+const LIST_DEFAULTS = { notes: null };
 
 // The contact and contact list writes. Membership lives in the contact_list_members edge collection
 // and the contacts on a photo, album or post in contact_links (membershipRepository); a user action
@@ -72,20 +72,25 @@ export default function ContactsProvider({ children }) {
       setContactDeleted: (id) =>
         written(async (tx) => {
           await contacts.remove(tx, [id]);
-          await contactListMembers.tombstoneChild(tx, id);
-          await contactLinks.tombstoneChild(tx, id);
+          await contactListMembers.tombstoneWhere(tx, { contactId: id });
+          await contactLinks.tombstoneWhere(tx, { contactId: id });
         }),
       addList: (name) => written((tx) => lists.create(tx, newRecord(contactListCollection, LIST_DEFAULTS, { name }))),
       updateList: (id, fields) => written((tx) => lists.update(tx, id, fields)),
       setListDeleted: (id) =>
         written(async (tx) => {
           await lists.remove(tx, [id]);
-          await contactListMembers.tombstoneParent(tx, { listId: id });
+          await contactListMembers.tombstoneWhere(tx, { listId: id });
         }),
       addToLists: (contactIds, listIds) =>
-        written(async (tx) => {
-          for (const listId of listIds) await contactListMembers.add(tx, { listId }, contactIds, getNewItemId);
-        }),
+        written((tx) =>
+          contactListMembers.addToEach(
+            tx,
+            listIds.map((listId) => ({ listId })),
+            contactIds,
+            getNewItemId,
+          ),
+        ),
       // Makes exactly these contacts the list's: the ones added join, the ones left out leave.
       setListContacts: (listId, contactIds) =>
         written((tx) => contactListMembers.set(tx, { listId }, contactIds, getNewItemId)),

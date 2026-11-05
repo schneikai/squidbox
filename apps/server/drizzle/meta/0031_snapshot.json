@@ -1,5 +1,5 @@
 {
-  "id": "e5ee3b9e-d45b-49a0-9012-a1b5974c3bdf",
+  "id": "4d751b89-e022-4b25-bc4a-e8f839339281",
   "prevId": "d315b5ae-36b7-4841-8f1d-63da52bb37b1",
   "version": "7",
   "dialect": "postgresql",
@@ -903,12 +903,6 @@
         },
         "notes": {
           "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position": {
-          "name": "position",
           "type": "text",
           "primaryKey": false,
           "notNull": false

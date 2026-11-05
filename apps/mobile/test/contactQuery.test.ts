@@ -90,7 +90,6 @@ describe('contactListQuery', () => {
       deletedAt: null,
       name: 'Squamish',
       notes: null,
-      position: null,
     });
     await contacts.create(db, makeContactRecord({ id: 'cleo', name: 'Cleo' }));
     await contactListMembers.add(db, { listId: list.id }, ['maya', 'ben', 'ana', 'cleo'], newId);

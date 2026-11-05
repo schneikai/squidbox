@@ -35,7 +35,6 @@ CREATE TABLE "contact_lists" (
 	"field_clock" jsonb,
 	"name" text NOT NULL,
 	"notes" text,
-	"position" text,
 	CONSTRAINT "contact_lists_user_id_id_pk" PRIMARY KEY("user_id","id")
 );
 --> statement-breakpoint

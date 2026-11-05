@@ -383,7 +383,7 @@ d('sync engine (Postgres)', () => {
         places: ['Squamish, British Columbia, Canada', 'Tofino, British Columbia, Canada'],
         avatarFilename: null,
       }),
-      contact_lists: () => ({ ...base(), name: 'Squamish', notes: null, position: 'a0' }),
+      contact_lists: () => ({ ...base(), name: 'Squamish', notes: null }),
       contact_list_members: () => ({ ...base(), listId: randomUUID(), contactId: randomUUID() }),
       contact_links: () => ({ ...base(), contactId: randomUUID(), targetType: 'album', targetId: randomUUID() }),
     };

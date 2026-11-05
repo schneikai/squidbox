@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "238ae7a0-d824-424c-a4ff-3f80a2527b2b",
+  "id": "d21693e2-4ce9-49f5-9af6-075d69024e97",
   "prevId": "0687a73a-dbe1-4596-b953-3787dce9cb37",
   "tables": {
     "ai_kinds": {
@@ -654,8 +654,7 @@
             "target_id",
             "contact_id"
           ],
-          "isUnique": false,
-          "where": "\"contact_links\".\"deleted_at\" is null"
+          "isUnique": false
         },
         "contact_links_contact_idx": {
           "name": "contact_links_contact_idx",
@@ -726,8 +725,7 @@
             "list_id",
             "contact_id"
           ],
-          "isUnique": false,
-          "where": "\"contact_list_members\".\"deleted_at\" is null"
+          "isUnique": false
         },
         "contact_list_members_contact_idx": {
           "name": "contact_list_members_contact_idx",
@@ -784,13 +782,6 @@
         },
         "notes": {
           "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "position": {
-          "name": "position",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -916,7 +907,7 @@
         "contacts_live_name_idx": {
           "name": "contacts_live_name_idx",
           "columns": [
-            "name",
+            "\"name\" collate nocase",
             "id"
           ],
           "isUnique": false,
@@ -1659,6 +1650,14 @@
     "columns": {}
   },
   "internal": {
-    "indexes": {}
+    "indexes": {
+      "contacts_live_name_idx": {
+        "columns": {
+          "\"name\" collate nocase": {
+            "isExpression": true
+          }
+        }
+      }
+    }
   }
 }
