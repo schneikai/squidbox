@@ -33,7 +33,7 @@ Everything is scoped per user.
   live in `packages/shared` (`contracts/auth.ts`, `contracts/assets.ts`, `contracts/ai.ts`, …) and are imported by
   both server and app — one source of truth for the frontend and backend.
 - **Modern API:** single error envelope `{ error: { code, message } }`, `Authorization:
-  Bearer`, RESTful shapes, uuid ids.
+Bearer`, RESTful shapes, uuid ids.
 - **Uploads are server-proxied streaming** (not direct-to-S3): Expo can't split large files
   for client-side multipart and a single S3 PUT caps at 5 GB. The client streams one binary
   PUT; the server multiparts it via `@aws-sdk/lib-storage`. The upload route has its own

@@ -16,6 +16,10 @@ const instructionText = {
     title: 'Verify judge',
     description: 'The system instructions for the model that decides if a reply passes Verify.',
   },
+  contactScreenshot: {
+    title: 'Contact from screenshot',
+    description: 'What the assistant is asked when you add a contact from a profile screenshot.',
+  },
 };
 
 export default instructionText;

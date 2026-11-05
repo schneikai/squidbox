@@ -21,8 +21,9 @@ const OPEN_LABELS = {
 /**
  * One of a contact's handles (or its phone number) as a row of a card: the label on the left, the
  * text on the right, and while it holds one a 44 pt button that opens it where it lives
- * (openContactLinkAsync). `field` is the contact field it edits (xHandle, …, phoneNumber): a handle
- * takes no capitals or corrections, the phone number the phone pad. `isFilled` marks a value the
+ * (openContactLinkAsync). `field` is the contact field it edits (xHandle, …, phoneNumber, or the
+ * name in the New contact sheet): a handle takes no capitals or corrections, the phone number the
+ * phone pad. `isFilled` marks a value the
  * assistant filled in (a sparkle), `isDuplicate` one another contact has too (an amber dot).
  */
 export default function HandleField({
@@ -37,6 +38,7 @@ export default function HandleField({
   isOpenable = true,
 }) {
   const isPhone = field === 'phoneNumber';
+  const isName = field === 'name';
 
   return (
     <View style={styles.row}>
@@ -48,10 +50,10 @@ export default function HandleField({
         placeholder={placeholder}
         style={styles.input}
         accessibilityLabel={label}
-        autoCapitalize="none"
+        autoCapitalize={isName ? 'words' : 'none'}
         autoCorrect={false}
         keyboardType={isPhone ? 'phone-pad' : 'default'}
-        textContentType={isPhone ? 'telephoneNumber' : 'none'}
+        textContentType={isPhone ? 'telephoneNumber' : isName ? 'name' : 'none'}
       />
       {isDuplicate && <View style={styles.dot} accessibilityLabel="Another contact has this too" />}
       {isFilled && <Icon name="sparkle" size={sizes.iconSmall} color={colors.accent.base} />}

@@ -5,6 +5,7 @@ import {
   type ChatContext,
   type ChatReply,
   type ChatTurn,
+  type ContactFromScreenshotResponse,
   type Instructions,
   type PersonaFields,
 } from '@squidbox/shared';
@@ -329,4 +330,23 @@ export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: strin
   name: 'judge_verdict',
   jsonSchema: objectSchema({ pass: { type: 'boolean' }, reason: { type: 'string' } }),
   zod: z.object({ pass: z.boolean(), reason: z.string() }),
+};
+
+const CONTACT_FIELDS = ['name', 'xHandle', 'blueskyHandle', 'onlyFansHandle', 'jffHandle', 'place'] as const;
+// A field the model left out or set to null reads as not shown.
+const contactField = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? '');
+
+// A contact read from a profile screenshot: each field a string, empty when not shown.
+export const contactSchema: JsonSchemaSpec<ContactFromScreenshotResponse> = {
+  name: 'contact',
+  jsonSchema: objectSchema(Object.fromEntries(CONTACT_FIELDS.map((field) => [field, { type: 'string' }]))),
+  zod: z.object(
+    Object.fromEntries(CONTACT_FIELDS.map((field) => [field, contactField])) as Record<
+      (typeof CONTACT_FIELDS)[number],
+      typeof contactField
+    >,
+  ),
 };

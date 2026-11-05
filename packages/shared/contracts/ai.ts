@@ -298,6 +298,22 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
+// POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the New
+// contact sheet, as instructions.contactScreenshot says. Each field is empty when the screenshot
+// doesn't show it; the handles come normalized (normalizeHandle). The screenshot is never stored.
+export const contactFromScreenshotRequestSchema = z.object({ image: visionImageSchema });
+export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotRequestSchema>;
+
+export const contactFromScreenshotResponseSchema = z.object({
+  name: z.string(),
+  xHandle: z.string(),
+  blueskyHandle: z.string(),
+  onlyFansHandle: z.string(),
+  jffHandle: z.string(),
+  place: z.string(),
+});
+export type ContactFromScreenshotResponse = z.infer<typeof contactFromScreenshotResponseSchema>;
+
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
 // collaborator, with post options only when asked, briefed by instructions.writing filled with
 // their persona, a sample of their posts and the post. Nothing is stored: the app sends the whole chat each time.

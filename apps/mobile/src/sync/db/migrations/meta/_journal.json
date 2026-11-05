@@ -225,6 +225,13 @@
       "when": 1793883665858,
       "tag": "0031_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1793887650117,
+      "tag": "0032_contact_screenshot_instruction",
+      "breakpoints": true
     }
   ]
 }

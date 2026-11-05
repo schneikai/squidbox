@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import DuplicatesCard from './DuplicatesCard';
+import QuickAddBar from './QuickAddBar';
 import findDuplicates from './findDuplicates';
 import useContactHandles from './useContactHandles';
 import useNewContactDraft from './useNewContactDraft';
@@ -10,7 +11,6 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import EditSheet from '@/components/EditSheet';
-import TextInput from '@/components/TextInput';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import HandleField from '@/features/contact-detail/HandleField';
@@ -20,7 +20,6 @@ import contactListQuery from '@/features/contact-list/contactListQuery';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
-import { layout } from '@/styles/designTokens';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
@@ -74,6 +73,7 @@ export default function NewContactScreen() {
 
   return (
     <EditSheet {...sheetProps} title="New contact">
+      <QuickAddBar />
       {matches.length > 0 && <DuplicatesCard matches={matches} onOpen={handleOpenDuplicate} />}
 
       <View style={styles.avatar}>
@@ -82,13 +82,15 @@ export default function NewContactScreen() {
       </View>
 
       <Card>
-        <TextInput
+        <HandleField
+          field="name"
+          label="Name"
           value={draft.name}
           onChangeText={(text) => setField('name', text)}
           placeholder="Name"
-          textContentType="name"
-          accessibilityLabel="Name"
-          style={styles.name}
+          isFilled={filledFields.includes('name')}
+          isDuplicate={sharedFields.has('name')}
+          isOpenable={false}
         />
         {HANDLE_FIELDS.map(({ field, label, placeholder }) => (
           <View key={field}>
@@ -132,9 +134,5 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
     gap: 4,
-  },
-  name: {
-    paddingHorizontal: layout.sideGutter,
-    paddingVertical: 14,
   },
 });

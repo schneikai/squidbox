@@ -10,6 +10,8 @@ import {
   compareVisionResponseSchema,
   compareWritingRequestSchema,
   compareWritingResponseSchema,
+  contactFromScreenshotRequestSchema,
+  contactFromScreenshotResponseSchema,
   modelDefaultRequestSchema,
   publishInstructionRequestSchema,
   publishInstructionResponseSchema,
@@ -33,6 +35,7 @@ import { fetchBalanceAsync } from './balance.js';
 import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalog.js';
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
+import { readContactScreenshotAsync } from './contactFromScreenshot.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
 import { compareVisionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
@@ -153,6 +156,23 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         });
         return { tags };
       },
+    });
+
+    // POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the
+    // New contact sheet (Get info from screenshot): name, handles and place. Nothing is stored.
+    r.route({
+      method: 'POST',
+      url: '/ai/contact-from-screenshot',
+      bodyLimit: VISION_REQUEST_BODY_LIMIT,
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: { body: contactFromScreenshotRequestSchema, response: { 200: contactFromScreenshotResponseSchema } },
+      handler: async (request, reply) =>
+        readContactScreenshotAsync({
+          db: getDb(),
+          user: requireUser(request),
+          image: request.body.image,
+          signal: untilClientLeaves(reply),
+        }),
     });
 
     // POST /ai/chat — the assistant chat: the user's writing model answers the transcript, with post
