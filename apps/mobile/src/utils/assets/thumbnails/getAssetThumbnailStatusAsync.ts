@@ -1,7 +1,11 @@
+import type { AssetRecord } from '@squidbox/shared';
+
 import ensureAssetThumbnailAsync, { type ThumbnailAsset } from './ensureAssetThumbnailAsync';
 
 import { hasThumbnailAsync } from '@/utils/assets/assetStorage';
 import type { AssetFileLocation, AssetFileStatus } from '@/utils/assets/files/getAssetFileStatusAsync';
+
+export type ThumbnailStatusAsset = ThumbnailAsset & Pick<AssetRecord, 'isThumbnailSynced'>;
 
 let hasWarned = false;
 
@@ -10,7 +14,7 @@ let hasWarned = false;
 // can't: 'notUploaded' (its device hasn't backed it up yet) or 'signedOut'. Aborting `signal` (the
 // tile left) skips a thumbnail still waiting to be made.
 export default async function getAssetThumbnailStatusAsync(
-  asset: ThumbnailAsset & { isThumbnailSynced: boolean },
+  asset: ThumbnailStatusAsset,
   { isAuthenticated, library, signal }: AssetFileLocation & { signal?: AbortSignal },
 ): Promise<AssetFileStatus> {
   if (await hasThumbnailAsync(asset.thumbnailFilename, library)) return 'local';
