@@ -24,25 +24,26 @@ export default function useAssetCells({ onPress, isSelectMode = false, isAssetSe
 
   const handlersRef = useRef();
   handlersRef.current = { onPress, onDoublePress: toggleFavoriteAsset, isSelectMode, haptics, routeKey };
+  // This grid's mark on the peeks it opens, so only it closes them.
+  const [peekOwner] = useState(() => ({}));
   const [stable] = useState(() => {
     function peek(asset) {
       handlersRef.current.haptics.peek();
-      // The ref is this grid's own, so it marks the peek as this grid's.
-      quickViewStore.open(asset, { routeKey: handlersRef.current.routeKey, owner: handlersRef });
+      quickViewStore.open(asset, { routeKey: handlersRef.current.routeKey, owner: peekOwner });
     }
     return {
       onPress: (asset) => handlersRef.current.onPress(asset),
       onDoublePress: (asset) => handlersRef.current.onDoublePress(asset),
       onLongPress: (asset) => !handlersRef.current.isSelectMode && peek(asset),
       peek,
-      endPeek: () => quickViewStore.close(handlersRef),
+      endPeek: () => quickViewStore.close(peekOwner),
     };
   });
   const hasPress = !!onPress;
 
   // The store outlives the grid: a grid that goes away mid-hold (a library switch, a navigation)
   // closes its peek.
-  useEffect(() => () => quickViewStore.close(handlersRef), []);
+  useEffect(() => () => quickViewStore.close(peekOwner), [peekOwner]);
 
   // Select mode reaches the cells through the store, so renderCell keeps its identity and a toggle
   // re-renders only the selection overlays. Before paint, so the rings show in the same frame.

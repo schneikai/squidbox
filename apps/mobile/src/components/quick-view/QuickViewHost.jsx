@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import { use, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { use, useCallback, useState, useSyncExternalStore } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import quickViewStore from './quickViewStore';
@@ -7,7 +7,6 @@ import quickViewStore from './quickViewStore';
 import AssetImage from '@/components/AssetImage';
 import FadeView from '@/components/FadeView';
 import SheetRouteContext from '@/components/sheet-route/SheetRouteContext';
-import { motion } from '@/styles/designTokens';
 
 /**
  * The quick view (a long-press peek at a photo) over the whole surface: one host at the app root and
@@ -23,16 +22,11 @@ export default function QuickViewHost() {
     return quickView?.routeKey === routeKey ? quickView : null;
   }, [routeKey]);
   const shown = useSyncExternalStore(quickViewStore.subscribe, getShown);
-  // The photo stays while the view fades out, and goes once it has.
+  // The photo stays while the view fades out, and goes once it is off screen.
   const [keptAsset, setKeptAsset] = useState(null);
+  const dropKeptAsset = useCallback(() => setKeptAsset(null), []);
+
   if (shown && shown.asset !== keptAsset) setKeptAsset(shown.asset);
-
-  useEffect(() => {
-    if (shown || !keptAsset) return;
-    const timer = setTimeout(() => setKeptAsset(null), motion.exit.duration);
-    return () => clearTimeout(timer);
-  }, [shown, keptAsset]);
-
   const asset = shown?.asset ?? keptAsset;
 
   function handleClose() {
@@ -40,13 +34,15 @@ export default function QuickViewHost() {
   }
 
   return (
-    <FadeView isVisible={!!shown} style={styles.overlay}>
+    <FadeView isVisible={!!shown} onHidden={dropKeptAsset} style={[StyleSheet.absoluteFill, styles.overlay]}>
       {asset && (
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={handleClose}
           accessibilityRole="button"
           accessibilityLabel="Close preview"
+          // While shown, VoiceOver stays on the preview, as it did in the Modal.
+          accessibilityViewIsModal={!!shown}
         >
           <BlurView intensity={20} style={styles.container}>
             <AssetImage asset={asset} contentFit="contain" placeholderColor="transparent" />
@@ -59,11 +55,6 @@ export default function QuickViewHost() {
 
 const styles = StyleSheet.create({
   overlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
     zIndex: 9999,
   },
   container: {

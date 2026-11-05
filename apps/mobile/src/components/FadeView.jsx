@@ -1,4 +1,5 @@
 import Animated, { useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { motion } from '@/styles/designTokens';
 
@@ -10,12 +11,23 @@ const OFFSCREEN_X = -100000;
  * moves off screen, where nothing in it can be tapped on any platform, and is hidden from
  * accessibility. A transform leaves its layout alone, so its children stay mounted and keep their
  * sizes. `pointerEvents` applies while it's shown; while hidden or fading out it takes no touches.
+ * `onHidden` is called when it is off screen (faded out, or hidden from the start), for a parent
+ * that drops its children then.
  */
-export default function FadeView({ isVisible, style, pointerEvents, children }) {
+export default function FadeView({ isVisible, style, pointerEvents, onHidden, children }) {
   const visibilityStyle = useAnimatedStyle(() => ({
     opacity: withTiming(isVisible ? 1 : 0, isVisible ? motion.enter : motion.exit),
     transform: [
-      { translateX: isVisible ? 0 : withDelay(motion.exit.duration, withTiming(OFFSCREEN_X, { duration: 0 })) },
+      {
+        translateX: isVisible
+          ? 0
+          : withDelay(
+              motion.exit.duration,
+              withTiming(OFFSCREEN_X, { duration: 0 }, (finished) => {
+                if (finished && onHidden) scheduleOnRN(onHidden);
+              }),
+            ),
+      },
     ],
   }));
 
