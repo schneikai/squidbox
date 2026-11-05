@@ -27,7 +27,6 @@ const CONTACT_DEFAULTS = {
   phoneNumber: null,
   places: [],
   avatarFilename: null,
-  isAvatarSynced: false,
 };
 const LIST_DEFAULTS = { notes: null, position: null };
 
@@ -54,19 +53,19 @@ export default function ContactsProvider({ children }) {
           contacts.toggle(tx, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null })),
         ),
       // A new photo gets a new name (`avatar-<id>-<n>.jpg`, the next n), so a device holding the old
-      // one never shows it for the new, and the backup uploads it.
+      // one never shows it for the new; the sync uploads it before it pushes the contact.
       setAvatarAsync: async (id, sourceUri) => {
         const [contact] = await readByIds(db, schema.contacts, [id]);
         if (!contact) return;
         const avatarFilename = `avatar-${id}-${avatarNumber(contact.avatarFilename) + 1}.jpg`;
         await makeAvatarAsync(sourceUri, avatarFilename, library);
-        await written((tx) => contacts.update(tx, id, { avatarFilename, isAvatarSynced: false }));
+        await written((tx) => contacts.update(tx, id, { avatarFilename }));
         if (contact.avatarFilename) deleteAvatar(contact.avatarFilename, library);
       },
       removeAvatar: async (id) => {
         const [contact] = await readByIds(db, schema.contacts, [id]);
         if (!contact?.avatarFilename) return;
-        await written((tx) => contacts.update(tx, id, { avatarFilename: null, isAvatarSynced: false }));
+        await written((tx) => contacts.update(tx, id, { avatarFilename: null }));
         deleteAvatar(contact.avatarFilename, library);
       },
       // The contact leaves its lists and the photos, albums and posts it is on with it.

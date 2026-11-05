@@ -1,5 +1,4 @@
 import * as repo from './assetsRepository';
-import * as contactsRepo from './contactsRepository';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { pendingEdits } from './outbox';
@@ -10,7 +9,6 @@ import { requestSync } from './worker';
 import SessionChangedError from '@/utils/cloud-api/SessionChangedError';
 
 type BackupAsset = schema.AssetRow;
-type BackupContact = schema.ContactRow;
 
 // The uploads of one asset, bound by the caller to the session the run started for (the upload
 // helpers refuse another user's session) and to the run's abort signal (an upload in flight is
@@ -21,8 +19,6 @@ export interface BackupUploads {
   uploadFile(asset: BackupAsset): Promise<void>;
   uploadThumbnail(asset: BackupAsset): Promise<void>;
   deleteFile(filename: string): Promise<void>;
-  // A contact's photo (its avatarFilename); it stays on the device, the app shows it.
-  uploadAvatar(contact: BackupContact): Promise<void>;
 }
 
 interface BackupRunOptions {
@@ -46,21 +42,10 @@ export function isBackupRunning(): boolean {
  * finished before it is still marked (the pause waits for the run, so the session and library are
  * still the run's), an interrupted one is neither marked nor a syncError. A session that changed
  * under the run (SessionChangedError) ends it with nothing marked or deleted for the asset.
- * Then the contacts' photos, the same way (backupAvatars).
  */
 export function runBackup(db: SyncDb, options: BackupRunOptions): Promise<void> | null {
   if (running) throw new Error('A backup is already running');
-  const run = startRun(async (signal) => {
-    const assetIds = await repo.readUnsyncedIds(db);
-    const contactIds = await contactsRepo.readUnsyncedAvatarIds(db);
-    const total = assetIds.length + contactIds.length;
-    const bound = options.uploads(signal);
-    const onProgress = options.onProgress;
-    await backupAssets(db, assetIds, signal, bound, (index) => onProgress?.({ index, total }));
-    await backupAvatars(db, contactIds, signal, bound, (index) =>
-      onProgress?.({ index: assetIds.length + index, total }),
-    );
-  });
+  const run = startRun(async (signal) => backupAssets(db, await repo.readUnsyncedIds(db), signal, options));
   if (!run) return null;
   running = true;
   return run.finally(() => {
@@ -72,54 +57,23 @@ async function backupAssets(
   db: SyncDb,
   ids: string[],
   signal: AbortSignal,
-  uploads: BackupUploads,
-  onProgress: (index: number) => void,
+  { uploads, onProgress }: BackupRunOptions,
 ): Promise<void> {
+  const bound = uploads(signal);
   for (const [index, id] of ids.entries()) {
     if (signal.aborted) return;
-    onProgress(index);
+    onProgress?.({ index, total: ids.length });
     const [asset] = await readByIds<BackupAsset>(db, schema.assets, [id]);
-    if (!asset || !repo.isUnsynced(asset) || (await isUnconfirmed(db, 'assets', id))) continue;
-    if (await backupAsset(db, asset, uploads, signal)) return;
+    if (!asset || !repo.isUnsynced(asset) || (await isUnconfirmed(db, id))) continue;
+    if (await backupAsset(db, asset, bound, signal)) return;
   }
 }
 
-/**
- * Uploads the contacts' photos unsynced at the start whose record the server has confirmed, in id
- * order, and marks each uploaded unless the contact got another photo or was deleted meanwhile
- * (markAvatarSynced). Contacts have no syncError: a failed upload is logged and tried again on the
- * next run, the photo still counted as waiting. A changed session or an abort ends it like the assets.
- */
-async function backupAvatars(
-  db: SyncDb,
-  ids: string[],
-  signal: AbortSignal,
-  uploads: BackupUploads,
-  onProgress: (index: number) => void,
-): Promise<void> {
-  for (const [index, id] of ids.entries()) {
-    if (signal.aborted) return;
-    onProgress(index);
-    const [contact] = await readByIds<BackupContact>(db, schema.contacts, [id]);
-    if (!contact?.avatarFilename || contact.isAvatarSynced || contact.deletedAt !== null) continue;
-    if (await isUnconfirmed(db, 'contacts', id)) continue;
-    try {
-      if (!(await finishedBeforeAbort(uploads.uploadAvatar(contact), signal))) return;
-    } catch (error) {
-      if (error instanceof SessionChangedError) throw error; // the run gate ends the run on it
-      if (signal.aborted) return;
-      console.warn('Could not back up the contact photo', contact.avatarFilename, error);
-      continue;
-    }
-    if (await contactsRepo.markAvatarSynced(db, id, contact.avatarFilename)) requestSync();
-  }
-}
-
-// Whether the server has yet to confirm the record: it has an outbox row, pending or failed (§6).
-// Such a record waits: an asset's original is deleted once uploaded, so the server must have its
+// Whether the server has yet to confirm the asset's record: it has an outbox row, pending or failed
+// (§6). Such an asset waits: its original is deleted once uploaded, so the server must have its
 // record first, and a push that keeps failing would otherwise upload the file on every run.
-async function isUnconfirmed(db: SyncDb, collection: 'assets' | 'contacts', id: string): Promise<boolean> {
-  return (await pendingEdits(db, collection, [id])).has(id);
+async function isUnconfirmed(db: SyncDb, id: string): Promise<boolean> {
+  return (await pendingEdits(db, 'assets', [id])).has(id);
 }
 
 // Resolves whether the run was aborted on this asset.

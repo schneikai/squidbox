@@ -58,10 +58,10 @@ CREATE TABLE "contacts" (
 	"phone_number" text,
 	"places" jsonb NOT NULL,
 	"avatar_filename" text,
-	"is_avatar_synced" boolean NOT NULL,
 	CONSTRAINT "contacts_user_id_id_pk" PRIMARY KEY("user_id","id")
 );
 --> statement-breakpoint
+ALTER TABLE "instructions" ADD COLUMN "contact_screenshot" text;--> statement-breakpoint
 ALTER TABLE "contact_links" ADD CONSTRAINT "contact_links_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contact_list_members" ADD CONSTRAINT "contact_list_members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contact_lists" ADD CONSTRAINT "contact_lists_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

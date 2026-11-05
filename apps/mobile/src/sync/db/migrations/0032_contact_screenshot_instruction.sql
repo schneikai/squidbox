@@ -1,1 +1,0 @@
-ALTER TABLE `instructions` ADD `contact_screenshot` text;

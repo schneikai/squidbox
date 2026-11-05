@@ -351,15 +351,14 @@ export async function planMerge(
   );
 
   // Contacts and their lists, by their ids (no file to match them on). A copied contact's photo the
-  // source holds is backed up into the account; one only in another account's storage is dropped, as
-  // the account can't fetch it.
+  // source holds moves with it, and the sync uploads it before it pushes the contact; one the source
+  // doesn't hold (only in another account's storage) is dropped, as the account can't fetch it.
   const allSourceContacts = await source.select().from(schema.contacts);
   const sourceAvatars = await listFiles(getAvatarsDirectory(sourcePaths));
   const contacts = (await freshRecords('contacts', schema.contacts, allSourceContacts)).map((contact) => {
     mark('contacts', contact, { as: 'copy' });
     if (!contact.avatarFilename) return contact;
-    if (sourceAvatars.has(contact.avatarFilename)) return { ...contact, isAvatarSynced: false };
-    return contact.isAvatarSynced ? { ...contact, avatarFilename: null, isAvatarSynced: false } : contact;
+    return sourceAvatars.has(contact.avatarFilename) ? contact : { ...contact, avatarFilename: null };
   });
   const allSourceLists = await source.select().from(schema.contactLists);
   const contactLists = await freshRecords('contact_lists', schema.contactLists, allSourceLists);

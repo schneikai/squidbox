@@ -402,7 +402,6 @@ for (const [index, contact] of CONTACTS.entries()) {
     places: [],
     ...contact.fields,
     avatarFilename,
-    isAvatarSynced: avatarFilename !== null,
   });
 }
 const contactLists: ContactListRecord[] = CONTACT_LISTS.map((list, index) => ({

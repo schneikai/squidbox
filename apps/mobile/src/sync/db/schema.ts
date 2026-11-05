@@ -250,7 +250,6 @@ export const contacts = sqliteTable(
     phoneNumber: text('phone_number'),
     places: text('places', { mode: 'json' }).$type<string[]>().notNull(),
     avatarFilename: text('avatar_filename'),
-    isAvatarSynced: integer('is_avatar_synced', { mode: 'boolean' }).notNull(),
   },
   (t) => [
     index('contacts_live_name_idx')
@@ -340,6 +339,9 @@ export const outbox = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
     error: text('error'),
+    // The file keys this row's uploads have put in the user's storage (a file field's, sync-design §6):
+    // a retried or coalesced row never uploads one again.
+    uploadedFiles: text('uploaded_files', { mode: 'json' }).$type<string[]>().notNull().default([]),
   },
   (t) => [
     uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId),

@@ -767,11 +767,8 @@ describe('contacts', () => {
     ]);
   });
 
-  it('a photo the device holds moves with its contact, which backs it up into the account', async () => {
-    const maya = await contacts.create(
-      source,
-      makeContactRecord({ avatarFilename: 'avatar-m-2.jpg', isAvatarSynced: true }),
-    );
+  it('a photo the device holds moves with its contact, which names it in the account', async () => {
+    const maya = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-2.jpg' }));
     files.add(getAvatarUri('avatar-m-2.jpg', SRC));
 
     const plan = await commitPass();
@@ -780,18 +777,16 @@ describe('contacts', () => {
     expect(plan.avatars).toEqual(same('avatar-m-2.jpg'));
     expect(files.has(getAvatarUri('avatar-m-2.jpg', TGT))).toBe(true);
     expect(await target.select().from(schema.contacts)).toMatchObject([
-      { id: maya.id, avatarFilename: 'avatar-m-2.jpg', isAvatarSynced: false },
+      { id: maya.id, avatarFilename: 'avatar-m-2.jpg' },
     ]);
   });
 
   it('a photo only in another account’s storage is dropped: the account couldn’t fetch it', async () => {
-    await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-1.jpg', isAvatarSynced: true }));
+    await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-1.jpg' }));
 
     const plan = await commitPass();
 
     expect(plan.avatars).toEqual([]);
-    expect(await target.select().from(schema.contacts)).toMatchObject([
-      { avatarFilename: null, isAvatarSynced: false },
-    ]);
+    expect(await target.select().from(schema.contacts)).toMatchObject([{ avatarFilename: null }]);
   });
 });

@@ -300,7 +300,6 @@ export const contacts = pgTable(
     phoneNumber: text('phone_number'),
     places: jsonb('places').$type<string[]>().notNull(),
     avatarFilename: text('avatar_filename'),
-    isAvatarSynced: boolean('is_avatar_synced').notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contacts_user_seq_idx').on(t.userId, t.serverSeq)],
 );

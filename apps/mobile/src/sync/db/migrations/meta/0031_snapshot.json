@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d838d5f2-2c2b-441b-b305-70754092685c",
+  "id": "238ae7a0-d824-424c-a4ff-3f80a2527b2b",
   "prevId": "0687a73a-dbe1-4596-b953-3787dce9cb37",
   "tables": {
     "ai_kinds": {
@@ -910,13 +910,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "is_avatar_synced": {
-          "name": "is_avatar_synced",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1034,6 +1027,13 @@
         },
         "model_check_judge": {
           "name": "model_check_judge",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contact_screenshot": {
+          "name": "contact_screenshot",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -1187,6 +1187,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "uploaded_files": {
+          "name": "uploaded_files",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
         }
       },
       "indexes": {

@@ -2,12 +2,11 @@ import { deferred } from '@squidbox/shared/testing/deferred';
 import { gate } from '@squidbox/shared/testing/gate';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { makeAssetRecord, makeContactRecord } from './helpers/factory';
+import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import { isBackupRunning, runBackup, type BackupUploads } from '../src/sync/backupRun';
-import * as contacts from '../src/sync/contactsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
@@ -47,9 +46,6 @@ describe('runBackup', () => {
       },
       deleteFile: async (filename) => {
         deleted.push(filename);
-      },
-      uploadAvatar: async (contact) => {
-        calls.push(`avatar ${contact.avatarFilename}`);
       },
       ...over,
     });
@@ -473,70 +469,6 @@ describe('runBackup', () => {
     await withSyncPaused(async () => {
       expect(runBackup(db, { uploads: uploads() })).toBeNull();
       expect(isBackupRunning()).toBe(false);
-    });
-  });
-
-  describe('contact photos', () => {
-    const contactRow = async (id: string) =>
-      (await db.select().from(schema.contacts)).find((contact) => contact.id === id)!;
-
-    async function pushedContactWithAvatar(avatarFilename: string) {
-      const contact = await contacts.create(db, makeContactRecord({ avatarFilename, isAvatarSynced: false }));
-      await db.delete(schema.outbox);
-      return contact;
-    }
-
-    it('uploads a contact photo after the assets and marks it synced, which keeps it on the device', async () => {
-      await unsyncedAsset('a.jpg');
-      const contact = await pushedContactWithAvatar('avatar-x-1.jpg');
-
-      await runBackup(db, { uploads: uploads() });
-
-      expect(calls.at(-1)).toBe('avatar avatar-x-1.jpg');
-      expect(deleted).toEqual(['a.jpg']);
-      expect(await contactRow(contact.id)).toMatchObject({ avatarFilename: 'avatar-x-1.jpg', isAvatarSynced: true });
-      expect(await contacts.readUnsyncedAvatarCount(db)).toBe(0);
-    });
-
-    it('skips a contact whose record the server has yet to confirm', async () => {
-      const contact = await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
-
-      await runBackup(db, { uploads: uploads() });
-
-      expect(calls).toEqual([]);
-      expect(await contactRow(contact.id)).toMatchObject({ isAvatarSynced: false });
-    });
-
-    it('a photo changed during its upload stays unsynced: the new one uploads on the next run', async () => {
-      const contact = await pushedContactWithAvatar('avatar-x-1.jpg');
-
-      await runBackup(db, {
-        uploads: uploads({
-          uploadAvatar: async () => {
-            await contacts.update(db, contact.id, { avatarFilename: 'avatar-x-2.jpg', isAvatarSynced: false });
-          },
-        }),
-      });
-
-      expect(await contactRow(contact.id)).toMatchObject({ avatarFilename: 'avatar-x-2.jpg', isAvatarSynced: false });
-    });
-
-    it('a failed photo upload leaves it unsynced and the run goes on', async () => {
-      const failing = await pushedContactWithAvatar('avatar-a-1.jpg');
-      const next = await pushedContactWithAvatar('avatar-b-1.jpg');
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      await runBackup(db, {
-        uploads: uploads({
-          uploadAvatar: async (contact) => {
-            if (contact.id === failing.id) throw new Error('boom');
-          },
-        }),
-      });
-
-      warn.mockRestore();
-      expect(await contactRow(failing.id)).toMatchObject({ isAvatarSynced: false });
-      expect(await contactRow(next.id)).toMatchObject({ isAvatarSynced: true });
     });
   });
 });

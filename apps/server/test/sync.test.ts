@@ -382,7 +382,6 @@ d('sync engine (Postgres)', () => {
         phoneNumber: '+1 604 555 0142',
         places: ['Squamish, British Columbia, Canada', 'Tofino, British Columbia, Canada'],
         avatarFilename: null,
-        isAvatarSynced: false,
       }),
       contact_lists: () => ({ ...base(), name: 'Squamish', notes: null, position: 'a0' }),
       contact_list_members: () => ({ ...base(), listId: randomUUID(), contactId: randomUUID() }),

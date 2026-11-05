@@ -1,1 +1,0 @@
-ALTER TABLE "instructions" ADD COLUMN "contact_screenshot" text;

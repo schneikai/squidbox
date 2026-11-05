@@ -14,7 +14,7 @@ const SIZES = { small: scale(32), regular: scale(44), large: scale(56), hero: sc
 
 /**
  * A contact's round avatar: the picture at `uri` when given, else the contact's photo (from the device,
- * or fetched from the user's storage once backed up), else its initials (a person without a
+ * or fetched from the user's storage), else its initials (a person without a
  * name yet) on the accent's soft surface, like the account button.
  * `size` is `small`, `regular`, `large` or `hero`. With `isFavorite` it wears a red heart on a white
  * disc at its bottom right; `isStacked` rings it in white, for avatars overlapping in a stack.
@@ -64,7 +64,7 @@ export default function ContactAvatar({
   );
 }
 
-// The uri of the contact's photo once it is on the device: a backed-up one not on it yet is fetched
+// The uri of the contact's photo once it is on the device: one not on it yet is fetched
 // through the avatar loader while signed in; null until then, and for a contact without a photo.
 function useAvatarUri(contact) {
   const filename = contact.avatarFilename;
@@ -82,17 +82,15 @@ function useAvatarUri(contact) {
       const isLocal = await hasAvatarAsync(filename, library);
       if (isCancelled) return;
       if (isLocal) setShown(filename);
-      else if (isAuthenticated && contact.isAvatarSynced && loader) {
-        withdraw = loader.loadAvatar(contact, (result) => result === 'done' && setShown(filename));
+      else if (isAuthenticated && loader) {
+        withdraw = loader.loadAvatar({ avatarFilename: filename }, (result) => result === 'done' && setShown(filename));
       }
     })();
     return () => {
       isCancelled = true;
       withdraw?.();
     };
-    // contact stands for its filename and isAvatarSynced: a new object of the same photo asks again for nothing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filename, contact.isAvatarSynced, isAuthenticated, isShown, library, loader]);
+  }, [filename, isAuthenticated, isShown, library, loader]);
 
   return isShown ? getAvatarUri(filename, library) : null;
 }

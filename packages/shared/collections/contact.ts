@@ -7,9 +7,10 @@ const handleSchema = textSchema.max(CONTACT_LIMITS.handle).nullable();
 
 // `contacts` — the people the user works with (the Contacts tab). The handles are stored without
 // `@` or a URL (normalizeHandle); `places` is a list of free-text places ("Squamish, Canada") that
-// merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<n>.jpg`):
-// `avatarFilename` names it, null without a photo, and `isAvatarSynced` says it was uploaded, so
-// both change together. Deletion is a `deletedAt` tombstone, which Restore undoes.
+// merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<n>.jpg`) that
+// `avatarFilename` names, null without a photo: a file field, so the sync uploads the file before the
+// record is pushed; a new photo gets a new name, so a device holding the old one never shows it for
+// the new. Deletion is a `deletedAt` tombstone, which Restore undoes.
 export const contactCollection = defineCollection({
   name: 'contacts',
   schema: baseRecordSchema.extend({
@@ -24,12 +25,9 @@ export const contactCollection = defineCollection({
     phoneNumber: textSchema.max(CONTACT_LIMITS.phoneNumber).nullable(),
     places: z.array(textSchema.min(1).max(CONTACT_LIMITS.place)).max(CONTACT_LIMITS.places),
     avatarFilename: textSchema.nullable(),
-    isAvatarSynced: z.boolean(),
   }),
-  fieldGroups: [
-    ['isFavorite', 'favoritedAt'],
-    ['avatarFilename', 'isAvatarSynced'],
-  ],
+  fieldGroups: [['isFavorite', 'favoritedAt']],
+  fileFields: ['avatarFilename'],
 });
 
 export type ContactRecord = z.infer<typeof contactCollection.schema>;

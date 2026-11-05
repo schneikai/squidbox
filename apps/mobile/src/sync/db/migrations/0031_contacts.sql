@@ -46,8 +46,9 @@ CREATE TABLE `contacts` (
 	`jff_handle` text,
 	`phone_number` text,
 	`places` text NOT NULL,
-	`avatar_filename` text,
-	`is_avatar_synced` integer NOT NULL
+	`avatar_filename` text
 );
 --> statement-breakpoint
-CREATE INDEX `contacts_live_name_idx` ON `contacts` (`name`,`id`) WHERE "contacts"."deleted_at" is null;
+CREATE INDEX `contacts_live_name_idx` ON `contacts` (`name`,`id`) WHERE "contacts"."deleted_at" is null;--> statement-breakpoint
+ALTER TABLE `instructions` ADD `contact_screenshot` text;--> statement-breakpoint
+ALTER TABLE `outbox` ADD `uploaded_files` text DEFAULT '[]' NOT NULL;

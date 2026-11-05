@@ -66,7 +66,6 @@ export function makeContactRecord(over: Partial<ContactRecord> = {}): ContactRec
     phoneNumber: null,
     places: [],
     avatarFilename: null,
-    isAvatarSynced: false,
     ...over,
   };
 }
