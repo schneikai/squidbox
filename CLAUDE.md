@@ -72,6 +72,7 @@ Decide this before the app stores anything new:
 - For builds, signing and credentials, follow the `ios-build` skill. Build the dev client only when native code changes; "start the dev client" means `npm run dev:local` (`README.md` → "Dev client")
 - The dev client never runs against the live backend, unless the owner explicitly asks for it in that conversation (say, to look into a problem in their own account). Then, and only then, add `--live-backend-on-owner-request`
 - To see a UI change without a phone, use the web preview (`README.md` → "Web preview"). Check native-only behavior (camera roll, uploads, gestures) on a device
+- Run anything that takes more than a few seconds (`dev:local`, builds, deploys) in the background and poll its output in short checks, never one long blocking wait: the owner's messages can't reach you while a command blocks
 - If `dev:local` can't write `.env.local`, don't start Metro by hand: ask the owner for the missing values
 - Stop it with SIGTERM or Ctrl+C on the script, and end your reply with the URL it prints to open in Squidbox (Dev), not the startup logs or localhost URLs
 - Mock data (`apps/server/scripts/seed-mock.ts`) is one guy posting his outdoor photos on Bluesky: keep new mock content in that persona
