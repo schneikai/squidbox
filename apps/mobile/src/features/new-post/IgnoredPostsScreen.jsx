@@ -1,4 +1,5 @@
 import { useNavigation } from 'expo-router';
+import { useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,10 +21,20 @@ export default function IgnoredPostsScreen() {
   const { bottom } = useSafeAreaInsets();
 
   const { rows, count, loadMore } = usePagedQuery(ignored, 20);
-
-  async function handleRestore(post) {
-    await updatePost(post.id, { isIgnoredForRepost: false });
-  }
+  // Stable, so the list re-renders a post only when it changes (PostListItem is memoized).
+  const renderPostActions = useCallback(
+    (post) => (
+      <View style={styles.actionContainer}>
+        <Button
+          variant="secondary"
+          icon="eye"
+          onPress={() => updatePost(post.id, { isIgnoredForRepost: false })}
+          accessibilityLabel="Restore to the repost queue"
+        />
+      </View>
+    ),
+    [updatePost],
+  );
 
   return (
     <ModalSheet>
@@ -44,16 +55,7 @@ export default function IgnoredPostsScreen() {
           rows={rows}
           loadMore={loadMore}
           contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING, paddingBottom: bottom + 16 }}
-          renderPostActions={(post) => (
-            <View style={styles.actionContainer}>
-              <Button
-                variant="secondary"
-                icon="eye"
-                onPress={() => handleRestore(post)}
-                accessibilityLabel="Restore to the repost queue"
-              />
-            </View>
-          )}
+          renderPostActions={renderPostActions}
         />
       )}
     </ModalSheet>
