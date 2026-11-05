@@ -4,7 +4,7 @@
  * row before them in `rowIds` (first if none), so a page the auto-scroll loaded lands at the end and
  * a synced new album among the others.
  */
-export default function mergeRowIds(order, rowIds, keepId) {
+export default function mergeRowIds(order: string[], rowIds: string[], keepId?: string | null) {
   const live = new Set(rowIds);
   const merged = order.filter((id) => live.has(id) || id === keepId);
   const known = new Set(merged);

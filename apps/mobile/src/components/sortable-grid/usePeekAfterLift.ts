@@ -8,11 +8,17 @@ import { PEEK_AFTER_LIFT_MS } from '@/constants';
  * on release cancels the wait or ends the peek (`onPeekEnd()`). `isPeeking()` says whether it peeks.
  * Without `onPeek` (`canPeek` false) nothing peeks.
  */
-export default function usePeekAfterLift({ onPeek, onPeekEnd }) {
-  const timerRef = useRef(null);
+export default function usePeekAfterLift<Row>({
+  onPeek,
+  onPeekEnd,
+}: {
+  onPeek?: (row: Row) => void;
+  onPeekEnd?: () => void;
+}) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPeekingRef = useRef(false);
   // Called after a timer, so read when they run.
-  const callbacks = useRef({});
+  const callbacks = useRef({ onPeek, onPeekEnd });
   callbacks.current.onPeek = onPeek;
   callbacks.current.onPeekEnd = onPeekEnd;
   useEffect(() => () => clearTimeout(timerRef.current), []);
@@ -20,7 +26,7 @@ export default function usePeekAfterLift({ onPeek, onPeekEnd }) {
   return {
     canPeek: Boolean(onPeek),
     isPeeking: () => isPeekingRef.current,
-    schedule(row) {
+    schedule(row: Row) {
       timerRef.current = setTimeout(() => {
         isPeekingRef.current = true;
         callbacks.current.onPeek?.(row);

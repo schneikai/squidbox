@@ -3,7 +3,7 @@ import { useDeferredValue, useRef, useState } from 'react';
 import toggleItem from '@/utils/toggleItem';
 
 // The one method of a list this calls: FlatList's, FlashList's or an animated one's alike.
-type ScrollableList = { scrollToOffset(params: { animated: boolean; offset: number }): void };
+export type ScrollableList = { scrollToOffset(params: { animated: boolean; offset: number }): void };
 
 /**
  * A list screen's search, sort and filter, for its SearchSortFilterBar:

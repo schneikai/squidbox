@@ -1,9 +1,12 @@
 import createStore from '@/lib/createStore';
+import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
+
+export type QuickView = { asset: ThumbnailStatusAsset; routeKey: string | null; owner: object };
 
 // The open quick view, or `null`: `{ asset, routeKey, owner }`, the photo peeked at, the sheet its
 // grid lives in (`null` in the main app), so only that surface's QuickViewHost shows it, and the
 // grid that opened it, so only that grid closes it.
-const store = createStore(null);
+const store = createStore<QuickView | null>(null);
 
 /**
  * The quick view: `open(asset, { routeKey, owner })` shows a peek, `close(owner)` closes it if
@@ -11,8 +14,9 @@ const store = createStore(null);
  * `subscribe(listener)`, for useSyncExternalStore.
  */
 const quickViewStore = {
-  open: (asset, { routeKey, owner }) => store.set({ asset, routeKey, owner }),
-  close(owner) {
+  open: (asset: ThumbnailStatusAsset, { routeKey, owner }: Omit<QuickView, 'asset'>) =>
+    store.set({ asset, routeKey, owner }),
+  close(owner: object | undefined) {
     if (store.get()?.owner === owner) store.set(null);
   },
   get: store.get,

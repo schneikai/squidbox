@@ -2,7 +2,7 @@ import parts from './octopusParts.json';
 
 // Where the native splash shows the octopus in a window of this size: assets/splash.png scaled to
 // fit it whole (`resizeMode: 'contain'`) and centred. `width` is the size to give <Octopus>.
-export function splashOctopusFrame({ width, height }) {
+export function splashOctopusFrame({ width, height }: { width: number; height: number }) {
   const [imageWidth, imageHeight] = parts.image;
   const scale = Math.min(width / imageWidth, height / imageHeight);
   return {

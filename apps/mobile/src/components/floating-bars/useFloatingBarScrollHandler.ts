@@ -10,7 +10,7 @@ const TOP_REVEAL_Y = 24;
 export default function useFloatingBarScrollHandler() {
   const { scrollY, isNavBarHidden } = useFloatingBars();
 
-  return useAnimatedScrollHandler({
+  return useAnimatedScrollHandler<{ prevY?: number; isDragging?: boolean }>({
     onBeginDrag: (event, ctx) => {
       ctx.prevY = event.contentOffset.y;
       ctx.isDragging = true;

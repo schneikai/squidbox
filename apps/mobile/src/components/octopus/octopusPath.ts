@@ -1,7 +1,7 @@
 // A closed, smooth SVG path through a traced polygon, its points' coordinates in turn in `xy` (x0, y0,
 // x1, y1, …) and which of them are corners in `sharp`: quadratic curves through the edges' midpoints
 // (so it never overshoots the outline), straight through sharp corners.
-export function pathOf(xy, sharp) {
+export function pathOf(xy: number[], sharp: number[]) {
   'worklet';
   const n = sharp.length;
   let d = '';

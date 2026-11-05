@@ -1,9 +1,30 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { usePanGesture } from 'react-native-gesture-handler';
+import { type RefObject, useEffect, useMemo, useRef } from 'react';
+import { type PanGesture, usePanGesture } from 'react-native-gesture-handler';
+import type { SharedValue } from 'react-native-reanimated';
+
+import type { GridLayout } from './gridSlotOrigin';
+
+import type { ScrollableList } from '@/hooks/useListControls';
 
 const EDGE_ZONE = 90; // px from top/bottom where auto-scroll kicks in
 const MAX_SCROLL_STEP = 16; // px per tick at the very edge
 const SCROLL_TICK_MS = 16;
+
+export type Point = { x: number; y: number };
+
+export type UseGridLongPressPanOptions = {
+  enabled: boolean;
+  waitsFor?: PanGesture;
+  holdMs: number;
+  layout?: GridLayout;
+  paddingTop: number;
+  listRef?: RefObject<ScrollableList | null>;
+  scrollY?: SharedValue<number>;
+  findIndexAt?: (content: Point, count: number) => number;
+  onLift: (x: number, y: number) => void;
+  onMove: (x: number, y: number) => void;
+  onRelease: (end: { canceled: boolean }) => void;
+};
 
 /**
  * The pan a grid's drags share (drag-select, drag-reorder): it starts after a hold of `holdMs` and
@@ -31,21 +52,23 @@ export default function useGridLongPressPan({
   onLift,
   onMove,
   onRelease,
-}) {
-  const handlers = useRef({});
+}: UseGridLongPressPanOptions) {
+  const handlers = useRef({ onLift, onMove, onRelease });
   handlers.current = { onLift, onMove, onRelease };
   const containerHeightRef = useRef(0);
-  const pointRef = useRef({ x: 0, y: 0 });
-  const timerRef = useRef(null);
+  const pointRef = useRef<Point>({ x: 0, y: 0 });
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liftedRef = useRef(false);
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  function contentPoint(x, y) {
+  function contentPoint(x: number, y: number): Point {
     return { x, y: y + (scrollY?.value ?? 0) - paddingTop };
   }
 
-  function indexAtContent(content, count) {
-    return findIndexAt ? findIndexAt(content, count) : gridIndexAtContentPoint(content, layout, count);
+  function indexAtContent(content: Point, count: number) {
+    if (findIndexAt) return findIndexAt(content, count);
+    if (!layout) throw new Error('useGridLongPressPan needs layout or findIndexAt');
+    return gridIndexAtContentPoint(content, layout, count);
   }
 
   // Reads only refs and the list, so the tick an interval started with stays valid.
@@ -65,7 +88,7 @@ export default function useGridLongPressPan({
     if (liftedRef.current && !timerRef.current) timerRef.current = setInterval(tick, SCROLL_TICK_MS);
   }
 
-  const config = useMemo(
+  const config = useMemo<Parameters<typeof usePanGesture>[0]>(
     () => ({
       enabled,
       requireToFail: waitsFor,
@@ -95,7 +118,7 @@ export default function useGridLongPressPan({
 
   return {
     gesture,
-    onContainerLayout: (height) => {
+    onContainerLayout: (height: number) => {
       containerHeightRef.current = height;
     },
     startAutoScroll,
@@ -106,7 +129,7 @@ export default function useGridLongPressPan({
 
 // The auto-scroll's step for a finger at `y` in a container `height` tall: up or down near an edge,
 // faster closer to it, 0 elsewhere.
-function edgeScrollStep(y, height) {
+function edgeScrollStep(y: number, height: number) {
   if (y < EDGE_ZONE) return -MAX_SCROLL_STEP * (1 - Math.max(y, 0) / EDGE_ZONE);
   if (height > 0 && y > height - EDGE_ZONE) return MAX_SCROLL_STEP * (1 - Math.max(height - y, 0) / EDGE_ZONE);
   return 0;
@@ -114,7 +137,7 @@ function edgeScrollStep(y, height) {
 
 // The flat index of the cell at a content-space point (a point in a gap counts for the nearer cell),
 // or -1 above the grid or past its `count` cells.
-function gridIndexAtContentPoint({ x, y }, layout, count) {
+function gridIndexAtContentPoint({ x, y }: Point, layout: GridLayout, count: number) {
   const { numColumns, cellWidth, cellHeight, gap } = layout;
   if (y < 0) return -1;
   const col = Math.min(Math.max(Math.floor((x - gap / 2) / (cellWidth + gap)), 0), numColumns - 1);

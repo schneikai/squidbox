@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { LayoutChangeEvent } from 'react-native';
 
 // The least room between a header's centred title and a side pill.
 const SIDE_GAP = 12;
@@ -11,8 +12,8 @@ const SIDE_GAP = 12;
 export default function useTitleMaxWidth() {
   const [widths, setWidths] = useState({ row: 0, left: 0, right: 0 });
 
-  function measure(side) {
-    return (e) => {
+  function measure(side: keyof typeof widths) {
+    return (e: LayoutChangeEvent) => {
       const { width } = e.nativeEvent.layout;
       setWidths((current) => (current[side] === width ? current : { ...current, [side]: width }));
     };
