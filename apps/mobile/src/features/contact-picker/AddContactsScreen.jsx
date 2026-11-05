@@ -11,7 +11,6 @@ import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchInput from '@/components/SearchInput';
-import SelectIndicator from '@/components/SelectIndicator';
 import { SCREEN_PADDING } from '@/constants';
 import ContactRow from '@/features/contact-list/ContactRow';
 import contactQuery from '@/features/contact-list/contactQuery';
@@ -58,7 +57,6 @@ function AddContactsPicker({ target, seed }) {
       <View style={styles.gutter}>
         <ContactRow
           contact={contact}
-          trailing={<SelectIndicator isSelected={isSelected} style={styles.indicator} />}
           onPress={() => setSelectedIds((current) => toggleItem(current, contact.id))}
           isSelected={isSelected}
           isFirst={index === 0}
@@ -146,8 +144,5 @@ const styles = StyleSheet.create({
   },
   search: {
     marginHorizontal: SCREEN_PADDING,
-  },
-  indicator: {
-    marginRight: 12,
   },
 });

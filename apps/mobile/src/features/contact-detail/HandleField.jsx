@@ -85,6 +85,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    minWidth: 0, // a web input is as wide as its text box otherwise, which pushes the button out
     paddingVertical: 14,
   },
   dot: {
