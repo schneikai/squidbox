@@ -18,7 +18,7 @@ Reason top-down, decide bottom-up:
    accessibility.
 2. **Implementation: Expo / React Native knowledge**: navigation, native behavior, react-native-web.
 3. **Our codebase: final authority**: `CLAUDE.md`, the components in `apps/mobile/src/components`
-   and the tokens in `apps/mobile/src/styles/designTokens.js`.
+   and the tokens in `apps/mobile/src/styles/designTokens.ts`.
 
 When a skill's example and the codebase disagree, follow the codebase. When a HIG principle and
 our design disagree, follow our design and name the tension in your answer; never deviate
@@ -29,7 +29,7 @@ screen-local exception.
 
 | Task                                                                          | Read                                                                                                                                                                            |
 | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Any UI change                                                                 | `CLAUDE.md` (React, UI / Components) and `styles/designTokens.js`                                                                                                               |
+| Any UI change                                                                 | `CLAUDE.md` (React, UI / Components) and `styles/designTokens.ts`                                                                                                               |
 | New screen or flow, screen review, navigation, toolbar or accessibility audit | The `apple-design` skill: its always-load set, `references/cross-platform.md`, and 3–6 pages for what is on screen (`toolbars.md`, `tab-bars.md`, `buttons.md`, `sheets.md`, …) |
 | Small change inside an existing component                                     | This file; skip `apple-design`                                                                                                                                                  |
 
@@ -37,7 +37,7 @@ screen-local exception.
 
 All paths are under `apps/mobile/src/`.
 
-- `styles/designTokens.js`: `colors` (semantic roles in groups: `text`, `accent`, `status`,
+- `styles/designTokens.ts`: `colors` (semantic roles in groups: `text`, `accent`, `status`,
   `background`, `border`, `overlay`; raw values live once in a private `palette`), `shadows`,
   `radii`, `layout` (gutters, bar and menu paddings), `sizes` (controls and icons), `typography`
   and `lineHeights` (Apple's text styles), `glass`, `motion`. Sizes scale with the screen
@@ -87,7 +87,7 @@ All paths are under `apps/mobile/src/`.
 | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | HIG: SF Symbols                                                                        | lucide icons through `Icon` / `Button`                                                                                                                                                |
 | HIG: Liquid Glass / materials                                                          | Our glass (`FloatingPill`: blur + `glass` token + border) only on floating chrome, popovers and sheets; no blur in list cells                                                         |
-| apple-design improvement mode: a new palette, type scale or token system               | Map every proposal onto the existing tokens. A real token change goes into `designTokens.js` and applies everywhere                                                                   |
+| apple-design improvement mode: a new palette, type scale or token system               | Map every proposal onto the existing tokens. A real token change goes into `designTokens.ts` and applies everywhere                                                                   |
 | apple-design template check, Expo "slop" lists: violet gradient, floating pill tab bar | Frosted glass plus one violet gradient action per toolbar **is** the identity. Critique how it's executed, not the identity itself                                                    |
 | Expo: `NativeTabs`, native stack headers, "never hand-roll the header"                 | JS tabs with `FloatingNavigationBar`, `headerShown: false` with `FloatingHeader` / `FloatingDetailHeader`: deliberate chrome that renders the same on web. Don't migrate unless asked |
 | Expo: `@expo/ui` components, `formSheet`                                               | Our components; `@expo/ui` only after asking (iOS only, takes the touch)                                                                                                              |

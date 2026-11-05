@@ -10,11 +10,12 @@ const SCALE_FACTOR = SCREEN_WIDTH / BASE_WIDTH;
  * Base value is designed for a 390 pt wide screen (iPhone 14 Pro).
  * Typical results: SE (375) → ~0.96×, Pro Max (430) → ~1.10×
  *
- * @param {number} size   Base size in points
- * @param {number} [min=0.85]  Minimum scale factor
- * @param {number} [max=1.15]  Maximum scale factor
+ * @param size   Base size in points
+ * @param [min=0.85]  Minimum scale factor
+ * @param [max=1.15]  Maximum scale factor
  */
-export const scale = (size, min = 0.85, max = 1.15) => Math.round(size * Math.min(Math.max(SCALE_FACTOR, min), max));
+export const scale = (size: number, min = 0.85, max = 1.15) =>
+  Math.round(size * Math.min(Math.max(SCALE_FACTOR, min), max));
 
 // Horizontal gutter between floating UI (bars, popovers) and the screen edges.
 const SIDE_GUTTER = scale(16);
@@ -62,7 +63,7 @@ export const colors = {
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
     border: alpha(palette.violet600, 0.3), // the frame of an outlined or dashed chip
     onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
-    gradient: [palette.violet600, palette.indigo600],
+    gradient: [palette.violet600, palette.indigo600] as const,
     frame: palette.violet650, // the frame of a toolbar that is only the primary (FloatingPill), between the gradient's ends
   },
   status: {
@@ -75,7 +76,7 @@ export const colors = {
   },
   background: {
     // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
-    app: [palette.gray75, palette.gray60, palette.violet75],
+    app: [palette.gray75, palette.gray60, palette.violet75] as const,
     base: palette.gray75, // a sheet or screen without the gradient
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
@@ -111,7 +112,7 @@ const RAISED_BLUR = 8;
 
 // The lit edge of a surface, drawn inside it: a `light` rim along its top and left, a `shade` along
 // its bottom and right.
-function litEdge(light, shade) {
+function litEdge(light: string, shade: string) {
   return { boxShadow: `inset 1.5px 1.5px 0 ${light}, inset -1px -1px 0 ${shade}` };
 }
 
@@ -264,7 +265,7 @@ export const disabledOpacity = 0.4;
 
 // Apple's spring model (WWDC23 "Animate with springs"): perceptual duration in seconds and bounce
 // (0 = none), as the physics values both Animated.spring and Reanimated's withSpring take.
-function springConfig({ duration, bounce }) {
+function springConfig({ duration, bounce }: { duration: number; bounce: number }) {
   return {
     mass: 1,
     stiffness: ((2 * Math.PI) / duration) ** 2,
@@ -272,7 +273,7 @@ function springConfig({ duration, bounce }) {
   };
 }
 
-function alpha(hex, opacity) {
+function alpha(hex: string, opacity: number) {
   const value = parseInt(hex.slice(1), 16);
   return `rgba(${value >> 16},${(value >> 8) & 255},${value & 255},${opacity})`;
 }
