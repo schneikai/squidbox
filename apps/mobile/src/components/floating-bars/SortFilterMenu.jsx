@@ -5,7 +5,7 @@ import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, sizes, space } from '@/styles/designTokens';
 
 /**
  * The rows of the sort / filter / view-options menu, for a MenuButton. "Filter" drills down into a
@@ -110,6 +110,6 @@ export default function SortFilterMenu({
 
 const styles = StyleSheet.create({
   chevron: {
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
 });

@@ -8,7 +8,7 @@ import useTitleMaxWidth from './useTitleMaxWidth';
 
 import Button from '@/components/Button';
 import useSheetRoute from '@/hooks/useSheetRoute';
-import { layout, motion } from '@/styles/designTokens';
+import { layout, motion, space } from '@/styles/designTokens';
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -38,10 +38,10 @@ export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot
 
   return (
     <View
-      // Inside a modal sheet the top safe-area inset is ~0, so insets.top + 8 would leave the pills
-      // hugging the sheet's top edge. Floor the offset at layout.barBottom so it matches ModalHeader's
-      // top gap in sheets, while full screens (large insets.top) keep insets.top + 8 unchanged.
-      style={[styles.container, { top: Math.max(insets.top + 8, layout.barBottom) }]}
+      // Inside a modal sheet the top safe-area inset is ~0, so insets.top + space.sm would leave the
+      // pills hugging the sheet's top edge. Floor the offset at layout.barBottom so it matches
+      // ModalHeader's top gap in sheets, while full screens (large insets.top) keep insets.top + space.sm.
+      style={[styles.container, { top: Math.max(insets.top + space.sm, layout.barBottom) }]}
       pointerEvents="box-none"
     >
       <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>

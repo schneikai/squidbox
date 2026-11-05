@@ -1,7 +1,7 @@
 import { Text as RNText, StyleSheet, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, lineHeights, radii, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, radii, space, typography } from '@/styles/designTokens';
 
 /**
  * A warning about what's on the screen, on a yellow note with an alert icon: something to fix that
@@ -21,13 +21,14 @@ const styles = StyleSheet.create({
   note: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: layout.cardGap,
+    paddingHorizontal: layout.cardInset,
+    paddingVertical: space.md,
     borderRadius: radii.card,
     backgroundColor: colors.background.note,
   },
   icon: {
+    // eslint-disable-next-line no-restricted-syntax -- centres the icon on the text's first line
     marginTop: 1,
   },
   text: {

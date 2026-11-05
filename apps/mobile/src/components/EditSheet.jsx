@@ -9,6 +9,7 @@ import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useSheetRoute from '@/hooks/useSheetRoute';
+import { layout } from '@/styles/designTokens';
 
 /**
  * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the leading
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING,
     paddingHorizontal: SCREEN_PADDING,
-    gap: 12,
+    gap: layout.cardGap,
   },
   filling: {
     flex: 1,

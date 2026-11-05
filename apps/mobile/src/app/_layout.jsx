@@ -33,7 +33,7 @@ import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import useLibrary from '@/library/useLibrary';
 import usePendingMerges from '@/library/usePendingMerges';
 import '@/polyfills/browserDialogs';
-import { colors } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import useSyncTriggers from '@/sync/useSyncTriggers';
@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 10,
+    paddingHorizontal: space.xxxl,
+    gap: layout.cardGap,
   },
   bootErrorTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   bootErrorText: { fontSize: 15, opacity: 0.7, textAlign: 'center', lineHeight: 20 },

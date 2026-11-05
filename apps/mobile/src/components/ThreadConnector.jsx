@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { colors, scale } from '@/styles/designTokens';
+import { colors, scale, space } from '@/styles/designTokens';
 
 // The short line joining the posts of a thread, one card to the next (the post editor, the post screen).
 export default function ThreadConnector() {
@@ -11,7 +11,7 @@ const styles = StyleSheet.create({
   line: {
     width: 2,
     height: scale(16),
-    marginLeft: scale(32),
+    marginLeft: space.xxxl,
     backgroundColor: colors.accent.border,
   },
 });

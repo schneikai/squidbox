@@ -5,10 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchOptionsBar from './SearchOptionsBar';
 import SortFilterMenu from './SortFilterMenu';
 
-import { layout, sizes } from '@/styles/designTokens';
+import { layout, sizes, space } from '@/styles/designTokens';
 
 // The room a list keeps free at its bottom, above the safe-area inset, so its end clears the bar.
-export const SEARCH_SORT_FILTER_BAR_CLEARANCE = sizes.iconButton + layout.barBottom * 2 + 16;
+export const SEARCH_SORT_FILTER_BAR_CLEARANCE = sizes.iconButton + layout.barBottom * 2 + space.lg;
 
 /**
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs

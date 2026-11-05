@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
-import { colors, glass, lineHeights, typography } from '@/styles/designTokens';
+import { colors, glass, lineHeights, space, typography } from '@/styles/designTokens';
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
@@ -32,22 +32,24 @@ export default function ChatBubble({ side, label, text, children }) {
 }
 
 // The bubble's text inset, which its ⋯ lines up with.
-const BUBBLE_PADDING_X = 14;
+const BUBBLE_PADDING_X = space.md;
 
 const styles = StyleSheet.create({
   userRow: {
     alignItems: 'flex-end',
+    // eslint-disable-next-line no-restricted-syntax -- the room a bubble leaves on the other side: a width, not a gap
     paddingLeft: 48,
   },
   assistantRow: {
     alignItems: 'flex-start',
+    // eslint-disable-next-line no-restricted-syntax -- as the user's row
     paddingRight: 48,
   },
   bubble: {
     borderRadius: 18,
-    paddingVertical: 9,
+    paddingVertical: space.sm,
     paddingHorizontal: BUBBLE_PADDING_X,
-    gap: 4,
+    gap: space.xs,
   },
   // The corner that points at the speaker's side.
   userCorner: {
@@ -75,8 +77,8 @@ const styles = StyleSheet.create({
   },
   // Close under the bubble, its ⋯ in line with the bubble's text.
   menu: {
-    marginTop: 2,
-    marginBottom: -2,
+    marginTop: space.hair,
+    marginBottom: -space.hair,
     marginHorizontal: BUBBLE_PADDING_X,
   },
 });

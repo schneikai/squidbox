@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   screenIntro: {
-    marginHorizontal: 4,
+    marginHorizontal: layout.rowInset, // over the rows' text
     marginBottom: layout.introGap,
   },
 });

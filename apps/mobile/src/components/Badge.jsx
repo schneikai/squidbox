@@ -19,7 +19,9 @@ const styles = StyleSheet.create({
   badge: {
     overflow: 'hidden',
     borderRadius: radii.badge,
+    // eslint-disable-next-line no-restricted-syntax -- a label's tight capsule, optically even around caps
     paddingHorizontal: 6,
+    // eslint-disable-next-line no-restricted-syntax -- as above
     paddingVertical: 2,
     fontSize: typography.caption2,
     fontWeight: '700',

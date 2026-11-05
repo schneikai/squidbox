@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native';
 
 import Button from '@/components/Button';
 import Text from '@/components/Text';
-import { lineHeights, scale } from '@/styles/designTokens';
+import { layout, lineHeights, space } from '@/styles/designTokens';
 
 /**
  * A label + children slot + optional description text.
@@ -40,7 +40,7 @@ export default function Field({ label, description, onInfo, trailing, children, 
 
 const styles = StyleSheet.create({
   field: {
-    gap: 8,
+    gap: space.sm,
   },
   labelRow: {
     flexDirection: 'row',
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   info: {
-    marginLeft: scale(6),
+    marginLeft: layout.iconGap,
   },
   trailing: {
     marginLeft: 'auto',

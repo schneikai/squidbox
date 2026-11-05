@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, space, typography } from '@/styles/designTokens';
 
 /**
  * A section label above grouped rows or content: Settings and its screens, the asset's details,
@@ -28,16 +28,16 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     fontWeight: '600',
     color: colors.text.secondary,
-    marginBottom: 8,
-    marginLeft: 4,
-    marginTop: 20,
+    marginBottom: space.sm,
+    marginLeft: layout.rowInset, // over the rows' text
+    marginTop: layout.sectionGap,
   },
   labelInRow: {
     flex: 1,
     fontSize: typography.body,
     fontWeight: '600',
     color: colors.text.secondary,
-    marginLeft: 4,
+    marginLeft: layout.rowInset,
   },
   flush: {
     marginLeft: 0,
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    marginTop: 20,
+    marginBottom: space.sm,
+    marginTop: layout.sectionGap,
   },
 });

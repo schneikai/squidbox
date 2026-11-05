@@ -5,7 +5,7 @@ import ProgressOverlayStateContext from './ProgressOverlayStateContext';
 
 import Button from '@/components/Button';
 import ProgressRing from '@/components/ProgressRing';
-import { colors, scale } from '@/styles/designTokens';
+import { colors, space } from '@/styles/designTokens';
 
 // The visual overlay, rendered IN-TREE (never via a native Modal). A native Modal presents from the
 // ROOT view controller, which UIKit refuses while a native-stack sheet is already presented — so the
@@ -46,6 +46,6 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   cancel: {
-    marginTop: scale(32),
+    marginTop: space.xxxl,
   },
 });

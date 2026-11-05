@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
 import TextInput from '@/components/TextInput';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, sizes, space } from '@/styles/designTokens';
 
 /**
  * A TextInput for search terms: no autocorrect or autocapitalization. `variant` is where it sits:
@@ -30,9 +30,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    gap: 8,
+    paddingVertical: space.md,
+    paddingHorizontal: space.md,
+    gap: space.sm,
   },
   input: {
     flex: 1,

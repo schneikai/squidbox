@@ -6,7 +6,7 @@ import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, lineHeights, press, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, press, sizes, space, typography } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -95,39 +95,39 @@ export function Row({
 
 const styles = StyleSheet.create({
   headerless: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
   section: {
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: sizes.iconButton,
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 16,
+    paddingVertical: layout.rowPaddingY,
   },
   rowLabel: {
     fontSize: typography.body,
     color: colors.text.primary,
   },
   rowSmall: {
-    paddingVertical: 12,
+    paddingVertical: layout.rowPaddingYCompact,
   },
   chevron: {
-    marginLeft: 4,
+    marginLeft: space.xs,
   },
   rowLeading: {
-    marginRight: 12,
+    marginRight: space.md,
   },
   rowText: {
     flex: 1,
-    gap: 2,
+    gap: space.hair,
   },
   // With a value the label takes its own width and the value the rest, so a long one wraps
   // instead of squeezing the label away.
   rowTextKept: {
-    gap: 2,
+    gap: space.hair,
     flexShrink: 0,
   },
   rowDescription: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
   rowRightFilling: {
     flex: 1,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   footer: {
-    marginTop: 8,
-    marginHorizontal: 4,
+    marginTop: space.sm,
+    marginHorizontal: layout.rowInset, // under the rows' text
   },
 });

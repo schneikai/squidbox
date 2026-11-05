@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, layout, radii, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, lineHeights, radii, sizes, space, typography } from '@/styles/designTokens';
 
 // A menu row's contents: leading icon, label, and `trailing` (a dot when `isSelected` and none is
 // given). The row itself (padding, press feedback) belongs to MenuOption or the popover drawing it.
@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     fontSize: typography.subheadline,
+    lineHeight: lineHeights.subheadline,
     fontWeight: '500',
     color: colors.text.primary,
   },
@@ -44,6 +45,6 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: radii.pill,
     backgroundColor: colors.accent.base,
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
 });

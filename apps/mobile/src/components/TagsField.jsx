@@ -5,7 +5,7 @@ import { StyleSheet, Text } from 'react-native';
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import TagInput from '@/components/TagInput';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, space, typography } from '@/styles/designTokens';
 
 /**
  * Tags as chips, a tap on one takes it out. The dashed Add turns into an input that adds a tag on
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
-    padding: 12,
+    gap: space.sm,
+    padding: space.md,
   },
   placeholder: {
     fontSize: typography.subheadline,

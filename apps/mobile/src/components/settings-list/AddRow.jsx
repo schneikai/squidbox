@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
+import { space } from '@/styles/designTokens';
 
 /**
  * The last row of a Section that adds to its list ("Add a rule", "Add a model"): the add of a list
@@ -16,9 +17,10 @@ export default function AddRow({ label, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  // The button's own inset is wider than the rows', so its icon lines up with their text.
+  // The button's own inset is wider than the rows', so its icon lines up with their text: the `xxl`
+  // undoes a regular link's horizontal padding (Button).
   add: {
     alignItems: 'flex-start',
-    marginLeft: SCREEN_PADDING - 24,
+    marginLeft: SCREEN_PADDING - space.xxl,
   },
 });

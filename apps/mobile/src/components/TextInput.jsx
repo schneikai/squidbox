@@ -3,7 +3,7 @@ import { TextInput as RNTextInput, StyleSheet } from 'react-native';
 
 import Card from '@/components/Card';
 import { SCREEN_PADDING } from '@/constants';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, scale, space, typography } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 
 // A multiline field grows with its text up to this, then scrolls inside, so a long text never
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   field: {
     paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingVertical: space.md,
   },
   capped: {
     maxHeight: MAX_FIELD_HEIGHT,

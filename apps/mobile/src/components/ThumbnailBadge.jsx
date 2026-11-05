@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, radii, typography } from '@/styles/designTokens';
+import { colors, layout, radii, typography } from '@/styles/designTokens';
 
 // A small dark label over a picture (a video's length, "+3"), readable on any image. The parent
 // positions it through `style`.
@@ -18,10 +18,12 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: layout.iconGapSmall,
     backgroundColor: colors.overlay.dim,
     borderRadius: radii.pill,
+    // eslint-disable-next-line no-restricted-syntax -- a capsule around a caption2 line, optically even
     paddingHorizontal: 7,
+    // eslint-disable-next-line no-restricted-syntax -- as above
     paddingVertical: 3,
   },
   label: {

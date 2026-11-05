@@ -3,6 +3,7 @@ import { useImperativeHandle, useState } from 'react';
 import { Modal, Pressable, StyleSheet } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
+import { space } from '@/styles/designTokens';
 
 // Opened through `ref` (`open(asset)`, `close()`), so a peek re-renders only this modal, not the
 // screen behind it. The peek's release closes it; a tap does too, should a release ever be missed.
@@ -32,7 +33,8 @@ export default function AssetQuickViewModal({ ref }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    // eslint-disable-next-line no-restricted-syntax -- clears the status bar and home indicator, a safe-area inset in disguise
     paddingVertical: 50,
-    paddingHorizontal: 20,
+    paddingHorizontal: space.xl,
   },
 });

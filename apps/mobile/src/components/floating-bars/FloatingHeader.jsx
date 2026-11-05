@@ -9,7 +9,7 @@ import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
 import SelectionActions from '@/features/asset-list/SelectionActions';
-import { colors, layout, motion, typography } from '@/styles/designTokens';
+import { colors, layout, motion, space, typography } from '@/styles/designTokens';
 
 // The main screens' header. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     right: layout.sideGutter,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     zIndex: 100,
   },
   title: {
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
   },
   pillWrapper: {
     position: 'absolute',

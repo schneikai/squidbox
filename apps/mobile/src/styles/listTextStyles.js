@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors, space, typography } from '@/styles/designTokens';
 
 // A list entry's main line and the smaller grey line below it (ThumbnailRow, the asset's details), and
 // the small bold grey caption under a post or an album (its date, counts, a thread's "Thread · 3").
@@ -10,7 +10,7 @@ export default StyleSheet.create({
     color: colors.text.primary,
   },
   subtitle: {
-    marginTop: 2,
+    marginTop: space.hair,
     fontSize: typography.footnote,
     color: colors.text.secondary,
   },

@@ -6,7 +6,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { colors, motion, radii, typography } from '@/styles/designTokens';
+import { colors, motion, radii, space, typography } from '@/styles/designTokens';
 
 // Off screen before the panel has measured itself.
 const HIDDEN_OFFSET = 1000;
@@ -95,14 +95,14 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: radii.pill,
     backgroundColor: colors.background.placeholder,
-    marginTop: 6,
+    marginTop: space.sm,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: space.sm,
+    marginBottom: space.sm,
   },
   // The content scrolls edge to edge and pads itself, so a child may reach into the side padding
   // without the scroll view clipping it.

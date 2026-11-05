@@ -4,6 +4,7 @@ import EditSheet from '@/components/EditSheet';
 import IntroText from '@/components/IntroText';
 import TextInput from '@/components/TextInput';
 import WarningNote from '@/components/WarningNote';
+import { space } from '@/styles/designTokens';
 
 /**
  * An EditSheet that edits one text, the look of a Notes page: an optional `description` over a
@@ -42,6 +43,6 @@ export default function TextEditSheet({
 
 const styles = StyleSheet.create({
   note: {
-    marginBottom: 12,
+    marginBottom: space.md,
   },
 });

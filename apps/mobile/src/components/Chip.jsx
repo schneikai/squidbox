@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, lineHeights, press, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, lineHeights, press, sizes, space, typography } from '@/styles/designTokens';
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
@@ -48,6 +48,8 @@ export default function Chip({
   return (
     <Pressable
       onPress={onPress}
+      // With the frame's height and a row's gaps, a 44 pt pitch.
+      hitSlop={space.xs}
       disabled={disabled}
       accessibilityRole={accessibilityRole}
       accessibilityState={
@@ -66,7 +68,7 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: layout.iconGap,
   },
   tag: {
     backgroundColor: colors.background.muted,

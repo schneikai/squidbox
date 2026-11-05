@@ -1,6 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { layout } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 /**
  * Returns consistent top/bottom content padding for the three screen types.
@@ -13,7 +13,7 @@ export default function useScreenPadding(type = 'main') {
   if (type === 'detail') {
     return {
       paddingTop: insets.top + layout.contentTop,
-      paddingBottom: insets.bottom + 24,
+      paddingBottom: insets.bottom + space.xxl,
     };
   }
 

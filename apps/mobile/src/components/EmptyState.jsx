@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
+import { colors, lineHeights, scale, space, typography } from '@/styles/designTokens';
 
 /**
  * Centred icon + title + optional subtitle.
@@ -23,9 +23,9 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: 40,
-    paddingVertical: 40,
+    gap: space.md,
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.xxxl,
   },
   title: {
     fontSize: typography.body,

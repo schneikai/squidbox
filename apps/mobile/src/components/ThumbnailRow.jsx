@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import CoverImage from '@/components/CoverImage';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import { colors, press, scale, sizes } from '@/styles/designTokens';
+import { colors, press, scale, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 const THUMBNAIL_SIZE = scale(72);
@@ -43,18 +43,18 @@ export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtit
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: space.md,
   },
   thumbnail: {
     width: THUMBNAIL_SIZE,
     height: THUMBNAIL_SIZE,
-    marginVertical: 6,
+    marginVertical: space.sm,
   },
   text: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   // The lists' divider, inset to the text.
   divider: {

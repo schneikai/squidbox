@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { colors, layout } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 
 // The hairline between rows. `variant`: `list` (the default) between the rows of a grouped list,
 // inset to the rows' text; `menu` between groups of menu rows, e.g. a destructive action and the
@@ -15,10 +15,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border.divider,
   },
   list: {
-    marginLeft: layout.sideGutter,
+    marginLeft: layout.rowInset,
   },
   menu: {
-    marginVertical: 4,
-    marginHorizontal: 10,
+    marginVertical: space.xs,
+    marginHorizontal: layout.menuRowPaddingX, // under the rows' icons
   },
 });

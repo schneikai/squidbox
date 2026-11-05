@@ -58,7 +58,9 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
+    // eslint-disable-next-line no-restricted-syntax -- a hair over the avatar's edge, like an app icon's badge
     top: -1,
+    // eslint-disable-next-line no-restricted-syntax -- as above
     right: -1,
     width: 12,
     height: 12,

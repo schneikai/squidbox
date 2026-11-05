@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
-import { colors, disabledOpacity, press, radii, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, radii, scale, sizes, space, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 const PALETTE = {
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   pair: {
     flexDirection: 'row',
-    gap: 2,
+    gap: space.hair,
   },
   pill: {
     borderRadius: radii.pill,
@@ -286,12 +286,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillFill_regular: {
-    gap: scale(6),
-    paddingHorizontal: scale(16),
+    gap: layout.iconGap,
+    paddingHorizontal: space.lg,
   },
   pillFill_small: {
-    gap: scale(4),
-    paddingHorizontal: scale(10),
+    gap: layout.iconGapSmall,
+    paddingHorizontal: space.md,
   },
   pillLabel: {
     fontWeight: '600',
@@ -306,15 +306,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: scale(4),
+    gap: layout.iconGapSmall,
   },
+  // AddRow and PostedAtPicker undo this horizontal padding to line a link up with the text beside it.
   link_regular: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: space.md,
+    paddingHorizontal: space.xxl,
   },
   link_small: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+    paddingVertical: space.xs,
+    paddingHorizontal: space.xs,
   },
   linkLabel: {
     fontWeight: '500',
