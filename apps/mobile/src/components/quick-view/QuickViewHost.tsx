@@ -7,6 +7,7 @@ import quickViewStore from './quickViewStore';
 import AssetImage from '@/components/AssetImage';
 import FadeView from '@/components/FadeView';
 import SheetRouteContext from '@/components/sheet-route/SheetRouteContext';
+import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
 /**
  * The quick view (a long-press peek at a photo) over the whole surface: one host at the app root and
@@ -23,7 +24,7 @@ export default function QuickViewHost() {
   }, [routeKey]);
   const shown = useSyncExternalStore(quickViewStore.subscribe, getShown);
   // The photo stays while the view fades out, and goes once it is off screen.
-  const [keptAsset, setKeptAsset] = useState(null);
+  const [keptAsset, setKeptAsset] = useState<ThumbnailStatusAsset | null>(null);
   const dropKeptAsset = useCallback(() => setKeptAsset(null), []);
 
   if (shown && shown.asset !== keptAsset) setKeptAsset(shown.asset);

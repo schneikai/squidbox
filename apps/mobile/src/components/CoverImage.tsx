@@ -1,8 +1,17 @@
-import { StyleSheet, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import { colors, radii, sizes } from '@/styles/designTokens';
+import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
+
+export type CoverImageProps = {
+  asset?: ThumbnailStatusAsset;
+  uri?: string;
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+};
 
 /**
  * An album's cover, or the thumbnail of a row that stands for a post: `asset`'s thumbnail with
@@ -10,7 +19,7 @@ import { colors, radii, sizes } from '@/styles/designTokens';
  * either. The parent sets its size;
  * `children` draw over it (e.g. corner badges).
  */
-export default function CoverImage({ asset, uri, style, children }) {
+export default function CoverImage({ asset, uri, style, children }: CoverImageProps) {
   return (
     <View style={[styles.cover, style]}>
       <AssetImage asset={asset} uri={uri} />

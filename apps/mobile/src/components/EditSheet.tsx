@@ -1,14 +1,27 @@
+import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import ActionButtons from '@/components/ActionButtons';
+import ActionButtons, { type ActionButtonsProps } from '@/components/ActionButtons';
 import Button from '@/components/Button';
 import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import useSheetRoute from '@/hooks/useSheetRoute';
+
+export type EditSheetProps = {
+  title?: string;
+  confirmLabel: string;
+  canConfirm: boolean;
+  isSaving: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  actions?: ActionButtonsProps['actions'];
+  isFilling?: boolean;
+  children?: ReactNode;
+};
 
 /**
  * The sheet that edits one item as a draft (hooks/useEditSheet gives its props): × on the leading
@@ -29,7 +42,7 @@ export default function EditSheet({
   actions = [],
   isFilling = false,
   children,
-}) {
+}: EditSheetProps) {
   const { bottom } = useSafeAreaInsets();
   const isSheetRoute = useSheetRoute()?.isFirstScreen ?? true;
 
@@ -85,7 +98,7 @@ export default function EditSheet({
 }
 
 // The body that fills the sheet above the keyboard (`isFilling`).
-function FillingBody({ children }) {
+function FillingBody({ children }: { children?: ReactNode }) {
   const { bottom } = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset(12);
   const fillingStyle = useAnimatedStyle(() => ({

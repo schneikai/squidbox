@@ -5,8 +5,18 @@ import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import { colors, press, scale, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
 const THUMBNAIL_SIZE = scale(72);
+
+export type ThumbnailRowProps = {
+  asset?: ThumbnailStatusAsset;
+  hasThumbnail?: boolean;
+  title: string;
+  subtitle?: string;
+  isLast?: boolean;
+  onPress: () => void;
+};
 
 /**
  * A row of a list of albums or posts, as Apple Photos lists albums: `asset`'s thumbnail
@@ -14,7 +24,14 @@ const THUMBNAIL_SIZE = scale(72);
  * caption) over a smaller grey `subtitle` (its count, when it was posted), and a separator inset to
  * the text unless `isLast`. The whole row is pressable.
  */
-export default function ThumbnailRow({ asset, hasThumbnail = true, title, subtitle, isLast, onPress }) {
+export default function ThumbnailRow({
+  asset,
+  hasThumbnail = true,
+  title,
+  subtitle,
+  isLast,
+  onPress,
+}: ThumbnailRowProps) {
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && press.flat]}

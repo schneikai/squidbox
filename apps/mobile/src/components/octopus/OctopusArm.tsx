@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import Animated, { useAnimatedProps, useDerivedValue } from 'react-native-reanimated';
+import Animated, { type DerivedValue, useAnimatedProps, useDerivedValue } from 'react-native-reanimated';
 import { ClipPath, G, Path } from 'react-native-svg';
 
 import parts from './octopusParts.json';
@@ -13,7 +13,7 @@ const FIXED = 0.25; // share of each arm, from the body, that never bends (as in
 // Bends rather than rotates: the part next to the body stays put and the rest turns around the root
 // the more the further out it is, so the joints with the head stay exactly as drawn. Each point's
 // offset from the root and its share of the bend are worked out once, here.
-function bendable(points, [rx, ry], [tx, ty]) {
+function bendable(points: number[][], [rx, ry]: number[], [tx, ty]: number[]) {
   const ux = tx - rx;
   const uy = ty - ry;
   const lengthSquared = ux * ux + uy * uy;
@@ -29,6 +29,9 @@ function bendable(points, [rx, ry], [tx, ty]) {
   };
 }
 
+type Bendable = ReturnType<typeof bendable>;
+type Arm = (typeof parts.arms)[number];
+
 const BENDABLE = new Map(
   parts.arms.map((arm) => [
     arm,
@@ -39,11 +42,15 @@ const BENDABLE = new Map(
   ]),
 );
 
+export type OctopusArmProps = { arm: Arm; angles: DerivedValue<number[]>; index: number };
+
 // One traced arm, bent by `angles.value[index]` (radians). Its shading is clipped to the bent
 // outline, so their edges stay matched however far it bends.
-export default function OctopusArm({ arm, angles, index }) {
+export default function OctopusArm({ arm, angles, index }: OctopusArmProps) {
   const clipId = useId();
-  const { outline, shades } = BENDABLE.get(arm);
+  const bent = BENDABLE.get(arm);
+  if (!bent) throw new Error("OctopusArm: not one of octopusParts.json's arms");
+  const { outline, shades } = bent;
   const outlinePath = useDerivedValue(() => bentPath(outline, angles.value[index]));
 
   return (
@@ -67,19 +74,21 @@ export default function OctopusArm({ arm, angles, index }) {
   );
 }
 
-function OutlinePath({ path, fill }) {
+function OutlinePath({ path, fill }: { path: DerivedValue<string>; fill?: string }) {
   const animatedProps = useAnimatedProps(() => ({ d: path.value }));
   return <AnimatedPath animatedProps={animatedProps} fill={fill} />;
 }
 
-function ShadePath({ shade, angles, index, fill }) {
+type ShadePathProps = { shade: Bendable; angles: DerivedValue<number[]>; index: number; fill: string };
+
+function ShadePath({ shade, angles, index, fill }: ShadePathProps) {
   const animatedProps = useAnimatedProps(() => ({ d: bentPath(shade, angles.value[index]) }));
   return <AnimatedPath animatedProps={animatedProps} fill={fill} />;
 }
 
-function bentPath({ rx, ry, offsets, weights, sharp }, angle) {
+function bentPath({ rx, ry, offsets, weights, sharp }: Bendable, angle: number) {
   'worklet';
-  const xy = new Array(offsets.length);
+  const xy = new Array<number>(offsets.length);
   for (let i = 0; i < weights.length; i++) {
     const vx = offsets[2 * i];
     const vy = offsets[2 * i + 1];

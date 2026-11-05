@@ -1,17 +1,19 @@
-import { useState, useCallback, useMemo } from 'react';
+import { type ReactNode, useState, useCallback, useMemo } from 'react';
 
-import ProgressOverlayContext from './ProgressOverlayContext';
+import ProgressOverlayContext, { type ProgressOverlayActions } from './ProgressOverlayContext';
 import ProgressOverlayHost from './ProgressOverlayHost';
-import ProgressOverlayStateContext from './ProgressOverlayStateContext';
+import ProgressOverlayStateContext, { type ProgressOverlayState } from './ProgressOverlayStateContext';
 
-export default function ProgressOverlayProvider({ children }) {
-  const [mode, setMode] = useState(null); // null | 'progress' | 'blocking'
+export type ProgressOverlayProviderProps = { children?: ReactNode };
+
+export default function ProgressOverlayProvider({ children }: ProgressOverlayProviderProps) {
+  const [mode, setMode] = useState<ProgressOverlayState['mode']>(null);
   const [progress, setProgress] = useState(0);
-  const [onCancel, setOnCancel] = useState(null);
+  const [onCancel, setOnCancel] = useState<(() => void) | null>(null);
 
   // show({ onCancel }) adds a Cancel button; the caller stops at its next chance (see useRunWithProgress)
   // and hides as usual.
-  const show = useCallback(({ onCancel = null } = {}) => {
+  const show = useCallback<ProgressOverlayActions['show']>(({ onCancel = null } = {}) => {
     setOnCancel(() => onCancel);
     setMode('progress');
   }, []);
@@ -21,16 +23,16 @@ export default function ProgressOverlayProvider({ children }) {
     setProgress(0);
     setOnCancel(null);
   }, []);
-  const updateProgress = useCallback((value) => setProgress(value), []);
+  const updateProgress = useCallback((value: number) => setProgress(value), []);
 
   // Actions are stable (memoized on stable callbacks) so action consumers never re-render on a
   // progress tick. The volatile { mode, progress, cancel } lives in a separate context read ONLY by
   // the overlay hosts — see ProgressOverlayStateContext — so ticks don't re-render the whole app.
-  const actions = useMemo(
+  const actions = useMemo<ProgressOverlayActions>(
     () => ({ show, showBlocking, hide, updateProgress }),
     [show, showBlocking, hide, updateProgress],
   );
-  const state = useMemo(() => {
+  const state = useMemo<ProgressOverlayState>(() => {
     // The button goes once pressed.
     const cancel = onCancel
       ? () => {

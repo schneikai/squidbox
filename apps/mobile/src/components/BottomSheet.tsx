@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type ReactNode, useEffect, useState } from 'react';
+import { type LayoutChangeEvent, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -11,6 +11,8 @@ import { colors, motion, radii, typography } from '@/styles/designTokens';
 // Off screen before the panel has measured itself.
 const HIDDEN_OFFSET = 1000;
 
+export type BottomSheetProps = { isVisible: boolean; onClose: () => void; title: string; children?: ReactNode };
+
 /**
  * A sheet over the current screen, as tall as its content (up to most of the screen, then
  * `children` scroll under the title): a title with a close button over `children`. It slides up while `isVisible` and back down once it turns false;
@@ -19,7 +21,7 @@ const HIDDEN_OFFSET = 1000;
  * field in it. Drawn in-app rather than as a native
  * form sheet, so it needs no route of its own and works on the web too.
  */
-export default function BottomSheet({ isVisible, onClose, title, children }) {
+export default function BottomSheet({ isVisible, onClose, title, children }: BottomSheetProps) {
   const [isMounted, setIsMounted] = useState(isVisible);
   const progress = useSharedValue(0);
   const panelHeight = useSharedValue(HIDDEN_OFFSET);
@@ -43,7 +45,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }) {
     transform: [{ translateY: (1 - progress.value) * panelHeight.value }],
   }));
 
-  function handlePanelLayout(event) {
+  function handlePanelLayout(event: LayoutChangeEvent) {
     panelHeight.value = event.nativeEvent.layout.height;
   }
 

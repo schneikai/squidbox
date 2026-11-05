@@ -1,4 +1,10 @@
-import Animated, { Extrapolation, interpolate, useAnimatedProps, useDerivedValue } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  type SharedValue,
+  useAnimatedProps,
+  useDerivedValue,
+} from 'react-native-reanimated';
 import { Circle, Path } from 'react-native-svg';
 
 import parts from './octopusParts.json';
@@ -25,9 +31,17 @@ const HIDDEN = { x: 0, y: 0, cx: 0, cy: 0, r: 0, strokeWidth: 0, opacity: 0, dro
 // How long a bubble lasts once it pops: its droplets fly out and keep rising.
 export const BUBBLE_POPPED_MS = 2 * FAST;
 
+export type OctopusBubbleProps = {
+  radius: number;
+  delay: number;
+  drift: number;
+  duration: number;
+  since: SharedValue<number>;
+};
+
 // One bubble, `since` ms after the octopus blew it: after `delay` it rises from the mouth over
 // `duration` and pops just above the head.
-export default function OctopusBubble({ radius, delay, drift, duration, since }) {
+export default function OctopusBubble({ radius, delay, drift, duration, since }: OctopusBubbleProps) {
   const state = useDerivedValue(() => {
     const elapsed = since.value - delay;
     const sincePop = elapsed - duration;

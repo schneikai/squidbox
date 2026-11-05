@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import Page from '@/components/Page';
@@ -7,10 +8,12 @@ import { scale, typography } from '@/styles/designTokens';
 
 const OCTOPUS_SIZE = scale(150);
 
+export type StatusScreenProps = { busy?: boolean; title: string; children?: ReactNode };
+
 // A full-screen status while the app can't show its content: a title, centred on the app
 // background, the octopus above it while `busy`, and whatever details the caller adds below it.
 // With Reduce Motion the octopus stands still, so a spinner shows that something is going on.
-export default function StatusScreen({ busy = false, title, children = null }) {
+export default function StatusScreen({ busy = false, title, children = null }: StatusScreenProps) {
   const reduceMotion = useReduceMotion();
 
   return (

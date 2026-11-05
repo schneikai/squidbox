@@ -1,6 +1,8 @@
-import { memo, useCallback, useEffect } from 'react';
+import { memo, type ReactNode, useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, {
+  type FrameInfo,
+  type SharedValue,
   interpolate,
   useAnimatedStyle,
   useDerivedValue,
@@ -27,7 +29,7 @@ const VIEW_BOX = `${-PAD.side} ${-PAD.top} ${WIDTH + 2 * PAD.side} ${HEIGHT + PA
 // two halves of a breath each way.
 const SWAY_MS = 4 * PULSE;
 const FLOAT = 6;
-const deg = (degrees) => (degrees * Math.PI) / 180;
+const deg = (degrees: number) => (degrees * Math.PI) / 180;
 const backs = parts.arms.filter((arm) => arm.back);
 const fronts = parts.arms.filter((arm) => !arm.back); // left to right
 // Drawn back to front: the back arms, then the outer front arms behind the inner ones.
@@ -80,10 +82,12 @@ const STOPPED = -1;
 // and on every frame while a tap plays.
 const IDLE_BEND_MS = 30;
 
+export type OctopusProps = { size: number };
+
 // The splash octopus, alive: it floats, sways its arms and blinks, and a tap makes it wave and blow
 // bubbles. `size` is its width; the arms and bubbles reach out of that box. With Reduce Motion it
 // stays still, exactly as drawn in assets/splash.png.
-function Octopus({ size }) {
+function Octopus({ size }: OctopusProps) {
   const reduceMotion = useReduceMotion();
   const time = useSharedValue(0);
   const bendTime = useSharedValue(0); // `time`, as of the arms' last bend
@@ -91,7 +95,7 @@ function Octopus({ size }) {
   const sinceBubbles = useSharedValue(STOPPED);
   // Stable, and adding up frame times: a re-registered frame callback starts its own clock from 0.
   const advance = useCallback(
-    (frame) => {
+    (frame: FrameInfo) => {
       'worklet';
       const elapsed = frame.timeSincePreviousFrame ?? 0;
       time.value += elapsed;
@@ -175,7 +179,7 @@ function Octopus({ size }) {
 export default memo(Octopus);
 
 // An SVG in the traced image's pixels, placed over the octopus's box with room around it.
-function Layer({ unit, children }) {
+function Layer({ unit, children }: { unit: number; children?: ReactNode }) {
   return (
     <Svg
       viewBox={VIEW_BOX}
@@ -189,7 +193,7 @@ function Layer({ unit, children }) {
 }
 
 // Moves a tap's clock on by a frame, up to `end`, where it stops. Whether it was running.
-function tick(clock, elapsed, end) {
+function tick(clock: SharedValue<number>, elapsed: number, end: number) {
   'worklet';
   if (clock.value === STOPPED) return false;
   const since = clock.value + elapsed;
@@ -199,7 +203,7 @@ function tick(clock, elapsed, end) {
 
 // How much of the idle motion plays: it eases in over the first half breath, so the octopus starts
 // exactly as drawn on the splash screen.
-function idleAt(time) {
+function idleAt(time: number) {
   'worklet';
   return time >= PULSE ? 1 : motion.pulse.easing(time / PULSE);
 }

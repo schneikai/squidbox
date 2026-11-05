@@ -1,12 +1,14 @@
 import { useNavigation } from 'expo-router';
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { MenuProvider } from 'react-native-popup-menu';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import SheetRouteContext from './SheetRouteContext';
+import SheetRouteContext, { type SheetRouteValue } from './SheetRouteContext';
 
 import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
 import QuickViewHost from '@/components/quick-view/QuickViewHost';
+
+export type SheetRouteProps = { routeKey: string; children?: ReactNode };
 
 /**
  * Frames a route presented as a sheet (`presentation: 'modal'`), a one-screen sheet or a sheet
@@ -20,9 +22,9 @@ import QuickViewHost from '@/components/quick-view/QuickViewHost';
  * it has its own MenuProvider and overlay hosts too (the quick view's, for peeks opened in the
  * sheet, and the progress overlay's, which shares the root's overlay state).
  */
-export default function SheetRoute({ routeKey, children }) {
+export default function SheetRoute({ routeKey, children }: SheetRouteProps) {
   const navigation = useNavigation();
-  const sheet = useMemo(
+  const sheet = useMemo<SheetRouteValue>(
     () => ({ routeKey, close: () => navigation.goBack(), setOptions: navigation.setOptions }),
     [routeKey, navigation],
   );

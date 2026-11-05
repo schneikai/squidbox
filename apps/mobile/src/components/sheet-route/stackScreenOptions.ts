@@ -1,4 +1,4 @@
-import type { NativeStackNavigationOptions } from 'expo-router/native-stack';
+import type { NativeStackNavigationOptions } from 'expo-router';
 
 // Every stack's screens draw their own headers.
 export const STACK_SCREEN_OPTIONS = { headerShown: false } satisfies NativeStackNavigationOptions;

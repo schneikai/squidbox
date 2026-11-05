@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
-import Animated, { useAnimatedProps, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, {
+  type SharedValue,
+  useAnimatedProps,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ellipse, G, Path } from 'react-native-svg';
 
 import parts from './octopusParts.json';
@@ -20,13 +26,15 @@ const FIRST_BLINK_MS = 1.5 * PULSE;
 const BLINK_GAP_MS = { min: 3 * PULSE, max: 6 * PULSE }; // a slightly random rhythm doesn't feel mechanical
 const BLINK = { duration: motion.duration.fast, easing: motion.pulse.easing };
 
+export type OctopusFaceProps = { still: boolean };
+
 // The head with its face, drawn over the arms' roots. The eyes blink unless `still`.
-export default function OctopusFace({ still }) {
+export default function OctopusFace({ still }: OctopusFaceProps) {
   const openness = useSharedValue(1);
 
   useEffect(() => {
     if (still) return undefined;
-    let timer;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     function blink() {
       openness.value = withSequence(withTiming(0.1, BLINK), withTiming(1, BLINK));
       timer = setTimeout(blink, BLINK_GAP_MS.min + Math.random() * (BLINK_GAP_MS.max - BLINK_GAP_MS.min));
@@ -52,12 +60,12 @@ export default function OctopusFace({ still }) {
   );
 }
 
-function Eye({ eye, openness }) {
+function Eye({ eye, openness }: { eye: (typeof parts.eyes)[number]; openness: SharedValue<number> }) {
   const animatedProps = useAnimatedProps(() => ({ ry: eye.ry * openness.value }));
   return <AnimatedEllipse cx={eye.cx} cy={eye.cy} rx={eye.rx} animatedProps={animatedProps} fill={colors.eye} />;
 }
 
-function polygonPath(points) {
+function polygonPath(points: number[][]) {
   return pathOf(
     points.flatMap(([x, y]) => [x, y]),
     points.map(([, , sharp]) => sharp),

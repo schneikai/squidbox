@@ -1,26 +1,43 @@
-import { useEffect, useState, useRef } from 'react';
-import { View, Image, Animated, StyleSheet } from 'react-native';
+import { type ReactNode, useEffect, useState, useRef } from 'react';
+import { View, Image, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import Icon from '@/components/Icon';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { colors, motion, sizes } from '@/styles/designTokens';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
-import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
+import type { AssetFileStatus } from '@/utils/assets/files/getAssetFileStatusAsync';
+import getAssetThumbnailStatusAsync, {
+  type ThumbnailStatusAsset,
+} from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
+
+type ThumbnailStatus = AssetFileStatus | 'failed';
 
 // Thumbnails that have loaded on this device since launch. A cell that shows one again (an album
 // opened again, the cell a drag lifts) skips the file check and the placeholder: the picture comes
 // from the image cache within a frame. One that fails to load is checked again.
-const shownUris = new Set();
+const shownUris = new Set<string>();
 const MAX_SHOWN_URIS = 10000;
 
-function rememberShown(uri) {
-  if (shownUris.size >= MAX_SHOWN_URIS) shownUris.delete(shownUris.values().next().value);
+function rememberShown(uri: string) {
+  if (shownUris.size >= MAX_SHOWN_URIS) {
+    const oldest = shownUris.values().next().value;
+    if (oldest !== undefined) shownUris.delete(oldest);
+  }
   shownUris.add(uri);
 }
+
+export type AssetImageProps = {
+  asset?: ThumbnailStatusAsset;
+  uri?: string;
+  contentFit?: 'cover' | 'contain';
+  placeholderColor?: string;
+  renderOverlay?: (hasPicture: boolean, status?: ThumbnailStatus) => ReactNode;
+  showNotUploaded?: boolean;
+};
 
 // contentFit: "cover" | "contain". The placeholder pulses until the picture has loaded (and holds
 // still while nobody is signed in to fetch it, once its download gave up, or without a thumbnail at
@@ -30,31 +47,31 @@ function rememberShown(uri) {
 // thumbnail its device hasn't backed up yet gets a crossed-out cloud on the placeholder while
 // `showNotUploaded`. `uri` shows that picture (a data URL, say) in place of an asset's thumbnail.
 export default function AssetImage({
-  asset = {},
+  asset,
   uri,
   contentFit,
   placeholderColor = colors.background.placeholder,
   renderOverlay,
   showNotUploaded = true,
-}) {
+}: AssetImageProps) {
   // getAssetThumbnailStatusAsync's for `filename` (or the loader's 'failed').
-  const [found, setFound] = useState(null);
-  const [loadedUri, setLoadedUri] = useState(null);
+  const [found, setFound] = useState<{ filename?: string; status?: ThumbnailStatus } | null>(null);
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
   const { loadThumbnail } = useAssetThumbnailLoader();
   const { isAuthenticated } = useCloud();
-  const { paths: library } = useLibrary();
+  const { paths: library } = useOpenLibrary();
   const { thumbnailStyle } = useAppSettings();
-  const localUri = asset.thumbnailFilename && getAssetThumbnailUri(asset.thumbnailFilename, library);
+  const localUri = asset?.thumbnailFilename && getAssetThumbnailUri(asset.thumbnailFilename, library);
   const wasShown = !!localUri && shownUris.has(localUri);
   // A recycled cell must not show the previous asset's status or picture.
-  const current = found?.filename === asset.thumbnailFilename ? found : null;
+  const current = found?.filename === asset?.thumbnailFilename ? found : null;
   const isLocal = wasShown || current?.status === 'local';
 
   useEffect(() => {
+    if (!asset?.thumbnailFilename || isLocal) return;
     const filename = asset.thumbnailFilename;
-    if (!filename || isLocal) return;
     const controller = new AbortController();
-    let withdraw;
+    let withdraw: (() => void) | undefined;
 
     function showLocal() {
       setFound({ filename, status: 'local' });
@@ -86,7 +103,7 @@ export default function AssetImage({
       controller.abort();
       withdraw?.();
     };
-  }, [asset.thumbnailFilename, asset.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
+  }, [asset?.thumbnailFilename, asset?.isThumbnailSynced, isAuthenticated, isLocal, library, loadThumbnail]);
 
   const thumbnailUri = uri ?? (isLocal ? localUri : null);
   const hasPicture = !!thumbnailUri && (wasShown || loadedUri === thumbnailUri);
@@ -116,7 +133,7 @@ export default function AssetImage({
             shownUris.delete(thumbnailUri);
             // Shown from memory, it gets the file check a first mount would. A checked file that still
             // won't load keeps the placeholder, rather than being checked and shown over and over.
-            if (found?.filename !== asset.thumbnailFilename) setFound({ filename: asset.thumbnailFilename });
+            if (found?.filename !== asset?.thumbnailFilename) setFound({ filename: asset?.thumbnailFilename });
             else setFound({ ...found });
           }}
         />
@@ -125,7 +142,7 @@ export default function AssetImage({
         <LoadingPlaceholder
           color={placeholderColor}
           style={!!thumbnailUri && StyleSheet.absoluteFill}
-          still={!uri && (!asset.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed')}
+          still={!uri && (!asset?.thumbnailFilename || current?.status === 'signedOut' || current?.status === 'failed')}
         >
           {showNotUploadedIcon && (
             <View
@@ -150,14 +167,21 @@ export default function AssetImage({
 
 // Each placeholder breathes at its own pace from its own starting point, so a screen of loading cells
 // doesn't pulse as one grey surface. A still one says nothing is coming.
-function LoadingPlaceholder({ color, style, still = false, children }) {
+type LoadingPlaceholderProps = {
+  color: string;
+  style?: StyleProp<ViewStyle>;
+  still?: boolean;
+  children?: ReactNode;
+};
+
+function LoadingPlaceholder({ color, style, still = false, children }: LoadingPlaceholderProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (still) return undefined;
     const { duration, easing } = motion.pulse;
     const ownDuration = duration * (0.7 + Math.random() * 0.6);
-    const half = (toValue) =>
+    const half = (toValue: number) =>
       Animated.timing(animatedValue, { toValue, duration: ownDuration, easing, useNativeDriver: true });
     const animation = Animated.sequence([
       Animated.delay(Math.random() * ownDuration * 2),

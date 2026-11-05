@@ -1,9 +1,19 @@
 import { StyleSheet } from 'react-native';
 
-import EditSheet from '@/components/EditSheet';
+import EditSheet, { type EditSheetProps } from '@/components/EditSheet';
 import IntroText from '@/components/IntroText';
 import TextInput from '@/components/TextInput';
 import WarningNote from '@/components/WarningNote';
+
+export type TextEditSheetProps = Omit<EditSheetProps, 'children' | 'isFilling'> & {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  autoFocus?: boolean;
+  description?: string;
+  note?: string;
+};
 
 /**
  * An EditSheet that edits one text, the look of a Notes page: an optional `description` over a
@@ -21,7 +31,7 @@ export default function TextEditSheet({
   description,
   note,
   ...sheetProps
-}) {
+}: TextEditSheetProps) {
   return (
     <EditSheet {...sheetProps} isFilling>
       {description != null && <IntroText isScreenIntro>{description}</IntroText>}
