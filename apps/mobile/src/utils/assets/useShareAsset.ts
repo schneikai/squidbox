@@ -1,6 +1,6 @@
-import type { AssetRecord } from '@squidbox/shared';
 import { Alert } from 'react-native';
 
+import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import useRunWithAssetFiles from '@/utils/assets/files/useRunWithAssetFiles';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import shareFileAsync from '@/utils/files/shareFileAsync';
@@ -11,7 +11,7 @@ const FAILURE_TITLE = "Couldn't share";
 export default function useShareAsset() {
   const runWithAssetFilesAsync = useRunWithAssetFiles();
 
-  function shareAssetAsync(asset: Pick<AssetRecord, 'filename' | 'isFileSynced'>) {
+  function shareAssetAsync(asset: AssetFileAsset) {
     return runWithAssetFilesAsync(
       [asset],
       (uri) => shareFileAsync(uri, asset.filename, (error) => Alert.alert(FAILURE_TITLE, apiErrorMessage(error))),

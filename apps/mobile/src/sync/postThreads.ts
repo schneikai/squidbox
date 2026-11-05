@@ -1,4 +1,4 @@
-import type { PostRecord } from '@squidbox/shared';
+import type { PostAssetRecord, PostRecord } from '@squidbox/shared';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -10,7 +10,8 @@ import * as posts from './postsRepository';
 // post by `threadRootId` and ordered by `(threadIndex, id)`. Every function writes inside the caller's
 // transaction, so a user action commits the first post and its following posts at once.
 
-export type AssetRef = { id: string; assetId: string };
+// A post's photo as the editor holds it: the post-asset edge's id and its asset.
+export type AssetRef = Pick<PostAssetRecord, 'id' | 'assetId'>;
 /** One following post as the editor emits it: `id` null for a new one. */
 export type ThreadPart = { id: string | null; text: string; assetRefs: AssetRef[] };
 type NewPart = Pick<PostRecord, 'text' | 'postedAt'> & { threadRootId: string; threadIndex: number };

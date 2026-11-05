@@ -3,16 +3,17 @@ import { Alert } from 'react-native';
 import useProgressOverlay from './useProgressOverlay';
 
 import useHaptics from '@/hooks/useHaptics';
+import type { BatchOptions } from '@/sync/writeInBatches';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// What an action behind the overlay gets: the batch options the providers' bulk methods take.
-export type ProgressOptions = {
+// What an action behind the overlay gets: the batch options the providers' bulk methods take, both
+// given, with `current`, the running item's share.
+export type ProgressOptions = Required<BatchOptions> & {
   onProgress: (done: number, total: number, current?: number) => void;
-  signal: AbortSignal;
 };
 
-// Resolves `false` when it stopped early; anything else is finished.
-export type ProgressAction = (options: ProgressOptions) => Promise<unknown>;
+// Resolves `false` when it stopped early, as writeInBatches does; otherwise it finished.
+export type ProgressAction = (options: ProgressOptions) => Promise<boolean | void>;
 
 export type RunWithProgress = (action: ProgressAction, options?: { failureTitle?: string }) => Promise<boolean>;
 
@@ -38,7 +39,7 @@ export default function useRunWithProgress(): RunWithProgress {
     };
 
     show({ onCancel: () => controller.abort() });
-    let finished: unknown;
+    let finished: boolean | void;
     try {
       finished = await action({ onProgress, signal: controller.signal });
     } catch (error) {

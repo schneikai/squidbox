@@ -1,4 +1,3 @@
-import type * as native from './assetStorage';
 import webThumbnailUrls from './thumbnails/webThumbnailUrls';
 
 // Web has no file system: no originals are kept, and a thumbnail is the presigned URL fetched for it
@@ -14,19 +13,15 @@ export {
 
 // Undefined until the thumbnail's URL was fetched (preloadAssetThumbnailsAsync.web), where the
 // native uri is always a path.
-export function getAssetThumbnailUri(
-  ...[thumbnailFilename]: Parameters<typeof native.getAssetThumbnailUri>
-): string | undefined {
+export function getAssetThumbnailUri(thumbnailFilename: string): string | undefined {
   return webThumbnailUrls.get(thumbnailFilename);
 }
 
-export async function assetFileExistsAsync(): ReturnType<typeof native.assetFileExistsAsync> {
+export async function assetFileExistsAsync(): Promise<boolean> {
   return false;
 }
 
-export async function hasThumbnailAsync(
-  ...[thumbnailFilename]: Parameters<typeof native.hasThumbnailAsync>
-): ReturnType<typeof native.hasThumbnailAsync> {
+export async function hasThumbnailAsync(thumbnailFilename: string | null | undefined): Promise<boolean> {
   if (!thumbnailFilename) return true;
   return webThumbnailUrls.has(thumbnailFilename);
 }

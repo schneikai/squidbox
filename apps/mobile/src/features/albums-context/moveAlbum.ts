@@ -35,7 +35,10 @@ export default async function moveAlbum(
     if (!ids.has(id) || (sort === 'custom' && afterId !== null && !ids.has(afterId)))
       throw new Error('The album or its neighbour is gone');
     // A sort but Custom comes with its order (AlbumMove).
-    const updates = sort === 'custom' ? movePositions(albums, id, afterId) : positionsInOrder(inOrder(albums, order!));
+    const updates =
+      sort === 'custom' || order === undefined
+        ? movePositions(albums, id, afterId)
+        : positionsInOrder(inOrder(albums, order));
     if (Object.keys(updates).length > 0) await repo.updateMany(tx, updates);
   });
   // Read before anything else can run: the next queued write starts only after this continuation.

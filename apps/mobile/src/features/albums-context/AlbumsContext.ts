@@ -3,7 +3,7 @@ import { createContext } from 'react';
 
 import type { AlbumMove } from './moveAlbum';
 
-import type assetQuery from '@/features/asset-list/assetQuery';
+import type { AssetSort } from '@/sync/assetSql';
 import type { BatchOptions } from '@/sync/writeInBatches';
 
 type AlbumRef = Pick<AlbumRecord, 'id'>;
@@ -12,7 +12,7 @@ type AlbumRef = Pick<AlbumRecord, 'id'>;
 export type AlbumAssetMove = {
   assetId: string;
   afterId: string | null;
-  sort: NonNullable<Parameters<typeof assetQuery>[0]['sort']>;
+  sort: AssetSort;
 };
 
 // The album writes (AlbumsProvider). The bulk methods take writeInBatches' options and resolve to

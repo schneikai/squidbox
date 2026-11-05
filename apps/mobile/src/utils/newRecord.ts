@@ -1,8 +1,6 @@
-import type { CollectionDescriptor, baseRecordSchema, z } from '@squidbox/shared';
+import type { BaseRecord, CollectionDescriptor, z } from '@squidbox/shared';
 
 import getNewItemId from '@/utils/getNewItemId';
-
-type BaseRecord = z.infer<typeof baseRecordSchema>;
 
 /**
  * A new record of a shared collection (`@squidbox/shared`): `fields` over `defaults` (or over

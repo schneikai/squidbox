@@ -1,8 +1,7 @@
 import ensureAssetThumbnailAsync, { type ThumbnailAsset } from './ensureAssetThumbnailAsync';
 
-import type { LibraryPaths } from '@/library/libraryPaths';
 import { hasThumbnailAsync } from '@/utils/assets/assetStorage';
-import type { AssetFileStatus } from '@/utils/assets/files/getAssetFileStatusAsync';
+import type { AssetFileLocation, AssetFileStatus } from '@/utils/assets/files/getAssetFileStatusAsync';
 
 let hasWarned = false;
 
@@ -12,7 +11,7 @@ let hasWarned = false;
 // tile left) skips a thumbnail still waiting to be made.
 export default async function getAssetThumbnailStatusAsync(
   asset: ThumbnailAsset & { isThumbnailSynced: boolean },
-  { isAuthenticated, library, signal }: { isAuthenticated: boolean; library: LibraryPaths; signal?: AbortSignal },
+  { isAuthenticated, library, signal }: AssetFileLocation & { signal?: AbortSignal },
 ): Promise<AssetFileStatus> {
   if (await hasThumbnailAsync(asset.thumbnailFilename, library)) return 'local';
   if (!asset.isThumbnailSynced) {

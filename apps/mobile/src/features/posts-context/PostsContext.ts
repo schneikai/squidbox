@@ -8,7 +8,7 @@ import type { AssetRef, ThreadPart } from '@/sync/postThreads';
 export type PostFields = Partial<PostRecord> & { assetRefs?: AssetRef[]; threadPosts?: ThreadPart[] };
 
 // The post an editor was seeded with: what a changed photo list or thread is saved over.
-export type PostSeed = { assetRefs?: AssetRef[]; threadPosts?: ThreadPart[] };
+export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts'>;
 
 export type PostsContextValue = {
   addPost: (fields: PostFields) => Promise<PostRecord & { assetRefs: AssetRef[] }>;

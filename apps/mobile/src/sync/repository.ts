@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any collection's table */
+import type { BaseRecord } from '@squidbox/shared';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { nextVersion, tombstone } from './clock';
@@ -6,7 +7,7 @@ import type { SyncDb } from './db/types';
 import { readByIds } from './readByIds';
 import { saveRecords } from './saveRecords';
 
-type SyncRecord = { id: string; updatedAt: number; deletedAt: number | null } & Record<string, any>;
+type SyncRecord = Pick<BaseRecord, 'id' | 'updatedAt' | 'deletedAt'> & Record<string, any>;
 
 // Repository for a syncable collection (assets, albums, posts). Every write is one transaction that
 // stores the records and their coalesced outbox rows, with the monotonic clock.

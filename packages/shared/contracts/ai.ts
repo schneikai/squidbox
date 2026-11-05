@@ -222,6 +222,7 @@ const visionImageSchema = z.object({
   base64: z.string().min(1).max(VISION_IMAGE_MAX_BASE64_LENGTH),
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
+export type VisionImage = z.infer<typeof visionImageSchema>;
 
 // Each model once: every id is a paid call. The app asks each model on its own, so its card fills
 // as soon as it answers; a compare still picks COMPARE_MIN_MODELS or more.

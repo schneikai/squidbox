@@ -7,6 +7,20 @@ import useHaptics from '@/hooks/useHaptics';
 import { requestSync } from '@/sync/worker';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
+// What a write resolves to: `{ refused }` keeps the sheet open, a function is the navigate to leave
+// with, anything else (a store write's own result) goes back.
+export type EditSheetWrite = () => Promise<unknown>;
+
+type EditSheetOptions = {
+  isNew?: boolean;
+  isValid?: boolean;
+  isDirty: boolean;
+  save: EditSheetWrite;
+  syncsItself?: boolean;
+  isBusy?: boolean;
+  text?: string;
+};
+
 /**
  * A sheet that edits one item as a draft (components/EditSheet). Returns `sheetProps` for EditSheet:
  * Add for a new item (`isNew`) or Save, on while the item `isValid` and, for Save, `isDirty`; it runs
@@ -23,23 +37,6 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
  * turns the sheet's buttons off, another tap does nothing and a swipe down keeps the sheet; once the
  * sheet is leaving nothing more is written.
  */
-/**
- * What a write resolves to: `{ refused }` keeps the sheet open, a function is the navigate to leave
- * with, anything else goes back. Awkward on purpose (typed as it is, not reshaped): one `finish`
- * serves every last write of a sheet.
- */
-export type EditSheetWrite = () => Promise<unknown>;
-
-type EditSheetOptions = {
-  isNew?: boolean;
-  isValid?: boolean;
-  isDirty: boolean;
-  save: EditSheetWrite;
-  syncsItself?: boolean;
-  isBusy?: boolean;
-  text?: string;
-};
-
 export default function useEditSheet({
   isNew = false,
   isValid = true,
@@ -70,15 +67,14 @@ export default function useEditSheet({
     setIsWriting(true);
     const writtenText = text;
     try {
-      const navigate = await write();
-      const refusal = (navigate as { refused?: string } | null | undefined)?.refused;
-      if (refusal) {
-        setRefused({ text: writtenText, message: refusal });
+      const result = await write();
+      if (typeof result === 'object' && result !== null && 'refused' in result && typeof result.refused === 'string') {
+        setRefused({ text: writtenText, message: result.refused });
         release();
         return;
       }
       if (!syncsItself) requestSync();
-      leave(typeof navigate === 'function' ? (navigate as () => void) : undefined);
+      leave(typeof result === 'function' ? () => result() : undefined);
     } catch (error) {
       console.error(failure, error);
       haptics.error();

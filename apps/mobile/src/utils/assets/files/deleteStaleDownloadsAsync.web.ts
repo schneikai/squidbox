@@ -1,4 +1,2 @@
-import type nativeDeleteStaleDownloadsAsync from './deleteStaleDownloadsAsync';
-
 // Web keeps no downloads (library/fs.web.ts).
-export default async function deleteStaleDownloadsAsync(): ReturnType<typeof nativeDeleteStaleDownloadsAsync> {}
+export default async function deleteStaleDownloadsAsync(): Promise<void> {}

@@ -1,4 +1,4 @@
-import type { AssetRecord, TagPhotoRequest } from '@squidbox/shared';
+import type { AssetRecord, VisionImage } from '@squidbox/shared';
 
 import type { CloudContextValue } from '@/features/cloud/CloudContext';
 import type { LibraryPaths } from '@/library/libraryPaths';
@@ -8,6 +8,11 @@ import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThum
 import visionImage from '@/utils/assets/visionImage';
 import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
 
+export type VisionImageDeps = Pick<CloudContextValue, 'isAuthenticated' | 'preloadAssetThumbnailsAsync'> & {
+  library: LibraryPaths;
+  signal?: AbortSignal;
+};
+
 /**
  * A photo for the assistant to look at (the vision compare, the photo tags), `{ base64, mimeType }`:
  * the asset's thumbnail (a video's is its frame) as the JPEG `visionImage` describes. It works for
@@ -15,18 +20,13 @@ import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
  * (`preloadAssetThumbnailsAsync` from useCloud), which stops when `signal` aborts. Throws with why
  * when there's none to be had.
  */
-export type VisionImageDeps = Pick<CloudContextValue, 'isAuthenticated' | 'preloadAssetThumbnailsAsync'> & {
-  library: LibraryPaths;
-  signal?: AbortSignal;
-};
-
 export default async function readVisionImageAsync(
   asset: Pick<
     AssetRecord,
     'id' | 'filename' | 'thumbnailFilename' | 'mediaType' | 'isThumbnailSynced' | 'width' | 'height'
   >,
   { library, isAuthenticated, preloadAssetThumbnailsAsync, signal }: VisionImageDeps,
-): Promise<TagPhotoRequest['image']> {
+): Promise<VisionImage> {
   const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal });
   if (status === 'remote') {
     const names = await preloadAssetThumbnailsAsync([asset], library, signal);

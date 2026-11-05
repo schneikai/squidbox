@@ -5,13 +5,13 @@ import cancelledError from '@/features/cloud/assets/cancelledError';
 
 const PROGRESS_THROTTLE = 250; // ms
 
+type DownloadAssetFileOptions = { onProgress: (share: number) => void; signal: AbortSignal };
+
 // Fetches an asset's full-resolution file from `downloadUrl` (getAssetFileSourceAsync's) into
 // `directory`, which the caller removes, and resolves its uri. `onProgress` gets the share done
 // (0–1); aborting `signal` cancels the download, which rejects with an `AbortError` (also when it
 // lands as the download finishes, so nothing uses a file after a Cancel). A response that isn't a
 // success (a presigned GET that 403s, say) rejects and writes no file.
-type DownloadAssetFileOptions = { onProgress: (share: number) => void; signal: AbortSignal };
-
 export default async function downloadAssetFileAsync(
   { filename }: Pick<AssetRecord, 'filename'>,
   downloadUrl: string,

@@ -1,6 +1,5 @@
-import type { AssetRecord } from '@squidbox/shared';
-
 import useHaptics from '@/hooks/useHaptics';
+import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import useRunWithAssetFiles from '@/utils/assets/files/useRunWithAssetFiles';
 import askForMediaLibraryPermissionViaSettings from '@/utils/media-library/askForMediaLibraryPermissionViaSettings';
 import copyToMediaLibraryAsync from '@/utils/media-library/copyToMediaLibraryAsync';
@@ -11,7 +10,7 @@ export default function useSaveAssetsToMediaLibrary() {
   const runWithAssetFilesAsync = useRunWithAssetFiles();
   const haptics = useHaptics();
 
-  async function saveAssetsToMediaLibraryAsync(assets: readonly Pick<AssetRecord, 'filename' | 'isFileSynced'>[]) {
+  async function saveAssetsToMediaLibraryAsync(assets: readonly AssetFileAsset[]) {
     const isSaved = await runWithAssetFilesAsync(assets, (uri) => copyToMediaLibraryAsync(uri), {
       failureTitle: "Couldn't save",
       prepareAsync: hasPermissionAsync,

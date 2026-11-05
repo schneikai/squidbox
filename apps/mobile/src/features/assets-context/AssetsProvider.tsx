@@ -8,10 +8,10 @@ import { getDb } from '@/sync/db/client';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
 
-// The asset writes: each goes through the repository and then starts a sync. Screens read assets
-// through their own live queries (assetQuery, readByIds).
 type AssetsProviderProps = { children: ReactNode };
 
+// The asset writes: each goes through the repository and then starts a sync. Screens read assets
+// through their own live queries (assetQuery, readByIds).
 export default function AssetsProvider({ children }: AssetsProviderProps) {
   const value = useMemo<AssetsContextValue>(
     () => ({

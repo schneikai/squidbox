@@ -1,5 +1,4 @@
 import getFileExtension from './getFileExtension';
-import type nativeShareFileAsync from './shareFileAsync';
 
 const MIME_TYPES: Partial<Record<string, string>> = {
   jpg: 'image/jpeg',
@@ -19,8 +18,10 @@ const REVOKE_DELAY = 60_000; // ms, so the browser has started the download
 // failure goes to `onError`. When the fetch gets no response (the bucket allows no CORS), the
 // browser opens the URL itself.
 export default async function shareFileAsync(
-  ...[uri, filename, onError]: Parameters<typeof nativeShareFileAsync>
-): ReturnType<typeof nativeShareFileAsync> {
+  uri: string,
+  filename: string,
+  onError: (error: unknown) => void,
+): Promise<void> {
   let response;
   try {
     response = await fetch(uri);

@@ -2,6 +2,9 @@ import { useDeferredValue, useRef, useState } from 'react';
 
 import toggleItem from '@/utils/toggleItem';
 
+// The one method of a list this calls: FlatList's, FlashList's or an animated one's alike.
+type ScrollableList = { scrollToOffset(params: { animated: boolean; offset: number }): void };
+
 /**
  * A list screen's search, sort and filter, for its SearchSortFilterBar:
  *   - `listRef`, for the list: a new sort or filter jumps it back to its top;
@@ -11,9 +14,6 @@ import toggleItem from '@/utils/toggleItem';
  *   - `searchBar`, the props SearchOptionsBar expects, and `searchText`, a deferred copy of the typed
  *     text for filtering, so typing stays smooth on large lists.
  */
-// The one method of a list this calls: FlatList's, FlashList's or an animated one's alike.
-type ScrollableList = { scrollToOffset(params: { animated: boolean; offset: number }): void };
-
 export default function useListControls<Sort = string>({
   defaultSort,
   onSort,

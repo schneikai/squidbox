@@ -1,9 +1,6 @@
 import { Alert } from 'react-native';
 
-// Whether the user confirmed `action` in a `cancel` · `action` alert below `title` and `message`
-// (`cancel` reads Cancel unless given). A `destructive` action shows in red: anything that deletes,
-// discards or signs out. Dismissing the alert by tapping outside it (Android) counts as `cancel`.
-type ConfirmOptions = {
+export type ConfirmOptions = {
   title: string;
   message?: string;
   cancel?: string;
@@ -11,6 +8,9 @@ type ConfirmOptions = {
   destructive?: boolean;
 };
 
+// Whether the user confirmed `action` in a `cancel` · `action` alert below `title` and `message`
+// (`cancel` reads Cancel unless given). A `destructive` action shows in red: anything that deletes,
+// discards or signs out. Dismissing the alert by tapping outside it (Android) counts as `cancel`.
 export default function confirmAsync({
   title,
   message = '',

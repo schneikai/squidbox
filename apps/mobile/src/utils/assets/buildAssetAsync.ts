@@ -26,13 +26,13 @@ const ASSET_DEFAULTS: Partial<AssetRecord> = {
   tags: null,
 };
 
-// Moves a picked file into `library`'s folders, makes its thumbnail and resolves the new asset
-// record (a caller adding several assets passes the same library, so they all land in it). An
-// invalid record throws, and its files are removed again.
 // What the picker knows of the file: the record's fields but those made here.
 export type PickedAsset = Partial<Omit<AssetRecord, 'id' | 'filename' | 'thumbnailFilename'>> &
   Pick<AssetRecord, 'mediaType'> & { sourceFileUri: string };
 
+// Moves a picked file into `library`'s folders, makes its thumbnail and resolves the new asset
+// record (a caller adding several assets passes the same library, so they all land in it). An
+// invalid record throws, and its files are removed again.
 export default async function buildAssetAsync(
   { sourceFileUri, ...fields }: PickedAsset,
   library: LibraryPaths,

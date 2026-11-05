@@ -1,8 +1,11 @@
+import type { AssetRecord } from '@squidbox/shared';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import { type AssetMediaType, MEDIA_TYPES } from './constants';
+import { MEDIA_TYPES } from './constants';
 
-export default function imagePickerMediaTypeToAssetMediaType(mediaType: ImagePickerAsset['type']): AssetMediaType {
+export default function imagePickerMediaTypeToAssetMediaType(
+  mediaType: ImagePickerAsset['type'],
+): AssetRecord['mediaType'] {
   switch (mediaType) {
     case 'image':
       return MEDIA_TYPES.IMAGE;
