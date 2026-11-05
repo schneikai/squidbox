@@ -5,7 +5,7 @@ import PostImage from './PostImage';
 import Card from '@/components/Card';
 import Text from '@/components/Text';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { scale } from '@/styles/designTokens';
+import { layout, scale } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -36,12 +36,12 @@ export default function PostView({ post, onPressAsset, isTextSelectable = false,
 
 const styles = StyleSheet.create({
   card: {
-    padding: scale(10),
-    gap: scale(12),
+    padding: layout.postCardPadding,
+    gap: layout.postCardGap,
   },
   body: {
-    paddingHorizontal: scale(6),
-    paddingBottom: scale(4),
+    paddingHorizontal: layout.postTextInset,
+    paddingBottom: layout.postTextBottom,
     gap: scale(10),
   },
   meta: {

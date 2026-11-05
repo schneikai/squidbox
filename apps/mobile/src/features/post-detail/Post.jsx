@@ -1,16 +1,15 @@
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import ThreadPost from './ThreadPost';
-
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import ThreadConnector from '@/components/ThreadConnector';
+import ThreadParts from '@/components/ThreadParts';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
 import PostView from '@/features/posts/PostView';
+import ThreadPost from '@/features/posts/ThreadPost';
 import { layout } from '@/styles/designTokens';
 
 const OTHER_POSTS_LIMIT = 30;
@@ -37,12 +36,12 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
     >
       <PostView post={post} onPressAsset={(asset) => openAsset(post.id, asset)} isTextSelectable />
 
-      {post.threadPosts.map((part) => (
-        <View key={part.id}>
-          <ThreadConnector />
-          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} />
-        </View>
-      ))}
+      <ThreadParts
+        parts={post.threadPosts}
+        renderPart={(part) => (
+          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} isTextSelectable />
+        )}
+      />
 
       <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
 
