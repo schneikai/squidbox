@@ -1,4 +1,4 @@
-import { FileUploadRefusedError } from './fileUploadErrors';
+import { FileUploadRefusedError, MISSING_ON_DEVICE } from './fileUploadErrors';
 import type { UploadFile } from './worker';
 
 import UploadFailedError from '@/features/cloud/assets/UploadFailedError';
@@ -20,8 +20,8 @@ export function fileUploader(identity: SyncIdentity, library: LibraryPaths): Upl
     const uri = getFieldFileUri(location.folder, filename, library);
     if (!(await fileExists(uri)))
       throw new FileUploadRefusedError(
-        `${location.label} is missing on this device: choose it again or remove it`,
-        'missing on this device',
+        `${location.label} ${MISSING_ON_DEVICE}: choose it again or remove it`,
+        MISSING_ON_DEVICE,
       );
     try {
       await uploadFileAsync(filename, uri, identity, { signal });

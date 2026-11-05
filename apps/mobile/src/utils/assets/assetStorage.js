@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
-import { FILE_FOLDERS } from '@/library/fileFields';
+import { FILE_FOLDERS, isFileName } from '@/library/fileFields';
 import deletePath from '@/utils/files/deletePath';
 
 // Where a library keeps its assets on this device: originals and thumbnails in its documents
@@ -45,7 +45,10 @@ export function getAssetThumbnailUri(thumbnailFilename, library) {
   return `${getAssetThumbnailsDirectory(library)}${thumbnailFilename}`;
 }
 
+// A file field's file in its folder; throws for a value that isn't a plain file name (isFileName), so
+// a synced value never reaches outside the folder.
 export function getFieldFileUri(folder, filename, library) {
+  if (!isFileName(filename)) throw new Error(`Not a file name: ${JSON.stringify(filename)}`);
   return `${getFileFolderUri(folder, library)}${filename}`;
 }
 

@@ -154,17 +154,25 @@ describe('a file field in the sync', () => {
     ['a network error', new Error('Network request failed')],
     ['a 429', new UploadFailedError('Too many concurrent uploads', { status: 429, code: 'rate_limited' })],
   ] as const) {
-    it(`${name} on the upload fails the run and leaves the row for the next sync`, async () => {
-      await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
+    it(`${name} on the upload holds that row back with the error, pushes the rest and pulls`, async () => {
+      const contact = await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
+      const other = await contacts.create(db, makeContactRecord({ name: 'Jon' }));
       const uploadFile = recording(async () => {
         throw error;
       });
 
-      await expect(runSyncOnce(db, server(), { uploadFile })).rejects.toThrow(error.message);
+      await runSyncOnce(db, server(), { uploadFile });
 
-      expect(pushed).toEqual([]);
-      expect(await outboxRows()).toMatchObject([{ error: null }]);
-      expect((await lastLog()).error).toBe(error.message);
+      expect(pushed.map((m) => m.record.id)).toEqual([other.id]);
+      expect(await outboxRows()).toMatchObject([
+        { recordId: contact.id, error: `Upload of avatar-x-1.jpg failed: ${error.message}` },
+      ]);
+      expect(await lastLog()).toMatchObject({ error: null });
+      expect((await lastLog()).notes).toContain(`contacts ${contact.id}: upload of avatar-x-1.jpg failed`);
+
+      await retryFailures(db); // the app's return to the foreground
+      await runSyncOnce(db, server(), { uploadFile: recording() });
+      expect(await outboxRows()).toEqual([]);
     });
   }
 

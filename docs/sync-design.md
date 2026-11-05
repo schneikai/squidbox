@@ -128,7 +128,9 @@ is never pulled. Together with "no hard deletes" (§7), this is a code-review ru
 - A **file field** (`fileFields` on the descriptor: `contacts.avatarFilename`) is a synced field
   whose value is the key of a file in the user's storage. It carries no "uploaded" flag: the sync
   uploads the file before it pushes the record (§6), so a pulled value always names a file the
-  storage holds. Whether this device holds it is read from the filesystem, as for assets.
+  storage holds. Whether this device holds it is read from the filesystem, as for assets. Its value
+  is a flat file name, never a path: the schema checks its shape (`avatar-….jpg`) and the device
+  joins only a plain file name into a folder (`isFileName`, `library/fileFields.ts`).
 
 The descriptor's `localOnly` lists local-only fields. They are stripped before an outbox row is
 written (`assetsRepository.ts`). A new device pulls metadata, including the real flag values,
@@ -325,8 +327,10 @@ contact; a Restore, when it comes, must treat a named file as possibly missing).
   meanwhile, leaves the batch and waits like a rejected row; the push goes on with the rest and the
   run's notes name the file and the reason.
 - **Failed**: anything else (`429 rate_limited`, a `401` after the refresh, a `5xx`, the network, a
-  changed session) fails the run as a failed push request does, the row untouched; the next sync
-  tries it again.
+  changed session, an unreadable file). The row gets the error ("Upload of avatar-….jpg failed:
+  …") and leaves the batch the same way, so a file that keeps failing never holds back the other
+  rows or the pull; unlike a refused one, it goes again with the failed pushes on the app's return
+  to the foreground and on a launch (or Retry All).
 - An abort during the uploads stops the run before the push ("stopped during push"), with no error
   on the row.
 - A run without `uploadFile` throws rather than push a record whose file isn't in storage. The worker
@@ -492,7 +496,8 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   avatar loader (`loadAvatar` of `AssetThumbnailLoaderProvider`, a second queue beside the
   thumbnails' one, keyed on `avatarFilename`, both through `preloadFilesAsync`). The
   local copy stays after the upload (photos are small and shown everywhere). A changed or removed
-  photo deletes the old local file; an upload of the old file cut by that delete fails as a transient
+  photo deletes the old local file (the old name is read in the same write that sets the new, so
+  two quick changes leave none behind); an upload of the old file cut by that delete fails as a transient
   error, and the next run uploads the new one. The old S3 copy stays (no cleanup yet: each is a few
   dozen KB). Assets stay on the backup run (large files, a manual "Back up now") until they move
   onto file fields, the intended next step.
@@ -656,7 +661,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
   pushes the contact (§6); a photo the source doesn't hold (only in another account's storage) is
   dropped, as the account can't fetch it, and a device edit naming one isn't replayed. Once a pass
   has moved a contact's photo, that contact's push, if the sync had held it back as missing, is
-  tried again (`retriedRows` by collection, `setOutboxError`), next to the assets' `retried`.
+  tried again (`retriedRows` by collection, `retryMissingFiles`: only a row whose error is the
+  missing file), next to the assets' `retried`.
   - **The merge model** (`planMerge`, `applyMerge`, `mergeLibrary`): the source learns a decision
     only once the target has pushed it.
     - A committed pass marks each source record it decided on (`mergeMarks:<source>`, `MergeMark` in
@@ -917,7 +923,8 @@ columns. The edge id is the `assetRefs[].id` the UI sees.
 `notes`, `xHandle`, `blueskyHandle`, `onlyFansHandle`, `jffHandle` (stored without `@` or a URL,
 `normalizeHandle` in `packages/shared`), `phoneNumber`, `places` (a list of free-text places,
 "Squamish, Canada"; JSON, merges as one value), `avatarFilename` (the photo's key, a file field:
-§4, §6, §7a), plus the base columns. Deleting a contact tombstones it and its edges in one
+§4, §6, §7a), plus the base columns. The app keeps each field within the schema's `CONTACT_LIMITS`
+(a field's length, 20 places), so a push is never rejected for its length. Deleting a contact tombstones it and its edges in one
 transaction (`setContactDeleted`).
 
 **contact_lists** (Contacts → Lists). Synced: `name`, `notes`, plus the base columns; lists are
@@ -928,8 +935,9 @@ tombstones it and its members.
 post: `targetType` `asset` | `album` | `post` and `targetId`). Synced: `listId` / the target, and
 `contactId`, plus the base columns. One live record per pair. Both are written through one membership
 repository (`makeMembershipRepository` in `sync/membershipRepository.ts`): adding a pair the parent
-had restores its newest tombstone instead of inserting another, and `set` makes exactly the given
-contacts the parent's. Server 0031, app 0031.
+had restores its newest tombstone instead of inserting another, and `change` adds and removes only
+the given contacts (Add contacts writes what was picked and unpicked there, so another device's
+change meanwhile stays). Server 0031, app 0031.
 
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks

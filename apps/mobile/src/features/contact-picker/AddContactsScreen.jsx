@@ -24,7 +24,7 @@ import toggleItem from '@/utils/toggleItem';
 /**
  * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
  * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
- * with a search. Save makes the picked ones its contacts, so taking one out here removes it.
+ * with a search. Save adds the ones picked here and removes the ones unpicked here.
  */
 export default function AddContactsScreen() {
   const params = useLocalSearchParams();
@@ -38,7 +38,7 @@ export default function AddContactsScreen() {
 
 function AddContactsPicker({ target, seed }) {
   const { bottom } = useSafeAreaInsets();
-  const { setTargetContacts, setListContacts } = useContacts();
+  const { changeTargetContacts, changeListContacts } = useContacts();
   const [selectedIds, setSelectedIds] = useState(seed.linked);
   const [typedText, setTypedText] = useState('');
   const searchText = useDeferredValue(typedText).trim().toLowerCase();
@@ -61,8 +61,14 @@ function AddContactsPicker({ target, seed }) {
   const isDirty = selected.size !== linked.size || selectedIds.some((id) => !linked.has(id));
   const { sheetProps } = useEditSheet({ isDirty, save, syncsItself: true });
 
+  // Writes only what was picked or unpicked here, so a contact another device added or removed
+  // while the sheet was open keeps that change.
   function save() {
-    return target.listId ? setListContacts(target.listId, selectedIds) : setTargetContacts(target, selectedIds);
+    const change = {
+      added: selectedIds.filter((id) => !linked.has(id)),
+      removed: seed.linked.filter((id) => !selected.has(id)),
+    };
+    return target.listId ? changeListContacts(target.listId, change) : changeTargetContacts(target, change);
   }
 
   function renderItem({ item: contact, index, section }) {

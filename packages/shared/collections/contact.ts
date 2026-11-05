@@ -4,6 +4,9 @@ import { baseRecordSchema, defineCollection, textSchema, timestampSchema } from 
 export const CONTACT_LIMITS = { name: 200, handle: 200, phoneNumber: 50, notes: 5000, places: 20, place: 200 } as const;
 
 const handleSchema = textSchema.max(CONTACT_LIMITS.handle).nullable();
+// A contact photo's name: a flat file name (`avatar-<contactId>-<id>.jpg`), never a path, since each
+// device joins it into its avatars folder.
+const avatarFilenameSchema = textSchema.regex(/^avatar-[A-Za-z0-9-]+\.jpg$/, 'an avatar-….jpg file name');
 
 /**
  * The networks a contact has a handle on, in the order the app shows them: the field, the network's
@@ -15,7 +18,7 @@ export const CONTACT_HANDLES = [
     field: 'xHandle',
     label: 'X',
     placeholder: 'x.com/username',
-    hosts: ['x.com/', 'twitter.com/'],
+    hosts: ['x.com/', 'twitter.com/', 'mobile.x.com/', 'mobile.twitter.com/'],
     profileUrl: (handle: string) => `https://x.com/${handle}`,
   },
   {
@@ -42,6 +45,10 @@ export const CONTACT_HANDLES = [
 ] as const;
 export type ContactHandleField = (typeof CONTACT_HANDLES)[number]['field'];
 export const CONTACT_HANDLE_FIELDS: readonly ContactHandleField[] = CONTACT_HANDLES.map(({ field }) => field);
+/** Each handle's entry of CONTACT_HANDLES, by its field. */
+export const CONTACT_HANDLE_BY_FIELD = Object.fromEntries(CONTACT_HANDLES.map((handle) => [handle.field, handle])) as {
+  [F in ContactHandleField]: Extract<(typeof CONTACT_HANDLES)[number], { field: F }>;
+};
 
 const handleSchemas = Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, handleSchema])) as Record<
   ContactHandleField,
@@ -53,18 +60,18 @@ const handleSchemas = Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [f
 // merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<new id>.jpg`) that
 // `avatarFilename` names, null without a photo: a file field, so the sync uploads the file before the
 // record is pushed; a new photo gets a new name, so a device holding the old one never shows it for
-// the new. Deletion is a `deletedAt` tombstone, which Restore undoes.
+// the new. Deletion is a `deletedAt` tombstone, and tombstones its list memberships and links too.
 export const contactCollection = defineCollection({
   name: 'contacts',
   schema: baseRecordSchema.extend({
-    name: textSchema.max(CONTACT_LIMITS.name),
+    name: textSchema.min(1).max(CONTACT_LIMITS.name),
     isFavorite: z.boolean(),
     favoritedAt: timestampSchema.nullable(),
     notes: textSchema.max(CONTACT_LIMITS.notes).nullable(),
     ...handleSchemas,
     phoneNumber: textSchema.max(CONTACT_LIMITS.phoneNumber).nullable(),
     places: z.array(textSchema.min(1).max(CONTACT_LIMITS.place)).max(CONTACT_LIMITS.places),
-    avatarFilename: textSchema.nullable(),
+    avatarFilename: avatarFilenameSchema.nullable(),
   }),
   fieldGroups: [['isFavorite', 'favoritedAt']],
   fileFields: ['avatarFilename'],

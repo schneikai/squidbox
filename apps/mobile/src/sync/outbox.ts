@@ -3,6 +3,7 @@ import { and, count, eq, isNotNull, isNull, max, min, sql, sum } from 'drizzle-o
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { MISSING_ON_DEVICE } from './fileUploadErrors';
 import { inJson } from './inJson';
 import { localOnlyKeys } from './localOnlyKeys';
 import { SQL_BATCH } from './sqlBatch';
@@ -98,6 +99,17 @@ export async function setOutboxError(
   error: string | null,
 ): Promise<void> {
   await db.update(schema.outbox).set({ error }).where(recordsIn(collection, recordIds));
+}
+
+/**
+ * Clears the error of these records' rows held back because their file was missing from the device
+ * (MISSING_ON_DEVICE), once a merge delivered it; a row failed for another reason keeps its error.
+ */
+export async function retryMissingFiles(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
+  await db
+    .update(schema.outbox)
+    .set({ error: null })
+    .where(and(recordsIn(collection, recordIds), sql`instr(${schema.outbox.error}, ${MISSING_ON_DEVICE}) > 0`));
 }
 
 /**

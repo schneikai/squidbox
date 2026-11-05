@@ -1,8 +1,8 @@
-import { collections } from '@squidbox/shared';
+import { collections, contactCollection } from '@squidbox/shared';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import UploadFailedError from '../src/features/cloud/assets/UploadFailedError';
-import { FILE_FIELDS } from '../src/library/fileFields';
+import { FILE_FIELDS, isFileName } from '../src/library/fileFields';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { FileUploadRefusedError } from '../src/sync/fileUploadErrors';
 
@@ -63,7 +63,7 @@ describe('fileUploader', () => {
     ['a 500', new UploadFailedError('Upload failed with status 500', { status: 500 })],
     ['a network error', new Error('Network request failed')],
   ] as const) {
-    it(`lets ${name} fail the run`, async () => {
+    it(`passes ${name} on as it is, not as a refusal`, async () => {
       upload.mockRejectedValue(failure);
       const error = await run().catch((caught: unknown) => caught);
       expect(error).toBe(failure);
@@ -81,5 +81,18 @@ describe('FILE_FIELDS', () => {
   it('has a folder on this device for every file field of a collection, and for nothing else', () => {
     const fileFields = collections.flatMap(({ name, fileFields }) => fileFields.map((field) => `${name}.${field}`));
     expect(Object.keys(FILE_FIELDS).sort()).toEqual(fileFields.sort());
+  });
+});
+
+describe('a file field’s name', () => {
+  it('is a flat file name on the device and in the synced contact, never a path', () => {
+    const valid = (avatarFilename: string) =>
+      contactCollection.schema.shape.avatarFilename.safeParse(avatarFilename).success;
+    expect(isFileName('avatar-x-1.jpg')).toBe(true);
+    expect(valid('avatar-x-1.jpg')).toBe(true);
+    for (const name of ['../library-x.db', 'avatar-x/../../a.jpg', '.hidden', '/etc/passwd', '']) {
+      expect(isFileName(name), name).toBe(false);
+      expect(valid(name), name).toBe(false);
+    }
   });
 });

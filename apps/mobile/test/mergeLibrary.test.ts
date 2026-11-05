@@ -14,7 +14,7 @@ import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
-import { setOutboxError } from '../src/sync/outbox';
+import { retryMissingFiles, setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
@@ -787,18 +787,23 @@ describe('contacts', () => {
     });
   });
 
-  it('a photo a later pass delivers clears the contact’s upload refused as missing', async () => {
+  it('a photo a later pass delivers clears the contact’s upload refused as missing, and no other error', async () => {
     const maya = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-1.jpg' }));
+    const jon = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-j-1.jpg' }));
     files.add(getAvatarUri('avatar-m-1.jpg', SRC));
-    await commitPass(); // its photo not moved yet: the sync finds it missing
-    await setOutboxError(target, 'contacts', [maya.id], 'Contact photo is missing on this device');
+    files.add(getAvatarUri('avatar-j-1.jpg', SRC));
+    await commitPass(); // their photos not moved yet
+    await setOutboxError(target, 'contacts', [maya.id], 'Contact photo is missing on this device: choose it again');
+    await setOutboxError(target, 'contacts', [jon.id], 'schema:name');
 
     const again = await planMerge(source, target, SRC, TGT);
-    expect(again.retriedRows).toEqual({ contacts: [maya.id] });
+    expect(again.retriedRows.contacts?.sort()).toEqual([maya.id, jon.id].sort());
     await moveMergedFiles(again, SRC, TGT);
-    await setOutboxError(target, 'contacts', again.retriedRows.contacts!, null);
+    for (const [collection, ids] of Object.entries(again.retriedRows)) await retryMissingFiles(target, collection, ids);
 
-    expect((await outbox(target)).find((row) => row.recordId === maya.id)).toMatchObject({ error: null });
+    const rows = await outbox(target);
+    expect(rows.find((row) => row.recordId === maya.id)).toMatchObject({ error: null });
+    expect(rows.find((row) => row.recordId === jon.id)).toMatchObject({ error: 'schema:name' });
   });
 
   it('a device edit naming a photo the device doesn’t hold isn’t replayed onto the account’s contact', async () => {

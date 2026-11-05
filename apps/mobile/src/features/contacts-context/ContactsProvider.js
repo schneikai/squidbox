@@ -40,6 +40,16 @@ export default function ContactsProvider({ children }) {
       requestSync();
       return result;
     }
+    // Sets the contact's photo name, from the contact read in the same write: the name it replaced
+    // (null for none), or undefined for a contact that is gone.
+    function swapAvatar(id, avatarFilename) {
+      return written(async (tx) => {
+        const [contact] = await readByIds(tx, schema.contacts, [id]);
+        if (!contact) return undefined;
+        if (contact.avatarFilename !== avatarFilename) await contacts.update(tx, id, { avatarFilename });
+        return contact.avatarFilename;
+      });
+    }
     return {
       // A new contact with its photo (made from `avatarUri` first: a record never names a file that
       // isn't there) and in `listIds`, in one write. A photo that can't be made is returned as
@@ -76,19 +86,19 @@ export default function ContactsProvider({ children }) {
         ),
       // A new photo gets a new name (newAvatarFilename), so a device holding the old one never shows
       // it for the new; the sync uploads it before it pushes the contact.
+      // The photo it replaces is read in the same write, so of two quick changes each deletes the one
+      // it replaced, and none is left behind.
       setAvatarAsync: async (id, sourceUri) => {
-        const [contact] = await readByIds(db, schema.contacts, [id]);
-        if (!contact) return;
         const avatarFilename = newAvatarFilename(id);
         await makeAvatarAsync(sourceUri, avatarFilename, library);
-        await written((tx) => contacts.update(tx, id, { avatarFilename }));
-        if (contact.avatarFilename) deleteAvatar(contact.avatarFilename, library);
+        const replaced = await swapAvatar(id, avatarFilename);
+        if (replaced === undefined)
+          deleteAvatar(avatarFilename, library); // the contact is gone
+        else if (replaced) deleteAvatar(replaced, library);
       },
       removeAvatar: async (id) => {
-        const [contact] = await readByIds(db, schema.contacts, [id]);
-        if (!contact?.avatarFilename) return;
-        await written((tx) => contacts.update(tx, id, { avatarFilename: null }));
-        deleteAvatar(contact.avatarFilename, library);
+        const replaced = await swapAvatar(id, null);
+        if (replaced) deleteAvatar(replaced, library);
       },
       // The contact leaves its lists and the photos, albums and posts it is on with it.
       setContactDeleted: (id) =>
@@ -113,14 +123,15 @@ export default function ContactsProvider({ children }) {
             getNewItemId,
           ),
         ),
-      // Makes exactly these contacts the list's: the ones added join, the ones left out leave.
-      setListContacts: (listId, contactIds) =>
-        written((tx) => contactListMembers.set(tx, { listId }, contactIds, getNewItemId)),
+      // `{ added, removed }`: the contacts that join the list and those that leave it; the others
+      // stay as they are, so another device's change meanwhile is kept.
+      changeListContacts: (listId, change) =>
+        written((tx) => contactListMembers.change(tx, { listId }, change, getNewItemId)),
       removeFromList: (listId, contactId) => written((tx) => contactListMembers.remove(tx, { listId }, [contactId])),
-      // Puts exactly these contacts on the photo, album or post: the ones added get a link, the ones
-      // left out lose theirs. The only way a link is removed.
-      setTargetContacts: ({ targetType, targetId }, contactIds) =>
-        written((tx) => contactLinks.set(tx, { targetType, targetId }, contactIds, getNewItemId)),
+      // `{ added, removed }`: the contacts put on the photo, album or post and those taken off it;
+      // the others stay as they are. The only way a link is removed.
+      changeTargetContacts: ({ targetType, targetId }, change) =>
+        written((tx) => contactLinks.change(tx, { targetType, targetId }, change, getNewItemId)),
     };
   }, [library]);
 

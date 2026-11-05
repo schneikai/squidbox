@@ -66,11 +66,12 @@ describe('membershipRepository', () => {
     expect(live.map((e) => e.targetType)).toEqual(['post']);
   });
 
-  it("set makes exactly the given contacts the parent's, restoring a removed one's edge", async () => {
+  it("change adds and removes only the given contacts, restoring a removed one's edge", async () => {
     await contactListMembers.add(db, LIST, ['a', 'b', 'd'], newId);
     await contactListMembers.remove(db, LIST, ['d']);
-    await contactListMembers.set(db, LIST, ['b', 'c', 'd'], newId);
-    expect(await liveContactIds('list-1')).toEqual(['b', 'c', 'd']);
+    await contactListMembers.add(db, LIST, ['e'], newId); // another device's add, unseen by the change
+    await contactListMembers.change(db, LIST, { added: ['c', 'd'], removed: ['a'] }, newId);
+    expect(await liveContactIds('list-1')).toEqual(['b', 'c', 'd', 'e']);
     expect((await members()).filter((e) => e.contactId === 'd')).toMatchObject([{ id: 'edge-3', deletedAt: null }]);
   });
 
@@ -85,11 +86,11 @@ describe('membershipRepository', () => {
     expect((await members()).filter((e) => e.listId === 'list-1' && e.contactId === 'a')).toHaveLength(1);
   });
 
-  it('add, set and addToEach read the parent’s edges through its index, never the whole table', async () => {
+  it('add, change and addToEach read the parent’s edges through its index, never the whole table', async () => {
     const measured = makeMeasuredTestDb();
     const work = await measured.measure(async () => {
       await contactListMembers.add(measured.db, LIST, ['a'], newId);
-      await contactListMembers.set(measured.db, LIST, ['a', 'b'], newId);
+      await contactListMembers.change(measured.db, LIST, { added: ['b'], removed: ['a'] }, newId);
       await contactListMembers.addToEach(measured.db, [LIST, { listId: 'list-2' }], ['c'], newId);
       await contactLinks.add(measured.db, { targetType: 'post', targetId: 'p' }, ['a'], newId);
     });

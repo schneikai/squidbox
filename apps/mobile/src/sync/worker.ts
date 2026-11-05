@@ -136,7 +136,7 @@ async function pushPhase(
     const { tooLarge, scanned } = planned;
     carried = rows.filter((row) => row.id > scanned);
     // The files the batch's records name go up first: a pushed record never names a file the user's
-    // storage lacks. A refused one's row leaves the batch and waits with its error.
+    // storage lacks. A row whose upload failed leaves the batch and waits with its error.
     const uploads = await uploadBatchFiles(db, planned.batch, uploadFile, signal);
     notes.push(...uploads.notes);
     if (uploads.stopped) {
@@ -174,8 +174,11 @@ function filesToUpload(row: schema.OutboxRow): [field: string, filename: string]
 }
 
 // Uploads the files the batch's rows need, one at a time in row order, each noted on its row as it
-// lands. A refused upload flags its row (unless an edit replaced it meanwhile) and leaves it out of
-// the push; an abort stops before the push; any other failure ends the run, the row untouched.
+// lands. A failed upload flags its row with the error (unless an edit replaced it meanwhile) and
+// leaves it out of the push, so one file that keeps failing never holds back the other rows or the
+// pull: a refused one (FileUploadRefusedError) waits for the user, any other is tried again with
+// the failed pushes (on the app's return to the foreground, a launch, Retry All). An abort stops
+// before the push.
 async function uploadBatchFiles(
   db: SyncDb,
   batch: schema.OutboxRow[],
@@ -193,10 +196,13 @@ async function uploadBatchFiles(
         await uploadFile(row.collection, field, filename, signal);
       } catch (error) {
         if (signal.aborted) return { refused, notes, stopped: true };
-        if (!(error instanceof FileUploadRefusedError)) throw error;
-        await flagOutboxRow(db, row, error.message);
+        const isRefusal = error instanceof FileUploadRefusedError;
+        const message = error instanceof Error ? error.message : String(error);
+        await flagOutboxRow(db, row, isRefusal ? message : `Upload of ${filename} failed: ${message}`);
         refused.add(row.id);
-        notes.push(`${row.collection} ${row.recordId}: upload of ${filename} refused (${error.reason})`);
+        notes.push(
+          `${row.collection} ${row.recordId}: upload of ${filename} ${isRefusal ? `refused (${error.reason})` : `failed (${message})`}`,
+        );
         break;
       }
       await markFileUploaded(db, row.collection, row.recordId, filename);

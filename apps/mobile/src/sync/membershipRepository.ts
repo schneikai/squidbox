@@ -96,21 +96,20 @@ export function makeMembershipRepository(
     },
 
     /**
-     * Makes exactly these children the parent's: the others leave it, from one read of the parent's
-     * edges, in one transaction.
+     * Puts the `added` children in the parent and takes the `removed` ones out, from one read of
+     * the parent's edges of those children, in one transaction. Only what the user changed is
+     * written: a child another device added or removed meanwhile keeps that change.
      */
-    async set(db: SyncDb, parent: Parent, childIds: string[], newId: () => string): Promise<void> {
+    async change(
+      db: SyncDb,
+      parent: Parent,
+      { added, removed }: { added: string[]; removed: string[] },
+      newId: () => string,
+    ): Promise<void> {
+      if (added.length === 0 && removed.length === 0) return;
       await db.transaction(async (tx) => {
-        const edges = await read(tx, isParent(parent));
-        const live = new Set(edges.filter((e) => e.deletedAt === null).map((e) => e[childField] as string));
-        const wanted = new Set(childIds);
-        await write(
-          tx,
-          [parent],
-          edges,
-          { added: [...wanted].filter((id) => !live.has(id)), removed: [...live].filter((id) => !wanted.has(id)) },
-          newId,
-        );
+        const edges = await read(tx, and(isParent(parent), inJson(t[childField], [...added, ...removed])));
+        await write(tx, [parent], edges, { added, removed }, newId);
       });
     },
 

@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import Icon from '@/components/Icon';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
+import { isFileName } from '@/library/fileFields';
 import useLibrary from '@/library/useLibrary';
 import { colors, scale, sizes } from '@/styles/designTokens';
 import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
@@ -71,9 +72,10 @@ function rememberFound(uri) {
 }
 
 // The uri of the contact's photo once it is on the device: one not on it yet is fetched
-// through the loader while signed in; null until then, and for a contact without a photo.
+// through the loader while signed in; null until then, and for a contact without a photo (or with a
+// name that isn't a file name, isFileName).
 function useAvatarUri(contact) {
-  const filename = contact.avatarFilename;
+  const filename = contact.avatarFilename && isFileName(contact.avatarFilename) ? contact.avatarFilename : null;
   const [shown, setShown] = useState(null); // the filename found on the device
   const { paths: library } = useLibrary();
   const { isAuthenticated } = useCloud();
