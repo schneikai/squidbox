@@ -80,7 +80,6 @@ function OutlinePath({ path, fill }: { path: DerivedValue<string>; fill?: string
 }
 
 type ShadePathProps = { shade: Bendable; angles: DerivedValue<number[]>; index: number; fill: string };
-
 function ShadePath({ shade, angles, index, fill }: ShadePathProps) {
   const animatedProps = useAnimatedProps(() => ({ d: bentPath(shade, angles.value[index]) }));
   return <AnimatedPath animatedProps={animatedProps} fill={fill} />;

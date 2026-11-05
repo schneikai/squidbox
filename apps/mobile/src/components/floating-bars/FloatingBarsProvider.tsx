@@ -4,7 +4,6 @@ import { useSharedValue } from 'react-native-reanimated';
 import FloatingBarsContext, { type FloatingBarsValue } from './FloatingBarsContext';
 
 export type FloatingBarsProviderProps = { children?: ReactNode };
-
 export default function FloatingBarsProvider({ children }: FloatingBarsProviderProps) {
   // ── Search ────────────────────────────────────────────────────────────────
   // Each main screen owns its search (see useListControls). The visible one reports whether its search

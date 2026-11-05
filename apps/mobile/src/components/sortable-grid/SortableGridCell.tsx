@@ -14,8 +14,8 @@ import { motion } from '@/styles/designTokens';
 // One absolutely-positioned resting cell in the sortable grid, at its slot in the shared `positions`
 // map. Hidden while the lifted copy of it (SortableGridLiftedCell) shows. Memoized: every mounted
 // cell would otherwise re-render with the screen. `initialSlot` only places a new cell, so a changed
-// slot alone doesn't re-render it.
-// memo drops the component's type parameter, so the memoized one keeps the component's own type.
+// slot alone doesn't re-render it. memo drops the component's type parameter, so the export is cast
+// back to the component's own type.
 export default memo(SortableGridCell, sameCellProps) as typeof SortableGridCell;
 
 export type SortableGridCellProps<Row extends { id: string }> = {
@@ -28,13 +28,6 @@ export type SortableGridCellProps<Row extends { id: string }> = {
   activeId: SharedValue<string | null>;
   shownLiftedId: SharedValue<string | null>;
 };
-
-function sameCellProps<Row extends { id: string }>(prev: SortableGridCellProps<Row>, next: SortableGridCellProps<Row>) {
-  let key: keyof SortableGridCellProps<Row>;
-  for (key in next) if (key !== 'initialSlot' && prev[key] !== next[key]) return false;
-  return true;
-}
-
 function SortableGridCell<Row extends { id: string }>({
   row,
   renderItem,
@@ -91,4 +84,10 @@ function SortableGridCell<Row extends { id: string }>({
       {renderItem(row)}
     </Animated.View>
   );
+}
+
+function sameCellProps<Row extends { id: string }>(prev: SortableGridCellProps<Row>, next: SortableGridCellProps<Row>) {
+  let key: keyof SortableGridCellProps<Row>;
+  for (key in next) if (key !== 'initialSlot' && prev[key] !== next[key]) return false;
+  return true;
 }

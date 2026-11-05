@@ -173,7 +173,6 @@ type LoadingPlaceholderProps = {
   still?: boolean;
   children?: ReactNode;
 };
-
 function LoadingPlaceholder({ color, style, still = false, children }: LoadingPlaceholderProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 

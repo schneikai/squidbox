@@ -214,7 +214,6 @@ type ContentProps = Pick<ButtonProps, 'icon' | 'label' | 'filled'> & {
   size: ButtonSize;
   palette: Palette;
 };
-
 function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }: ContentProps) {
   // A link keeps its label and swaps its icon for the spinner; every other button shows only the spinner.
   const spinner = <ActivityIndicator size="small" color={color} />;

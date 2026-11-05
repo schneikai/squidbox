@@ -15,7 +15,6 @@ const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export type ProgressRingProps = { value: number };
-
 export default function ProgressRing({ value }: ProgressRingProps) {
   const animatedValue = useSharedValue(0);
   const [displayValue, setDisplayValue] = useState(0);

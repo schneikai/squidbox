@@ -201,7 +201,6 @@ export type IconProps = {
   filled?: boolean;
   style?: StyleProp<ViewStyle>;
 };
-
 export default function Icon({ name, size = sizes.icon, color, filled, style }: IconProps) {
   const IconComponent = ICON_MAP[name];
 

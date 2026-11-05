@@ -5,7 +5,6 @@ import ProgressOverlayHost from './ProgressOverlayHost';
 import ProgressOverlayStateContext, { type ProgressOverlayState } from './ProgressOverlayStateContext';
 
 export type ProgressOverlayProviderProps = { children?: ReactNode };
-
 export default function ProgressOverlayProvider({ children }: ProgressOverlayProviderProps) {
   const [mode, setMode] = useState<ProgressOverlayState['mode']>(null);
   const [progress, setProgress] = useState(0);

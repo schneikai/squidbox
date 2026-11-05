@@ -35,7 +35,6 @@ export type ModalHeaderProps = {
   title?: string | ReactElement;
   subtitle?: string;
 };
-
 export default function ModalHeader({ leading, trailing, title, subtitle }: ModalHeaderProps) {
   const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 

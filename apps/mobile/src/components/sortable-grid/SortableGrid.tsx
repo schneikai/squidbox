@@ -63,7 +63,6 @@ export type SortableGridProps<Row extends { id: string }> = {
   onPeek?: (row: Row) => void;
   onPeekEnd?: () => void;
 };
-
 export default function SortableGrid<Row extends { id: string }>({
   rows,
   rowsReadAt,
