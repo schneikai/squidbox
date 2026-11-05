@@ -10,6 +10,7 @@ export interface PushFailure {
   id: number; // the outbox row's
   title: string; // what failed, in words: `Album "Trips"`, `Photo in post "Sunset…"`
   error: string;
+  href?: string; // where the way out is: a contact, whose photo may need choosing again
 }
 
 const SNIPPET_LENGTH = 40;
@@ -32,8 +33,18 @@ export async function readPushFailures(
       .limit(limit);
     const albums = await readByIdMap<schema.AlbumRow>(tx, schema.albums, parentIds(rows, 'album_assets', 'albumId'));
     const posts = await readByIdMap<schema.PostRow>(tx, schema.posts, parentIds(rows, 'post_assets', 'postId'));
+    const lists = await readByIdMap<schema.ContactListRow>(
+      tx,
+      schema.contactLists,
+      parentIds(rows, 'contact_list_members', 'listId'),
+    );
     return {
-      rows: rows.map((row) => ({ id: row.id, title: describe(row, albums, posts), error: row.error ?? '' })),
+      rows: rows.map((row) => ({
+        id: row.id,
+        title: describe(row, { albums, posts, lists }),
+        error: row.error ?? '',
+        ...(row.collection === 'contacts' && row.op === 'upsert' && { href: `/contact/${row.recordId}` }),
+      })),
       count: total?.count ?? 0,
     };
   });
@@ -43,10 +54,19 @@ function parentIds(rows: schema.OutboxRow[], collection: string, key: string): s
   return rows.filter((row) => row.collection === collection).map((row) => String(row.payload[key]));
 }
 
+const LINK_TARGETS: Record<string, string> = { asset: 'a photo', album: 'an album', post: 'a post' };
+
 function describe(
   { collection, recordId, payload }: schema.OutboxRow,
-  albums: Map<string, schema.AlbumRow>,
-  posts: Map<string, schema.PostRow>,
+  {
+    albums,
+    posts,
+    lists,
+  }: {
+    albums: Map<string, schema.AlbumRow>;
+    posts: Map<string, schema.PostRow>;
+    lists: Map<string, schema.ContactListRow>;
+  },
 ): string {
   switch (collection) {
     case 'albums':
@@ -63,6 +83,16 @@ function describe(
       const post = posts.get(String(payload.postId));
       return post ? `Photo in post${snippet(post.text)}` : 'Photo in a post';
     }
+    case 'contacts':
+      return `Contact "${payload.name}"`;
+    case 'contact_lists':
+      return `List "${payload.name}"`;
+    case 'contact_list_members': {
+      const list = lists.get(String(payload.listId));
+      return list ? `Contact in list "${list.name}"` : 'Contact in a list';
+    }
+    case 'contact_links':
+      return `Contact on ${LINK_TARGETS[String(payload.targetType)] ?? 'a photo'}`;
     default:
       return `${collection} ${recordId}`;
   }

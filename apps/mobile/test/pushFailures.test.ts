@@ -1,18 +1,24 @@
 import type { PushMutation } from '@squidbox/shared';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
 import { makeMeasuredTestDb, makeTestDb } from './helpers/testDb';
 import * as assets from '../src/sync/assetsRepository';
+import * as contactLists from '../src/sync/contactListsRepository';
+import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
 import { countOutbox, retryFailures } from '../src/sync/outbox';
 import { readPushFailures } from '../src/sync/readPushFailures';
 import { readUploadFailures } from '../src/sync/readUploadFailures';
 import { makeRepository } from '../src/sync/repository';
 import { retryFailuresAndSync, runSyncOnce, setSyncTarget, withSyncPaused, type SyncTarget } from '../src/sync/worker';
+
+// The production wrapper's file uploads need the native file system; these runs name no file.
+vi.mock('../src/sync/fileUploads', () => ({ fileUploader: () => async () => {} }));
 
 const albums = makeRepository('albums', schema.albums);
 const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
@@ -171,6 +177,34 @@ describe('push failures of albums, posts and edges', () => {
     await runSyncOnce(db, server(['posts']).transport);
 
     expect((await failures()).map((failure) => failure.title)).toEqual([`Post "${'a'.repeat(39)}😀…"`]);
+  });
+});
+
+describe('push failures of contacts, lists and their edges', () => {
+  it('are named after the contact, the list, or what the contact is on; a contact’s opens it', async () => {
+    const contact = await contacts.create(db, makeContactRecord({ name: 'Maya' }));
+    const list = await contactLists.create(db, {
+      id: crypto.randomUUID(),
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      name: 'Climbers',
+      notes: null,
+      position: null,
+    });
+    let n = 0;
+    const newId = () => `00000000-0000-4000-8000-00000000000${++n}`;
+    await contactListMembers.add(db, { listId: list.id }, [contact.id], newId);
+    await contactLinks.add(db, { targetType: 'album', targetId: crypto.randomUUID() }, [contact.id], newId);
+
+    await runSyncOnce(db, server(['contacts', 'contact_lists', 'contact_list_members', 'contact_links']).transport);
+
+    expect((await failures()).map(({ title, href }) => ({ title, href }))).toEqual([
+      { title: 'Contact "Maya"', href: `/contact/${contact.id}` },
+      { title: 'List "Climbers"', href: undefined },
+      { title: 'Contact in list "Climbers"', href: undefined },
+      { title: 'Contact on an album', href: undefined },
+    ]);
   });
 });
 

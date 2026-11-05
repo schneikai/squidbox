@@ -21,7 +21,7 @@ import { retryFailures } from '../../src/sync/outbox';
 import { makeRepository } from '../../src/sync/repository';
 import type { RemoveFiles } from '../../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../../src/sync/transport';
-import { runSyncOnce } from '../../src/sync/worker';
+import { runSyncOnce, type UploadFile } from '../../src/sync/worker';
 
 /*
  * The two-device world of the e2e tests: devices A and B run this app; C pushes whole records (no
@@ -49,6 +49,11 @@ const violations: string[] = [];
 export const pushLog: { device: SyncDb; mutations: PushMutation[]; results: PushResult[] }[] = [];
 /** The devices that push whole records. */
 export const wholeRecordApps = new Set<SyncDb>();
+// The files each sync uploaded, `<collection>.<field> <filename>`, in order (a file field's, §6).
+export const uploadLog: string[] = [];
+export const uploadFile: UploadFile = async (collection, field, filename) => {
+  uploadLog.push(`${collection}.${field} ${filename}`);
+};
 export const albumRepo = makeRepository('albums', clientSchema.albums);
 export const posts = makeRepository('posts', clientSchema.posts);
 
@@ -95,7 +100,7 @@ export async function sync(
   { now = SERVER_NOW, removeFiles }: { now?: number; removeFiles?: RemoveFiles } = {},
 ) {
   at(now);
-  await runSyncOnce(device, transportOf(device), { removeFiles });
+  await runSyncOnce(device, transportOf(device), { removeFiles, uploadFile });
 }
 export async function settle(devices = [A, B, C], now = SERVER_NOW) {
   for (let i = 0; i < 3; i++) for (const device of devices) await sync(device, { now });
@@ -130,7 +135,7 @@ export function unansweredTransport(device: SyncDb, { refused = false, message =
 // applies around the pending fields (§5).
 export async function pullOnly(device: SyncDb, now = SERVER_NOW, { removeFiles }: { removeFiles?: RemoveFiles } = {}) {
   at(now);
-  await runSyncOnce(device, { ...transportOf(device), push: refusedPush('offline') }, { removeFiles });
+  await runSyncOnce(device, { ...transportOf(device), push: refusedPush('offline') }, { removeFiles, uploadFile });
   await retryFailures(device);
 }
 /**
@@ -212,6 +217,7 @@ export function useTwoDeviceServer() {
     await freshDevices();
     violations.length = 0;
     pushLog.length = 0;
+    uploadLog.length = 0;
   });
   afterEach(() => {
     expect(violations).toEqual([]);

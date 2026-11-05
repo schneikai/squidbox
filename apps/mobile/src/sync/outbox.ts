@@ -97,6 +97,23 @@ export async function setOutboxError(
   await db.update(schema.outbox).set({ error }).where(recordsIn(collection, recordIds));
 }
 
+/**
+ * Notes that this record's row has put `filename` in the user's storage (a file field's upload, §6),
+ * so a retry or a coalesced edit never uploads it again. One statement: it runs after a network call,
+ * outside any transaction, and an edit enqueued meanwhile keeps the list.
+ */
+export async function markFileUploaded(
+  db: SyncDb,
+  collection: string,
+  recordId: string,
+  filename: string,
+): Promise<void> {
+  await db
+    .update(schema.outbox)
+    .set({ uploadedFiles: sql`json_insert(${schema.outbox.uploadedFiles}, '$[#]', ${filename})` })
+    .where(and(eq(schema.outbox.collection, collection), eq(schema.outbox.recordId, recordId)));
+}
+
 // The push sends only the pushable rows; a failed one waits (§6).
 export const failedOutboxRows = isNotNull(schema.outbox.error);
 export const pushableOutboxRows = isNull(schema.outbox.error);
@@ -104,6 +121,12 @@ export const pushableOutboxRows = isNull(schema.outbox.error);
 /** Clears the reason of every failed push, so each is pushed again (§6). */
 export async function retryFailures(db: SyncDb): Promise<void> {
   await db.update(schema.outbox).set({ error: null }).where(failedOutboxRows);
+}
+
+/** Clears the reason these records' pushes failed, so each is pushed again (§6). */
+export async function clearOutboxErrors(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
+  for (const ids of chunk(recordIds, SQL_BATCH))
+    await db.update(schema.outbox).set({ error: null }).where(recordsIn(collection, ids));
 }
 
 /** The outbox rows, failed ones included, and the failed ones: through the indexes, no payload is read. */

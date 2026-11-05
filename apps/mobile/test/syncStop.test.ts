@@ -27,6 +27,8 @@ import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
 const transportImpl = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('../src/sync/transport', () => ({ httpTransport: () => transportImpl.current }));
 vi.mock('../src/library/fs', () => ({ purgedFilesRemover: () => async () => {} }));
+// The production wrapper's file uploads need the native file system; these runs name no file.
+vi.mock('../src/sync/fileUploads', () => ({ fileUploader: () => async () => {} }));
 
 let db: AppDb;
 beforeEach(() => {
