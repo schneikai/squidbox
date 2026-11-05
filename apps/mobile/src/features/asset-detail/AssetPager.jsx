@@ -95,19 +95,20 @@ function AssetPager({
     listRef.current?.scrollToIndex({ index: currentIndex, animated: false });
   }, [currentIndex]);
 
-  // Both end events are handled: a drag released exactly on a page boundary has no momentum phase.
-  // Only a page the list rests on counts: the edge swipe's frame-by-frame scrollTo fires end events
-  // too (iOS), between pages or, held a full page over, on the next one. Reporting those would move
-  // the current page under the shifted pager, which then scrolls on a page per frame. The edge swipe
-  // reports its page itself once its snap settles.
-  const handleScrollEnd = useCallback(
-    (event) => {
+  // The list came to rest at `offsetX`. Only a page it rests on counts: the edge swipe's
+  // frame-by-frame scrollTo fires end events too (iOS), between pages or, held a full page over, on
+  // the next one. Reporting those would move the current page under the shifted pager, which then
+  // scrolls on a page per frame. The edge swipe reports its page itself once its snap settles.
+  const settleAt = useCallback(
+    (offsetX) => {
       if (edgeSwipe.isShifted()) return;
-      const index = getSettledPage(event.nativeEvent.contentOffset.x, pageWidth);
+      const index = getSettledPage(offsetX, pageWidth);
       if (index >= 0) showIndex(index);
     },
     [pageWidth, showIndex, edgeSwipe],
   );
+  // Both end events are handled: a drag released exactly on a page boundary has no momentum phase.
+  const handleScrollEnd = useCallback((event) => settleAt(event.nativeEvent.contentOffset.x), [settleAt]);
 
   // react-native-web's ScrollView fires neither end event, so on the web the page is read from the
   // DOM's own `scrollend`, which fires once the scroll snap has settled.
@@ -115,13 +116,10 @@ function AssetPager({
     if (!isWeb) return;
     const node = listRef.current?.getScrollableNode?.();
     if (!node) return;
-    const handleWebScrollEnd = () => {
-      const index = getSettledPage(node.scrollLeft, pageWidth);
-      if (index >= 0) showIndex(index);
-    };
+    const handleWebScrollEnd = () => settleAt(node.scrollLeft);
     node.addEventListener('scrollend', handleWebScrollEnd);
     return () => node.removeEventListener('scrollend', handleWebScrollEnd);
-  }, [listRef, pageWidth, showIndex]);
+  }, [listRef, settleAt]);
 
   const handleZoomChange = useCallback(
     (assetId, isZoomed) => setZoomedAssetId((zoomed) => nextZoomedAssetId({ zoomed, assetId, isZoomed })),
