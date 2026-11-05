@@ -1,5 +1,6 @@
 import { useDeferredValue, useRef, useState } from 'react';
 
+import type { SearchBarState } from '@/components/floating-bars/SearchOptionsBar';
 import toggleItem from '@/utils/toggleItem';
 
 // The one method of a list this calls: FlatList's, FlashList's or an animated one's alike.
@@ -48,7 +49,7 @@ export default function useListControls<Sort = string>({
 
   // Search counts as active while the bar is open or text is set, so text never filters a list
   // without showing. Cancel clears it.
-  const searchBar = {
+  const searchBar: SearchBarState = {
     isSearchActive: isSearchOpen || typedText !== '',
     searchText: typedText,
     onOpenSearch: () => setIsSearchOpen(true),

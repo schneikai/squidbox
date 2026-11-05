@@ -1,11 +1,28 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import Icon from '@/components/Icon';
+import Icon, { type IconName } from '@/components/Icon';
 import { colors, layout, radii, sizes, typography } from '@/styles/designTokens';
+
+export type MenuItemContentProps = {
+  label: string;
+  icon?: IconName;
+  trailing?: ReactNode;
+  colorPalette?: 'danger';
+  isSelected?: boolean;
+  isHeader?: boolean;
+};
 
 // A menu row's contents: leading icon, label, and `trailing` (a dot when `isSelected` and none is
 // given). The row itself (padding, press feedback) belongs to MenuOption or the popover drawing it.
-export default function MenuItemContent({ label, icon, trailing, colorPalette, isSelected = false, isHeader = false }) {
+export default function MenuItemContent({
+  label,
+  icon,
+  trailing,
+  colorPalette,
+  isSelected = false,
+  isHeader = false,
+}: MenuItemContentProps) {
   const isDanger = colorPalette === 'danger';
   const iconColor = isDanger ? colors.status.danger : isSelected ? colors.accent.base : colors.text.secondary;
 

@@ -1,7 +1,13 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
+import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef } from 'react';
+import { StyleSheet, type TextInput as RNTextInput } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  Extrapolation,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
@@ -11,6 +17,27 @@ import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { layout, motion, scale, sizes } from '@/styles/designTokens';
+
+export type SearchOptionsBarProps = {
+  expandProgress: SharedValue<number>;
+  isSearchActive: boolean;
+  searchText: string;
+  onOpenSearch: () => void;
+  onCloseSearch: () => void;
+  onChangeSearch: (text: string) => void;
+  optionsMenu: ReactNode;
+  hasActiveState?: boolean;
+  placeholder?: string;
+  bottom: number;
+  left: number;
+  maxWidth: number;
+};
+
+// The search props a screen gets as `searchBar` from useListControls.
+export type SearchBarState = Pick<
+  SearchOptionsBarProps,
+  'isSearchActive' | 'searchText' | 'onOpenSearch' | 'onCloseSearch' | 'onChangeSearch'
+>;
 
 /**
  * Reusable bottom-left floating search + options bar, following the iOS search pattern:
@@ -52,8 +79,8 @@ export default function SearchOptionsBar({
   bottom,
   left,
   maxWidth,
-}) {
-  const inputRef = useRef(null);
+}: SearchOptionsBarProps) {
+  const inputRef = useRef<ComponentRef<typeof RNTextInput>>(null);
   const { bottom: safeBottom } = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
 

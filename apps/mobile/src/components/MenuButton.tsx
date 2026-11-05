@@ -1,8 +1,13 @@
-import { useRef, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
-import Button from '@/components/Button';
+import Button, { type ButtonProps } from '@/components/Button';
 import popupMenuStyles from '@/styles/popupMenuStyles';
+
+export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
+  trigger?: (menu: { toggle: () => void; isOpen: boolean }) => ReactNode;
+  children: ReactNode;
+};
 
 /**
  * A button that opens an anchored popup menu of `children` (MenuOption rows). Owns the toggle-safe
@@ -28,8 +33,8 @@ export default function MenuButton({
   style,
   children,
   ...buttonProps
-}) {
-  const menuRef = useRef(null);
+}: MenuButtonProps) {
+  const menuRef = useRef<Menu>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   function toggle() {

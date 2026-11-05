@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
@@ -28,7 +29,14 @@ import { layout, sizes } from '@/styles/designTokens';
 
 export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
 
-export default function ModalHeader({ leading, trailing, title, subtitle }) {
+export type ModalHeaderProps = {
+  leading?: ReactElement;
+  trailing?: ReactNode;
+  title?: string | ReactElement;
+  subtitle?: string;
+};
+
+export default function ModalHeader({ leading, trailing, title, subtitle }: ModalHeaderProps) {
   const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 
   const center =

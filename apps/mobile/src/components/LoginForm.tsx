@@ -8,11 +8,13 @@ import useCloud from '@/features/cloud/useCloud';
 import { colors, layout, sizes } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 
+export type LoginFormProps = { ownerEmail?: string | null };
+
 // `ownerEmail`: the account this library belongs to, pre-filled and kept until the user asks to sign
 // in as someone else (which opens that account's own library instead).
-export default function LoginForm({ ownerEmail }) {
-  const [email, setEmail] = useState(ownerEmail ?? process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL);
-  const [password, setPassword] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_PASSWORD);
+export default function LoginForm({ ownerEmail }: LoginFormProps) {
+  const [email, setEmail] = useState(ownerEmail ?? process.env.EXPO_PUBLIC_LOGIN_FORM_EMAIL ?? '');
+  const [password, setPassword] = useState(process.env.EXPO_PUBLIC_LOGIN_FORM_PASSWORD ?? '');
   const [isOwnerEmail, setIsOwnerEmail] = useState(Boolean(ownerEmail));
   const { loginAsync } = useCloud();
   const [isPending, startTransition] = useTransition();
@@ -27,7 +29,7 @@ export default function LoginForm({ ownerEmail }) {
       try {
         await loginAsync(email, password);
       } catch (error) {
-        Alert.alert("Couldn't sign in", error.message);
+        Alert.alert("Couldn't sign in", error instanceof Error ? error.message : String(error));
       }
     });
   }

@@ -8,14 +8,24 @@ import { useFloatingBars } from './FloatingBarsContext';
 import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
-import SelectionActions from '@/features/asset-list/SelectionActions';
+import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
+import type useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import { colors, layout, motion, typography } from '@/styles/designTokens';
+
+export type FloatingHeaderProps = {
+  title: string;
+  onAdd: () => void;
+  selection?: ReturnType<typeof useToggleSelectAssetsAction>;
+  selectionActions?: SelectionActionsProps['actions'];
+  onDelete?: SelectionActionsProps['onDelete'];
+};
 
 // The main screens' header. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
-export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }) {
+export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }: FloatingHeaderProps) {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  // Typed routes are off, so the tab's name goes untyped.
+  const navigation = useNavigation<{ navigate: (name: string) => void }>();
   const { scrollY } = useFloatingBars();
   const isSelectMode = selection?.isSelectMode ?? false;
 
@@ -64,7 +74,7 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
       </Animated.View>
 
       {/* Select mode pill */}
-      {selection && (
+      {selection && selectionActions && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
           <FloatingPill>
             <SelectionActions actions={selectionActions} onDelete={onDelete} onClose={selection.exitSelectMode} />

@@ -1,4 +1,4 @@
-import { Children } from 'react';
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
 import Card from '@/components/Card';
@@ -12,12 +12,15 @@ import { colors, lineHeights, press, sizes, typography } from '@/styles/designTo
 // (Backup, Sync), so they all look and behave the same.
 
 // `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
-export function Section({ children, isHeaderless = false }) {
+export type SectionProps = { children: ReactNode; isHeaderless?: boolean };
+
+export function Section({ children, isHeaderless = false }: SectionProps) {
   const kids = Children.toArray(children);
   return (
     <Card style={[styles.section, isHeaderless && styles.headerless]}>
       {kids.map((child, i) => (
-        <View key={child.key ?? i}>
+        // A text child has no key.
+        <View key={(isValidElement(child) ? child.key : null) ?? i}>
           {child}
           {i < kids.length - 1 && <Divider />}
         </View>
@@ -27,13 +30,29 @@ export function Section({ children, isHeaderless = false }) {
 }
 
 // iOS-style small gray explanatory text shown BELOW a grouped section.
-export function SectionFooter({ children }) {
+export type SectionFooterProps = { children?: ReactNode };
+
+export function SectionFooter({ children }: SectionFooterProps) {
   return (
     <Text variant="hint" style={styles.footer}>
       {children}
     </Text>
   );
 }
+
+export type RowProps = {
+  label: string | ReactElement;
+  description?: string | null;
+  leading?: ReactNode;
+  value?: string | null;
+  onPress?: () => void;
+  disabled?: boolean;
+  colorPalette?: 'danger';
+  hasChevron?: boolean;
+  isSelected?: boolean;
+  size?: 'regular' | 'small';
+  children?: ReactNode;
+};
 
 // The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
 // guidance prefers over truncating or shrinking text.
@@ -54,7 +73,7 @@ export function Row({
   isSelected = false,
   size = 'regular',
   children,
-}) {
+}: RowProps) {
   const content = (
     <View style={[styles.row, size === 'small' && styles.rowSmall]}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}

@@ -8,12 +8,14 @@ const SIZE = scale(34);
 // Brings the tap target to the 44pt minimum.
 const HIT_SLOP = (sizes.iconButton - SIZE) / 2;
 
+export type AccountButtonProps = { onPress: () => void };
+
 /**
  * The account avatar at the far right of the main header, outside any toolbar: it stands for the
  * user, not for an action. Shows the account's initial while signed in, a person when signed out,
  * and a red dot when the session ended and a sign-in is needed before anything syncs.
  */
-export default function AccountButton({ onPress }) {
+export default function AccountButton({ onPress }: AccountButtonProps) {
   const { user, isAuthenticated, needsReauth } = useCloud();
   const initial = (isAuthenticated || needsReauth) && user?.email ? user.email.charAt(0).toUpperCase() : null;
 

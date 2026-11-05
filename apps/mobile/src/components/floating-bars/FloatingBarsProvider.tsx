@@ -1,9 +1,11 @@
-import { useState, useCallback, useMemo } from 'react';
+import { type ReactNode, useState, useCallback, useMemo } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 
-import FloatingBarsContext from './FloatingBarsContext';
+import FloatingBarsContext, { type FloatingBarsValue } from './FloatingBarsContext';
 
-export default function FloatingBarsProvider({ children }) {
+export type FloatingBarsProviderProps = { children?: ReactNode };
+
+export default function FloatingBarsProvider({ children }: FloatingBarsProviderProps) {
   // ── Search ────────────────────────────────────────────────────────────────
   // Each main screen owns its search (see useListControls). The visible one reports whether its search
   // bar is open, so the navigation bar can make room for it.
@@ -24,7 +26,7 @@ export default function FloatingBarsProvider({ children }) {
 
   // Memoized: the provider sits above the screens and re-renders with navigation and app-level
   // updates, which must not re-render every screen that uses the floating bars.
-  const value = useMemo(
+  const value = useMemo<FloatingBarsValue>(
     () => ({
       // Search
       isSearchActive,

@@ -1,3 +1,5 @@
+import type { ViewStyle } from 'react-native';
+
 import { layout, sizes } from '@/styles/designTokens';
 
 // Everything that affects a popover's SIZE. Menus pass it to <MenuOptions> through `menuOptions`,
@@ -22,5 +24,5 @@ export default {
     alignItems: 'center',
     paddingHorizontal: layout.menuRowPaddingX,
     paddingVertical: layout.menuRowPaddingY,
-  },
+  } satisfies ViewStyle,
 };

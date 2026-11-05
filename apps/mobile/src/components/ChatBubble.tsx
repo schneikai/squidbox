@@ -1,8 +1,11 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
 import { colors, glass, lineHeights, typography } from '@/styles/designTokens';
+
+export type ChatBubbleProps = { side: 'user' | 'assistant'; label?: string; text: string; children?: ReactNode };
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
@@ -10,7 +13,7 @@ import { colors, glass, lineHeights, typography } from '@/styles/designTokens';
  * 'assistant'); line breaks kept, the text selectable, and a ⋯ under it holding `children` (its
  * MenuOptions) when there are any.
  */
-export default function ChatBubble({ side, label, text, children }) {
+export default function ChatBubble({ side, label, text, children }: ChatBubbleProps) {
   const isUser = side === 'user';
   const Fill = isUser ? GradientFill : View;
 

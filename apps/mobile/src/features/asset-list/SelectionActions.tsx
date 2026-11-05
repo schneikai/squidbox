@@ -1,8 +1,15 @@
 import Button from '@/components/Button';
+import type useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
+
+export type SelectionActionsProps = {
+  actions: ReturnType<typeof useAssetSelectionActions>;
+  onDelete?: () => void;
+  onClose: () => void;
+};
 
 // The buttons of select mode, for a floating pill: select all, download, add to album, post, delete
 // (when `onDelete` is given) and close. `actions` comes from useAssetSelectionActions.
-export default function SelectionActions({ actions, onDelete, onClose }) {
+export default function SelectionActions({ actions, onDelete, onClose }: SelectionActionsProps) {
   const disabled = !actions.hasSelection;
   return (
     <>

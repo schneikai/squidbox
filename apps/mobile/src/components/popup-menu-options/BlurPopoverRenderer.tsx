@@ -1,7 +1,7 @@
 import React from 'react';
 import { Animated, I18nManager } from 'react-native';
 
-import PopoverSurface from './PopoverSurface';
+import PopoverSurface, { type PopoverSurfaceProps } from './PopoverSurface';
 
 import { layout, motion } from '@/styles/designTokens';
 
@@ -22,13 +22,21 @@ import { layout, motion } from '@/styles/designTokens';
 
 const HORIZONTAL_NUDGE = 4; // px extra rightward shift when right-aligned
 
+// The renderer contract react-native-popup-menu calls but doesn't type: the layouts it measured and
+// passes to a renderer and its computePosition.
+type Layout = { x: number; y: number; width: number; height: number };
+type MenuLayouts = { windowLayout: Layout; triggerLayout: Layout; optionsLayout: Pick<Layout, 'width' | 'height'> };
+type Placement = ReturnType<typeof computePlacement>;
+
+export type BlurPopoverRendererProps = Omit<PopoverSurfaceProps, 'progress' | 'origin'> & { layouts: MenuLayouts };
+
 /**
  * Same axis-position logic used by the built-in ContextMenu renderer:
  *   • If the menu fits starting at the trigger's near edge → left-align
  *   • If it would overflow → right-align (menu right = trigger right)
  *   • Otherwise → center on the trigger
  */
-function axisPosition(oDim, wDim, tPos, tDim) {
+function axisPosition(oDim: number, wDim: number, tPos: number, tDim: number) {
   if (oDim > wDim) return 0;
   if (tPos + oDim <= wDim) return tPos;
   if (tPos + tDim - oDim >= 0) return tPos + tDim - oDim;
@@ -39,7 +47,7 @@ function axisPosition(oDim, wDim, tPos, tDim) {
 }
 
 // Where the menu goes, and which side of the trigger it is anchored to.
-function computePlacement(layouts) {
+function computePlacement(layouts: MenuLayouts) {
   const { windowLayout, triggerLayout, optionsLayout } = layouts;
   const { x: wX, y: wY, width: wWidth, height: wHeight } = windowLayout;
   const { x: tX, y: tY, height: tHeight, width: tWidth } = triggerLayout;
@@ -64,24 +72,26 @@ function computePlacement(layouts) {
   return { top, bottom, left, isRightAligned, opensBelow };
 }
 
-function positionFor({ top, bottom, left }, isRTL) {
+function positionFor({ top, bottom, left }: Placement, isRTL: boolean) {
   const horizontal = { [isRTL ? 'right' : 'left']: left };
   return bottom === undefined ? { top, ...horizontal } : { bottom, ...horizontal };
 }
 
-function computePosition(layouts, isRTL) {
+function computePosition(layouts: MenuLayouts, isRTL: boolean) {
   return positionFor(computePlacement(layouts), isRTL);
 }
 
 // The menu's corner nearest the trigger, so it grows out of (and shrinks back into) the button.
-function transformOriginFor({ isRightAligned, opensBelow }, isRTL) {
+function transformOriginFor({ isRightAligned, opensBelow }: Placement, isRTL: boolean) {
   const vertical = opensBelow ? 'top' : 'bottom';
   const alignedToEnd = isRightAligned !== isRTL;
   return `${vertical} ${alignedToEnd ? 'right' : 'left'}`;
 }
 
-export default class BlurPopoverRenderer extends React.Component {
-  constructor(props) {
+export default class BlurPopoverRenderer extends React.Component<BlurPopoverRendererProps, { anim: Animated.Value }> {
+  static computePosition = computePosition;
+
+  constructor(props: BlurPopoverRendererProps) {
     super(props);
     this.state = { anim: new Animated.Value(0) };
   }
@@ -113,5 +123,3 @@ export default class BlurPopoverRenderer extends React.Component {
     );
   }
 }
-
-BlurPopoverRenderer.computePosition = computePosition;

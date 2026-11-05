@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +10,15 @@ import useTitleMaxWidth from './useTitleMaxWidth';
 import Button from '@/components/Button';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import { layout, motion } from '@/styles/designTokens';
+
+export type FloatingDetailHeaderProps = {
+  title?: string;
+  subtitle?: string;
+  onBack: () => void;
+  menuSlot?: ReactNode;
+  isSelectMode?: boolean;
+  children?: ReactNode;
+};
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -24,8 +34,14 @@ import { layout, motion } from '@/styles/designTokens';
  *   isSelectMode — when true, back + info animate out to the left
  *   children     — centred under the row (a note about what the screen shows)
  */
-
-export default function FloatingDetailHeader({ title, subtitle, onBack, menuSlot, isSelectMode = false, children }) {
+export default function FloatingDetailHeader({
+  title,
+  subtitle,
+  onBack,
+  menuSlot,
+  isSelectMode = false,
+  children,
+}: FloatingDetailHeaderProps) {
   const insets = useSafeAreaInsets();
   // A sheet's first screen has nothing in the sheet to go back to: it closes the sheet.
   const closesSheet = useSheetRoute()?.isFirstScreen ?? false;

@@ -7,6 +7,17 @@ import Chip from '@/components/Chip';
 import TagInput from '@/components/TagInput';
 import { colors, typography } from '@/styles/designTokens';
 
+export type TagsFieldProps = {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  placeholder?: string;
+  maxTags: number;
+  maxTagLength?: number;
+  itemName?: string;
+  disabled?: boolean;
+  guardPress?: (onPress: () => void) => () => void;
+};
+
 /**
  * Tags as chips, a tap on one takes it out. The dashed Add turns into an input that adds a tag on
  * return (and stays open for the next) and closes on blur, adding what it holds. A tag that is
@@ -25,7 +36,7 @@ function TagsField({
   itemName = 'tag',
   disabled = false,
   guardPress = unguarded,
-}) {
+}: TagsFieldProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [text, setText] = useState('');
 
@@ -75,7 +86,7 @@ function TagsField({
 
 export default memo(TagsField);
 
-function unguarded(onPress) {
+function unguarded(onPress: () => void) {
   return onPress;
 }
 

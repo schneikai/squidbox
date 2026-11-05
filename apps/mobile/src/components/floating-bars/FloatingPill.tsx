@@ -1,10 +1,13 @@
 import { BlurView } from 'expo-blur';
-import { Children, isValidElement } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Children, isValidElement, type ReactNode } from 'react';
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
+import type { ButtonProps } from '@/components/Button';
 import FadedGroupContext from '@/components/FadedGroupContext';
 import IconSlotContext from '@/components/IconSlotContext';
 import { colors, disabledOpacity, layout, litGlass, radii, shadows } from '@/styles/designTokens';
+
+export type FloatingPillProps = { children?: ReactNode; style?: StyleProp<ViewStyle> };
 
 /**
  * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
@@ -14,12 +17,12 @@ import { colors, disabledOpacity, layout, litGlass, radii, shadows } from '@/sty
  * is violet instead of glass, so it reads as one bigger button with the same rim (shadows.litEdgeAccent),
  * and while that button is off the whole toolbar fades as one, rim and shadow too.
  */
-export default function FloatingPill({ children, style }) {
+export default function FloatingPill({ children, style }: FloatingPillProps) {
   const buttons = Children.toArray(children);
-  const isOnlyPrimary = buttons.length === 1 && isValidElement(buttons[0]) && buttons[0].props.variant === 'primary';
+  const onlyButton = buttons.length === 1 && isValidElement<ButtonProps>(buttons[0]) ? buttons[0] : null;
 
-  if (isOnlyPrimary) {
-    const isOff = buttons[0].props.disabled || buttons[0].props.loading;
+  if (onlyButton?.props.variant === 'primary') {
+    const isOff = onlyButton.props.disabled || onlyButton.props.loading;
     return (
       <View style={[styles.shadow, isOff && styles.off, style]}>
         <View style={[styles.surface, styles.primarySurface]}>

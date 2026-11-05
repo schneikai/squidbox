@@ -2,13 +2,13 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 
 import { useFloatingBars } from './FloatingBarsContext';
-import SearchSortFilterBar from './SearchSortFilterBar';
+import SearchSortFilterBar, { type SearchSortFilterBarProps } from './SearchSortFilterBar';
 
 /**
  * The search + sort / filter bar of a main tab screen: a SearchSortFilterBar that also tells the
  * navigation bar, while the screen is visible, whether its search field is open.
  */
-export default function FloatingActionsBar(props) {
+export default function FloatingActionsBar(props: SearchSortFilterBarProps) {
   const { setIsSearchActive } = useFloatingBars();
   const { isSearchActive } = props.search;
 

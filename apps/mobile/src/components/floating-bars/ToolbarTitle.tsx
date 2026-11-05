@@ -1,12 +1,14 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import FloatingPill from './FloatingPill';
 
 import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/designTokens';
 
+export type ToolbarTitleProps = { title?: string; subtitle?: string; style?: StyleProp<ViewStyle> };
+
 // Text in a toolbar: a FloatingPill one button tall with a one-line `title` and an optional smaller
 // `subtitle` under it (a photo's date and place). It takes no touches. style is for layout only (a max width).
-export default function ToolbarTitle({ title, subtitle, style }) {
+export default function ToolbarTitle({ title, subtitle, style }: ToolbarTitleProps) {
   return (
     <FloatingPill style={[styles.pill, style]}>
       <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">

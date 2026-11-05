@@ -1,11 +1,12 @@
-import { router } from 'expo-router';
+import { type Href, router } from 'expo-router';
+import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolate } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFloatingBars } from './FloatingBarsContext';
-import SegmentedPill from './SegmentedPill';
+import SegmentedPill, { type SegmentedPillItem } from './SegmentedPill';
 
 import { layout, motion } from '@/styles/designTokens';
 
@@ -14,12 +15,12 @@ const NAV_ITEMS = [
   { key: 'index', href: '/', icon: 'grid', label: 'Library' },
   { key: 'albums', href: '/albums', icon: 'folder', label: 'Albums' },
   { key: 'posts', href: '/posts', icon: 'share-alt', label: 'Posts' },
-];
+] satisfies (SegmentedPillItem & { href: Href })[];
 
 const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]));
 
 // The main tabs' bar (the tab navigator's `tabBar`), floating over the tab. Settings has none.
-export default function FloatingNavigationBar({ state }) {
+export default function FloatingNavigationBar({ state }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
 
@@ -46,7 +47,7 @@ export default function FloatingNavigationBar({ state }) {
     };
   });
 
-  function handleNavigate(tab) {
+  function handleNavigate(tab: string) {
     resetScroll();
     router.navigate(HREFS[tab]);
   }

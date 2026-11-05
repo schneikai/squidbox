@@ -1,7 +1,9 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, type ScrollViewProps, StyleSheet } from 'react-native';
 
 import { SCREEN_PADDING } from '@/constants';
 import useScreenPadding from '@/hooks/useScreenPadding';
+
+export type DetailScrollViewProps = ScrollViewProps;
 
 /**
  * Scrollable body for Page-based detail screens (stack screens using
@@ -15,7 +17,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
  *
  * All other ScrollView props are forwarded via ...rest.
  */
-export default function DetailScrollView({ children, style, contentContainerStyle, ...rest }) {
+export default function DetailScrollView({ children, style, contentContainerStyle, ...rest }: DetailScrollViewProps) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
 
   return (

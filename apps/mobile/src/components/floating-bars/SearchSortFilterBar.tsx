@@ -1,14 +1,20 @@
 import { useWindowDimensions } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { type SharedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import SearchOptionsBar from './SearchOptionsBar';
-import SortFilterMenu from './SortFilterMenu';
+import SearchOptionsBar, { type SearchBarState } from './SearchOptionsBar';
+import SortFilterMenu, { type SortFilterMenuProps } from './SortFilterMenu';
 
 import { layout, sizes } from '@/styles/designTokens';
 
 // The room a list keeps free at its bottom, above the safe-area inset, so its end clears the bar.
 export const SEARCH_SORT_FILTER_BAR_CLEARANCE = sizes.iconButton + layout.barBottom * 2 + 16;
+
+export type SearchSortFilterBarProps = {
+  search: SearchBarState;
+  placeholder?: string;
+  expandProgress?: SharedValue<number>;
+} & SortFilterMenuProps;
 
 /**
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
@@ -27,7 +33,7 @@ export default function SearchSortFilterBar({
   onSort,
   onFilter,
   showViewOptions,
-}) {
+}: SearchSortFilterBarProps) {
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const ownExpandProgress = useSharedValue(0);

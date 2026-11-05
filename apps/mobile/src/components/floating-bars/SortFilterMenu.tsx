@@ -2,10 +2,23 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import Divider from '@/components/Divider';
-import Icon from '@/components/Icon';
+import Icon, { type IconName } from '@/components/Icon';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import { colors, sizes } from '@/styles/designTokens';
+
+export type SortOption = { key: string; label: string };
+export type FilterOption = SortOption & { icon?: IconName };
+
+export type SortFilterMenuProps = {
+  sortOrder?: string;
+  sortOptions: SortOption[];
+  activeFilter?: string[];
+  filterOptions?: FilterOption[];
+  onSort?: (key: string) => void;
+  onFilter?: (key: string) => void;
+  showViewOptions?: boolean;
+};
 
 /**
  * The rows of the sort / filter / view-options menu, for a MenuButton. "Filter" drills down into a
@@ -28,13 +41,13 @@ export default function SortFilterMenu({
   onSort,
   onFilter,
   showViewOptions = false,
-}) {
+}: SortFilterMenuProps) {
   const { thumbnailStyle, setThumbnailStyle } = useAppSettings();
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const hasFilter = filterOptions.length > 0;
 
   // Returning false keeps the menu open while it switches panels.
-  function showPanel(isFilter) {
+  function showPanel(isFilter: boolean) {
     setShowFilterPanel(isFilter);
     return false;
   }

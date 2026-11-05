@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Section } from './SettingsList';
@@ -5,8 +6,10 @@ import { Section } from './SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import { colors, typography } from '@/styles/designTokens';
 
+export type LogBlockProps = { children?: ReactNode; maxHeight?: number };
+
 // A Section holding a fixed-height, internally-scrolling log (sync runs, backup runs).
-export function LogBlock({ children, maxHeight = 200 }) {
+export function LogBlock({ children, maxHeight = 200 }: LogBlockProps) {
   return (
     <Section>
       <ScrollView style={{ maxHeight }} nestedScrollEnabled contentContainerStyle={styles.inner}>
@@ -16,7 +19,9 @@ export function LogBlock({ children, maxHeight = 200 }) {
   );
 }
 
-export function LogLine({ primary, secondary, error }) {
+export type LogLineProps = { primary: string; secondary?: string | null; error?: string | null };
+
+export function LogLine({ primary, secondary, error }: LogLineProps) {
   return (
     <View style={styles.entry}>
       <Text style={styles.primary}>{primary}</Text>
@@ -26,7 +31,9 @@ export function LogLine({ primary, secondary, error }) {
   );
 }
 
-export function LogEmpty({ text }) {
+export type LogEmptyProps = { text: string };
+
+export function LogEmpty({ text }: LogEmptyProps) {
   return <Text style={styles.empty}>{text}</Text>;
 }
 

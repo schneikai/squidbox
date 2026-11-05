@@ -1,4 +1,6 @@
+import type { AssetRecord } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,11 +10,21 @@ import Button from '@/components/Button';
 import useAssets from '@/features/assets-context/useAssets';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import { layout } from '@/styles/designTokens';
+import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import useShareAsset from '@/utils/assets/useShareAsset';
 import confirmAsync from '@/utils/confirmAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
+
+// What the bar reads of the asset, and what sharing and saving it take.
+type DetailAsset = Pick<AssetRecord, 'id' | 'deletedAt' | 'mediaType' | 'isFavorite'> & AssetFileAsset;
+
+export type FloatingDetailActionsBarProps = {
+  asset: DetailAsset;
+  onDeleteAsset: (asset: DetailAsset) => void;
+  children?: ReactNode;
+};
 
 /**
  * Bottom floating action bar for the asset detail screen. `children` (e.g. video controls) go
@@ -27,7 +39,7 @@ import canShareFiles from '@/utils/files/canShareFiles';
  * the header, says where it is):
  *   [⇪  ↓]                                  [↺  🗑]
  */
-export default function FloatingDetailActionsBar({ asset, onDeleteAsset, children }) {
+export default function FloatingDetailActionsBar({ asset, onDeleteAsset, children }: FloatingDetailActionsBarProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
