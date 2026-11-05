@@ -36,7 +36,9 @@ export default function Chip({
   const content = (
     <>
       {leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />}
-      <Text style={[styles.label, isAccent && styles.accentLabel, styles[`${variant}Label`]]}>{label}</Text>
+      <Text style={[styles.label, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}>
+        {label}
+      </Text>
     </>
   );
 

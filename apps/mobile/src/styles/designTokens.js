@@ -115,7 +115,7 @@ export const shadows = {
     boxShadow: `0 10px 40px ${alpha(palette.black, 0.05)}`,
   },
   // A chip lifted off its surface (the prompt buttons on the assistant's tray and over the chat's
-  // composer); PromptButtonRow leaves room for it
+  // composer); a row of them leaves `raisedShadowRoom` for it
   raised: {
     boxShadow: `0 2px 8px ${alpha(palette.violet900, 0.08)}`,
   },
@@ -230,6 +230,10 @@ export const motion = {
 
 // How a pressable answers a touch: a filled one (a disc, the violet action) dims and shrinks a
 // little, a flat one (a text link) fades. A flat icon button tints behind it (`overlay.pressed`).
+// The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back
+// so the row stays the chips' height. It clips the shadow's soft tail on purpose, as the mockups do.
+export const raisedShadowRoom = scale(4);
+
 export const press = {
   filled: { opacity: 0.85, transform: [{ scale: 0.96 }] },
   flat: { opacity: 0.6 },

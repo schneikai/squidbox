@@ -4,10 +4,13 @@ import { StyleSheet, View } from 'react-native';
 import AssistantTrayContext from '@/components/AssistantTrayContext';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
-import { colors, radii, scale, shadows, sizes } from '@/styles/designTokens';
+import { colors, radii, raisedShadowRoom, scale, shadows, sizes } from '@/styles/designTokens';
 
 // The inset the row's chips keep from the tray's edges.
 const TRAY_INSET = scale(12);
+
+// What the tray gives what it holds (AssistantTrayContext).
+const TRAY = { inset: TRAY_INSET };
 
 const FADE = [colors.background.assistantClear, colors.background.assistant];
 const FADE_START = { x: 0, y: 0 };
@@ -18,13 +21,13 @@ const FADE_END = { x: 1, y: 0 };
  * violet sparkle and `title` (Write with AI), with `trailing` at the end of the title's line (a small
  * button, EditPromptButtonsButton). `children` is one row that scrolls sideways across the tray's
  * full width (PromptButtonRow), fading out at its right edge; the tray gives the row its inset and
- * the pen its accent (AssistantTrayContext). The fade is static and only as wide as the inset, so it
- * veils a chip passing under the edge but never one at rest or at the row's end. style is for layout
- * only.
+ * the pen its accent (AssistantTrayContext), and draws its lit rim over the row. The fade is static
+ * and only as wide as the inset, so it veils a chip passing under the edge but never one at rest or
+ * at the row's end. style is for layout only.
  */
 export default function AssistantTray({ title, trailing, children, style }) {
   return (
-    <AssistantTrayContext.Provider value={TRAY_INSET}>
+    <AssistantTrayContext.Provider value={TRAY}>
       <View style={[styles.tray, style]}>
         <View style={styles.header}>
           <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} />
@@ -37,6 +40,7 @@ export default function AssistantTray({ title, trailing, children, style }) {
           {children}
           <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
         </View>
+        <View style={styles.rim} pointerEvents="none" />
       </View>
     </AssistantTrayContext.Provider>
   );
@@ -49,6 +53,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.background.assistant,
+  },
+  // The lit edge, drawn over the row so the chips scrolling under the tray's edges and the fade
+  // don't cover it.
+  rim: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.card,
     ...shadows.litEdge,
   },
   // The title sits 2 pt further in than the chips, as the sparkle's glyph is narrower than its box.
@@ -62,11 +72,12 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
   },
+  // Over the chips' shadow room too, so a shadow passing under the edge fades with its chip.
   fade: {
     position: 'absolute',
-    top: 0,
+    top: -raisedShadowRoom,
     right: 0,
-    bottom: 0,
+    bottom: -raisedShadowRoom,
     width: TRAY_INSET,
   },
 });

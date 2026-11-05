@@ -4,20 +4,18 @@ import { ScrollView, StyleSheet } from 'react-native';
 import PromptButtonChip from './PromptButtonChip';
 
 import AssistantTrayContext from '@/components/AssistantTrayContext';
-import { scale } from '@/styles/designTokens';
-
-// Room above and below the chips for their shadow (`shadows.raised`), which the row takes back so it
-// stays their height. It clips the shadow's soft tail on purpose, as the mockups do.
-const SHADOW_ROOM = scale(4);
+import { SCREEN_PADDING } from '@/constants';
+import { raisedShadowRoom } from '@/styles/designTokens';
 
 /**
  * The prompt buttons (`buttons`) as lifted chips on one line, scrolling sideways when they don't fit:
  * a tap calls `onPress(button)`. `leading` goes before the buttons (Ask anything), `children` after
  * them (the pen). The row fills its parent's width, so the chips scroll under its edges; `inset` is
- * the chips' distance from those edges, the AssistantTray's own inside one.
+ * the chips' distance from those edges: the AssistantTray's inside one, else the screen's padding.
  */
 export default function PromptButtonRow({ buttons, onPress, inset, leading, children }) {
-  const trayInset = useContext(AssistantTrayContext);
+  const tray = useContext(AssistantTrayContext);
+  const padding = { paddingHorizontal: inset ?? tray?.inset ?? SCREEN_PADDING };
 
   return (
     <ScrollView
@@ -25,7 +23,7 @@ export default function PromptButtonRow({ buttons, onPress, inset, leading, chil
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       style={styles.row}
-      contentContainerStyle={[styles.content, { paddingHorizontal: inset ?? trayInset }]}
+      contentContainerStyle={[styles.content, padding]}
     >
       {leading}
       {buttons.map((button) => (
@@ -38,11 +36,11 @@ export default function PromptButtonRow({ buttons, onPress, inset, leading, chil
 
 const styles = StyleSheet.create({
   row: {
-    marginVertical: -SHADOW_ROOM,
+    marginVertical: -raisedShadowRoom,
   },
   content: {
     alignItems: 'center',
     gap: 8,
-    paddingVertical: SHADOW_ROOM,
+    paddingVertical: raisedShadowRoom,
   },
 });

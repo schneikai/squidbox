@@ -153,7 +153,7 @@ export default function PostChatScreen() {
         )}
       </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
-        <PromptButtonRow buttons={buttons ?? []} inset={SCREEN_PADDING} onPress={handlePromptButton}>
+        <PromptButtonRow buttons={buttons ?? []} onPress={handlePromptButton}>
           <EditPromptButtonsButton />
         </PromptButtonRow>
         <View style={styles.composerInset}>

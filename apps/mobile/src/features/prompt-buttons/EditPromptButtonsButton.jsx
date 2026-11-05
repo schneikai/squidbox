@@ -10,7 +10,7 @@ import Button from '@/components/Button';
  * in the accent on an AssistantTray (AssistantTrayContext), where it is part of the assistant's look.
  */
 export default function EditPromptButtonsButton() {
-  const isOnTray = useContext(AssistantTrayContext) != null;
+  const isOnTray = useContext(AssistantTrayContext) !== null;
 
   return (
     <Button

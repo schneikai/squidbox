@@ -1,8 +1,8 @@
 import { createContext } from 'react';
 
-// Inside an AssistantTray: the inset its row's chips keep from the tray's edges (PromptButtonRow's
-// default), and a sign for what sits on it to take the accent (EditPromptButtonsButton). Null
-// elsewhere.
+// Set by an AssistantTray around what it holds, null elsewhere: being on a tray turns the pen to the
+// accent (EditPromptButtonsButton), and `inset` is what the tray's row keeps from its edges
+// (PromptButtonRow).
 const AssistantTrayContext = createContext(null);
 
 export default AssistantTrayContext;
