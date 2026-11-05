@@ -2,6 +2,7 @@ import { CONTACT_LIMITS, formatPlace } from '@squidbox/shared';
 import { Fragment } from 'react';
 
 import SuggestionField from './SuggestionField';
+import autofillPlace from './autofillPlace';
 import { EMPTY_PLACE, storedPlace } from './contactFields';
 import usePlaceSuggestions from './usePlaceSuggestions';
 
@@ -19,16 +20,20 @@ const PARTS = [
 
 /**
  * A contact's places as a card: each place its City, State and Country rows, offering what the
- * user's other contacts have (usePlaceSuggestions), × on its first row to take it out (asking first
+ * user's other contacts have (usePlaceSuggestions) and filling the empty parts a known city or state
+ * implies, × on its first row to take it out (asking first
  * when it holds any text), and "Add place" at the card's end until it holds CONTACT_LIMITS.places.
  * `places` is the list as typed (`{ city, state, country }`, an empty one being added); every edit
  * hands the whole list to `onChange`.
  */
 export default function PlacesField({ places, onChange, onBlur }) {
-  const suggestions = usePlaceSuggestions();
+  const { suggestions, knownPlaces } = usePlaceSuggestions();
 
+  // A city or state that names one known place fills the place's empty parts (autofillPlace).
   function setPart(index, part, text) {
-    onChange(places.map((place, i) => (i === index ? { ...place, [part]: text } : place)));
+    onChange(
+      places.map((place, i) => (i === index ? autofillPlace({ ...place, [part]: text }, part, knownPlaces) : place)),
+    );
   }
 
   async function handleRemove(index) {

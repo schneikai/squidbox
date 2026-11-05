@@ -4,15 +4,19 @@ import { useMemo } from 'react';
 import useContactRows from '@/features/contact-list/useContactRows';
 
 /**
- * What a place's parts can be filled with: for each of city, state and country, the values the
- * user's contacts already have, the most used first (each once, ignoring case). Empty while reading.
+ * What a place's parts can be filled with: `suggestions`, for each of city, state and country, the
+ * values the user's contacts already have, the most used first (each once, ignoring case); and
+ * `knownPlaces`, their places (autofillPlace's). Empty while reading.
  */
 export default function usePlaceSuggestions() {
   const contacts = useContactRows({ scope: 'all' });
 
   return useMemo(() => {
-    const places = (contacts ?? []).flatMap((contact) => contact.places.map(placeParts));
-    return Object.fromEntries(CONTACT_PLACE_PARTS.map((part) => [part, mostUsed(places.map((place) => place[part]))]));
+    const knownPlaces = (contacts ?? []).flatMap((contact) => contact.places.map(placeParts));
+    const suggestions = Object.fromEntries(
+      CONTACT_PLACE_PARTS.map((part) => [part, mostUsed(knownPlaces.map((place) => place[part]))]),
+    );
+    return { suggestions, knownPlaces };
   }, [contacts]);
 }
 
