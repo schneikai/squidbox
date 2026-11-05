@@ -1,3 +1,5 @@
+import type { ReorderChange } from './useDragReorder';
+
 /**
  * A grid drop on a screen with a sort: under Custom it's a plain move. Under another sort the order
  * on screen becomes the custom one, as in Reminders: the screen switches to Custom right away, before
@@ -6,7 +8,18 @@
  * drop under the sort it was made on and resolves to its write count. It must queue its write at once
  * (before its first await), so the read the switch starts runs after it.
  */
-export default async function reorderUnderSort(change, { sortOrder, setSortOrder, move }) {
+export default async function reorderUnderSort<Sort extends string, Result>(
+  change: ReorderChange,
+  {
+    sortOrder,
+    setSortOrder,
+    move,
+  }: {
+    sortOrder: Sort;
+    setSortOrder: (sort: Sort | 'custom') => void;
+    move: (change: ReorderChange, sortOrder: Sort) => Promise<Result>;
+  },
+): Promise<Result> {
   if (sortOrder === 'custom') return move(change, sortOrder);
   setSortOrder('custom');
   try {

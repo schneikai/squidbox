@@ -1,8 +1,9 @@
 import { useNavigation } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { type RefObject, useEffect, useRef } from 'react';
 
+import type { GridLayout } from './gridSlotOrigin';
 import isPastTapSlop from './isPastTapSlop';
-import useGridLongPressPan from './useGridLongPressPan';
+import useGridLongPressPan, { type Point, type UseGridLongPressPanOptions } from './useGridLongPressPan';
 import usePeekAfterLift from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
@@ -26,7 +27,20 @@ import useHaptics from '@/hooks/useHaptics';
 
 const LONG_PRESS_MS = 150; // hold before selecting starts (keeps normal flicks scrolling)
 
-export default function useDragSelect({
+export type UseDragSelectOptions<Row extends { id: string }> = Pick<
+  UseGridLongPressPanOptions,
+  'enabled' | 'paddingTop' | 'listRef' | 'scrollY'
+> & {
+  rows?: Row[];
+  layout: GridLayout;
+  selectedIdsRef: RefObject<string[] | undefined>;
+  onSelect?: (ids: string[]) => void;
+  locksSwipeBack?: boolean;
+  onPeek?: (row: Row) => void;
+  onPeekEnd?: () => void;
+};
+
+export default function useDragSelect<Row extends { id: string }>({
   enabled,
   rows,
   layout,
@@ -38,7 +52,7 @@ export default function useDragSelect({
   locksSwipeBack = true,
   onPeek,
   onPeekEnd,
-}) {
+}: UseDragSelectOptions<Row>) {
   const navigation = useNavigation();
   const haptics = useHaptics();
 
@@ -51,11 +65,11 @@ export default function useDragSelect({
     return () => navigation.setOptions({ gestureEnabled: true });
   }, [navigation, enabled, locksSwipeBack]);
 
-  const baseSelectedRef = useRef([]);
+  const baseSelectedRef = useRef<string[]>([]);
   const anchorIndexRef = useRef(-1);
   const currentIndexRef = useRef(-1);
   const intentRef = useRef(true); // true = add to selection, false = remove
-  const liftPointRef = useRef({ x: 0, y: 0 });
+  const liftPointRef = useRef<Point>({ x: 0, y: 0 });
   const isSelectingRef = useRef(false);
   const peek = usePeekAfterLift({ onPeek, onPeekEnd });
   // Indices past the loaded rows (a page the auto-scroll is still loading) select nothing.
@@ -113,7 +127,7 @@ export default function useDragSelect({
     haptics.selection();
   }
 
-  function applyRange(currentIndex) {
+  function applyRange(currentIndex: number) {
     const anchor = anchorIndexRef.current;
     if (anchor === -1 || currentIndex === -1) return;
 
@@ -126,7 +140,8 @@ export default function useDragSelect({
       if (intentRef.current) set.add(id);
       else set.delete(id);
     }
-    onSelect([...set]);
+    // Without onSelect the grid never turns drag-select on.
+    onSelect?.([...set]);
   }
 
   return { gesture, onContainerLayout };

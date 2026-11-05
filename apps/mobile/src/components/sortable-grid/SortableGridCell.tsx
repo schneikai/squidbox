@@ -1,7 +1,13 @@
-import { memo, useEffect } from 'react';
-import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { memo, type ReactNode, useEffect } from 'react';
+import Animated, {
+  type SharedValue,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
-import gridSlotOrigin from './gridSlotOrigin';
+import gridSlotOrigin, { type GridLayout } from './gridSlotOrigin';
 
 import { motion } from '@/styles/designTokens';
 
@@ -9,11 +15,36 @@ import { motion } from '@/styles/designTokens';
 // map. Hidden while the lifted copy of it (SortableGridLiftedCell) shows. Memoized: every mounted
 // cell would otherwise re-render with the screen. `initialSlot` only places a new cell, so a changed
 // slot alone doesn't re-render it.
-export default memo(SortableGridCell, (prev, next) =>
-  Object.keys(next).every((key) => key === 'initialSlot' || prev[key] === next[key]),
-);
+// memo drops the component's type parameter, so the memoized one keeps the component's own type.
+export default memo(SortableGridCell, sameCellProps) as typeof SortableGridCell;
 
-function SortableGridCell({ row, renderItem, initialSlot, layout, cellPadding, positions, activeId, shownLiftedId }) {
+export type SortableGridCellProps<Row extends { id: string }> = {
+  row: Row;
+  renderItem: (row: Row) => ReactNode;
+  initialSlot: number;
+  layout: GridLayout;
+  cellPadding: number;
+  positions: SharedValue<Record<string, number>>;
+  activeId: SharedValue<string | null>;
+  shownLiftedId: SharedValue<string | null>;
+};
+
+function sameCellProps<Row extends { id: string }>(prev: SortableGridCellProps<Row>, next: SortableGridCellProps<Row>) {
+  let key: keyof SortableGridCellProps<Row>;
+  for (key in next) if (key !== 'initialSlot' && prev[key] !== next[key]) return false;
+  return true;
+}
+
+function SortableGridCell<Row extends { id: string }>({
+  row,
+  renderItem,
+  initialSlot,
+  layout,
+  cellPadding,
+  positions,
+  activeId,
+  shownLiftedId,
+}: SortableGridCellProps<Row>) {
   const id = row.id;
   const origin = gridSlotOrigin(layout, initialSlot);
   const translateX = useSharedValue(origin.x);

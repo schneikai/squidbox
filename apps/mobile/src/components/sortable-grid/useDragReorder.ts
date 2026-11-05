@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { withSpring } from 'react-native-reanimated';
+import { type SharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import gridSlotOrigin from './gridSlotOrigin';
+import gridSlotOrigin, { type GridLayout } from './gridSlotOrigin';
 import isPastTapSlop from './isPastTapSlop';
 import mergeRowIds from './mergeRowIds';
 import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
-import useGridLongPressPan from './useGridLongPressPan';
+import useGridLongPressPan, { type Point, type UseGridLongPressPanOptions } from './useGridLongPressPan';
 import usePeekAfterLift from './usePeekAfterLift';
 
 import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
@@ -35,7 +35,29 @@ import { motion } from '@/styles/designTokens';
 // Near the top/bottom edge the list auto-scrolls (useGridLongPressPan). `layout`: see gridSlotOrigin.
 // With `waitsFor` (another gesture on the grid, drag-select), a drag starts only once it has failed.
 
-export default function useDragReorder({
+// A drop: the moved row's id, the row it now follows (`null` at the top) and the slots' new order.
+export type ReorderChange = { id: string; afterId: string | null; order: string[] };
+
+export type UseDragReorderOptions<Row extends { id: string }> = Pick<
+  UseGridLongPressPanOptions,
+  'enabled' | 'waitsFor' | 'paddingTop' | 'listRef' | 'scrollY'
+> & {
+  rows?: Row[];
+  layout: GridLayout;
+  positions: SharedValue<Record<string, number>>;
+  activeId: SharedValue<string | null>;
+  activeX: SharedValue<number>;
+  activeY: SharedValue<number>;
+  activeScale: SharedValue<number>;
+  shownLiftedId: SharedValue<string | null>;
+  onDragStart?: (id: string) => void;
+  onDragEnd?: (change: ReorderChange | null) => void;
+  onSettled?: () => void;
+  onPeek?: (row: Row) => void;
+  onPeekEnd?: () => void;
+};
+
+export default function useDragReorder<Row extends { id: string }>({
   enabled,
   rows,
   layout,
@@ -54,17 +76,17 @@ export default function useDragReorder({
   onPeek,
   onPeekEnd,
   waitsFor,
-}) {
+}: UseDragReorderOptions<Row>) {
   const haptics = useHaptics();
-  const orderRef = useRef([]);
+  const orderRef = useRef<string[]>([]);
   const activeIndexRef = useRef(-1);
-  const startAfterIdRef = useRef(null);
-  const grabOffsetRef = useRef({ x: 0, y: 0 });
-  const liftPointRef = useRef({ x: 0, y: 0 });
+  const startAfterIdRef = useRef<string | null>(null);
+  const grabOffsetRef = useRef<Point>({ x: 0, y: 0 });
+  const liftPointRef = useRef<Point>({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const peek = usePeekAfterLift({ onPeek, onPeekEnd });
   // Called at a spring's end, so read when it runs.
-  const deferred = useRef({});
+  const deferred = useRef({ onSettled });
   deferred.current.onSettled = onSettled;
 
   function settled() {
@@ -139,7 +161,7 @@ export default function useDragReorder({
     positions.value = slotPositions(merged);
   }, [rows]);
 
-  function targetIndexAt(content) {
+  function targetIndexAt(content: Point) {
     const count = orderRef.current.length;
     const index = indexAtContent(content, count);
     if (index !== -1) return index;
@@ -148,7 +170,7 @@ export default function useDragReorder({
     return -1;
   }
 
-  function moveActive(targetIndex) {
+  function moveActive(targetIndex: number) {
     const from = activeIndexRef.current;
     if (from === -1 || targetIndex === -1 || targetIndex === from) return;
 

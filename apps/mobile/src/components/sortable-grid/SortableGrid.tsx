@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform, View, useWindowDimensions } from 'react-native';
+import {
+  type ComponentRef,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Alert, type LayoutChangeEvent, Platform, View, useWindowDimensions } from 'react-native';
 import { GestureDetector, useCompetingGestures } from 'react-native-gesture-handler';
 import Animated, {
+  type ScrollHandlerProcessed,
   useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
@@ -12,13 +22,14 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
-import heldOrder from './heldOrder';
+import heldOrder, { type Hold } from './heldOrder';
 import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
-import useDragReorder from './useDragReorder';
+import useDragReorder, { type ReorderChange } from './useDragReorder';
 import useDragSelect from './useDragSelect';
 
 import useHaptics from '@/hooks/useHaptics';
+import type { ScrollableList } from '@/hooks/useListControls';
 
 // A grid whose cells can be dragged into a new order, Apple Photos-style (an album's photos, the
 // albums). Cells are absolutely positioned so they can be dragged and reflowed, and only the rows
@@ -28,7 +39,32 @@ const WINDOW_SCREENS = 2;
 // How long after a drop its click may still come (it follows the pointer's release at once).
 const CLICK_AFTER_DROP_MS = 500;
 
-export default function SortableGrid({
+export type SortableGridProps<Row extends { id: string }> = {
+  rows?: Row[];
+  rowsReadAt?: number;
+  loadMore?: () => void;
+  renderItem: (row: Row) => ReactNode;
+  numColumns: number;
+  gap?: number;
+  cellHeight?: number;
+  cellPadding?: number;
+  paddingTop?: number;
+  paddingBottom?: number;
+  listRef?: RefObject<ScrollableList | null>;
+  onScroll?: ScrollHandlerProcessed;
+  dragSelectEnabled?: boolean;
+  dragSelectLocksSwipeBack?: boolean;
+  selectedIds?: string[];
+  onSelect?: (ids: string[]) => void;
+  reorderEnabled?: boolean;
+  // Resolves to the drop's write count (see heldOrder), or nothing.
+  onReorder?: (change: ReorderChange) => Promise<number | void>;
+  moveFailedTitle: string;
+  onPeek?: (row: Row) => void;
+  onPeekEnd?: () => void;
+};
+
+export default function SortableGrid<Row extends { id: string }>({
   rows,
   rowsReadAt,
   loadMore,
@@ -50,7 +86,7 @@ export default function SortableGrid({
   moveFailedTitle,
   onPeek,
   onPeekEnd,
-}) {
+}: SortableGridProps<Row>) {
   const window = useWindowDimensions();
   const haptics = useHaptics();
   const cellWidth = (window.width - gap * (numColumns + 1)) / numColumns;
@@ -60,7 +96,7 @@ export default function SortableGrid({
   );
 
   // The grid's own offset: a screen's shared one (the floating bars') is reset on tab switches.
-  const scrollRef = useAnimatedRef();
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollY = useSharedValue(0);
   // Within two screens of the end: ask for the next page on arriving there and again whenever the
   // content grows while still there, not on every scroll frame. usePagedQuery keeps an ask until more
@@ -92,31 +128,32 @@ export default function SortableGrid({
   );
 
   // Reorder animation state (shared with the cells + the reorder gesture hook).
-  const positions = useSharedValue({});
-  const activeId = useSharedValue(null);
+  const positions = useSharedValue<Record<string, number>>({});
+  const activeId = useSharedValue<string | null>(null);
   const activeX = useSharedValue(0);
   const activeY = useSharedValue(0);
   const activeScale = useSharedValue(1);
-  const shownLiftedId = useSharedValue(null);
-  const [liftedId, setLiftedId] = useState(null);
+  const shownLiftedId = useSharedValue<string | null>(null);
+  const [liftedId, setLiftedId] = useState<string | null>(null);
 
-  const containerRef = useRef(null);
+  const containerRef = useRef<ComponentRef<typeof View>>(null);
   const swallowClickUntilRef = useRef(0);
 
   // After a drop the cells and the gestures hold the order it left until rows that include its write
   // land (heldOrder): the rows until then would spring the cells back and let the next drag lift the
   // wrong cell. While a drag runs, the gesture owns the slots; rows arriving meanwhile apply after it.
-  const [hold, setHold] = useState(null);
+  const [hold, setHold] = useState<Hold | null>(null);
   // One reorder at a time: a drag waits until the previous drop's write has settled, so each drop is
   // made on an order the database has (a failed first drop would leave the second on a guessed one).
   const [isWriting, setIsWriting] = useState(false);
   const isDraggingRef = useRef(false);
-  const sentOrderRef = useRef(null);
+  const sentOrderRef = useRef<string[] | null>(null);
   const ordered = useMemo(() => {
     const heldIds = rows && heldOrder(hold, rows, rowsReadAt, reorderEnabled);
     if (!heldIds) return rows;
     const byId = new Map(rows.map((row) => [row.id, row]));
-    return heldIds.map((id) => byId.get(id));
+    // heldOrder keeps only the rows' ids, so every one is found.
+    return heldIds.flatMap((id) => byId.get(id) ?? []);
   }, [rows, rowsReadAt, hold, reorderEnabled]);
   const orderedRef = useRef(ordered);
   orderedRef.current = ordered;
@@ -128,9 +165,10 @@ export default function SortableGrid({
   // that follows a lift (moved or not) is swallowed in the capture phase, before the cell's pressable.
   const isShown = Boolean(ordered);
   useEffect(() => {
-    const node = containerRef.current;
+    // On web the View's ref is the DOM element (react-native-web); the check below guards it.
+    const node = containerRef.current as unknown as HTMLElement | null;
     if (Platform.OS !== 'web' || !node?.addEventListener) return undefined;
-    function swallowClick(event) {
+    function swallowClick(event: Event) {
       if (Date.now() > swallowClickUntilRef.current) return;
       swallowClickUntilRef.current = 0;
       event.stopPropagation();
@@ -201,14 +239,14 @@ export default function SortableGrid({
   const lifted = useMemo(() => liftedId && ordered?.find((row) => row.id === liftedId), [liftedId, ordered]);
 
   // The slots go to the UI thread only when the order changed, not for every new rows array.
-  function sendSlots(ids) {
+  function sendSlots(ids: string[]) {
     const sent = sentOrderRef.current;
     if (sent && sameOrder(sent, ids)) return;
     sentOrderRef.current = ids;
     positions.value = slotPositions(ids);
   }
 
-  function handleDragStart(id) {
+  function handleDragStart(id: string) {
     isDraggingRef.current = true;
     swallowClickUntilRef.current = Infinity;
     setLiftedId(id);
@@ -219,22 +257,23 @@ export default function SortableGrid({
   }
 
   // The drop shows at once; its write lands later, or fails and the cells go back.
-  async function handleDragEnd(change) {
+  async function handleDragEnd(change: ReorderChange | null) {
     isDraggingRef.current = false;
     // Unless the click came already, during the drag.
     if (swallowClickUntilRef.current === Infinity) swallowClickUntilRef.current = Date.now() + CLICK_AFTER_DROP_MS;
     // The gesture moved the slots itself: whatever arrived during the drag applies now.
     sentOrderRef.current = null;
     if (!change) {
-      sendSlots(orderedRef.current.map((row) => row.id));
+      // A drag needs rows, so they are there.
+      if (orderedRef.current) sendSlots(orderedRef.current.map((row) => row.id));
       return;
     }
-    const dropped = { ids: change.order };
+    const dropped: Hold = { ids: change.order };
     setHold(dropped);
     sendSlots(change.order);
     setIsWriting(true);
     try {
-      const writtenAt = await onReorder(change);
+      const writtenAt = await onReorder?.(change);
       // A drop that reports no write count counts as landed, so the cells follow the rows.
       setHold((current) => (current === dropped ? { ...dropped, writtenAt: writtenAt ?? -1 } : current));
     } catch (error) {
@@ -247,7 +286,7 @@ export default function SortableGrid({
     }
   }
 
-  function handleLayout(e) {
+  function handleLayout(e: LayoutChangeEvent) {
     const { height } = e.nativeEvent.layout;
     if (height > 0) setViewportHeight(height);
     dragSelect.onContainerLayout(height);
