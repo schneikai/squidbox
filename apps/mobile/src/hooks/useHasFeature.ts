@@ -7,7 +7,7 @@ import useCloud from '@/features/cloud/useCloud';
  * top of the defaults that the server grants per account. False while signed out.
  */
 export default function useHasFeature(feature: AccountFeature | undefined): boolean {
-  const { isAuthenticated, user } = useCloud();
-  // Signed in means there is a user.
-  return isAuthenticated && user!.features.includes(feature as string);
+  const account = useCloud();
+  if (!account.isAuthenticated || feature === undefined) return false;
+  return account.user.features.includes(feature);
 }

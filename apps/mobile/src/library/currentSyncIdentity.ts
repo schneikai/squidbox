@@ -10,5 +10,5 @@ import { getSession } from '@/utils/cloud-api/sessionStore';
 export function currentSyncIdentity(): SyncIdentity | null {
   const library = openLibraryEntry();
   const session = getSession();
-  return library && isSessionAuthenticated(library, session) ? sessionIdentity(session!) : null;
+  return library && isSessionAuthenticated(library, session) ? sessionIdentity(session) : null;
 }

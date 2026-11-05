@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import useCloud from '@/features/cloud/useCloud';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import type { VisionImageDeps } from '@/utils/assets/readVisionImageAsync';
 
 /**
@@ -9,9 +9,7 @@ import type { VisionImageDeps } from '@/utils/assets/readVisionImageAsync';
  * preloadAssetThumbnailsAsync }` (useLibrary's paths, useCloud's), stable while they are.
  */
 export default function useVisionImageDeps(): Omit<VisionImageDeps, 'signal'> {
-  const { paths } = useLibrary();
-  // Below LibraryGate a library is always open.
-  const library = paths!;
+  const { paths: library } = useOpenLibrary();
   const { isAuthenticated, preloadAssetThumbnailsAsync } = useCloud();
   return useMemo(
     () => ({ library, isAuthenticated, preloadAssetThumbnailsAsync }),

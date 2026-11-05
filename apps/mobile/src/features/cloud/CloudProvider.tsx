@@ -2,9 +2,10 @@ import { router } from 'expo-router';
 import { type ReactNode, useMemo, useSyncExternalStore } from 'react';
 import { Alert } from 'react-native';
 
-import CloudContext, { type CloudContextValue } from './CloudContext';
+import CloudContext, { type CloudAccount, type CloudContextValue, type CloudUser } from './CloudContext';
 import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 
+import type { Session } from '@/library/session';
 import { openLibraryForSignIn } from '@/library/sessionLibrary';
 import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/library/sessionMatches';
 import useLibrary from '@/library/useLibrary';
@@ -23,9 +24,11 @@ export default function CloudProvider({ children }: CloudProviderProps) {
   const { library, switchLibrary } = useLibrary();
   const session = useSyncExternalStore(onSessionChange, getSessionSnapshot);
 
-  const isAuthenticated = library !== null && isSessionAuthenticated(library, session);
+  const account: CloudAccount =
+    library !== null && isSessionAuthenticated(library, session)
+      ? { isAuthenticated: true, user: cloudUser(session) }
+      : { isAuthenticated: false, user: session?.userId ? cloudUser(session) : null };
   const needsReauth = library !== null && sessionNeedsReauth(library, session);
-  const user = session?.userId ? { id: session.userId, email: session.email, features: session.features ?? [] } : null;
 
   // Signs in and opens the account's library (a parked one, or a new one), adding what this device's
   // library holds; the library of another account stays parked with its pending changes.
@@ -51,9 +54,8 @@ export default function CloudProvider({ children }: CloudProviderProps) {
 
   const value = useMemo<CloudContextValue>(
     () => ({
-      isAuthenticated,
+      ...account,
       needsReauth,
-      user,
       loginAsync,
       logoutAsync,
       preloadAssetThumbnailsAsync,
@@ -62,4 +64,8 @@ export default function CloudProvider({ children }: CloudProviderProps) {
   );
 
   return <CloudContext.Provider value={value}>{children}</CloudContext.Provider>;
+}
+
+function cloudUser(session: Session): CloudUser {
+  return { id: session.userId, email: session.email, features: session.features ?? [] };
 }

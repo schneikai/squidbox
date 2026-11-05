@@ -8,3 +8,10 @@ export interface Session {
   apiBaseUrl: string;
   tokens: { accessToken: string; refreshToken: string } | null;
 }
+
+// A session that holds its tokens: one requests may be sent for.
+export type AuthenticatedSession = Session & { tokens: NonNullable<Session['tokens']> };
+
+export function hasTokens(session: Session | null): session is AuthenticatedSession {
+  return Boolean(session?.tokens);
+}

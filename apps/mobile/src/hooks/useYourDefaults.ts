@@ -8,11 +8,16 @@ import {
 import { useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
-import { ownerUserId } from '@/library/ownerUserId';
-import useLibrary from '@/library/useLibrary';
+import useAccountUserId from '@/library/useAccountUserId';
 import { schema } from '@/sync/db/client';
 import { readModelPicks } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
+
+export type YourDefaults = {
+  defaults: ModelDefaults | null;
+  yourDefaults: ModelDefaults | null;
+  changedKinds: AiModelKind[] | null;
+};
 
 /**
  * The defaults this account uses, live (an ai_admin tool): `yourDefaults`, its picks over the
@@ -20,16 +25,9 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * loads; `changedKinds`, the kinds whose picks differ from the published defaults (null while
  * loading).
  */
-export type YourDefaults = {
-  defaults: ModelDefaults | null;
-  yourDefaults: ModelDefaults | null;
-  changedKinds: AiModelKind[] | null;
-};
-
 export default function useYourDefaults(): YourDefaults {
   const { defaults } = useAiCatalog();
-  const { library } = useLibrary();
-  const userId = ownerUserId(library);
+  const userId = useAccountUserId();
   const picks = useLiveQuery((db) => readModelPicks(db, userId), [schema.modelChoices], [userId]);
 
   return useMemo(() => {

@@ -4,7 +4,7 @@ import getPickedAssetMetadataAsync from '@/features/assets-context/getPickedAsse
 import useAssets from '@/features/assets-context/useAssets';
 import { openLibraryId } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
@@ -17,9 +17,7 @@ type AddAssetsOptions = {
 
 export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFinish }: AddAssetsOptions) {
   const { addAssetsAsync } = useAssets();
-  const { paths } = useLibrary();
-  // Below LibraryGate a library is always open.
-  const library = paths!;
+  const { paths: library } = useOpenLibrary();
 
   async function addAssetsFromCameraRollAsync(): Promise<AssetRecord[]> {
     try {
@@ -38,13 +36,13 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
           const assetInfo = await getPickedAssetMetadataAsync(result);
           const newAsset = await buildAssetAsync(
             {
-              // iOS always exports these with a picked file; one missing stays null or NaN, so
-              // newRecord's schema parse rejects the asset, as it always has (never 0, a wrong size).
-              mediaLibraryAssetId: result.assetId as string,
+              // iOS always exports these with a picked file; one missing stays out, so newRecord's
+              // schema parse rejects the asset, as it always has (never 0, a wrong size).
+              mediaLibraryAssetId: result.assetId ?? undefined,
               sourceFileUri: result.uri,
               mediaType: imagePickerMediaTypeToAssetMediaType(result.type),
               // Whole numbers, as the shared asset schema has them.
-              fileSize: Math.round(result.fileSize ?? NaN),
+              fileSize: result.fileSize === undefined ? undefined : Math.round(result.fileSize),
               width: Math.round(result.width),
               height: Math.round(result.height),
               duration: result.duration,

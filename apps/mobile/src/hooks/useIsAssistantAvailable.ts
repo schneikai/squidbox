@@ -1,5 +1,5 @@
 import useHasFeature from '@/hooks/useHasFeature';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import isTestBuild from '@/utils/isTestBuild';
 
 /**
@@ -8,8 +8,7 @@ import isTestBuild from '@/utils/isTestBuild';
  * and has the `ai` feature (the server answers 403 without it).
  */
 export default function useIsAssistantAvailable(): boolean {
-  const { library } = useLibrary();
+  const { userId } = useOpenLibrary();
   const hasAi = useHasFeature('ai');
-  // Below LibraryGate a library is always open.
-  return isTestBuild() && library!.owner.kind === 'account' && hasAi;
+  return isTestBuild() && userId !== null && hasAi;
 }

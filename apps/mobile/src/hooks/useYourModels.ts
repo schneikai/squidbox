@@ -1,19 +1,12 @@
-import {
-  type AiModelKind,
-  type ApiAiModel,
-  modelPickIds,
-  type ModelDefaultVariant,
-  resolveModelDefaults,
-} from '@squidbox/shared';
+import { type AiModelKind, modelPickIds, type ModelDefaultVariant, resolveModelDefaults } from '@squidbox/shared';
 import { useCallback, useEffect, useMemo } from 'react';
 
 import useAiCatalog from '@/hooks/useAiCatalog';
 import usePersona from '@/hooks/usePersona';
 import useYourDefaults from '@/hooks/useYourDefaults';
 import applyAiCatalog from '@/lib/applyAiCatalog';
-import { ownerUserId } from '@/library/ownerUserId';
-import useLibrary from '@/library/useLibrary';
-import { addYourModel, readModelList, seedYourModels } from '@/sync/aiStateRepository';
+import useAccountUserId from '@/library/useAccountUserId';
+import { addYourModel, type ModelRef, readModelList, seedYourModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { clearPicks, clearPicksEqualTo, pickDefault as savePick, readModelPicks } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -44,8 +37,7 @@ import setModelDefaultsAsync from '@/utils/cloud-api/ai/setModelDefaultsAsync';
  */
 export default function useYourModels(kind: AiModelKind) {
   const { models: catalog, error, retry } = useAiCatalog();
-  const { library } = useLibrary();
-  const userId = ownerUserId(library);
+  const userId = useAccountUserId();
   // undefined while reading, null before the list was seeded
   const list = useLiveQuery(
     (db) => readModelList(db, kind),
@@ -81,7 +73,7 @@ export default function useYourModels(kind: AiModelKind) {
   const usedId = usedModelId(yourDefaults, kind, persona);
 
   const pickDefault = useCallback(
-    async (variant: ModelDefaultVariant, model: Parameters<typeof savePick>[4]) => {
+    async (variant: ModelDefaultVariant, model: ModelRef | null) => {
       // Picked on a model's page, which shows once the defaults are in.
       await savePick(getDb(), userId, kind, variant, model, defaults![kind][variant]);
       requestSync();
@@ -91,10 +83,7 @@ export default function useYourModels(kind: AiModelKind) {
 
   // Your picks over the published defaults the server has now (another admin may have changed
   // them), with the fresh catalog's models to name them; the catalog goes in front of every screen.
-  async function readDefaultsToApply(): Promise<{
-    models: ApiAiModel[];
-    ids: ReturnType<typeof resolveModelDefaults>;
-  }> {
+  async function readDefaultsToApply() {
     const [answer, picks] = await Promise.all([fetchAiModelsAsync(), readModelPicks(getDb(), userId)]);
     applyAiCatalog(answer);
     return { models: answer.models, ids: resolveModelDefaults(kind, picks, answer.defaults) };
