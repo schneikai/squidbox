@@ -32,13 +32,11 @@ export default async function moveAlbum(
   await db.transaction(async (tx) => {
     const albums = await readAlbumsInCustomOrder(tx);
     const ids = new Set(albums.map((album) => album.id));
-    if (!ids.has(id) || (sort === 'custom' && afterId !== null && !ids.has(afterId)))
+    // A sort but Custom comes with its order (AlbumMove); without one the move is by neighbour.
+    const byNeighbour = sort === 'custom' || order === undefined;
+    if (!ids.has(id) || (byNeighbour && afterId !== null && !ids.has(afterId)))
       throw new Error('The album or its neighbour is gone');
-    // A sort but Custom comes with its order (AlbumMove).
-    const updates =
-      sort === 'custom' || order === undefined
-        ? movePositions(albums, id, afterId)
-        : positionsInOrder(inOrder(albums, order));
+    const updates = byNeighbour ? movePositions(albums, id, afterId) : positionsInOrder(inOrder(albums, order));
     if (Object.keys(updates).length > 0) await repo.updateMany(tx, updates);
   });
   // Read before anything else can run: the next queued write starts only after this continuation.

@@ -5,7 +5,8 @@ import cancelledError from '@/features/cloud/assets/cancelledError';
 
 const PROGRESS_THROTTLE = 250; // ms
 
-type DownloadAssetFileOptions = { onProgress: (share: number) => void; signal: AbortSignal };
+// What follows the download: the share done (0–1), and the signal that cancels it.
+export type DownloadProgressOptions = { onProgress: (share: number) => void; signal: AbortSignal };
 
 // Fetches an asset's full-resolution file from `downloadUrl` (getAssetFileSourceAsync's) into
 // `directory`, which the caller removes, and resolves its uri. `onProgress` gets the share done
@@ -16,7 +17,7 @@ export default async function downloadAssetFileAsync(
   { filename }: Pick<AssetRecord, 'filename'>,
   downloadUrl: string,
   directory: string,
-  { onProgress, signal }: DownloadAssetFileOptions,
+  { onProgress, signal }: DownloadProgressOptions,
 ): Promise<string> {
   const cancelled = () => cancelledError(`Downloading ${filename} was cancelled`);
   new Directory(directory).create({ intermediates: true, idempotent: true });

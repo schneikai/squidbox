@@ -1,17 +1,15 @@
 import type { AssetRecord, VisionImage } from '@squidbox/shared';
 
 import type { CloudContextValue } from '@/features/cloud/CloudContext';
-import type { LibraryPaths } from '@/library/libraryPaths';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
+import type { AssetFileLocation } from '@/utils/assets/files/getAssetFileStatusAsync';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 import visionImage from '@/utils/assets/visionImage';
 import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
 
-export type VisionImageDeps = Pick<CloudContextValue, 'isAuthenticated' | 'preloadAssetThumbnailsAsync'> & {
-  library: LibraryPaths;
-  signal?: AbortSignal;
-};
+export type VisionImageDeps = AssetFileLocation &
+  Pick<CloudContextValue, 'preloadAssetThumbnailsAsync'> & { signal?: AbortSignal };
 
 /**
  * A photo for the assistant to look at (the vision compare, the photo tags), `{ base64, mimeType }`:

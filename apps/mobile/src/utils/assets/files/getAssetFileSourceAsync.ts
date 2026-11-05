@@ -14,7 +14,6 @@ export type AssetFileSource =
 
 // Where to read an asset's full-resolution file now (see getAssetFileStatusAsync): resolves
 // `{ uri, isRemote }`, the cloud copy's being a presigned URL, or `{ status }` when it can't be had.
-
 export default async function getAssetFileSourceAsync(
   asset: AssetFileAsset,
   { isAuthenticated, library }: AssetFileLocation,
