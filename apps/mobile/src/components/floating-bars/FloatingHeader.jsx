@@ -11,7 +11,8 @@ import Button from '@/components/Button';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import { colors, layout, motion, typography } from '@/styles/designTokens';
 
-// The main screens' header. A screen with select mode passes its `selection`
+// The main screens' header. `title` is the screen's title, or a node that stands in for it (the
+// Contacts tab's Contacts | Lists switcher), at the same place. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
 export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }) {
   const insets = useSafeAreaInsets();
@@ -52,7 +53,13 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
   return (
     <View style={[styles.container, { top: insets.top }]} pointerEvents="box-none">
       {/* Page title */}
-      <Animated.Text style={[styles.title, titleStyle]}>{title}</Animated.Text>
+      {typeof title === 'string' ? (
+        <Animated.Text style={[styles.title, titleStyle]} accessibilityRole="header">
+          {title}
+        </Animated.Text>
+      ) : (
+        <Animated.View style={[styles.titleSlot, titleStyle]}>{title}</Animated.View>
+      )}
 
       {/* Normal mode: action pill + account */}
       <Animated.View style={[styles.rightGroup, normalStyle]}>
@@ -90,6 +97,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text.primary,
     flex: 1,
+  },
+  titleSlot: {
+    flex: 1,
+    flexDirection: 'row',
   },
   rightGroup: {
     flexDirection: 'row',

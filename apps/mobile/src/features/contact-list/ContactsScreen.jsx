@@ -32,7 +32,7 @@ const PAGE_SIZE = 100;
 const keyExtractor = (contact) => contact.id;
 
 // The Contacts tab: the contacts (favorites first as a row of avatars, then everyone by name) or
-// the contact lists, switched with the pill under the title. + adds a contact, or a list.
+// the contact lists, switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
 export default function ContactsScreen() {
   const [segment, setSegment] = useState('contacts');
   const { paddingTop, paddingBottom } = useScreenPadding('main');
@@ -68,14 +68,11 @@ export default function ContactsScreen() {
 
   const header = (
     <View>
-      <View style={styles.pill}>
-        <SegmentedPill items={SEGMENTS} activeKey={segment} onSelect={setSegment} />
-      </View>
       {isContacts ? (
         <>
           {!isSearching && favorites?.length > 0 && (
             <>
-              <ScreenSectionHeader title="Favorites" size="small" />
+              <ScreenSectionHeader title="Favorites" size="small" isFirst />
               <ContactAvatarRow contacts={favorites} />
             </>
           )}
@@ -83,6 +80,7 @@ export default function ContactsScreen() {
             <ScreenSectionHeader
               title={pluralizeText('1 contact', `${count.toLocaleString()} contacts`, count)}
               size="small"
+              isFirst={isSearching || !favorites?.length}
             />
           )}
           {count === 0 && (
@@ -97,7 +95,7 @@ export default function ContactsScreen() {
         lists &&
         (lists.length > 0 ? (
           <>
-            <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} size="small" />
+            <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} size="small" isFirst />
             <ContactListRows lists={lists} />
           </>
         ) : (
@@ -109,7 +107,10 @@ export default function ContactsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <FloatingHeader title="Contacts" onAdd={handleAdd} />
+      <FloatingHeader
+        title={<SegmentedPill items={SEGMENTS} activeKey={segment} onSelect={setSegment} size="title" />}
+        onAdd={handleAdd}
+      />
       <Animated.FlatList
         ref={listRef}
         data={data}
@@ -135,8 +136,5 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: layout.sideGutter,
-  },
-  pill: {
-    flexDirection: 'row',
   },
 });
