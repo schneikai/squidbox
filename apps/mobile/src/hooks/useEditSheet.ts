@@ -2,6 +2,7 @@ import { useNavigation } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
+import type { EditSheetProps } from '@/components/EditSheet';
 import useDiscardGuard from '@/hooks/useDiscardGuard';
 import useHaptics from '@/hooks/useHaptics';
 import { requestSync } from '@/sync/worker';
@@ -84,7 +85,7 @@ export default function useEditSheet({
   }
 
   const notice = refused && refused.text === text ? refused.message : null;
-  const sheetProps = {
+  const sheetProps: Pick<EditSheetProps, 'confirmLabel' | 'canConfirm' | 'isSaving' | 'onConfirm' | 'onCancel'> = {
     confirmLabel: isNew ? 'Add' : 'Save',
     canConfirm: isValid && (isNew || isDirty),
     isSaving,

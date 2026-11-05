@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import parts from '../src/components/octopus/octopusParts.json';
 
-// Octopus.jsx draws the traced arms by position (DRAWN), at module load: a trace with other arms
+// Octopus.tsx draws the traced arms by position (DRAWN), at module load: a trace with other arms
 // would throw before any error boundary could catch it.
 const point = (p: number[]) => expect(p).toEqual([expect.any(Number), expect.any(Number)]);
 const polygon = (points: number[][]) => {
@@ -17,7 +17,7 @@ describe('octopusParts.json (traceOctopus.py)', () => {
   const backs = parts.arms.filter((arm) => arm.back);
   const fronts = parts.arms.filter((arm) => !arm.back);
 
-  it('has the 2 back and 5 front arms Octopus.jsx draws', () => {
+  it('has the 2 back and 5 front arms Octopus.tsx draws', () => {
     expect(backs).toHaveLength(2);
     expect(fronts).toHaveLength(5);
   });

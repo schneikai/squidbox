@@ -1,0 +1,54 @@
+import type { ReactNode } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+import { colors, typography } from '@/styles/designTokens';
+
+export type ScreenSectionHeaderProps = { title: string; trailing?: ReactNode; isFlush?: boolean };
+
+/**
+ * A section label above grouped rows or content: Settings and its screens, the asset's details,
+ * a post.
+ *
+ * When trailing is provided the component renders a flex row with the title
+ * on the left and the slot on the right. Over cards it sits a little in from
+ * their edge; `isFlush` lines it up with content that has no card around it.
+ */
+export default function ScreenSectionHeader({ title, trailing, isFlush = false }: ScreenSectionHeaderProps) {
+  if (!trailing) {
+    return <Text style={[styles.label, isFlush && styles.flush]}>{title}</Text>;
+  }
+
+  return (
+    <View style={styles.row}>
+      <Text style={[styles.labelInRow, isFlush && styles.flush]}>{title}</Text>
+      {trailing}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  label: {
+    fontSize: typography.body,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    marginBottom: 8,
+    marginLeft: 4,
+    marginTop: 20,
+  },
+  labelInRow: {
+    flex: 1,
+    fontSize: typography.body,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    marginLeft: 4,
+  },
+  flush: {
+    marginLeft: 0,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 20,
+  },
+});
