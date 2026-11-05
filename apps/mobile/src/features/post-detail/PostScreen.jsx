@@ -4,7 +4,7 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import Post from '@/features/post-detail/Post';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
-import usePost from '@/features/post-detail/usePost';
+import usePost from '@/features/post-list/usePost';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';

@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost as createPostRecord, createThread, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
-import readPost from '../src/features/post-detail/readPost';
 import postQuery from '../src/features/post-list/postQuery';
+import readPost from '../src/features/post-list/readPost';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
