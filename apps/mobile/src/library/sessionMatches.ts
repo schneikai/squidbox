@@ -1,6 +1,6 @@
 import type { Library } from './registry';
 import { sameAccount } from './sameAccount';
-import type { Session } from './session';
+import { hasTokens, type AuthenticatedSession, type Session } from './session';
 
 import { API_BASE_URL } from '@/utils/cloud-api/apiBaseUrl';
 
@@ -17,8 +17,8 @@ export function sessionMatches(library: Library, session: Session | null): boole
 
 // Signed in for this library: the session has tokens obtained from the current base URL (a changed
 // one is verified and rebound first, initializeCloudAsync) and it is the library owner's.
-export function isSessionAuthenticated(library: Library, session: Session | null): boolean {
-  return Boolean(session?.tokens) && session!.apiBaseUrl === API_BASE_URL && sessionMatches(library, session);
+export function isSessionAuthenticated(library: Library, session: Session | null): session is AuthenticatedSession {
+  return hasTokens(session) && session.apiBaseUrl === API_BASE_URL && sessionMatches(library, session);
 }
 
 // The owner's session is there but the server rejected its tokens: the library stays open and

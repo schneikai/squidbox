@@ -24,7 +24,7 @@ CUT = 300  # where the head ends and the front arms begin
 BEHIND = 24  # how far the back arms reach on behind the body
 FIXED = 0.25  # OctopusArm's FIXED: the share of an arm, from its root, that never bends
 SEED = 370  # a row where the front arms are apart
-ARMS = {'back': 2, 'front': 5}  # Octopus.jsx's DRAWN names each one
+ARMS = {'back': 2, 'front': 5}  # Octopus.tsx's DRAWN names each one
 
 PAL = {
     'head': (0xFF, 0x69, 0x30), 'shade': (0xFF, 0x54, 0x26), 'back': (0xF0, 0x44, 0x24),
@@ -77,7 +77,7 @@ def dilate(pts, steps, ok):
 
 def expect(found, kind):
     if len(found) != ARMS[kind]:
-        sys.exit(f'traceOctopus: found {len(found)} {kind} arms, not {ARMS[kind]}; fix the trace or Octopus.jsx')
+        sys.exit(f'traceOctopus: found {len(found)} {kind} arms, not {ARMS[kind]}; fix the trace or Octopus.tsx')
 
 
 # The back arms reach below the head; the mouth's inside, in the same colours, doesn't.

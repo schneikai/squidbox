@@ -22,6 +22,7 @@ export const baseRecordSchema = z.object({
   updatedAt: timestampSchema,
   deletedAt: timestampSchema.nullable(),
 });
+export type BaseRecord = z.infer<typeof baseRecordSchema>;
 
 export interface CollectionDescriptor<S extends z.ZodTypeAny = z.ZodTypeAny, L extends z.ZodRawShape = z.ZodRawShape> {
   /** Collection name = table name on both server (Postgres) and client (SQLite). */

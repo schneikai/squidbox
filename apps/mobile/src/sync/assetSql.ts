@@ -18,6 +18,9 @@ export const a = alias(schema.assets, 'a');
  * one included (one post, or several for postQuery, which reads its posts' assets at once), or one
  * live asset alone (a post suggestion's), or the live assets a contact is on.
  */
+// How a grid orders its assets (assetQuery's `sort`): `custom` is an album's own order.
+export type AssetSort = 'createdAt:asc' | 'createdAt:desc' | 'custom' | 'random';
+
 export type AssetScope =
   | 'library'
   | 'favorites'
@@ -39,7 +42,7 @@ const postEdge = alias(schema.postAssets, 'e');
  * order. `e` joins `a` (fromScope), and `where` keeps the parents' live edges, one canonical edge
  * per asset.
  */
-export function scopeEdges(scope: AssetScope, sort = 'createdAt:desc') {
+export function scopeEdges(scope: AssetScope, sort: AssetSort = 'createdAt:desc') {
   if (isPostScope(scope)) {
     const parent = sql.raw('e.post_id');
     const isOfPost = Array.isArray(scope.postId) ? inJson(parent, scope.postId) : sql`${parent} = ${scope.postId}`;
@@ -65,7 +68,7 @@ export function placeInPost(scope: { postId: string | string[] }): SQL<number> {
 
 /** A drizzle `select` from the scope's assets: `a`, joined from its edges when they drive the read. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- any drizzle select builder
-export function fromScope(select: any, scope: AssetScope, sort = 'createdAt:desc') {
+export function fromScope(select: any, scope: AssetScope, sort: AssetSort = 'createdAt:desc') {
   const edges = scopeEdges(scope, sort);
   return edges ? select.from(edges.e).innerJoin(a, eq(a.id, edges.e.assetId)) : select.from(a);
 }
@@ -122,7 +125,7 @@ export function assetDeletionWhere(scope: AssetScope): SQL {
 }
 
 /** The assets of a scope: through its edges when they drive the read (scopeEdges), else an album's membership. */
-export function assetScopeWhere(scope: AssetScope, sort = 'createdAt:desc'): SQL {
+export function assetScopeWhere(scope: AssetScope, sort: AssetSort = 'createdAt:desc'): SQL {
   const deletion = assetDeletionWhere(scope);
   const edges = scopeEdges(scope, sort);
   if (edges) return sql`${deletion} and ${edges.where}`;
@@ -139,7 +142,7 @@ export function assetScopeWhere(scope: AssetScope, sort = 'createdAt:desc'): SQL
  * The Deleted scope has no sort menu and lists the most recently deleted first; a post has no sort
  * either and lists in its own order.
  */
-export function assetOrder(scope: AssetScope, sort = 'createdAt:desc'): SQL {
+export function assetOrder(scope: AssetScope, sort: AssetSort = 'createdAt:desc'): SQL {
   if (scope === 'deleted') return sql`a.deleted_at desc, a.id desc`;
   if (scopeEdges(scope, sort)) return sql`e.position, e.id`;
   if (sort === 'random') return sql`random()`;

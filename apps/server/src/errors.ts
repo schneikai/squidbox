@@ -1,28 +1,13 @@
 // Single, consistent error envelope for the whole API: { error: { code, message } }.
-// Throw AppError anywhere; the Fastify error handler (plugins/errorHandler) renders it.
-
-export type ErrorCode =
-  | 'validation_error'
-  | 'unauthorized'
-  | 'invalid_credentials'
-  | 'invalid_token'
-  | 'not_found'
-  | 'rate_limited'
-  | 'purged'
-  | 's3_error'
-  | 'ai_not_configured'
-  | 'ai_unavailable'
-  | 'ai_not_allowed'
-  | 'ai_admin_not_allowed'
-  | 'developer_only'
-  | 'read_only_library'
-  | 'internal';
+// Throw AppError anywhere; the Fastify error handler (plugins/errorHandler) renders it. The codes and
+// the envelope are the shared contract (packages/shared/contracts/server.ts), which the app reads.
+import type { ApiError, ApiErrorCode } from '@squidbox/shared';
 
 export class AppError extends Error {
   readonly statusCode: number;
-  readonly code: ErrorCode;
+  readonly code: ApiErrorCode;
 
-  constructor(statusCode: number, code: ErrorCode, message: string) {
+  constructor(statusCode: number, code: ApiErrorCode, message: string) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
@@ -64,7 +49,7 @@ export class AppError extends Error {
   }
 }
 
-export function errorBody(code: ErrorCode, message: string) {
+export function errorBody(code: ApiErrorCode, message: string): ApiError {
   return { error: { code, message } };
 }
 

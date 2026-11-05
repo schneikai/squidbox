@@ -580,7 +580,7 @@ Each run writes a `sync_log` entry and updates `status`. A failed run sets `phas
 
 - After each local write (`requestSync()` from the providers).
 - When the app comes to the foreground (after retrying the failed pushes, §6), and every 30
-  seconds while it is in the foreground (`useSyncTriggers.js`).
+  seconds while it is in the foreground (`useSyncTriggers.ts`).
 - When sync becomes active (app ready and signed in).
 
 Background sync (`expo-background-task`) and server push notifications are not implemented.
@@ -768,7 +768,7 @@ a database without one, left by a first open that crashed, holds nothing and is 
 (`utils/persistedStore.ts`).
 
 **The session** is one record in SecureStore (`session`; localStorage on web):
-`{ serverId, userId, email, apiBaseUrl, tokens }` (`utils/cloud-api/sessionStore.js`, one in-memory
+`{ serverId, userId, email, apiBaseUrl, tokens }` (`utils/cloud-api/sessionStore.ts`, one in-memory
 copy changed only through `updateSession`). It binds the signed-in user to the server the tokens
 came from: the server reports its `SERVER_ID` in `/up`, the login response and `/me`
 (`apps/server/src/config.ts`). `serverId` and `userId` are always set, on the session and on every

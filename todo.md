@@ -14,14 +14,6 @@ propose, don't add. Remove an entry once it's done.
 
 ## Bugs
 
-### [ ] The quick view stayed open once
-
-The owner's long-press preview (`AssetQuickViewModal`) once stayed up after the finger lifted, on the
-dev client. A tap now closes it, but the cause isn't confirmed. Likeliest: the quick view is a
-native `Modal`, which can take the touch from the cell under it, so the cell's press-out
-(`onLongPressOut`) never comes. An overlay inside the screen (`pointerEvents="none"`) would leave
-the touch with the cell. Check on a phone.
-
 ## Features
 
 ### [ ] Search suggestions as you type, like Apple Photos
@@ -58,7 +50,7 @@ The app is built and tested only for iOS. Needed:
   `useAddAssetsFromCameraRoll` and `copyToMediaLibraryAsync`.
 - Platform differences: edge-to-edge insets, the back button and gesture (closing modals, the
   viewer, select mode), blur (`expo-blur` is slow or flat on Android: FloatingPill,
-  BlurPopoverRenderer, AssetQuickViewModal), keyboard events, HEIC display.
+  BlurPopoverRenderer, QuickViewHost), keyboard events, HEIC display.
 - Device checks of the gesture-heavy screens: pager, zoom, swipe-up details, drag-select, album
   reorder.
 - Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
@@ -105,9 +97,9 @@ Possible paid tier later: 3 days' retention by default, 30 days for paying users
 ### [ ] Context menus on long press (photo, album, post)
 
 Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
-Favorite, Delete. Build it in JS: the existing quick view (`AssetQuickViewModal`) with a menu from
+Favorite, Delete. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
 `components/popup-menu-options` under it, opened from the grids' "hold still" step (`onPeek` in
-`components/sortable-grid/useDragReorder.js`), so moving the finger still closes it and drags, as in
+`components/sortable-grid/useDragReorder.ts`), so moving the finger still closes it and drags, as in
 Photos, and it works on web. Unlike today's quick view, the menu stays open after the finger lifts.
 Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iOS only and takes the
 touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
@@ -183,7 +175,7 @@ so a better wording can be tried and published.
   outside the header pill) but has no better idea for now. Tried and dropped: a 3pt frame with the
   avatar inside the pill. Revisit when an idea comes up.
 - **Dark mode.** The tokens are ready for it (`colors` are semantic roles over a private `palette`
-  in `styles/designTokens.js`), but there is no dark set yet: add one and pick it with
+  in `styles/designTokens.ts`), but there is no dark set yet: add one and pick it with
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
 - **Tokens left to do.** Paddings and gaps are still literals (a 4 pt `spacing` scale would cover
   most), and `typography` and `lineHeights` are paired by hand at each call site; composite text
@@ -213,7 +205,7 @@ and mainClient.e2e no longer covers it: a migration can drop the column once no 
 ### [ ] Widen what CI checks
 
 `.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
-ESLint setup. The mobile tests aren't typechecked (`tsconfig.synccheck.json` leaves out `test/`,
+ESLint setup. The mobile tests aren't typechecked (`tsconfig.typecheck.json` leaves out `test/`,
 which already has type errors, e.g. `twoDevice.e2e.test.ts`). Nothing bundles the app, so a wrong
 named import in JS passes until a build (`npx expo export` would catch it).
 
@@ -232,9 +224,11 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-The app is mostly JavaScript (`.js` / `.jsx`); only `src/sync` and `src/library` are mostly
-TypeScript, and only their `.ts` files are typechecked (`npm run typecheck`). Convert the rest gradually, feature by feature, and widen
-the typecheck to the whole app.
+`src/sync`, `src/library`, `src/utils`, `src/hooks`, `src/lib`, `src/components`, `src/styles`, the
+data contexts (assets, posts, albums), app settings, the cloud, the thumbnail loader's context and
+`SelectionActions` are strict TypeScript, and `npm run typecheck` checks every `.ts`/`.tsx` in `src`
+strictly. Still JavaScript: the other features and the routes. Convert them feature by feature, then
+add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 
@@ -338,11 +332,6 @@ function on the UI thread, only fails at runtime on the phone. A script could ca
 `__closure` names, and flag those used in parameter defaults or bound to a plain function, a
 React hook result or an unresolved import that the worklet calls. An audit prototyped this
 (unpolished, with hard-coded paths); make it a `scripts/checkWorklets.mjs` run by `npm run lint`.
-
-### [ ] Move off Node 20
-
-Node 20 reached end of life in April 2026. `mise.toml` pins 20.19.4 and the server image uses
-`node:20-slim`. Move both to the current LTS and run the tests.
 
 ### [ ] Database and caches through the library handle too
 
