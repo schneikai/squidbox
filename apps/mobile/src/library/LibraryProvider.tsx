@@ -1,26 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import LibraryContext from './LibraryContext';
+import LibraryContext, { type LibraryContextValue } from './LibraryContext';
 import { bootLibrary } from './bootLibrary';
 import { openLibraryEntry, openLibraryId } from './current';
 import { libraryPaths } from './libraryPaths';
-import { onRegistryChange } from './registry';
-import { runPendingMerges, watchTokenDrops } from './sessionLibrary';
+import { type Library, onRegistryChange } from './registry';
+import { runPendingMerges, type SwitchLibrary, watchTokenDrops } from './sessionLibrary';
 import { switchLibrary as performSwitch } from './switchLibrary';
 
 // The open library. A switch sets `next`: LibraryGate (app/_layout.jsx) then shows the switching screen, so
 // everything below unmounts and its effects clean up, and the effect here runs the switch after
 // those cleanups, in the same commit; the gate remounts the app under the new library's id.
-export default function LibraryProvider({ children }) {
+type LibraryProviderProps = { children: ReactNode };
+
+// A switch the effect below runs: its target, and the promise switchLibrary returned to settle.
+type PendingSwitch = { target: Library; resolve: () => void; reject: (error: unknown) => void };
+
+export default function LibraryProvider({ children }: LibraryProviderProps) {
   const openLibrary = useSyncExternalStore(onRegistryChange, openLibraryEntry);
-  const [next, setNext] = useState(null);
+  const [next, setNext] = useState<PendingSwitch | null>(null);
   const [booted, setBooted] = useState(false);
   const bootDone = useRef(false); // for the switch effect, which the boot's own switches run through
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<unknown>(null);
 
   // Resolves once the target is open (or rejects with the previous library open again). Call it
   // inside withSyncPaused, together with the session change it belongs to.
-  const switchLibrary = useCallback(
+  const switchLibrary = useCallback<SwitchLibrary>(
     (target) => new Promise((resolve, reject) => setNext({ target, resolve, reject })),
     [],
   );
@@ -58,8 +63,11 @@ export default function LibraryProvider({ children }) {
   // `paths`: the open library's folders and database name. Everything below LibraryGate is keyed by
   // the library, so paths read at render belong to that library for the component's whole life.
   const library = next ? null : openLibrary;
-  const paths = useMemo(() => (library ? { id: library.id, ...libraryPaths(library.id) } : null), [library?.id]);
-  const value = useMemo(
+  const paths = useMemo<LibraryContextValue['paths']>(
+    () => (library ? { id: library.id, ...libraryPaths(library.id) } : null),
+    [library?.id],
+  );
+  const value = useMemo<LibraryContextValue>(
     () => ({
       library,
       paths,

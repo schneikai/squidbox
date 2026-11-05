@@ -14,7 +14,7 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 // again until the next boot or commit. A push may land before the first read, so that change counts
 // from any other value; a second run finds nothing to do. A sync run the merges cut short runs again
 // after them (withSyncRun).
-export default function usePendingMerges(firstSyncDone) {
+export default function usePendingMerges(firstSyncDone: boolean | undefined): void {
   const pushed = useLiveQuery(anyMergePushed, [schema.outbox, schema.syncMeta], [], {
     minInterval: MIN_REREAD_INTERVAL,
   });

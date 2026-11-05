@@ -13,7 +13,7 @@ import { requestSync, retryFailuresAndSync } from './worker';
 // the worker so every requestSync caller is covered at once.
 const INTERVAL_MS = 30_000;
 
-export default function useSyncTriggers() {
+export default function useSyncTriggers(): void {
   useEffect(() => {
     const interval = setInterval(() => {
       if (AppState.currentState === 'active') requestSync();
