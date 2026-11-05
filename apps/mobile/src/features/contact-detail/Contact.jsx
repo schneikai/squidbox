@@ -139,7 +139,11 @@ export default function Contact({ contact }) {
         <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.handles} />
 
         <ScreenSectionHeader title="Places" size="large" />
-        <PlacesField places={draft.places} onChange={(places) => setField('places', places)} onBlur={() => flush()} />
+        <PlacesField
+          places={draft.places}
+          onEdit={(index) => router.navigate({ pathname: `/contact/${contact.id}/place`, params: { index } })}
+          onAdd={() => router.navigate(`/contact/${contact.id}/place`)}
+        />
 
         <TextInput
           variant="field"

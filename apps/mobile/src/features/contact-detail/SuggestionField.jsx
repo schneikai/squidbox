@@ -3,7 +3,6 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
-import IconSlotContext from '@/components/IconSlotContext';
 import TextInput from '@/components/TextInput';
 import { colors, layout, scale, typography } from '@/styles/designTokens';
 
@@ -15,9 +14,9 @@ const MAX_SHOWN = 5;
 /**
  * A labelled text row of a card that offers what it may hold: while it has focus, the `suggestions`
  * that contain what is typed (ignoring case, not the text itself) show as chips under it, at most
- * five; a tap fills it with one. `trailing` ends the row (a ×). The other props are TextInput's.
+ * five; a tap fills it with one. The other props are TextInput's.
  */
-export default function SuggestionField({ label, value, onChangeText, onBlur, suggestions, trailing, ...inputProps }) {
+export default function SuggestionField({ label, value, onChangeText, onBlur, suggestions, ...inputProps }) {
   const [isFocused, setIsFocused] = useState(false);
   const typed = value.trim().toLowerCase();
   const shown = isFocused
@@ -48,8 +47,6 @@ export default function SuggestionField({ label, value, onChangeText, onBlur, su
           style={styles.input}
           {...inputProps}
         />
-        {/* A full 44 pt slot, so its icon sits in from the card's edge. */}
-        <IconSlotContext.Provider value>{trailing}</IconSlotContext.Provider>
       </View>
       {shown.length > 0 && (
         <View style={styles.suggestions}>
@@ -76,7 +73,7 @@ const styles = StyleSheet.create({
     gap: GAP,
     minHeight: scale(52),
     paddingLeft: layout.sideGutter,
-    paddingRight: 4,
+    paddingRight: layout.sideGutter,
   },
   label: {
     minWidth: LABEL_WIDTH,

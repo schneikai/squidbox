@@ -22,7 +22,7 @@ import useHaptics from '@/hooks/useHaptics';
 const EMPTY = JSON.stringify(storedContactFields(contactDraft()));
 
 // The New contact sheet: a photo, the name, handles, phone and places, and the lists to put it in
-// (a step pushed inside the sheet). Contacts it may duplicate show above the form, their shared
+// (a place and the lists are steps pushed inside the sheet). Contacts it may duplicate show above the form, their shared
 // fields marked. Add saves it and opens it.
 export default function NewContactScreen() {
   const haptics = useHaptics();
@@ -87,7 +87,11 @@ export default function NewContactScreen() {
         />
       </HandleFieldsCard>
 
-      <PlacesField places={draft.places} onChange={(places) => setField('places', places)} />
+      <PlacesField
+        places={draft.places}
+        onEdit={(index) => router.navigate({ pathname: '/new-contact/place', params: { index } })}
+        onAdd={() => router.navigate('/new-contact/place')}
+      />
 
       <Section isHeaderless>
         <Row
