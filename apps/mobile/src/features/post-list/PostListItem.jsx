@@ -1,9 +1,8 @@
 import { View, StyleSheet, Text } from 'react-native';
 
 import Card from '@/components/Card';
-import Icon from '@/components/Icon';
 import PostView from '@/features/posts/PostView';
-import { colors, scale, sizes } from '@/styles/designTokens';
+import { scale } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 // How far a thread's stacked edges show below its card, and how far in each sits.
@@ -31,12 +30,7 @@ export default function PostListItem({ post, actions }) {
       <PostView
         post={post}
         meta={
-          isThread && (
-            <View style={styles.threadMark}>
-              <Icon name="thread" size={sizes.captionIcon} color={colors.text.secondary} />
-              <Text style={listTextStyles.caption}>{`Thread · ${1 + threadCount}`}</Text>
-            </View>
-          )
+          isThread && <Text style={[listTextStyles.caption, styles.threadMark]}>{`Thread · ${1 + threadCount}`}</Text>
         }
       >
         {actions}
@@ -67,8 +61,5 @@ const styles = StyleSheet.create({
   // Right-aligned in the Posted row, quiet like the date beside it.
   threadMark: {
     marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(4),
   },
 });
