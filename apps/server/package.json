@@ -23,7 +23,9 @@
     "db:migrate": "node --env-file=.env --import tsx src/db/migrate.ts",
     "db:seed": "node --env-file=.env --import tsx src/db/seed.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
-    "user:features": "node --env-file=.env --import tsx scripts/user-features.ts"
+    "user:features": "node --env-file=.env --import tsx scripts/user-features.ts",
+    "split:link-threads": "node --env-file=.env --import tsx scripts/split-link-threads.ts",
+    "split:link-threads:prod": "node --import tsx scripts/split-link-threads.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.705.0",
