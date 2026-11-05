@@ -1,10 +1,11 @@
-import { INSTRUCTION_LIMITS } from '@squidbox/shared';
+import { INSTRUCTION_LIMITS, type InstructionKind } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState } from 'react';
 
 import instructionText from './instructionText';
 import missingPlaceholdersNote from './missingPlaceholdersNote';
 
+import type { ActionButtonsProps } from '@/components/ActionButtons';
 import CatalogStatus from '@/components/CatalogStatus';
 import EditSheet from '@/components/EditSheet';
 import TextEditSheet from '@/components/TextEditSheet';
@@ -14,7 +15,7 @@ import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import applyAppInstructions from '@/lib/applyAppInstructions';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
@@ -27,17 +28,19 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // the app's defaults (they come with the catalog). A root screen, one per kind.
 export default function InstructionScreen() {
   const navigation = useNavigation();
-  const { kind } = useLocalSearchParams();
+  // Typed as the route promises: the Instructions rows link only INSTRUCTION_KINDS.
+  const { kind } = useLocalSearchParams<{ kind: InstructionKind }>();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
-  const { library } = useLibrary();
-  const userId = library.owner.userId;
+  const { userId } = useOpenLibrary();
   const { defaultTexts, error, retry } = useInstructions();
   const seed = useSeedOrClose(
-    async (db) => ({ stored: (await readInstructions(db, userId))?.[kind] ?? null }),
+    async (db): Promise<InstructionSeed> => ({
+      stored: userId === null ? null : ((await readInstructions(db, userId))?.[kind] ?? null),
+    }),
     `${userId}:${kind}`,
   );
 
-  if (!isAvailable || !seed) return null;
+  if (!isAvailable || !seed || userId === null) return null;
   if (!defaultTexts) {
     return (
       <EditSheet
@@ -53,10 +56,14 @@ export default function InstructionScreen() {
   return <InstructionEditor kind={kind} userId={userId} seed={seed} defaultText={defaultTexts[kind]} />;
 }
 
+type InstructionSeed = { stored: string | null };
+
+type InstructionEditorProps = { kind: InstructionKind; userId: string; seed: InstructionSeed; defaultText: string };
+
 // `defaultText` is the app's default as the catalog has it now (a publish replaces it at once).
 // `draft` is null until the user types.
-function InstructionEditor({ kind, userId, seed, defaultText }) {
-  const [draft, setDraft] = useState(null);
+function InstructionEditor({ kind, userId, seed, defaultText }: InstructionEditorProps) {
+  const [draft, setDraft] = useState<string | null>(null);
   const { isPublishing, publish } = useApplyChangesForEveryone();
   const storedText = seed.stored ?? defaultText;
   const text = draft ?? storedText;
@@ -69,16 +76,16 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
 
   const trimmed = text.trim();
   const isChanged = trimmed !== defaultText;
-  const actions = [
-    isChanged &&
-      trimmed !== '' && {
-        label: 'Apply changes for everyone',
-        colorPalette: 'accent',
-        onPress: handlePublish,
-        loading: isPublishing,
-      },
-    isChanged && { label: 'Reset changes', colorPalette: 'danger', onPress: handleReset },
-  ].filter(Boolean);
+  const actions: ActionButtonsProps['actions'] = [];
+  if (isChanged && trimmed !== '') {
+    actions.push({
+      label: 'Apply changes for everyone',
+      colorPalette: 'accent',
+      onPress: handlePublish,
+      loading: isPublishing,
+    });
+  }
+  if (isChanged) actions.push({ label: 'Reset changes', colorPalette: 'danger', onPress: handleReset });
 
   // With no text of the account's own stored, the draft follows the default again.
   function handleReset() {
@@ -97,7 +104,7 @@ function InstructionEditor({ kind, userId, seed, defaultText }) {
       const answer = await publishInstructionAsync(kind, { text: trimmed });
       applyAppInstructions(answer);
       await saveInstruction(getDb(), userId, kind, null, answer.instructions[kind]);
-      await finish(() => undefined, "Couldn't save your changes");
+      await finish(async () => undefined, "Couldn't save your changes");
     });
   }
 
