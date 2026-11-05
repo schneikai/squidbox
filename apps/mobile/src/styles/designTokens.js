@@ -44,6 +44,7 @@ const palette = {
   blue600: '#2563EB',
   cyan100: '#B1F1FF',
   yellow100: '#FEF6C7',
+  amber500: '#F59E0B',
 };
 
 // Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
@@ -72,6 +73,7 @@ export const colors = {
     dangerLight: alpha(palette.rose600, 0.1),
     info: palette.blue600, // a neutral fact about an entry (a model is the Default)
     infoLight: alpha(palette.blue600, 0.12),
+    warning: palette.amber500, // a mark on what a warning is about (a field a duplicate contact shares)
   },
   background: {
     // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
