@@ -37,9 +37,10 @@ export async function openWebPreview({ signedIn = true, production = false } = {
   }
 }
 
-// Signs the browser context in to the mock account: every page it opens starts signed in.
-export async function signInAsync(context) {
-  await context.addInitScript(storeSession, await loginAsync());
+// Signs the browser context in to the mock account: every page it opens starts signed in. A
+// `session` from an earlier loginAsync() can be reused: the server allows 10 sign-ins a minute.
+export async function signInAsync(context, session) {
+  await context.addInitScript(storeSession, session ?? (await loginAsync()));
 }
 
 // Opens the app on `page` and waits for the Library.
@@ -103,7 +104,7 @@ export function readSeedCredentials() {
   return { email, password };
 }
 
-async function loginAsync() {
+export async function loginAsync() {
   const { email, password } = readSeedCredentials();
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
