@@ -16,6 +16,13 @@ const identity = (onPress) => onPress;
  * `guardPress` may wrap the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once
  * (useLiveQuery's).
  */
+/**
+ * @param {object} props
+ * @param {{ assetIds: string[] } | { contactId: string }} props.scope
+ * @param {string} props.emptyText
+ * @param {(onPress: () => void) => () => void} [props.guardPress]
+ * @param {boolean} [props.isLive]
+ */
 export default function AssetAlbums({ scope, emptyText, guardPress = identity, isLive }) {
   const albums = useAssetAlbums(scope, { isLive });
 
