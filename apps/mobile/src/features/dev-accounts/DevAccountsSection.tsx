@@ -1,22 +1,18 @@
-import type { LoginRequest } from '@squidbox/shared';
 import { useState } from 'react';
 import { ActivityIndicator, Alert } from 'react-native';
 
 import copyLiveLibraryAsync from './copyLiveLibraryAsync';
+import devAccountsFromEnv, { type DevAccount } from './devAccountsFromEnv';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useCloud from '@/features/cloud/useCloud';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-type DevAccount = LoginRequest & { label: string; isLiveLibraryCopy?: boolean };
-
 // The local backend's accounts, which `npm run dev:local` passes in: the mock library and the copy of
 // the owner's live library (`isLiveLibraryCopy`), made the first time it opens. Unset in every other
-// bundle. Parsed without a check (`JSON.parse` is untyped: the env edge).
-const DEV_ACCOUNTS: DevAccount[] = process.env.EXPO_PUBLIC_DEV_ACCOUNTS
-  ? JSON.parse(process.env.EXPO_PUBLIC_DEV_ACCOUNTS)
-  : [];
+// bundle.
+const DEV_ACCOUNTS = devAccountsFromEnv(process.env.EXPO_PUBLIC_DEV_ACCOUNTS);
 
 // One tap signs in as a local account, also while another one is signed in: its library opens and the
 // other one is parked, like any sign-in as someone else.

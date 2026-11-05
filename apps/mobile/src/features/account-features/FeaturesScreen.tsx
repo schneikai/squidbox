@@ -1,9 +1,9 @@
+import type { UpdateFeaturesRequest } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
-import featureSwitchRows, { type PendingFeature } from './featureSwitchRows';
-import type { SwitchableFeature } from './featureText';
+import featureSwitchRows from './featureSwitchRows';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
@@ -25,11 +25,11 @@ export default function FeaturesScreen() {
   const isAvailable = useHasFeature('developer');
   useCloseWhen(!isAvailable);
   // The switch on its way to the server, null otherwise.
-  const [pending, setPending] = useState<PendingFeature | null>(null);
+  const [pending, setPending] = useState<UpdateFeaturesRequest | null>(null);
 
   const rows = featureSwitchRows(user?.features ?? [], pending);
 
-  async function handleChange(feature: SwitchableFeature, isOn: boolean) {
+  async function handleChange(feature: UpdateFeaturesRequest['feature'], isOn: boolean) {
     setPending({ feature, isOn });
     try {
       await updateFeatureAsync(feature, isOn);

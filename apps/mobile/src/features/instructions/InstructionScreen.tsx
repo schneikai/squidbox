@@ -1,4 +1,4 @@
-import { INSTRUCTION_LIMITS, type InstructionKind } from '@squidbox/shared';
+import { INSTRUCTION_LIMITS, type InstructionKind, instructionKindSchema } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState } from 'react';
 
@@ -10,6 +10,7 @@ import CatalogStatus from '@/components/CatalogStatus';
 import EditSheet from '@/components/EditSheet';
 import TextEditSheet from '@/components/TextEditSheet';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
+import useCloseWhen from '@/hooks/useCloseWhen';
 import useEditSheet from '@/hooks/useEditSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -25,22 +26,34 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // (for a text that isn't empty), which publishes it for every account and closes the sheet, and
 // Reset changes, which puts the default back in the draft (× undoes it, so no confirm). Until the
 // user types, the draft is the stored text, and the app's default as it changes. It waits for
-// the app's defaults (they come with the catalog). A root screen, one per kind.
+// the app's defaults (they come with the catalog). A root screen, one per kind; a link to a kind
+// that doesn't exist (an old link, a renamed kind) closes it.
 export default function InstructionScreen() {
-  const navigation = useNavigation();
-  // Typed as the route promises: the Instructions rows link only INSTRUCTION_KINDS.
-  const { kind } = useLocalSearchParams<{ kind: InstructionKind }>();
+  const params = useLocalSearchParams<{ kind: string }>();
+  const kind = instructionKindSchema.safeParse(params.kind);
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { userId } = useOpenLibrary();
+  // Only while available: useLeaveWhenUnavailable closes it otherwise.
+  useCloseWhen(isAvailable && !kind.success);
+
+  // Available already means an account (useIsAssistantAvailable); the userId check only narrows.
+  if (!isAvailable || !kind.success || userId === null) return null;
+  return <InstructionSheet kind={kind.data} userId={userId} />;
+}
+
+type InstructionSheetProps = { kind: InstructionKind; userId: string };
+
+// The sheet once the kind and the account are known: the stored text, then the editor once the
+// app's defaults are in.
+function InstructionSheet({ kind, userId }: InstructionSheetProps) {
+  const navigation = useNavigation();
   const { defaultTexts, error, retry } = useInstructions();
   const seed = useSeedOrClose(
-    async (db): Promise<InstructionSeed> => ({
-      stored: userId === null ? null : ((await readInstructions(db, userId))?.[kind] ?? null),
-    }),
+    async (db): Promise<InstructionSeed> => ({ stored: (await readInstructions(db, userId))?.[kind] ?? null }),
     `${userId}:${kind}`,
   );
 
-  if (!isAvailable || !seed || userId === null) return null;
+  if (!seed) return null;
   if (!defaultTexts) {
     return (
       <EditSheet

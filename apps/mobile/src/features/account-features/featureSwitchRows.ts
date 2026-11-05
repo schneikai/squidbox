@@ -5,9 +5,6 @@ import featureText, { type FeatureText, type SwitchableFeature } from './feature
 // In the contract's order: Assistant, then AI admin.
 const SWITCHABLE_FEATURES = updateFeaturesRequestSchema.shape.feature.options;
 
-// The switch on its way to the server: the PATCH /me/features body.
-export type PendingFeature = UpdateFeaturesRequest;
-
 type FeatureSwitchRow = Omit<FeatureText, 'requires'> & {
   feature: SwitchableFeature;
   isOn: boolean;
@@ -16,13 +13,13 @@ type FeatureSwitchRow = Omit<FeatureText, 'requires'> & {
 
 /**
  * Settings → Features' switches, one per feature the account can switch, given the account's
- * `features` and the change in flight (`pending`). The pending change shows as it will be; while
- * one is in flight every switch waits; a feature that `requires` another is greyed out while that
- * one is off.
+ * `features` and the change in flight (`pending`, the PATCH /me/features body on its way). The
+ * pending change shows as it will be; while one is in flight every switch waits; a feature that
+ * `requires` another is greyed out while that one is off.
  */
 export default function featureSwitchRows(
   features: readonly string[],
-  pending: PendingFeature | null,
+  pending: UpdateFeaturesRequest | null,
 ): FeatureSwitchRow[] {
   function isOn(feature: SwitchableFeature): boolean {
     return pending?.feature === feature ? pending.isOn : features.includes(feature);

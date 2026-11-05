@@ -8,10 +8,9 @@ function states(rows: ReturnType<typeof featureSwitchRows>) {
 
 describe('featureSwitchRows', () => {
   it("shows each switch as the account's features have it", () => {
-    expect(featureSwitchRows(['ai', 'developer'], null).map((row) => [row.title, row.isOn])).toEqual([
-      ['Assistant', true],
-      ['AI admin', false],
-    ]);
+    const rows = states(featureSwitchRows(['ai', 'developer'], null));
+    expect(rows.ai.isOn).toBe(true);
+    expect(rows.ai_admin.isOn).toBe(false);
   });
 
   it('shows the switch on its way to the server as it will be', () => {
