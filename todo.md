@@ -228,9 +228,8 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 data contexts (assets, posts, albums), app settings, the cloud, the thumbnail loader's context,
 `SelectionActions`, the small features (instructions, assistant, boot, account features, dev
 accounts) with their routes, and the polyfills are strict TypeScript, and `npm run typecheck` checks
-every `.ts`/`.tsx` in `src`
-strictly. Still JavaScript: the other features and the routes. Convert them feature by feature, then
-add `test/` to the check and turn `allowJs` off.
+every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the other features and their routes. Convert
+them feature by feature, then add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 

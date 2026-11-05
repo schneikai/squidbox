@@ -112,7 +112,7 @@ function InstructionsRow() {
 
   return (
     <Row label="Instructions" onPress={() => router.navigate('/settings/assistant/instructions')} hasChevron>
-      {changedKinds != null && changedKinds.length > 0 && <ChangedBadge />}
+      {!!changedKinds?.length && <ChangedBadge />}
     </Row>
   );
 }

@@ -1,14 +1,18 @@
-import { updateFeaturesRequestSchema } from '@squidbox/shared';
+import { type UpdateFeaturesRequest, updateFeaturesRequestSchema } from '@squidbox/shared';
 
 import featureText, { type FeatureText, type SwitchableFeature } from './featureText';
 
 // In the contract's order: Assistant, then AI admin.
 const SWITCHABLE_FEATURES = updateFeaturesRequestSchema.shape.feature.options;
 
-// The switch on its way to the server.
-export type PendingFeature = { feature: SwitchableFeature; isOn: boolean };
+// The switch on its way to the server: the PATCH /me/features body.
+export type PendingFeature = UpdateFeaturesRequest;
 
-type FeatureSwitchRow = FeatureText & { feature: SwitchableFeature; isOn: boolean; isDisabled: boolean };
+type FeatureSwitchRow = Omit<FeatureText, 'requires'> & {
+  feature: SwitchableFeature;
+  isOn: boolean;
+  isDisabled: boolean;
+};
 
 /**
  * Settings → Features' switches, one per feature the account can switch, given the account's
@@ -25,12 +29,13 @@ export default function featureSwitchRows(
   }
 
   return SWITCHABLE_FEATURES.map((feature) => {
-    const text = featureText[feature];
+    const { title, description, requires } = featureText[feature];
     return {
-      ...text,
+      title,
+      description,
       feature,
       isOn: isOn(feature),
-      isDisabled: pending !== null || (text.requires !== undefined && !isOn(text.requires)),
+      isDisabled: pending !== null || (requires !== undefined && !isOn(requires)),
     };
   });
 }

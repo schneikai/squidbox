@@ -13,8 +13,7 @@ type DevAccount = LoginRequest & { label: string; isLiveLibraryCopy?: boolean };
 
 // The local backend's accounts, which `npm run dev:local` passes in: the mock library and the copy of
 // the owner's live library (`isLiveLibraryCopy`), made the first time it opens. Unset in every other
-// bundle. `scripts/dev.mjs` is its one writer; parsed without a check (`JSON.parse` is untyped: the
-// env edge).
+// bundle. Parsed without a check (`JSON.parse` is untyped: the env edge).
 const DEV_ACCOUNTS: DevAccount[] = process.env.EXPO_PUBLIC_DEV_ACCOUNTS
   ? JSON.parse(process.env.EXPO_PUBLIC_DEV_ACCOUNTS)
   : [];
