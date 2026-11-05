@@ -10,21 +10,24 @@ const avatarFilenameSchema = textSchema.regex(/^avatar-[A-Za-z0-9-]+\.jpg$/, 'an
 
 /**
  * The networks a contact has a handle on, in the order the app shows them: the field, the network's
- * name, a hint of the form a handle takes, the hosts a profile URL is pasted from (without scheme or
- * `www.`) and the web profile a handle opens. Everything that lists the handles derives from this.
+ * name, a hint of the form a handle takes, whether it is shown with `@` (`isAtHandle`: stored without
+ * it, like every handle), the hosts a profile URL is pasted from (without scheme or `www.`) and the
+ * web profile a handle opens. Everything that lists the handles derives from this.
  */
 export const CONTACT_HANDLES = [
   {
     field: 'xHandle',
     label: 'X',
-    placeholder: 'x.com/username',
+    placeholder: '@username',
+    isAtHandle: true,
     hosts: ['x.com/', 'twitter.com/', 'mobile.x.com/', 'mobile.twitter.com/'],
     profileUrl: (handle: string) => `https://x.com/${handle}`,
   },
   {
     field: 'blueskyHandle',
     label: 'Bluesky',
-    placeholder: 'name.bsky.social',
+    placeholder: '@username',
+    isAtHandle: true,
     hosts: ['bsky.app/profile/'],
     profileUrl: (handle: string) => `https://bsky.app/profile/${handle}`,
   },
@@ -32,6 +35,7 @@ export const CONTACT_HANDLES = [
     field: 'onlyFansHandle',
     label: 'OnlyFans',
     placeholder: 'onlyfans.com/username',
+    isAtHandle: false,
     hosts: ['onlyfans.com/'],
     profileUrl: (handle: string) => `https://onlyfans.com/${handle}`,
   },
@@ -39,6 +43,7 @@ export const CONTACT_HANDLES = [
     field: 'jffHandle',
     label: 'JFF',
     placeholder: 'justfor.fans/username',
+    isAtHandle: false,
     hosts: ['justfor.fans/'],
     profileUrl: (handle: string) => `https://justfor.fans/${handle}`,
   },

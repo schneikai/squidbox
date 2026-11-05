@@ -6,29 +6,33 @@ import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetT
 import useCloud from '@/features/cloud/useCloud';
 import { isFileName } from '@/library/fileFields';
 import useLibrary from '@/library/useLibrary';
-import { colors, scale, sizes } from '@/styles/designTokens';
+import { colors, sizes } from '@/styles/designTokens';
 import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
 
 /**
  * A contact's round avatar: the picture at `uri` when given, else the contact's photo (from the device,
  * or fetched from the user's storage), else its initials (a person without a
  * name yet) on the accent's soft surface, like the account button.
- * `size` is `chip`, `small`, `regular`, `large` or `hero` (sizes.avatar). With `isFavorite` it wears a red heart on a white
- * disc at its bottom right; `isStacked` rings it in white, for avatars overlapping in a stack.
+ * `size` is a key of sizes.avatar (`chip` … `hero`). With `isFavorite` it wears a large red heart over
+ * its top right edge, outlined in `outlineColor`, the color of the surface behind it (a card's white
+ * unless told), so it stands apart from the picture. `isStacked` rings it in white, for avatars
+ * overlapping in a stack.
  * VoiceOver reads the contact's name. style is for layout only.
  */
 export default function ContactAvatar({
   contact,
   uri,
-  size = 'regular',
+  size = 'row',
   isFavorite = false,
   isStacked = false,
+  outlineColor = colors.background.surface,
   style,
 }) {
   const avatarUri = useAvatarUri(contact);
   const diameter = sizes.avatar[size];
   const initials = initialsOf(contact.name);
-  const heart = Math.max(scale(14), Math.round(diameter * 0.32));
+  const heart = Math.round(diameter * HEART_RATIO);
+  const outline = heart + 2 * Math.max(2, Math.round(heart * OUTLINE_RATIO));
   const pictureUri = uri ?? avatarUri;
 
   return (
@@ -46,20 +50,35 @@ export default function ContactAvatar({
       {pictureUri ? (
         <Image source={{ uri: pictureUri }} style={[StyleSheet.absoluteFill, { borderRadius: diameter / 2 }]} />
       ) : initials ? (
-        <Text style={[styles.initials, { fontSize: Math.round(diameter * 0.38) }]} numberOfLines={1}>
+        <Text style={[styles.initials, { fontSize: Math.round(diameter * 0.36) }]} numberOfLines={1}>
           {initials}
         </Text>
       ) : (
         <Icon name="user" size={Math.round(diameter * 0.45)} color={colors.accent.base} />
       )}
       {isFavorite && (
-        <View style={[styles.heart, { width: heart, height: heart, borderRadius: heart / 2 }]}>
-          <Icon name="heart" size={Math.round(heart * 0.62)} color={colors.status.danger} filled />
+        <View
+          style={[
+            styles.heart,
+            { width: outline, height: outline, top: -outline * HEART_OVERHANG, right: -outline * HEART_OVERHANG },
+          ]}
+        >
+          <Icon name="heart" size={outline} color={outlineColor} filled />
+          {/* Laid over the outline (both absolute, so the red one, later, paints on top on web too). */}
+          <View style={styles.heartFill}>
+            <Icon name="heart" size={heart} color={colors.status.danger} filled />
+          </View>
         </View>
       )}
     </View>
   );
 }
+
+// The favorite's heart: about 45% of the avatar's width, its outline an eighth of it on each side,
+// reaching a quarter of its box past the avatar's top and right edges.
+const HEART_RATIO = 0.45;
+const OUTLINE_RATIO = 0.12;
+const HEART_OVERHANG = 0.25;
 
 // The photos found on this device since launch, by uri: an avatar shown again (a row scrolled back,
 // the same contact in a row and a stack) skips the file check.
@@ -133,9 +152,9 @@ const styles = StyleSheet.create({
   },
   heart: {
     position: 'absolute',
-    right: -2,
-    bottom: -2,
-    backgroundColor: colors.background.surface,
+  },
+  heartFill: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },

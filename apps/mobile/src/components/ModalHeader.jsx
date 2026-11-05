@@ -15,9 +15,9 @@ import { layout, sizes } from '@/styles/designTokens';
  * Layout:
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
- * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title sits
- * in a ToolbarTitle pill like a pushed screen's (FloatingDetailHeader), centred on the screen and
- * kept clear of the wider side pill.
+ * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title is a
+ * plain bold ToolbarTitle (no pill, unlike a pushed screen's, FloatingDetailHeader), centred on the
+ * screen and kept clear of the wider side pill.
  *
  * Props:
  *   leading     ReactElement  — typically a close Button (icon="close")
@@ -33,7 +33,7 @@ export default function ModalHeader({ leading, trailing, title, subtitle }) {
 
   const center =
     typeof title === 'string' ? (
-      <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
+      <ToolbarTitle title={title} subtitle={subtitle} isPlain style={maxWidth !== undefined && { maxWidth }} />
     ) : (
       (title ?? null)
     );

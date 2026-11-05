@@ -1,7 +1,8 @@
-import { CONTACT_HANDLE_BY_FIELD, CONTACT_HANDLES } from '@squidbox/shared';
+import { CONTACT_HANDLE_BY_FIELD, CONTACT_HANDLES, normalizeHandle } from '@squidbox/shared';
 import { Alert, Linking } from 'react-native';
 
-const handle = (value) => encodeURIComponent(value.trim());
+// A handle as typed ("@maya", a pasted link), as its profile's path.
+const handle = (value) => encodeURIComponent(normalizeHandle(value));
 
 // Where each field opens, in the order to try: X in its app when it is installed (its scheme fails
 // otherwise) and else on the web, the others' web profiles, and a WhatsApp chat for the phone number.

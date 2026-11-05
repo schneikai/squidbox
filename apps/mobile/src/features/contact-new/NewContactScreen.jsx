@@ -65,6 +65,7 @@ export default function NewContactScreen() {
         contact={{ name: draft.name }}
         uri={avatarUri}
         hasPhoto={!!avatarUri}
+        variant="form"
         onPick={setAvatarUri}
       />
 

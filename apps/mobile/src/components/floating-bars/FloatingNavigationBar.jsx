@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { key: 'index', href: '/', icon: 'image', label: 'Library' },
   { key: 'albums', href: '/albums', icon: 'images', label: 'Albums' },
   { key: 'posts', href: '/posts', icon: 'send', label: 'Posts' },
-  { key: 'contacts', href: '/contacts', icon: 'id-card', label: 'Contacts' },
+  { key: 'contacts', href: '/contacts', icon: 'contacts', label: 'Contacts' },
 ];
 
 const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]));

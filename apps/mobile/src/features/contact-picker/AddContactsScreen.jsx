@@ -13,6 +13,7 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import ContactRow from '@/features/contact-list/ContactRow';
+import contactPlace from '@/features/contact-list/contactPlace';
 import contactSearchText from '@/features/contact-list/contactSearchText';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useContacts from '@/features/contacts-context/useContacts';
@@ -79,6 +80,7 @@ function AddContactsPicker({ target, seed }) {
           contact={contact}
           onPress={() => setSelectedIds((current) => toggleItem(current, contact.id))}
           isSelected={isSelected}
+          subtitle={contactPlace(contact)}
           isFirst={index === 0}
           isLast={index === section.data.length - 1}
         />
@@ -95,14 +97,15 @@ function AddContactsPicker({ target, seed }) {
         renderItem={renderItem}
         renderSectionHeader={({ section }) => (
           <View style={styles.gutter}>
-            <ScreenSectionHeader title={section.title} />
+            <ScreenSectionHeader title={section.title} size="small" />
           </View>
         )}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <SearchInput
             variant="field"
-            placeholder="Search contacts"
+            placeholder="Name, handle or place"
+            accessibilityLabel="Search contacts"
             value={typedText}
             onChangeText={setTypedText}
             clearButtonMode="while-editing"

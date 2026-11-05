@@ -17,6 +17,8 @@ const MAX_FIELD_HEIGHT = scale(240);
  *   field  — a field of its own on a Card, inset like a list row's text. A multiline one grows up
  *            to MAX_FIELD_HEIGHT; `isFilling` makes it fill the space its parent gives the card,
  *            scrolling its text inside, as in Notes (TextEditSheet). style is for layout only
+ *   title  — an item's name as the big bold heading of its own screen, edited in place (a contact's),
+ *            centered, without a card. style is for layout only
  * `multiline` takes many lines at the reading line height (`minHeight` sets its height). The other
  * props are React Native's TextInput's.
  *
@@ -55,6 +57,10 @@ export default function TextInput({
     );
   }
 
+  if (variant === 'title') {
+    return <RNTextInput placeholderTextColor={colors.text.tertiary} style={[styles.title, style]} {...rest} />;
+  }
+
   return (
     <RNTextInput
       multiline={multiline}
@@ -74,6 +80,14 @@ const styles = StyleSheet.create({
   field: {
     paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 12,
+  },
+  title: {
+    fontSize: typography.title1,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    color: colors.text.primary,
+    paddingVertical: 0,
   },
   capped: {
     maxHeight: MAX_FIELD_HEIGHT,

@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { Children, isValidElement, useRef, useState } from 'react';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 import Button from '@/components/Button';
+import Divider from '@/components/Divider';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 /**
@@ -18,6 +20,9 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
  *   <MenuButton accessibilityLabel="Post options">
  *     <MenuOption label="..." icon="..." onPress={...} />
  *   </MenuButton>
+ *
+ * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
+ * by a wider band, as iOS groups it; a menu drawn by one component (SortFilterMenu) parts its own.
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */
@@ -49,7 +54,25 @@ export default function MenuButton({
           <Button {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
         )}
       </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{children}</MenuOptions>
+      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{separated(children)}</MenuOptions>
     </Menu>
+  );
+}
+
+// The options with a line between each two: a hairline, or a band before a destructive one. Only
+// when every child is a MenuOption.
+function separated(children) {
+  const options = Children.toArray(children);
+  if (!options.every((child) => isValidElement(child) && child.type === MenuOption)) return children;
+  return options.flatMap((option, i) =>
+    i === 0
+      ? [option]
+      : [
+          <Divider
+            key={`divider-${option.key}`}
+            variant={option.props.colorPalette === 'danger' ? 'menu' : 'menuRow'}
+          />,
+          option,
+        ],
   );
 }

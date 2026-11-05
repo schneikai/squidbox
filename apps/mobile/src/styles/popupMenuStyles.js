@@ -7,7 +7,6 @@ import { layout, sizes } from '@/styles/designTokens';
 // that still wraps is measured with all its lines.
 const frame = {
   width: sizes.popoverWidth,
-  paddingVertical: layout.barPaddingY,
 };
 
 export default {
@@ -20,7 +19,8 @@ export default {
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: layout.menuRowHeight,
     paddingHorizontal: layout.menuRowPaddingX,
-    paddingVertical: layout.menuRowPaddingY,
+    paddingVertical: 8,
   },
 };

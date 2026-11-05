@@ -1,16 +1,16 @@
 import { CONTACT_HANDLES, CONTACT_LIMITS } from '@squidbox/shared';
 import { StyleSheet, Text, View } from 'react-native';
 
+import DuplicateDot from './DuplicateDot';
 import openContactLinkAsync from './openContactLinkAsync';
 
 import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import TextInput from '@/components/TextInput';
-import { colors, layout, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, scale, typography } from '@/styles/designTokens';
 
 // Wide enough for "OnlyFans"; a larger text size widens it instead of clipping.
 const LABEL_WIDTH = scale(84);
-const DOT = scale(8);
 const OPEN_LABELS = {
   ...Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])),
   phoneNumber: 'Message on WhatsApp',
@@ -56,8 +56,8 @@ export default function HandleField({
         keyboardType={isPhone ? 'phone-pad' : 'default'}
         textContentType={isPhone ? 'telephoneNumber' : isName ? 'name' : 'none'}
       />
-      {isDuplicate && <View style={styles.dot} accessibilityLabel="Another contact has this too" />}
-      {isFilled && <Icon name="sparkle" size={sizes.iconSmall} color={colors.accent.base} />}
+      {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
+      {isFilled && <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />}
       {isOpenable && !!value.trim() && (
         <Button
           icon={isPhone ? 'message-circle' : 'external-link'}
@@ -88,11 +88,5 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0, // a web input is as wide as its text box otherwise, which pushes the button out
     paddingVertical: 14,
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
-    backgroundColor: colors.status.warning,
   },
 });

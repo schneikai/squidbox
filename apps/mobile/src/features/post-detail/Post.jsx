@@ -49,10 +49,10 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
       <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
 
       <View style={styles.related}>
-        <ScreenSectionHeader title="Posted Albums" isFlush />
+        <ScreenSectionHeader title="Posted Albums" isFlush size="large" />
         <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />
 
-        <ScreenSectionHeader title="Other Posts" isFlush />
+        <ScreenSectionHeader title="Other Posts" isFlush size="large" />
         <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
       </View>
     </ScrollView>

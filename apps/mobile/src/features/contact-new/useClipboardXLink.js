@@ -6,9 +6,11 @@ import { Platform } from 'react-native';
 import parseXProfileUrl from './parseXProfileUrl';
 
 /**
- * The X profile link on the clipboard (parseXProfileUrl's `{ handle, url }`), read each time the
- * screen comes into focus, or null when the clipboard holds none. Only a clipboard that holds a URL
- * is read, and only on iOS (hasUrlAsync is iOS's: elsewhere it warns and nothing is offered).
+ * The X profile link on the clipboard (parseXProfileUrl's `{ handle, url }`): `link`, read each
+ * time the screen comes into focus, or null when the clipboard holds none. Only a clipboard that
+ * holds a URL is read then, and only on iOS (hasUrlAsync is iOS's: elsewhere it warns), so the
+ * system doesn't ask to paste before the user did anything. `readAsync()` reads it on a tap,
+ * anywhere: the link, or null.
  */
 export default function useClipboardXLink() {
   const [link, setLink] = useState(null);
@@ -35,5 +37,11 @@ export default function useClipboardXLink() {
     }, []),
   );
 
-  return link;
+  async function readAsync() {
+    const read = parseXProfileUrl(await Clipboard.getStringAsync());
+    setLink(read);
+    return read;
+  }
+
+  return { link, readAsync };
 }

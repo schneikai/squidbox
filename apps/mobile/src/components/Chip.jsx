@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, lineHeights, press, scale, shadows, sizes, typography } from '@/styles/designTokens';
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
@@ -17,6 +17,7 @@ import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
+ * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts).
  * style is for layout only.
  */
 export default function Chip({
@@ -30,8 +31,10 @@ export default function Chip({
   accessibilityRole = 'button',
   accessibilityLabel,
   accessibilityHint,
+  size = 'regular',
   style,
 }) {
+  const isLarge = size === 'large';
   const leadingIcon = variant === 'add' ? 'add' : icon;
   const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
   const isAccent = isAccentFill || variant === 'add';
@@ -43,12 +46,19 @@ export default function Chip({
     isAccentFill && styles.accentFill,
     isLifted && styles.lifted,
     !!leading && styles.withLeading,
+    isLarge && styles.large,
+    isLarge && !!leading && styles.largeWithLeading,
   ];
   const content = (
     <>
       {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />)}
       <Text
-        style={[styles.label, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}
+        style={[
+          styles.label,
+          isLarge && styles.largeLabel,
+          isAccent && styles.accentLabel,
+          variant === 'lead' && styles.leadLabel,
+        ]}
         numberOfLines={leading ? 1 : undefined}
       >
         {label}
@@ -94,6 +104,19 @@ const styles = StyleSheet.create({
   withLeading: {
     paddingLeft: 2,
     paddingRight: 14,
+  },
+  large: {
+    height: scale(40),
+    gap: 8,
+    paddingHorizontal: 15,
+  },
+  largeWithLeading: {
+    paddingLeft: 3,
+    paddingRight: 13,
+  },
+  largeLabel: {
+    fontSize: typography.callout,
+    fontWeight: '500',
   },
   // A selected tag and the `lead` chip.
   accentFill: {

@@ -5,24 +5,26 @@ import FloatingPill from './FloatingPill';
 import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/designTokens';
 
 // Text in a toolbar: a FloatingPill one button tall with a one-line `title` and an optional smaller
-// `subtitle` under it (a photo's date and place). It takes no touches. style is for layout only (a max width).
-export default function ToolbarTitle({ title, subtitle, style }) {
-  return (
-    <FloatingPill style={[styles.pill, style]}>
-      <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">
-        {!!title && (
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
-        )}
-        {!!subtitle && (
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        )}
-      </View>
-    </FloatingPill>
+// `subtitle` under it (a photo's date and place). `isPlain` drops the pill for a bolder title on its
+// own, as a sheet's header has it (ModalHeader). It takes no touches. style is for layout only (a max width).
+export default function ToolbarTitle({ title, subtitle, isPlain = false, style }) {
+  const content = (
+    <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">
+      {!!title && (
+        <Text style={[styles.title, isPlain && styles.plainTitle]} numberOfLines={1}>
+          {title}
+        </Text>
+      )}
+      {!!subtitle && (
+        <Text style={[styles.subtitle, isPlain && styles.plainSubtitle]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
   );
+
+  if (isPlain) return <View style={[styles.pill, style]}>{content}</View>;
+  return <FloatingPill style={[styles.pill, style]}>{content}</FloatingPill>;
 }
 
 const styles = StyleSheet.create({
@@ -49,6 +51,15 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     textAlign: 'center',
     flexShrink: 1,
+  },
+  plainTitle: {
+    fontSize: typography.body,
+    lineHeight: scale(22),
+    fontWeight: '700',
+  },
+  plainSubtitle: {
+    fontSize: typography.footnote,
+    lineHeight: lineHeights.footnote,
   },
   subtitle: {
     fontSize: typography.caption2,

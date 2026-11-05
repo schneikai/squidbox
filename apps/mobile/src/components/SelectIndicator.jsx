@@ -1,35 +1,41 @@
 import { StyleSheet, View } from 'react-native';
 
+import GradientFill from '@/components/GradientFill';
 import Icon from '@/components/Icon';
-import { colors, radii } from '@/styles/designTokens';
+import { colors, radii, scale } from '@/styles/designTokens';
 
-const SIZE = 22;
+const SIZE = { list: scale(26), media: 22 };
 
-// A selection circle: a check on an accent disc when selected, an empty ring when not. The ring is
-// white `isOnMedia` (over a picture) and grey on a list. The parent positions it through `style`.
+// A selection circle: a check on the accent's gradient when selected, an empty ring when not. The
+// ring is white `isOnMedia` (over a picture, a little smaller) and a thin grey one on a list. The
+// parent positions it through `style`.
 export default function SelectIndicator({ isSelected, isOnMedia = false, style }) {
-  return (
-    <View style={[styles.circle, isOnMedia && styles.onMedia, isSelected && styles.selected, style]}>
-      {isSelected && <Icon name="check" size={15} color={colors.text.inverse} />}
-    </View>
-  );
+  const size = SIZE[isOnMedia ? 'media' : 'list'];
+  const box = { width: size, height: size };
+
+  if (isSelected) {
+    return (
+      <GradientFill style={[styles.circle, box, style]}>
+        <Icon name="check" size={Math.round(size * 0.62)} color={colors.text.inverse} />
+      </GradientFill>
+    );
+  }
+  return <View style={[styles.circle, box, isOnMedia ? styles.onMedia : styles.onList, style]} />;
 }
 
 const styles = StyleSheet.create({
   circle: {
-    width: SIZE,
-    height: SIZE,
     borderRadius: radii.pill,
-    borderWidth: 2,
-    borderColor: colors.background.placeholder,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  onMedia: {
-    borderColor: colors.text.inverse,
+  onList: {
+    borderWidth: 1.5,
+    borderColor: colors.background.placeholder,
   },
-  selected: {
-    backgroundColor: colors.accent.base,
-    borderColor: colors.accent.base,
+  onMedia: {
+    borderWidth: 2,
+    borderColor: colors.text.inverse,
   },
 });

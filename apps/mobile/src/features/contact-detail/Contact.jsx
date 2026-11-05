@@ -15,19 +15,19 @@ import Button from '@/components/Button';
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import DetailScrollView from '@/components/DetailScrollView';
-import Field from '@/components/Field';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetQuery from '@/features/asset-list/assetQuery';
+import contactPlace from '@/features/contact-list/contactPlace';
 import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
 import useContacts from '@/features/contacts-context/useContacts';
 import PostRows from '@/features/post-list/PostRows';
 import useHaptics from '@/hooks/useHaptics';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
-import { scale } from '@/styles/designTokens';
+import { colors, scale, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
@@ -39,8 +39,9 @@ const PHOTOS_SHOWN = 6;
 
 // A contact, edited as you type (useSaveAsYouType): its avatar, name, handles, places and notes,
 // then the lists it is in and the photos, albums and posts it is on. A change another device makes
-// while it is open shows in the fields not edited here since. The heart and ⋯ share the
-// header's pill; a double tap on the avatar toggles the favorite too.
+// while it is open shows in the fields not edited here since. The name is its title, edited in
+// place; the camera on the avatar's corner changes the photo. The heart and ⋯ share the header's
+// pill; a double tap on the avatar toggles the favorite too.
 export default function Contact({ contact }) {
   const navigation = useNavigation();
   const haptics = useHaptics();
@@ -71,7 +72,7 @@ export default function Contact({ contact }) {
       ),
     );
   }
-  const subtitle = [contact.places[0], `added ${dateToTimeAgo(contact.createdAt)}`].filter(Boolean).join(' · ');
+  const subtitle = [contactPlace(contact), `added ${dateToTimeAgo(contact.createdAt)}`].filter(Boolean).join(' · ');
 
   // Writes the fields that changed since the last save; an emptied name keeps the stored one.
   async function save(next, stored) {
@@ -100,8 +101,6 @@ export default function Contact({ contact }) {
   return (
     <Page>
       <FloatingDetailHeader
-        title={contact.name}
-        subtitle={subtitle}
         onBack={() => navigation.goBack()}
         menuSlot={
           <>
@@ -121,30 +120,27 @@ export default function Contact({ contact }) {
         <ContactAvatarPicker
           contact={contact}
           hasPhoto={!!contact.avatarFilename}
-          isFavorite={contact.isFavorite}
           onPick={handlePickPhoto}
           onDoublePress={handleToggleFavorite}
-          style={styles.avatar}
         />
+        <TextInput
+          variant="title"
+          value={draft.name}
+          onChangeText={(text) => setField('name', text)}
+          onBlur={() => flush()}
+          placeholder={contact.name}
+          accessibilityLabel="Name"
+          textContentType="name"
+          maxLength={CONTACT_LIMITS.name}
+          style={styles.name}
+        />
+        <Text style={styles.subtitle}>{subtitle}</Text>
 
-        <Field label="Name">
-          <TextInput
-            variant="field"
-            value={draft.name}
-            onChangeText={(text) => setField('name', text)}
-            onBlur={() => flush()}
-            placeholder={contact.name}
-            textContentType="name"
-            maxLength={CONTACT_LIMITS.name}
-          />
-        </Field>
+        <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.handles} />
 
-        <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.card} />
-
-        <ScreenSectionHeader title="Places" />
+        <ScreenSectionHeader title="Places" size="large" />
         <PlacesField places={draft.places} onChange={(places) => setField('places', places)} onBlur={() => flush()} />
 
-        <ScreenSectionHeader title="Notes" />
         <TextInput
           variant="field"
           multiline
@@ -152,11 +148,13 @@ export default function Contact({ contact }) {
           onChangeText={(text) => setField('notes', text)}
           onBlur={() => flush()}
           placeholder="Add a note…"
+          accessibilityLabel="Notes"
           maxLength={CONTACT_LIMITS.notes}
-          minHeight={scale(88)}
+          minHeight={scale(64)}
+          style={styles.notes}
         />
 
-        <ScreenSectionHeader title="Lists" />
+        <ScreenSectionHeader title="Lists" size="large" />
         <ChipRow>
           {lists?.map((list) => (
             <Chip key={list.id} label={list.name} onPress={() => router.navigate(`/contact-list/${list.id}`)} />
@@ -166,8 +164,9 @@ export default function Contact({ contact }) {
 
         <ScreenSectionHeader
           title="Photos"
+          size="large"
           trailing={
-            photos?.count > PHOTOS_SHOWN && (
+            photos?.count > 0 && (
               <Button
                 label={`See all ${photos.count}`}
                 size="small"
@@ -182,10 +181,10 @@ export default function Contact({ contact }) {
           photos && <Text style={listTextStyles.subtitle}>Not on a photo</Text>
         )}
 
-        <ScreenSectionHeader title="Albums" />
+        <ScreenSectionHeader title="Albums" size="large" />
         <AssetAlbums scope={{ contactId: contact.id }} emptyText="Not on an album" />
 
-        <ScreenSectionHeader title="Posts" />
+        <ScreenSectionHeader title="Posts" size="large" />
         <PostRows scope={{ contactId: contact.id }} emptyText="Not on a post" />
       </DetailScrollView>
     </Page>
@@ -198,10 +197,19 @@ function usePhotos(scope) {
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    marginBottom: 16,
+  name: {
+    marginTop: 14,
   },
-  card: {
+  subtitle: {
+    marginTop: 4,
+    textAlign: 'center',
+    fontSize: typography.subheadline,
+    color: colors.text.secondary,
+  },
+  handles: {
+    marginTop: 22,
+  },
+  notes: {
     marginTop: 12,
   },
 });

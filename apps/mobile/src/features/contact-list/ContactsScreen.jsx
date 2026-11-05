@@ -75,16 +75,19 @@ export default function ContactsScreen() {
         <>
           {!isSearching && favorites?.length > 0 && (
             <>
-              <ScreenSectionHeader title="Favorites" />
+              <ScreenSectionHeader title="Favorites" size="small" />
               <ContactAvatarRow contacts={favorites} />
             </>
           )}
           {count > 0 && (
-            <ScreenSectionHeader title={pluralizeText('1 contact', `${count.toLocaleString()} contacts`, count)} />
+            <ScreenSectionHeader
+              title={pluralizeText('1 contact', `${count.toLocaleString()} contacts`, count)}
+              size="small"
+            />
           )}
           {count === 0 && (
             <EmptyState
-              icon={isSearching ? 'search' : 'id-card'}
+              icon={isSearching ? 'search' : 'contacts'}
               title={isSearching ? 'No contacts match' : 'No contacts yet'}
               subtitle={isSearching ? undefined : 'Tap + to add the people you work with.'}
             />
@@ -94,7 +97,7 @@ export default function ContactsScreen() {
         lists &&
         (lists.length > 0 ? (
           <>
-            <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} />
+            <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} size="small" />
             <ContactListRows lists={lists} />
           </>
         ) : (

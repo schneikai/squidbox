@@ -46,7 +46,7 @@ const TAB_ITEMS = [
   { key: 'library', icon: 'image', label: 'Library' },
   { key: 'albums', icon: 'images', label: 'Albums' },
   { key: 'posts', icon: 'send', label: 'Posts' },
-  { key: 'contacts', icon: 'id-card', label: 'Contacts' },
+  { key: 'contacts', icon: 'contacts', label: 'Contacts' },
 ];
 
 const noop = () => {};

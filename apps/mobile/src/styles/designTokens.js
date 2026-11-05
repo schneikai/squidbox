@@ -29,6 +29,7 @@ const palette = {
   gray300: '#D3D3D3',
   gray400: '#9CA3AF',
   gray500: '#6B7280',
+  gray600: '#4B5563',
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet75: '#EFEDF8', // the page gray with a touch of lavender
@@ -54,6 +55,7 @@ export const colors = {
   text: {
     primary: palette.gray900,
     secondary: palette.gray500, // details, inactive icons
+    muted: palette.gray600, // details on a grey or yellow fill, where `secondary` would fade ("+3", a duplicate's reason)
     tertiary: palette.gray400, // placeholders and disabled text only, too faint for copy
     inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
   },
@@ -102,6 +104,7 @@ export const colors = {
   },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface
+    menuGap: alpha(palette.black, 0.05), // the band between groups of a popover menu's rows (Divider)
     dim: alpha(palette.black, 0.35), // under a badge over a picture, behind a small dialog
     scrim: alpha(palette.black, 0.8), // dims the whole app behind a blocking overlay
     track: alpha(palette.white, 0.1), // the empty part of a progress ring on the scrim
@@ -138,6 +141,14 @@ export const shadows = {
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
+  },
+  // A thumb raised off the toolbar it sits in (the active text segment of a SegmentedPill)
+  thumb: {
+    boxShadow: `0 2px 8px ${alpha(palette.black, 0.08)}`,
+  },
+  // A picture raised off the page (the contact screen's avatar)
+  avatar: {
+    boxShadow: `0 10px 40px ${alpha(palette.black, 0.12)}`,
   },
   // A small floating button on its own (the account avatar): a softer floating shadow
   subtle: {
@@ -179,9 +190,9 @@ export const layout = {
   popoverGap: 25, // between a trigger button and the popover that opens from it
   introGap: 12, // between a screen's intro text (IntroText at its top) and the content below it
   actionsGap: 24, // between a screen's content and its text actions under it (ActionButtons)
-  menuRowPaddingX: scale(16),
-  menuRowPaddingY: scale(13),
-  menuIconGap: scale(12), // between a menu row's leading icon and its label
+  menuRowPaddingX: scale(18),
+  menuRowHeight: scale(50),
+  menuIconGap: scale(16), // between a menu row's label and its icon at the end
   // A post's card (PostView, and a thread's following post, ThreadPost): its padding, the further inset
   // of its text on each side and below (so text starts at the same place with or without photos), and
   // the room between its photos and its text.
@@ -198,12 +209,19 @@ export const sizes = {
   icon: scale(20), // inside a button
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
-  menuIcon: scale(16),
-  // A contact's avatar (ContactAvatar's sizes): a chip's, a list stack's, a row's, the favorites
-  // row's, the contact screen's.
-  avatar: { chip: scale(20) + 8, small: scale(32), regular: scale(44), large: scale(56), hero: scale(96) },
+  menuIcon: scale(16), // beside a chip's label
+  menuItemIcon: scale(22), // at the end of a popover menu's row (MenuItemContent)
+  // A contact's avatar (ContactAvatar's sizes): a chip's, a duplicate's, a contact's or a list's row
+  // (ContactRow, ContactListRows), the favorites row's and New contact's, the contact screen's.
+  avatar: {
+    chip: scale(32),
+    compact: scale(36),
+    row: scale(48),
+    medium: scale(72),
+    hero: scale(120),
+  },
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
-  popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
+  popoverWidth: Math.min(scale(250), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
 // Apple's iOS text styles at their default (Large) sizes, so text keeps the HIG's hierarchy.
@@ -211,9 +229,11 @@ export const typography = {
   caption2: scale(11), // the smallest text: badges over thumbnails
   caption: scale(12), // secondary details under a title (counts, dates)
   footnote: scale(13),
+  detail: scale(14), // the line under a contact or a list in a list of them
   subheadline: scale(15),
   callout: scale(16),
   body: scale(17), // the default for text and inputs
+  title3: scale(20),
   title2: scale(22),
   title1: scale(28),
 };

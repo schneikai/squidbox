@@ -3,25 +3,35 @@ import { StyleSheet, Text, View } from 'react-native';
 import Icon from '@/components/Icon';
 import { colors, layout, radii, sizes, typography } from '@/styles/designTokens';
 
-// A menu row's contents: leading icon, label, and `trailing` (a dot when `isSelected` and none is
-// given). The row itself (padding, press feedback) belongs to MenuOption or the popover drawing it.
+// A menu row's contents, iOS style: the label, `trailing` (a dot when `isSelected` and none is
+// given), and the icon at the end. The row itself (height, padding, press feedback) belongs to
+// MenuOption or the popover drawing it.
 export default function MenuItemContent({ label, icon, trailing, colorPalette, isSelected = false, isHeader = false }) {
   const isDanger = colorPalette === 'danger';
-  const iconColor = isDanger ? colors.status.danger : isSelected ? colors.accent.base : colors.text.secondary;
+  const iconColor = isDanger ? colors.status.danger : isSelected ? colors.accent.base : colors.text.primary;
 
+  const iconNode = icon && (
+    <Icon name={icon} size={sizes.menuItemIcon} color={iconColor} style={isHeader ? styles.headerIcon : styles.icon} />
+  );
+
+  // A header's icon (‹ back out of a panel) leads it; every other row's ends it.
   return (
     <>
-      {icon && <Icon name={icon} size={sizes.menuIcon} color={iconColor} style={styles.icon} />}
+      {isHeader && iconNode}
       <Text style={[styles.label, isDanger && styles.labelDanger, isHeader && styles.labelHeader]}>{label}</Text>
       {trailing ?? (isSelected && <View style={styles.selectedDot} />)}
+      {!isHeader && iconNode}
     </>
   );
 }
 
 const styles = StyleSheet.create({
   icon: {
-    marginRight: layout.menuIconGap,
-    width: sizes.menuIcon,
+    marginLeft: layout.menuIconGap,
+  },
+  headerIcon: {
+    marginLeft: -4,
+    marginRight: 8,
   },
   // Grows to push the trailing node right, but keeps its natural width as the basis: with `flex: 1`
   // (basis 0) the auto-sized menu ignores label widths, so long labels wrap after the menu's height
@@ -29,8 +39,7 @@ const styles = StyleSheet.create({
   label: {
     flexGrow: 1,
     flexShrink: 1,
-    fontSize: typography.subheadline,
-    fontWeight: '500',
+    fontSize: typography.body,
     color: colors.text.primary,
   },
   labelDanger: {

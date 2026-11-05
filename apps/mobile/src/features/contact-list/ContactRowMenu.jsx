@@ -6,12 +6,9 @@ import addToContactListHref from '@/features/contact-list-picker/addToContactLis
 import useContacts from '@/features/contacts-context/useContacts';
 import useDeleteContact from '@/features/contacts-context/useDeleteContact';
 
-/**
- * A contact row's ⋯ menu: favorite, add to a list, delete, and inside a list (`listId`) remove from
- * that list.
- */
-export default function ContactRowMenu({ contact, listId }) {
-  const { toggleFavoriteContact, removeFromList } = useContacts();
+/** A contact row's ⋯ menu: favorite, add to a list, delete. */
+export default function ContactRowMenu({ contact }) {
+  const { toggleFavoriteContact } = useContacts();
   const deleteContactAsync = useDeleteContact();
 
   return (
@@ -22,9 +19,6 @@ export default function ContactRowMenu({ contact, listId }) {
         onPress={() => toggleFavoriteContact(contact.id)}
       />
       <MenuOption label="Add to list" icon="list" onPress={() => router.navigate(addToContactListHref([contact.id]))} />
-      {listId && (
-        <MenuOption label="Remove from list" icon="close" onPress={() => removeFromList(listId, contact.id)} />
-      )}
       <MenuOption
         label="Delete contact"
         icon="trash"

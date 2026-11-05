@@ -127,7 +127,6 @@ export default function ContactsProvider({ children }) {
       // stay as they are, so another device's change meanwhile is kept.
       changeListContacts: (listId, change) =>
         written((tx) => contactListMembers.change(tx, { listId }, change, getNewItemId)),
-      removeFromList: (listId, contactId) => written((tx) => contactListMembers.remove(tx, { listId }, [contactId])),
       // `{ added, removed }`: the contacts put on the photo, album or post and those taken off it;
       // the others stay as they are. The only way a link is removed.
       changeTargetContacts: ({ targetType, targetId }, change) =>

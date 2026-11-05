@@ -90,7 +90,7 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }) {
         <Text style={listTextStyles.subtitle}>{infoLine(asset)}</Text>
       </View>
 
-      <ScreenSectionHeader title="Albums" isFlush />
+      <ScreenSectionHeader title="Albums" isFlush size="large" />
       <AssetAlbums
         scope={{ assetIds: [asset.id] }}
         emptyText="Not in an album"
@@ -98,7 +98,7 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }) {
         isLive={isCurrent}
       />
 
-      <ScreenSectionHeader title="Posts" isFlush />
+      <ScreenSectionHeader title="Posts" isFlush size="large" />
       <PostRows scope={{ assetId: asset.id }} emptyText="Never posted" guardPress={guardPress} isLive={isCurrent} />
     </>
   );

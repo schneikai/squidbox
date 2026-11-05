@@ -24,12 +24,13 @@ export default function TargetContactsSection({ targetType, targetId, guardPress
 
   return (
     <>
-      <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
+      <ScreenSectionHeader title="Contacts" isFlush={isFlush} size="large" />
       <ChipRow>
         {contacts?.map((contact) => (
           <Chip
             key={contact.id}
             label={contact.name}
+            size="large"
             leading={<ContactAvatar contact={contact} size="chip" />}
             onPress={isInSheet ? undefined : guardPress(() => router.navigate(`/contact/${contact.id}`))}
           />
@@ -37,6 +38,7 @@ export default function TargetContactsSection({ targetType, targetId, guardPress
         {!isInSheet && (
           <Chip
             variant="add"
+            size="large"
             label="Add"
             accessibilityLabel="Add contacts"
             onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: { targetType, targetId } }))}

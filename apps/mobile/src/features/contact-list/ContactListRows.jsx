@@ -4,10 +4,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import { colors, scale, sizes, typography } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
-const STACK_SIZE = sizes.avatar.small;
-const OVERLAP = -scale(10);
+const STACK_SIZE = sizes.avatar.row;
+const OVERLAP = -scale(12);
 
 /**
  * The contact lists (contactListQuery's rows) in one section: each list's name and count, the
@@ -19,20 +20,20 @@ export default function ContactListRows({ lists }) {
       {lists.map((list) => (
         <Row
           key={list.id}
-          label={list.name}
-          description={pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
+          label={
+            <View style={styles.labels}>
+              <Text style={listTextStyles.name}>{list.name}</Text>
+              <Text style={listTextStyles.detail}>
+                {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
+              </Text>
+            </View>
+          }
           onPress={() => router.navigate(`/contact-list/${list.id}`)}
           hasChevron
         >
           <View style={styles.stack}>
             {list.firstMembers.map((member, i) => (
-              <ContactAvatar
-                key={member.id}
-                contact={member}
-                size="small"
-                isStacked
-                style={i > 0 && styles.overlapped}
-              />
+              <ContactAvatar key={member.id} contact={member} size="row" isStacked style={i > 0 && styles.overlapped} />
             ))}
             {list.memberCount > list.firstMembers.length && (
               <MoreDisc count={list.memberCount - list.firstMembers.length} />
@@ -54,6 +55,9 @@ function MoreDisc({ count }) {
 }
 
 const styles = StyleSheet.create({
+  labels: {
+    flex: 1,
+  },
   stack: {
     flexDirection: 'row',
   },
@@ -71,8 +75,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moreText: {
-    fontSize: typography.caption,
+    fontSize: typography.footnote,
     fontWeight: '600',
-    color: colors.text.secondary,
+    color: colors.text.muted,
   },
 });

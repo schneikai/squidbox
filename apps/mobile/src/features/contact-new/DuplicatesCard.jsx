@@ -3,10 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
-import Icon from '@/components/Icon';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, layout, sizes, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
+import DuplicateDot from '@/features/contact-detail/DuplicateDot';
+import { colors, sizes, typography } from '@/styles/designTokens';
+
+const PADDING_X = 14;
+const GAP = 12;
 
 /**
  * "Already in your contacts": the contacts a new one may duplicate (findDuplicates), each with why
@@ -16,19 +18,19 @@ export default function DuplicatesCard({ matches, onOpen }) {
   return (
     <Card style={styles.card} accessibilityRole="alert">
       <View style={styles.header}>
-        <Icon name="alert" size={sizes.iconSmall} color={colors.text.primary} />
+        <DuplicateDot />
         <Text style={styles.title}>Already in your contacts</Text>
       </View>
       {matches.map(({ contact, reason }, index) => (
         <View key={contact.id}>
-          {index > 0 && <Divider />}
-          <View style={styles.row}>
-            <ContactAvatar contact={contact} size="small" />
+          {index > 0 && <Divider style={styles.divider} />}
+          <View style={[styles.row, index === matches.length - 1 && styles.lastRow]}>
+            <ContactAvatar contact={contact} size="compact" />
             <View style={styles.labels}>
-              <Text style={listTextStyles.title} numberOfLines={1}>
+              <Text style={styles.name} numberOfLines={1}>
                 {contact.name}
               </Text>
-              <Text style={listTextStyles.subtitle}>{reason}</Text>
+              <Text style={styles.reason}>{reason}</Text>
             </View>
             <Button label="Open" size="small" onPress={() => onOpen(contact)} />
           </View>
@@ -46,23 +48,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: layout.sideGutter,
-    paddingTop: 14,
+    paddingHorizontal: PADDING_X,
+    paddingTop: 12,
     paddingBottom: 4,
   },
   title: {
-    fontSize: typography.subheadline,
+    fontSize: typography.detail,
     fontWeight: '600',
     color: colors.text.primary,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: layout.sideGutter,
-    paddingVertical: 10,
+    gap: GAP,
+    paddingHorizontal: PADDING_X,
+    paddingVertical: 8,
+  },
+  lastRow: {
+    paddingBottom: 12,
+  },
+  divider: {
+    marginLeft: PADDING_X + sizes.avatar.compact + GAP,
   },
   labels: {
     flex: 1,
+  },
+  name: {
+    fontSize: typography.subheadline,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  reason: {
+    marginTop: 1,
+    fontSize: typography.footnote,
+    color: colors.text.muted,
   },
 });
