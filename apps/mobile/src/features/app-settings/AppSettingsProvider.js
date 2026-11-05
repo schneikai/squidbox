@@ -15,6 +15,8 @@ const DEFAULTS = {
   albumSortOrders: {},
   // The albums list's sort (useSortAlbumsAction), shared by the Albums tab and the album picker.
   albumListSortOrder: 'createdAt:desc',
+  // The contacts' sort (useContactSort), shared by the Contacts tab and a list's screen.
+  contactListSortOrder: 'name:asc',
   // Whether a video in the asset detail screen starts by itself.
   isVideoAutoplayOn: true,
   // Whether lifts, drops, peeks and outcomes tap back (useHaptics).

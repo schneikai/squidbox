@@ -39,6 +39,27 @@ describe('contactQuery', () => {
     expect((await contactQuery({}).read(db, { limit: 2 })).count).toBe(3);
   });
 
+  it('sorts by when a contact was added, newest first', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'zoe', name: 'Zoe', createdAt: 3 }));
+    await contacts.create(db, makeContactRecord({ id: 'bea', name: 'Bea', createdAt: 2 }));
+    expect(await ids(contactQuery({ sort: 'createdAt:desc' }))).toEqual(['zoe', 'bea', 'ana', 'ben', 'maya']);
+  });
+
+  it('in a list, recently added sorts by when the contact joined the list', async () => {
+    await upsertRows(db, 'contact_list_members', schema.contactListMembers, [
+      { id: 'e1', createdAt: 5, updatedAt: 5, deletedAt: null, listId: 'l1', contactId: 'maya' },
+      { id: 'e2', createdAt: 4, updatedAt: 4, deletedAt: null, listId: 'l1', contactId: 'ben' },
+      { id: 'e3', createdAt: 6, updatedAt: 6, deletedAt: null, listId: 'l1', contactId: 'ana' },
+      // Another list's edge doesn't count.
+      { id: 'e4', createdAt: 8, updatedAt: 8, deletedAt: null, listId: 'l2', contactId: 'ben' },
+    ]);
+    expect(await ids(contactQuery({ scope: { listId: 'l1' }, sort: 'createdAt:desc' }))).toEqual([
+      'ana',
+      'maya',
+      'ben',
+    ]);
+  });
+
   it('lists the favorites by when they were favorited, newest first', async () => {
     await contacts.update(db, 'maya', { isFavorite: true, favoritedAt: 9 });
     expect(await ids(contactQuery({ scope: 'favorites' }))).toEqual(['maya', 'ana']);

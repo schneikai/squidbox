@@ -11,6 +11,8 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import ContactRow from '@/features/contact-list/ContactRow';
 import contactQuery from '@/features/contact-list/contactQuery';
+import contactSortOptions from '@/features/contact-list/contactSortOptions';
+import useContactSort from '@/features/contact-list/useContactSort';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { colors, layout, typography } from '@/styles/designTokens';
@@ -19,13 +21,15 @@ import pluralizeText from '@/utils/pluralizeText';
 
 const keyExtractor = (contact) => contact.id;
 
-// A contact list: its description (edited in Edit list, from the ⋯ menu), then its contacts by name.
+// A contact list: its description (edited in Edit list, from the ⋯ menu), then its contacts by name or
+// by when they joined it (the Contacts tab's sort).
 // Add contacts sits in the header's pill, and is where a contact is taken out of the list too.
 export default function ContactList({ list }) {
   const navigation = useNavigation();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
-  const { listRef, searchBar, searchText } = useListControls();
-  const query = contactQuery({ scope: { listId: list.id }, search: searchText });
+  const { sortOrder, sortContacts } = useContactSort();
+  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
+  const query = contactQuery({ scope: { listId: list.id }, search: searchText, sort: sortOrder });
   const { rows, count, loadMore } = usePagedQuery(query, 100);
 
   function renderItem({ item: contact, index }) {
@@ -71,7 +75,13 @@ export default function ContactList({ list }) {
         onEndReachedThreshold={2}
         keyboardDismissMode="on-drag"
       />
-      <SearchSortFilterBar search={searchBar} placeholder="Search contacts…" />
+      <SearchSortFilterBar
+        search={searchBar}
+        placeholder="Search contacts…"
+        sortOrder={sortOrder}
+        sortOptions={contactSortOptions}
+        onSort={sort}
+      />
     </Page>
   );
 }

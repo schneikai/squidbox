@@ -17,15 +17,17 @@ const SUMMARY = Object.fromEntries(
  * What a contact list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one
  * transaction (no `limit` reads them all), `summaries(db)` → all the rows without their count, only
  * what a row shows and a search runs over (SUMMARY), `ids(db)` → the matching ids in the same order,
- * `tables` → what a live read watches. Live contacts only, by name (Favorites by when they were favorited,
- * newest first), with an id tie-break so pages see one stable order.
+ * `tables` → what a live read watches. Live contacts only, in `sort` order (Favorites always by when
+ * they were favorited, newest first), with an id tie-break so pages see one stable order.
  * @param {object} descriptor
  * @param {'all' | 'favorites' | { listId: string } | { targetType: 'asset' | 'album' | 'post', targetId: string | string[] }} [descriptor.scope]
  *   a list's members, or the contacts on a photo, album or post (several of one type with a list of ids)
  * @param {string} [descriptor.search] a substring of the name, a handle, the phone number or a
  *   place: Unicode-aware, literal, case-insensitive
+ * @param {'name:asc' | 'createdAt:desc'} [descriptor.sort] by name ignoring case, or recently added
+ *   first: to the app, or in a list's scope to that list
  */
-export default function contactQuery({ scope = 'all', search = '' }) {
+export default function contactQuery({ scope = 'all', search = '', sort = 'name:asc' }) {
   const searchText = search.trim().toLowerCase();
   const tables = [schema.contacts];
   if (scope.listId) tables.push(schema.contactListMembers);
@@ -42,8 +44,15 @@ export default function contactQuery({ scope = 'all', search = '' }) {
     }
     return undefined;
   })();
-  const order =
-    scope === 'favorites' ? [desc(c.favoritedAt), asc(c.id)] : [asc(sql`${c.name} collate nocase`), asc(c.id)];
+  const order = (() => {
+    if (scope === 'favorites') return [desc(c.favoritedAt), asc(c.id)];
+    if (sort !== 'createdAt:desc') return [asc(sql`${c.name} collate nocase`), asc(c.id)];
+    // In a list, when the contact joined it (its latest live edge, should two devices have added it).
+    const added = scope.listId
+      ? sql`(select max(created_at) from contact_list_members where list_id = ${scope.listId} and contact_id = ${c.id} and deleted_at is null)`
+      : c.createdAt;
+    return [desc(added), asc(c.id)];
+  })();
 
   // The search reads every live contact's searched text once per read, for rows and count alike.
   async function matchedIds(tx) {
@@ -60,7 +69,7 @@ export default function contactQuery({ scope = 'all', search = '' }) {
   const where = (ids) => and(isNull(c.deletedAt), scopeCondition, ids ? inJson(c.id, ids) : undefined);
 
   return {
-    descriptor: { scope, search },
+    descriptor: { scope, search, sort },
     tables,
     read(db, { limit } = {}) {
       return db.transaction(async (tx) => {

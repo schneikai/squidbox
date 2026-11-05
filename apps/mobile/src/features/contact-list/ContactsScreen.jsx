@@ -8,9 +8,11 @@ import ContactListRows from './ContactListRows';
 import ContactRow from './ContactRow';
 import ContactRowMenu from './ContactRowMenu';
 import contactQuery from './contactQuery';
+import contactSortOptions from './contactSortOptions';
 import useAddListAction from './useAddListAction';
 import useContactListRows from './useContactListRows';
 import useContactRows from './useContactRows';
+import useContactSort from './useContactSort';
 
 import EmptyState from '@/components/EmptyState';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -31,16 +33,17 @@ const SEGMENTS = [
 const PAGE_SIZE = 100;
 const keyExtractor = (contact) => contact.id;
 
-// The Contacts tab: the contacts (favorites first as a row of avatars, then everyone by name) or
+// The Contacts tab: the contacts (favorites first as a row of avatars, then everyone, by name or recently added) or
 // the contact lists, switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
 export default function ContactsScreen() {
   const [segment, setSegment] = useState('contacts');
   const { paddingTop, paddingBottom } = useScreenPadding('main');
-  const { listRef, searchBar, searchText } = useListControls();
+  const { sortOrder, sortContacts } = useContactSort();
+  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
   const scrollHandler = useFloatingBarScrollHandler();
   const promptAddList = useAddListAction();
 
-  const query = contactQuery({ scope: 'all', search: searchText });
+  const query = contactQuery({ scope: 'all', search: searchText, sort: sortOrder });
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
   // Each stays live only while it shows.
   const favorites = useContactRows({ scope: 'favorites' }, { isLive: segment === 'contacts' && !searchText.trim() });
@@ -125,7 +128,15 @@ export default function ContactsScreen() {
         keyboardDismissMode="on-drag"
         style={styles.list}
       />
-      {isContacts && <FloatingActionsBar search={searchBar} placeholder="Search contacts…" />}
+      {isContacts && (
+        <FloatingActionsBar
+          search={searchBar}
+          placeholder="Search contacts…"
+          sortOrder={sortOrder}
+          sortOptions={contactSortOptions}
+          onSort={sort}
+        />
+      )}
     </View>
   );
 }
