@@ -70,10 +70,10 @@ export default function ContactAvatar({
   );
 }
 
-// The favorite's heart: about 45% of the avatar's width, its outline an eighth of it on each side,
+// The favorite's heart: about 45% of the avatar's width, its outline a twelfth of it on each side,
 // reaching a quarter of its box past the avatar's top and right edges.
 const HEART_RATIO = 0.45;
-const OUTLINE_RATIO = 0.12;
+const OUTLINE_RATIO = 0.08;
 const HEART_OVERHANG = 0.25;
 const HEART_PATH =
   'M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5';
