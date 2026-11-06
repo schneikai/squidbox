@@ -8,9 +8,11 @@ import Octopus from '@/components/octopus/Octopus';
 import { splashOctopusFrame } from '@/components/octopus/splashOctopusFrame';
 import { colors, motion } from '@/styles/designTokens';
 
+export type BootScreenProps = { leaving: boolean };
+
 // Takes over from the native splash, pixel for pixel, so the octopus can come alive while the app
 // boots: it hides the native splash once it has been drawn, fades out once `leaving`, and is gone then.
-export default function BootScreen({ leaving }) {
+export default function BootScreen({ leaving }: BootScreenProps) {
   const window = useWindowDimensions();
   const opacity = useSharedValue(1);
   const [gone, setGone] = useState(false);

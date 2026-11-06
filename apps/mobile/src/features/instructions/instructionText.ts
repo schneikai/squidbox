@@ -1,5 +1,9 @@
+import type { InstructionKind } from '@squidbox/shared';
+
+type InstructionText = { title: string; description: string };
+
 // What each kind of instructions is called, and what its editor's intro says: where it is used.
-const instructionText = {
+const instructionText: Record<InstructionKind, InstructionText> = {
   writing: {
     title: 'Writing',
     description: 'The system instructions for the assistant when writing posts for you.',

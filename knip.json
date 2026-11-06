@@ -8,9 +8,8 @@
     },
     "apps/mobile": {
       "entry": ["metro.config.js", "scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{js,jsx,ts,tsx}"],
-      "ignore": ["src/obsolete-code/**"],
       "playwright": true,
-      "ignoreDependencies": ["@babel/core", "expo-updates", "expo-system-ui"],
+      "ignoreDependencies": ["expo-updates", "expo-system-ui"],
       "ignoreUnresolved": ["babel-preset-expo"]
     },
     "apps/server": {
