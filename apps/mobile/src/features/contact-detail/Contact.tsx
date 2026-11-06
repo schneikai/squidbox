@@ -27,7 +27,7 @@ import useContacts from '@/features/contacts-context/useContacts';
 import PostRows from '@/features/post-list/PostRows';
 import useHaptics from '@/hooks/useHaptics';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, typography } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
@@ -157,7 +157,6 @@ export default function Contact({ contact }: ContactProps) {
           placeholder="Add a note…"
           accessibilityLabel="Notes"
           maxLength={CONTACT_LIMITS.notes}
-          minHeight={scale(64)}
           style={styles.notes}
         />
 
