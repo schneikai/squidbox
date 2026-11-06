@@ -2,8 +2,13 @@ import { CONTACT_HANDLE_FIELDS, type ContactHandleField, type ContactRecord } fr
 
 import contactPlace from './contactPlace';
 
-/** A contact row's subtitle, "place · @handle": its first place and its first handle, either left out when missing. */
+import { handleText } from '@/features/contact-detail/contactFields';
+
+/**
+ * A contact row's subtitle, "place · handle": its first place and its first handle as the contact
+ * shows it (handleText: an @ only where the service uses one), either left out when missing.
+ */
 export default function contactSubtitle(contact: Pick<ContactRecord, 'places' | ContactHandleField>): string {
-  const handle = CONTACT_HANDLE_FIELDS.map((name) => contact[name]).find(Boolean);
-  return [contactPlace(contact), handle && `@${handle}`].filter(Boolean).join(' · ');
+  const field = CONTACT_HANDLE_FIELDS.find((name) => contact[name]);
+  return [contactPlace(contact), field && handleText(field, contact[field])].filter(Boolean).join(' · ');
 }
