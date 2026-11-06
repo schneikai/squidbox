@@ -8,7 +8,7 @@ import { colors, press, scale, shadows, sizes } from '@/styles/designTokens';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 const CAMERA_DISC = scale(38);
-const PLACEHOLDER = scale(88);
+const PLACEHOLDER = sizes.avatar.hero; // as big as the photo it stands for, and the contact screen's
 
 /**
  * A contact's photo, to pick one square photo and hand its uri to `onPick`. `variant` is where it is:
@@ -58,10 +58,10 @@ export default function ContactAvatarPicker({
             accessibilityLabel="Add photo"
             style={({ pressed }) => [styles.placeholder, pressed && press.filled]}
           >
-            <Icon name="camera" size={scale(30)} color={colors.accent.base} />
+            <Icon name="camera" size={scale(40)} color={colors.accent.base} />
           </Pressable>
         ) : (
-          <ContactAvatar contact={contact} uri={uri} size="medium" />
+          <ContactAvatar contact={contact} uri={uri} size="hero" />
         )}
         <Button label={hasPhoto ? 'Change photo' : 'Add photo'} onPress={handlePick} style={styles.link} />
       </View>
