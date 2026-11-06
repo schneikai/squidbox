@@ -5,11 +5,11 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import AssistantMessage from './AssistantMessage';
-import ChatComposer, { type ChatSeed } from './ChatComposer';
+import ChatComposer from './ChatComposer';
 import ChatSubjectCard from './ChatSubjectCard';
 import SystemMessageSheet from './SystemMessageSheet';
 import UserMessage from './UserMessage';
-import type { AssistantChatMessage, ChatMessage } from './chatSessions';
+import type { AssistantChatMessage, ChatMessage, ChatSeed } from './chatSessions';
 import promptTurn from './promptTurn';
 import type { LiveChat } from './useChatSession';
 import usePostChat, { type PostChatState } from './usePostChat';
@@ -24,11 +24,11 @@ import { SCREEN_PADDING } from '@/constants';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
+import useAvailableUserId from '@/hooks/useAvailableUserId';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHaptics from '@/hooks/useHaptics';
 import useHasFeature from '@/hooks/useHasFeature';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import { layout, space } from '@/styles/designTokens';
 import confirmAsync from '@/utils/confirmAsync';
 
@@ -47,17 +47,20 @@ type ChatParams = { sessionId: string; label?: string; prompt?: string };
  */
 export default function PostChatScreen() {
   const { sessionId, label, prompt } = useLocalSearchParams<ChatParams>();
-  const isAvailable = useLeaveWhenUnavailable();
+  const userId = useAvailableUserId();
   const postChat = usePostChat(sessionId);
   const { chat } = postChat;
   useCloseWhen(chat === null);
 
-  if (!isAvailable || !chat) return null;
+  if (userId === null || !chat) return null;
 
-  return <PostChat {...postChat} chat={chat} label={label} prompt={prompt} />;
+  return <PostChat {...postChat} chat={chat} userId={userId} label={label} prompt={prompt} />;
 }
 
-type PostChatProps = Omit<PostChatState, 'chat'> & { chat: LiveChat } & Pick<ChatParams, 'label' | 'prompt'>;
+type PostChatProps = Omit<PostChatState, 'chat'> & { chat: LiveChat; userId: string } & Pick<
+    ChatParams,
+    'label' | 'prompt'
+  >;
 
 // The open chat: everything the screen shows once it has one.
 function PostChat({
@@ -69,6 +72,7 @@ function PostChat({
   send,
   moreLikeThis,
   retry,
+  userId,
   label,
   prompt,
 }: PostChatProps) {
@@ -169,7 +173,7 @@ function PostChat({
         )}
         {messages.map((message, index) =>
           message.role === 'user' ? (
-            <UserMessage key={message.id} label={message.label} content={message.content} />
+            <UserMessage key={message.id} label={message.label} content={message.content} userId={userId} />
           ) : (
             <AssistantMessage
               key={message.id}
@@ -210,7 +214,10 @@ function hasSystemMessage(message: ChatMessage): message is AssistantChatMessage
   return message.role === 'assistant' && Boolean(message.systemMessage);
 }
 
-type ChatHeaderProps = Pick<ModalHeaderProps, 'leading' | 'trailing'> & { isAiAdmin: boolean };
+// The header's buttons, which the screen gives.
+type HeaderSlots = Pick<ModalHeaderProps, 'leading' | 'trailing'>;
+
+type ChatHeaderProps = HeaderSlots & { isAiAdmin: boolean };
 
 // The chat's header: "Writing as you" under the title, or for an ai_admin the writing model's name
 // (its hooks run only for one).
@@ -219,10 +226,8 @@ function ChatHeader({ isAiAdmin, ...headerProps }: ChatHeaderProps) {
   return <ModalHeader {...headerProps} title="Assistant" subtitle={WRITING_AS_YOU} />;
 }
 
-type ModelNameHeaderProps = Pick<ModalHeaderProps, 'leading' | 'trailing'>;
-
 // An ai_admin's header: the writing model's name under the title, once it loaded.
-function ModelNameHeader(headerProps: ModelNameHeaderProps) {
+function ModelNameHeader(headerProps: HeaderSlots) {
   const modelName = useWritingModelName();
   return <ModalHeader {...headerProps} title="Assistant" subtitle={modelName ?? WRITING_AS_YOU} />;
 }

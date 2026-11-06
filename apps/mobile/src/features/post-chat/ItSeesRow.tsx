@@ -41,7 +41,11 @@ export default function ItSeesRow({
 }: ItSeesRowProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  const failed = rows.filter((row) => row.tags === null && attempts[row.id]?.status === 'error');
+  // The rows whose tagging failed, each with its attempt's error.
+  const failed = rows.flatMap((row) => {
+    const attempt = attempts[row.id];
+    return row.tags === null && attempt?.status === 'error' ? [{ id: row.id, error: attempt.error }] : [];
+  });
   const isTagged = rows.some((row) => row.tags !== null);
   const tags = postTags(rows, tagEdits);
 
@@ -66,7 +70,7 @@ export default function ItSeesRow({
         <View style={styles.line}>
           <IntroText style={styles.text}>
             {pluralizeText("Couldn't tag %{count} photo", "Couldn't tag %{count} photos", failed.length)}
-            {failed.length === 1 && attempts[failed[0].id]?.error ? `: ${attempts[failed[0].id]?.error}` : ''}
+            {failed.length === 1 && failed[0].error ? `: ${failed[0].error}` : ''}
           </IntroText>
           <Button label="Retry" size="small" onPress={() => retryAll(failed)} />
         </View>

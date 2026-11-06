@@ -2,7 +2,8 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import type { UserTurn } from './chatSessions';
+import type { ChatSeed } from './chatSessions';
+import type { PostChatState } from './usePostChat';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -11,14 +12,12 @@ import { colors, lineHeights, scale, sizes, space } from '@/styles/designTokens'
 
 const MAX_INPUT_HEIGHT = scale(120);
 
-export type ChatSeed = Pick<UserTurn, 'label' | 'content'>;
-
 type ChatComposerProps = {
   seed?: ChatSeed;
   placeholder: string;
   disabled: boolean;
   isWaiting: boolean;
-  onSend: (turn: ChatSeed) => Promise<boolean>;
+  onSend: PostChatState['send'];
 };
 
 /**

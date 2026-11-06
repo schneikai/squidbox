@@ -4,7 +4,6 @@ import {
   type ChatContext,
   type ChatReply,
   type ChatRequest,
-  type ChatResponse,
   type ChatSubjectKind,
   type ChatTurn,
 } from '@squidbox/shared';
@@ -12,24 +11,25 @@ import {
 import withEdits, { type ListEdits } from './withEdits';
 
 import createStore from '@/lib/createStore';
+import type chatAsync from '@/utils/cloud-api/ai/chatAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import errorResponse from '@/utils/cloud-api/errorResponse';
 import getNewItemId from '@/utils/getNewItemId';
 import type { TagsEdit } from '@/utils/tagsDifference';
 
-/**
- * The user's turn as `send` takes it: `label`, the prompt button's name, or none for a typed message;
- * `moreLikeThis`: More like this on the option `content`, which the server puts its instruction before.
- */
-export type UserTurn = { label?: string | null; content: string; moreLikeThis?: boolean };
+type UserChatTurn = Extract<ChatTurn, { role: 'user' }>;
 
-export type UserChatMessage = {
-  id: string;
-  role: 'user';
-  label: string | null;
-  content: string;
-  moreLikeThis: boolean;
-};
+/**
+ * The user's turn as `send` takes it: the wire turn's `content` and `moreLikeThis` (More like this on
+ * the option `content`, which the server puts its instruction before), with `label`, the prompt
+ * button's name, or none for a typed message.
+ */
+export type UserTurn = Omit<UserChatTurn, 'role'> & { label?: string | null };
+
+// What waits in the composer: a prompt button's turn (promptTurn), or what was typed.
+export type ChatSeed = Pick<UserTurn, 'label' | 'content'>;
+
+export type UserChatMessage = Required<UserChatTurn> & { id: string; label: string | null };
 
 /**
  * A reply: `reply`, what the assistant says; `postOptions`, the options for the post, when the user
@@ -59,7 +59,7 @@ type ChatSessionState = {
 
 type ChatDraft = { text: string; assets: AssetRecord[] };
 
-type ChatRequester = (body: ChatRequest, options: { signal: AbortSignal }) => Promise<ChatResponse>;
+type ChatRequester = typeof chatAsync;
 
 type ChatSession = ReturnType<typeof createSession>;
 
@@ -71,7 +71,7 @@ const sessions = new Map<string, ChatSession>();
 let lastId = 0;
 
 /** Opens a chat about a post (`kind`, chatSubjectKindSchema) and returns its id. */
-function open({ kind }: Pick<ChatSessionState, 'kind'>): string {
+function open({ kind }: { kind: ChatSubjectKind }): string {
   const id = `chat-${++lastId}`;
   sessions.set(id, createSession(kind));
   return id;
@@ -85,9 +85,9 @@ function close(id: string) {
 
 /**
  * The open chats: `open({ kind })` → its id, `close(id)`, and `get(id)` (the chat, or undefined
- * once it was closed).
+ * once it was closed, or for no id yet).
  */
-const chatSessions = { open, close, get: (id: string) => sessions.get(id) };
+const chatSessions = { open, close, get: (id: string | null) => (id === null ? undefined : sessions.get(id)) };
 
 export default chatSessions;
 

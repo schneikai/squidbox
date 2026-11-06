@@ -6,24 +6,21 @@ import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useHaptics from '@/hooks/useHaptics';
 import ruleResultText from '@/lib/ruleResultText';
-import useOpenLibrary from '@/library/useOpenLibrary';
 import { getDb } from '@/sync/db/client';
 import { addRule } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 
-type UserMessageProps = Pick<UserChatMessage, 'label' | 'content'>;
+type UserMessageProps = Pick<UserChatMessage, 'label' | 'content'> & { userId: string };
 
 /**
  * One of the user's turns in the chat: a violet bubble with the prompt button's name (`label`) over
  * what was sent (`content`), and a ⋯ under it to add the text to the Rules.
  */
-export default function UserMessage({ label, content }: UserMessageProps) {
+export default function UserMessage({ label, content, userId }: UserMessageProps) {
   const haptics = useHaptics();
-  const { userId } = useOpenLibrary();
 
   async function handleAddToRules() {
     try {
-      if (userId === null) throw new Error("This device's library has no account");
       const result = await addRule(getDb(), userId, content);
       if (result === 'tooLong') {
         Alert.alert('Too long for a rule', ruleResultText.tooLong);

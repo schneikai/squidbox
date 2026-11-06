@@ -15,7 +15,7 @@ const getNone = () => null;
  * promise, or null when nothing was sent). null when there is no such chat (closed, or no id yet).
  */
 export default function useChatSession(id: string | null) {
-  const session = id ? chatSessions.get(id) : undefined;
+  const session = chatSessions.get(id);
   const state = useSyncExternalStore(session?.subscribe ?? subscribeNone, session?.getState ?? getNone);
 
   return useMemo(() => {

@@ -29,12 +29,10 @@ export default function useSubjectChat({ kind, text, postAssets, setText = null 
   }, [kind]);
 
   useEffect(() => {
-    if (sessionId === null) return;
     chatSessions.get(sessionId)?.setDraft({ text, assets: postAssets.map(({ asset }) => asset) });
   }, [sessionId, text, postAssets]);
 
   useEffect(() => {
-    if (sessionId === null) return;
     const session = chatSessions.get(sessionId);
     session?.setTextApplier(setText);
     return () => session?.setTextApplier(null);
