@@ -1,4 +1,4 @@
-import { uniqueTags, type AssetRecord } from '@squidbox/shared';
+import { uniqueTags } from '@squidbox/shared';
 import { and, asc, count, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { nextUpdatedAt, nextVersion } from './clock';
@@ -9,7 +9,7 @@ import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
 
-const repository = makeRepository<AssetRecord>('assets', schema.assets);
+const repository = makeRepository('assets', schema.assets);
 
 // `remove` moves to the Deleted album (tombstone: set deletedAt). The files stay, so a restore is complete.
 export const { create, createMany, update, updateMany, updateAll, remove } = repository;
@@ -22,7 +22,7 @@ export const { create, createMany, update, updateMany, updateAll, remove } = rep
  */
 export async function purgeAssets(db: SyncDb, ids: string[]): Promise<schema.AssetRow[]> {
   return db.transaction(async (tx) => {
-    const previous = (await readByIds<schema.AssetRow>(tx, schema.assets, ids)).filter((row) => row.purgedAt === null);
+    const previous = (await readByIds(tx, schema.assets, ids)).filter((row) => row.purgedAt === null);
     const purgedRows = previous.map(purged);
     await saveRecords(tx, 'assets', schema.assets, purgedRows, { previous });
     return purgedRows;
@@ -51,9 +51,7 @@ export async function setTags(
   tags: string[] | ((stored: string[] | null) => string[] | null),
 ): Promise<string[] | null> {
   return db.transaction(async (tx) => {
-    const previous = (await readByIds<schema.AssetRow>(tx, schema.assets, [id])).filter(
-      (row) => row.deletedAt === null,
-    );
+    const previous = (await readByIds(tx, schema.assets, [id])).filter((row) => row.deletedAt === null);
     if (previous.length === 0) return null;
     const next = typeof tags === 'function' ? tags(previous[0]!.tags) : tags;
     if (next === null) return previous[0]!.tags;

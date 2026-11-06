@@ -8,7 +8,7 @@ import { useLiveRecord } from '@/sync/useLiveRecord';
 
 export default function ContactListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
-  const list = useLiveRecord<schema.ContactListRow>(schema.contactLists, listId);
+  const list = useLiveRecord(schema.contactLists, listId);
   useCloseWhenGone(list, 'This list was deleted');
 
   if (!list) return null;

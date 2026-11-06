@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any edge table */
 import { keyBetween, initialKeys, keysInOrder, longestIncreasing, movePositions } from '@squidbox/shared';
 import { and, eq, gt, isNull, max, ne } from 'drizzle-orm';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import type { EdgeTable } from './clientCollections';
 import { nextVersion, tombstone } from './clock';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
@@ -14,7 +14,12 @@ import { saveRecords } from './saveRecords';
 // devices compose instead of clobbering. `position` is a fractional-index order key; a reorder
 // only rewrites the edges whose position actually changed. Every write is one transaction. `newId`
 // is injected (the app passes getNewItemId; tests pass a stub) to keep this module headless-testable.
-export function makeEdgeRepository(collection: string, table: SQLiteTable, parentField: 'albumId' | 'postId') {
+export function makeEdgeRepository(
+  collection: string,
+  table: Extract<EdgeTable, { position: unknown }>,
+  parentField: 'albumId' | 'postId',
+) {
+  // The columns by name: `parentField` names a column only one of the edge tables has.
   const t = table as any;
   const parentCol = t[parentField];
 
@@ -210,7 +215,8 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
           if (existing) {
             if (existing.position === position && (assetId === undefined || existing.assetId === assetId)) continue;
             changed.push(nextVersion(existing, { assetId: assetId ?? existing.assetId, position }));
-          } else if (removed) changed.push(nextVersion(removed, { deletedAt: null, assetId, position }));
+          } else if (removed)
+            changed.push(nextVersion(removed, { deletedAt: null, assetId: assetId ?? removed.assetId, position }));
           else changed.push(newEdge(id, parentId, assetId!, position, now));
         }
         await save(tx, changed, [...live, ...removedById.values()]);

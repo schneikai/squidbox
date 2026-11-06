@@ -4,13 +4,13 @@ import PhotoTagsField from './PhotoTagsField';
 import useRetag from './useRetag';
 
 import Button from '@/components/Button';
-import type { TagsFieldProps } from '@/components/TagsField';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
+import type { GuardPress } from '@/lib/unguarded';
 import { space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import type { AssetRow } from '@/sync/db/schema';
 
-export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: NonNullable<TagsFieldProps['guardPress']> };
+export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: GuardPress };
 
 /**
  * The tags the assistant sees in the asset, in its details, edited in place (PhotoTagsField: a tap

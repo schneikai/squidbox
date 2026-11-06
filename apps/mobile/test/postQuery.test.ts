@@ -148,11 +148,10 @@ describe('postQuery', () => {
     await createPost('p4', { postedAt: 40 }, ['a2']);
     await createPost('p5', { postedAt: 50, deletedAt: 5 }, ['a1']);
     const query = postQuery({ scope: { assetId: 'a1' } });
-    const { rows, count } = await query.read(db, { withCount: false });
+    const rows = await query.readRows(db);
     expect(rows.map((row) => row.id)).toEqual(['p3', 'p1', 'p2']);
     expect(rows[2].postAssets.map((pa: { asset: { id: string } }) => pa.asset.id)).toEqual(['a1', 'a2']);
-    expect(count).toBeUndefined();
-    const firsts = (await query.read(db, { withCount: false, firstAssetOnly: true })).rows;
+    const firsts = await query.readRows(db, { firstAssetOnly: true });
     expect(firsts[2].postAssets.map((pa: { asset: { id: string } }) => pa.asset.id)).toEqual(['a1']);
   });
 
@@ -185,7 +184,7 @@ describe('postQuery', () => {
       edge('e-1', 'p4', 'a2', 'm'),
       edge('e-3', 'p4', 'a1', 'z'),
     ]);
-    const { rows } = await postQuery({ scope: 'all' }).read(db, { withCount: false, firstAssetOnly: true });
+    const rows = await postQuery({ scope: 'all' }).readRows(db, { firstAssetOnly: true });
     const firsts = Object.fromEntries(
       rows.map((row) => [
         row.id,

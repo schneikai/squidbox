@@ -1,10 +1,8 @@
 import { sql } from 'drizzle-orm';
-import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import type { CollectionTable } from './clientCollections';
 import type { SyncDb } from './db/types';
 import { useLiveQuery } from './useLiveQuery';
-
-type CollectionTable = SQLiteTable & { deletedAt: SQLiteColumn };
 
 /** A collection's records: live ones and tombstones. */
 async function readRecordCounts(db: SyncDb, table: CollectionTable) {

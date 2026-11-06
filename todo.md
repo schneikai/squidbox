@@ -51,6 +51,7 @@ Save Image / Save Video does it. Check first: it saves without our "Squidbox" al
 ### [ ] Make the app work on Android
 
 The app is built and tested only for iOS. Needed:
+
 - Config: an Android package id with a `.dev` variant like iOS (`app.config.js` switches on
   `EAS_BUILD_PROFILE`), Android settings in the `eas.json` profiles (an APK for internal
   installs) and an EAS-managed keystore.
@@ -234,11 +235,11 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 ### [ ] Rewrite the app in TypeScript
 
 `npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
-asset-list, album-list, album-detail, asset-detail, posts, post-list, post-chat, prompt-buttons,
-model-compare, model-verify and the thumbnail loader's provider and queue, `app/_layout.jsx` and
-those features' routes, and five held files (`SyncErrorViewer`, `SyncScreen`, `Post`,
-`ComponentGalleryScreen`; `AssetPickerGrid` with asset-list). Convert them feature by feature, then
-add `test/` to the check and turn `allowJs` off.
+posts (next: it types against post-list's rows), album-list, album-detail, asset-detail, post-chat,
+prompt-buttons, model-compare and model-verify, `app/_layout.jsx` and those features' routes.
+Convert them feature by feature, then add `test/` to the check and turn `allowJs` off. `PostView.jsx`
+and `PromptButtonRow.jsx` hold JSDoc `@param` stand-ins for their props' types (allowJs reads their
+optional props as required): drop them when those files convert.
 
 ### [ ] Add UI tests
 

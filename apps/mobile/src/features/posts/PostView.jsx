@@ -13,6 +13,7 @@ import isPresent from '@/utils/isPresent';
  * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
  * place shows about it: a thread's size), and `children` under that row (buttons for this post).
  * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
+ * @param {{ post: import('@/features/post-list/postQuery').PostWithAssets; onPressAsset?: (asset: import('@/sync/db/schema').AssetRow) => void; isTextSelectable?: boolean; meta?: import('react').ReactNode; children?: import('react').ReactNode }} props
  */
 export default function PostView({ post, onPressAsset, isTextSelectable = false, meta, children }) {
   const { text, postAssets, postedAt } = post;

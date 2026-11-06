@@ -1,5 +1,5 @@
-import type { PostRecord } from '@squidbox/shared';
 import { and, isNull, max, sql, type SQL } from 'drizzle-orm';
+import type { SQLiteColumn } from 'drizzle-orm/sqlite-core';
 
 import { albumAssetIdsOf } from './assetSql';
 import * as schema from './db/schema';
@@ -7,7 +7,7 @@ import type { SyncDb } from './db/types';
 import { makeEdgeRepository } from './edgesRepository';
 import { makeRepository } from './repository';
 
-const repository = makeRepository<PostRecord>('posts', schema.posts);
+const repository = makeRepository('posts', schema.posts);
 
 /** The posts' asset references (the post_assets edge collection). */
 export const postEdges = makeEdgeRepository('post_assets', schema.postAssets, 'postId');
@@ -18,7 +18,7 @@ export const { create, update, updateAll, remove } = repository;
  * When a post comes up for a repost: its suggestion date, else its post date (a suggestion of 0 is
  * unset, as in drafts and older posts), else 0. `posts` is the posts table or an alias of it.
  */
-export function repostDate(posts: typeof schema.posts = schema.posts): SQL<number> {
+export function repostDate(posts: Record<'suggestRepostAt' | 'postedAt', SQLiteColumn> = schema.posts): SQL<number> {
   return sql<number>`coalesce(nullif(${posts.suggestRepostAt}, 0), ${posts.postedAt}, 0)`;
 }
 

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { type RefObject, useCallback, useState } from 'react';
-import { type FlatList, type ListRenderItemInfo, StyleSheet, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { type ListRenderItemInfo, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ContactAvatarRow from './ContactAvatarRow';
@@ -21,6 +21,7 @@ import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import SegmentedPill, { type SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useListControls from '@/hooks/useListControls';
+import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -42,6 +43,7 @@ export default function ContactsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
   const { sortOrder, sortContacts } = useContactSort();
   const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
+  const attachList = useListRefCallback(listRef);
   const scrollHandler = useFloatingBarScrollHandler();
   const promptAddList = useAddListAction();
 
@@ -120,8 +122,7 @@ export default function ContactsScreen() {
         onAdd={handleAdd}
       />
       <Animated.FlatList
-        // The list fills the ref; useListControls only calls its scrollToOffset.
-        ref={listRef as RefObject<FlatList<ContactSummary> | null>}
+        ref={attachList}
         data={data}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

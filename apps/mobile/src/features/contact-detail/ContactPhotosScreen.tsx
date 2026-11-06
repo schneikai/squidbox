@@ -15,7 +15,7 @@ import { usePagedQuery } from '@/sync/usePagedQuery';
 export default function ContactPhotosScreen() {
   const { contactId } = useLocalSearchParams<{ contactId: string }>();
   const navigation = useNavigation();
-  const contact = useLiveRecord<schema.ContactRow>(schema.contacts, contactId);
+  const contact = useLiveRecord(schema.contacts, contactId);
   useCloseWhenGone(contact, 'This contact was deleted');
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const query = assetQuery({ scope: { contactId } });

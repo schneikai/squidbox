@@ -12,6 +12,7 @@ import { raisedShadowRoom, space } from '@/styles/designTokens';
  * a tap calls `onPress(button)`. `children` go after the buttons (Ask anything on a tray, the
  * pen). The row fills its parent's width, so the chips scroll under its edges; `inset` is
  * the chips' distance from those edges: the AssistantTray's inside one, else the screen's padding.
+ * @param {{ buttons: readonly import('@squidbox/shared').NewPromptButton[]; onPress: (button: import('@squidbox/shared').NewPromptButton) => void; inset?: number; children?: import('react').ReactNode }} props
  */
 export default function PromptButtonRow({ buttons, onPress, inset, children }) {
   const tray = useContext(AssistantTrayContext);

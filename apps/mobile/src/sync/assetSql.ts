@@ -1,9 +1,11 @@
 import { eq, sql, type SQL } from 'drizzle-orm';
-import { alias, type SQLiteColumn } from 'drizzle-orm/sqlite-core';
+import { alias, type SelectedFields, type SQLiteColumn, type SQLiteSelectBuilder } from 'drizzle-orm/sqlite-core';
 
 import * as schema from './db/schema';
 import { isCanonicalEdge } from './edgeSql';
 import { inJson } from './inJson';
+
+import isOneOf from '@/lib/isOneOf';
 
 // The SQL an asset scope is read with, shared by the asset grids (assetQuery), the album list's stats
 // (albumQuery) and the post lists (postQuery), so a grid, its count, its album's cover and a post's
@@ -12,46 +14,65 @@ import { inJson } from './inJson';
 // a single-table selection, `a.id` included.
 export const a = alias(schema.assets, 'a');
 
-/**
- * An asset scope: the library, a smart album (Deleted: not the purged), an album by id (a value, or
- * SQL naming a column), a post's assets as the post screen shows them, in its order, a trashed
- * one included (one post, or several for postQuery, which reads its posts' assets at once), or one
- * live asset alone (a post suggestion's), or the live assets a contact is on.
- */
 // How a grid orders its assets (assetQuery's `sort`): `custom` is an album's own order.
-export type AssetSort = 'createdAt:asc' | 'createdAt:desc' | 'custom' | 'random';
+const ASSET_SORTS = ['createdAt:asc', 'createdAt:desc', 'custom', 'random'] as const;
+export type AssetSort = (typeof ASSET_SORTS)[number];
 
-export type AssetScope =
+export const isAssetSort = isOneOf(ASSET_SORTS);
+
+/**
+ * An asset scope as a grid shows it (assetQuery's `scope`): the library, a smart album (Deleted: not
+ * the purged), an album by id, a post's assets as the post screen shows them, in its order, a
+ * trashed one included, or one live asset alone (a post suggestion's), or the live assets a contact
+ * is on.
+ */
+export type AssetQueryScope =
   | 'library'
   | 'favorites'
   | 'deleted'
-  | { albumId: string | SQL }
-  | { postId: string | string[] }
+  | { albumId: string }
+  | { postId: string }
   | { assetId: string }
   | { contactId: string };
 
-function isPostScope(scope: AssetScope): scope is { postId: string | string[] } {
-  return typeof scope === 'object' && 'postId' in scope;
+/**
+ * An asset scope as the SQL reads it: a grid's, or an album by SQL naming a column, or several
+ * posts' assets (postQuery reads its posts' assets at once).
+ */
+export type AssetScope = AssetQueryScope | { albumId: SQL } | { postId: string[] };
+
+// A post scope: one post's assets or several posts'.
+type PostScope = Extract<AssetScope, { postId: unknown }>;
+
+/** Whether `scope` (an asset or a post scope) is an id scope of `key`: `{ albumId }`, `{ postId }`, … */
+export function isIdScope<Scope, Key extends string>(
+  scope: Scope,
+  key: Key,
+): scope is Extract<Scope, Record<Key, unknown>> {
+  return typeof scope === 'object' && scope !== null && key in scope;
 }
 
 const albumEdge = alias(schema.albumAssets, 'e');
 const postEdge = alias(schema.postAssets, 'e');
 
+/** The edges that drive a post scope's read: its posts' live edges, one canonical edge per asset. */
+export function postScopeEdges(scope: PostScope) {
+  const parent = sql.raw('e.post_id');
+  const isOfPost = Array.isArray(scope.postId) ? inJson(parent, scope.postId) : sql`${parent} = ${scope.postId}`;
+  return {
+    e: postEdge,
+    where: sql`${isOfPost} and e.deleted_at is null and ${isCanonicalEdge(schema.postAssets, postEdge, 'postId')}`,
+  };
+}
+
 /**
- * The edges that drive a scope's read, or `null`: a post's always, an album's under the custom
- * order. `e` joins `a` (fromScope), and `where` keeps the parents' live edges, one canonical edge
- * per asset.
+ * The edges that drive a scope's read, or `null`: a post's always (postScopeEdges), an album's under
+ * the custom order. `e` joins `a` (fromScope), and `where` keeps the parents' live edges, one
+ * canonical edge per asset.
  */
 export function scopeEdges(scope: AssetScope, sort: AssetSort = 'createdAt:desc') {
-  if (isPostScope(scope)) {
-    const parent = sql.raw('e.post_id');
-    const isOfPost = Array.isArray(scope.postId) ? inJson(parent, scope.postId) : sql`${parent} = ${scope.postId}`;
-    return {
-      e: postEdge,
-      where: sql`${isOfPost} and e.deleted_at is null and ${isCanonicalEdge(schema.postAssets, postEdge, 'postId')}`,
-    };
-  }
-  if (typeof scope !== 'object' || !('albumId' in scope) || sort !== 'custom') return null;
+  if (isIdScope(scope, 'postId')) return postScopeEdges(scope);
+  if (!isIdScope(scope, 'albumId') || sort !== 'custom') return null;
   return {
     e: albumEdge,
     where: sql`e.album_id = ${scope.albumId} and e.deleted_at is null and ${isCanonicalEdge(schema.albumAssets, albumEdge, 'albumId')}`,
@@ -62,15 +83,24 @@ export function scopeEdges(scope: AssetScope, sort: AssetSort = 'createdAt:desc'
  * In a post scope over several posts, an asset's place in its post (1 for the first), in the post's
  * order (assetOrder), over the edges the scope keeps: select it in a subquery and keep 1.
  */
-export function placeInPost(scope: { postId: string | string[] }): SQL<number> {
+export function placeInPost(scope: PostScope): SQL<number> {
   return sql<number>`row_number() over (partition by ${postEdge.postId} order by ${assetOrder(scope)})`;
 }
 
 /** A drizzle `select` from the scope's assets: `a`, joined from its edges when they drive the read. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any drizzle select builder
-export function fromScope(select: any, scope: AssetScope, sort: AssetSort = 'createdAt:desc') {
+export function fromScope<Selection extends SelectedFields>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SyncDb's run result (db/types)
+  select: SQLiteSelectBuilder<Selection, 'async', any>,
+  scope: AssetScope,
+  sort: AssetSort = 'createdAt:desc',
+) {
   const edges = scopeEdges(scope, sort);
-  return edges ? select.from(edges.e).innerJoin(a, eq(a.id, edges.e.assetId)) : select.from(a);
+  if (!edges) return select.from(a);
+  // Typed as the read from `a` alone: an inner join of explicit fields reads the same rows' shape,
+  // and one type lets the callers chain the same calls on either.
+  return select.from(edges.e).innerJoin(a, eq(a.id, edges.e.assetId)) as unknown as ReturnType<
+    typeof select.from<typeof a>
+  >;
 }
 
 /** The ids of an album's assets, through its live edges. */
@@ -120,7 +150,7 @@ export function albumLastPostedAt(albumId: string | SQL): SQL<number | null> {
 /** The assets a scope keeps by their deletion: Deleted the trashed, a post all but the purged, the others the live. */
 export function assetDeletionWhere(scope: AssetScope): SQL {
   if (scope === 'deleted') return sql`a.deleted_at is not null and a.purged_at is null`;
-  if (isPostScope(scope)) return sql`a.purged_at is null`;
+  if (isIdScope(scope, 'postId')) return sql`a.purged_at is null`;
   return sql`a.deleted_at is null`;
 }
 
@@ -130,10 +160,9 @@ export function assetScopeWhere(scope: AssetScope, sort: AssetSort = 'createdAt:
   const edges = scopeEdges(scope, sort);
   if (edges) return sql`${deletion} and ${edges.where}`;
   if (scope === 'favorites') return sql`${deletion} and a.is_favorite = 1`;
-  if (typeof scope === 'object' && 'assetId' in scope) return sql`${deletion} and a.id = ${scope.assetId}`;
-  if (typeof scope === 'object' && 'contactId' in scope)
-    return sql`${deletion} and a.id in ${contactTargetIds(scope.contactId, 'asset')}`;
-  if (typeof scope !== 'object' || !('albumId' in scope)) return deletion;
+  if (isIdScope(scope, 'assetId')) return sql`${deletion} and a.id = ${scope.assetId}`;
+  if (isIdScope(scope, 'contactId')) return sql`${deletion} and a.id in ${contactTargetIds(scope.contactId, 'asset')}`;
+  if (!isIdScope(scope, 'albumId')) return deletion;
   return sql`${deletion} and a.id in ${liveAlbumAssetIds(scope.albumId)}`;
 }
 

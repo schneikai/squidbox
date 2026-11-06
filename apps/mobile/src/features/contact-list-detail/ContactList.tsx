@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
-import { type RefObject, useCallback } from 'react';
-import { type FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
+import { useCallback } from 'react';
+import { type ListRenderItemInfo, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ContactListMenu from './ContactListMenu';
@@ -16,6 +16,7 @@ import contactQuery, { type ContactSummary } from '@/features/contact-list/conta
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
 import useListControls from '@/hooks/useListControls';
+import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout, space } from '@/styles/designTokens';
 import type * as schema from '@/sync/db/schema';
@@ -45,6 +46,7 @@ export default function ContactList({ list }: ContactListProps) {
     ),
     [lastIndex],
   );
+  const attachList = useListRefCallback(listRef);
 
   const header = list.notes ? (
     <Text variant="status" style={styles.description}>
@@ -71,8 +73,7 @@ export default function ContactList({ list }: ContactListProps) {
         }
       />
       <Animated.FlatList
-        // The list fills the ref; useListControls only calls its scrollToOffset.
-        ref={listRef as RefObject<FlatList<ContactSummary> | null>}
+        ref={attachList}
         data={rows}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

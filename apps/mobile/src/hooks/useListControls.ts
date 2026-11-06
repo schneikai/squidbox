@@ -11,17 +11,17 @@ export type ScrollableList = { scrollToOffset(params: { animated: boolean; offse
  *   - `listRef`, for the list: a new sort or filter jumps it back to its top;
  *   - `sortOrder` and `sort`, starting at `defaultSort`; a screen whose sort outlives it keeps its own and
  *     passes `onSort`, which `sort` then calls instead;
- *   - `activeFilter` (filter keys) and `toggleFilter` ('all' clears them);
+ *   - `activeFilter` (filter keys, of `Filter`) and `toggleFilter` ('all' clears them);
  *   - `searchBar`, the props SearchOptionsBar expects, and `searchText`, a deferred copy of the typed
  *     text for filtering, so typing stays smooth on large lists.
  */
-export default function useListControls<Sort = string>({
+export default function useListControls<Sort = string, Filter extends string = string>({
   defaultSort,
   onSort,
 }: { defaultSort?: Sort; onSort?: (order: Sort) => void } = {}) {
   const listRef = useRef<ScrollableList>(null);
   const [sortOrder, setSortOrder] = useState(defaultSort);
-  const [activeFilter, setActiveFilter] = useState<string[]>([]);
+  const [activeFilter, setActiveFilter] = useState<Filter[]>([]);
   // Plain state on purpose: it controls a text input, and React can't drive one from a transition.
   const [typedText, setTypedText] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -38,7 +38,7 @@ export default function useListControls<Sort = string>({
     listScrollTop();
   }
 
-  function toggleFilter(filter: string) {
+  function toggleFilter(filter: Filter | 'all') {
     if (filter === 'all') {
       setActiveFilter([]);
     } else {

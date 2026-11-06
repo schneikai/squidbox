@@ -335,7 +335,7 @@ describe('plan guard', () => {
     expect(work.plans).toContain('CORRELATED SCALAR SUBQUERY 1');
     expect(work.plans).toContain('SEARCH r USING INDEX sqlite_autoindex_posts_1 (id=?)');
     expect(work.plans).toContain('SEARCH c USING INDEX posts_thread_idx (thread_root_id=?)');
-    const post = await measure(() => postQuery({ scope: { postId: 'post-1' } }).read(db, { withCount: false }));
+    const post = await measure(() => postQuery({ scope: { postId: 'post-1' } }).readRows(db));
     expect(unindexedScans(post)).toEqual([]);
     expect(post.plans).toContain('SEARCH posts USING INDEX posts_thread_idx (thread_root_id=?)');
   });

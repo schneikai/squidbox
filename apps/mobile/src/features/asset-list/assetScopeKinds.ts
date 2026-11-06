@@ -1,7 +1,19 @@
-/** An asset query's id scope (assetQuery's `{ albumId }`, …) by its kind in the asset screen's URL. */
-const assetScopeKinds = { album: 'albumId', post: 'postId', asset: 'assetId', contact: 'contactId' } as const;
+import type { AssetQueryScope } from '@/sync/assetSql';
 
-export type AssetScopeKind = keyof typeof assetScopeKinds;
-export type AssetScopeKey = (typeof assetScopeKinds)[AssetScopeKind];
+/** An asset query's scope by id: `{ albumId }`, `{ postId }`, `{ assetId }` or `{ contactId }`. */
+export type IdScope = Exclude<AssetQueryScope, string>;
 
-export default assetScopeKinds;
+type KeyOf<Scope> = Scope extends IdScope ? keyof Scope : never;
+
+/**
+ * Each id scope's kind in the asset screen's `scope` URL param, by its key (`satisfies` keeps it
+ * whole): the one map assetScopeToParam and assetScopeFromParam read.
+ */
+const ASSET_SCOPE_KINDS = {
+  albumId: 'album',
+  postId: 'post',
+  assetId: 'asset',
+  contactId: 'contact',
+} as const satisfies Record<KeyOf<IdScope>, string>;
+
+export default ASSET_SCOPE_KINDS;

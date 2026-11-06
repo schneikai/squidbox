@@ -3,13 +3,14 @@ import type { ComponentProps } from 'react';
 import PostRowCard from './PostRowCard';
 
 import Text from '@/components/Text';
-import type { AssetRow, PostRow } from '@/sync/db/schema';
+import type { PostWithAssets } from '@/features/post-list/postQuery';
+import type { AssetRow } from '@/sync/db/schema';
 import isPresent from '@/utils/isPresent';
 
 type PostRowCardProps = ComponentProps<typeof PostRowCard>;
 
 type ThreadPostProps = {
-  post: Pick<PostRow, 'text'> & { postAssets: { asset: AssetRow }[] };
+  post: Pick<PostWithAssets, 'text' | 'postAssets'>;
   onOpenAsset?: (asset: AssetRow) => void;
   isTextSelectable?: boolean;
   entering?: PostRowCardProps['entering'];

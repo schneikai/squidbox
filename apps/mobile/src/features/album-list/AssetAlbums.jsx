@@ -4,10 +4,9 @@ import { Text } from 'react-native';
 import ThumbnailRow from '@/components/ThumbnailRow';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
+import unguarded from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
-
-const identity = (onPress) => onPress;
 
 /**
  * The albums of `scope` (`{ assetIds }`: holding any of the assets; `{ contactId }`: a contact is
@@ -23,7 +22,7 @@ const identity = (onPress) => onPress;
  * @param {(onPress: () => void) => () => void} [props.guardPress]
  * @param {boolean} [props.isLive]
  */
-export default function AssetAlbums({ scope, emptyText, guardPress = identity, isLive }) {
+export default function AssetAlbums({ scope, emptyText, guardPress = unguarded, isLive }) {
   const albums = useAssetAlbums(scope, { isLive });
 
   if (!albums) return null;

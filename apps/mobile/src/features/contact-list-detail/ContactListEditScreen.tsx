@@ -20,7 +20,7 @@ import noteText from '@/utils/noteText';
 // sends only what changed, so an edit another device made meanwhile to the other field is kept.
 export default function ContactListEditScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
-  const list = useLiveRecord<schema.ContactListRow>(schema.contactLists, listId);
+  const list = useLiveRecord(schema.contactLists, listId);
   useCloseWhenGone(list, 'This list was deleted');
 
   if (!list) return null;

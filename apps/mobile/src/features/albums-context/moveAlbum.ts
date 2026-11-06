@@ -1,8 +1,8 @@
-import { type AlbumRecord, movePositions, positionsInOrder } from '@squidbox/shared';
+import { movePositions, positionsInOrder } from '@squidbox/shared';
 
 import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrder';
 import type { AppDb } from '@/sync/db/driver';
-import type { AlbumRow } from '@/sync/db/schema';
+import type { AlbumRow, albums } from '@/sync/db/schema';
 import type { makeRepository } from '@/sync/repository';
 
 // A drop in the albums list: under Custom (the default) only where it landed; under another sort also
@@ -11,7 +11,7 @@ export type AlbumMove = { id: string; afterId: string | null } & (
   { sort?: 'custom'; order?: undefined } | { sort: string; order: string[] }
 );
 
-type AlbumsRepository = Pick<ReturnType<typeof makeRepository<AlbumRecord>>, 'updateMany'>;
+type AlbumsRepository = Pick<ReturnType<typeof makeRepository<typeof albums>>, 'updateMany'>;
 
 /**
  * Puts album `id` right after album `afterId` (`null`: first) in the albums' custom order as the
