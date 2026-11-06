@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import readPost from '@/features/post-list/readPost';
 import PostEditor from '@/features/posts/PostEditor';
@@ -14,9 +14,11 @@ import buildPostAssets from '@/utils/posts/buildPostAssets';
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
 // without its thread). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
 // marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
-// would add the post again.
+// would add the post again. Added from the New post sheet, the post closes that sheet too: the user
+// lands on the posts list with the new post, not back on what to post next.
 export default function AddPostScreen() {
   const { rePostId, assetIds } = useLocalSearchParams();
+  const navigation = useNavigation();
   const { addPost, updatePost } = usePosts();
   const seed = useSeedOrClose(
     (db) => readSeed(db, { rePostId, assetIds: assetIds && listParam(assetIds) }),
@@ -26,17 +28,27 @@ export default function AddPostScreen() {
 
   async function handleAddPost(data) {
     await addPost({ ...data, rePostId });
-    if (!rePostId) return;
-    try {
-      await updatePost(rePostId, { hasBeenReposted: true });
-    } catch (error) {
-      console.error("Couldn't mark the post as reposted", error);
+    if (rePostId) {
+      try {
+        await updatePost(rePostId, { hasBeenReposted: true });
+      } catch (error) {
+        console.error("Couldn't mark the post as reposted", error);
+      }
     }
+    return leaveWithNewPostSheet(navigation.getParent());
   }
 
   if (!seed) return null;
 
   return <PostEditor kind="draft" post={seed} onSave={handleAddPost} />;
+}
+
+// Closes the editor sheet and, when it was opened over the New post sheet, that sheet too (useEditSheet
+// leaves with a returned function). Otherwise undefined: the editor goes back to where it was opened.
+function leaveWithNewPostSheet(sheets) {
+  const { routes, index } = sheets.getState();
+  if (routes[index - 1]?.name !== '(new-post)') return undefined;
+  return () => sheets.pop(2);
 }
 
 async function readSeed(db, { rePostId, assetIds }) {
