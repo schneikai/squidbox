@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import editTagsAsync from './editTagsAsync';
 
 import useHaptics from '@/hooks/useHaptics';
+import type { AssetRow } from '@/sync/db/schema';
 import tagsDifference from '@/utils/tagsDifference';
 
 /**
@@ -11,14 +12,14 @@ import tagsDifference from '@/utils/tagsDifference';
  * difference at once (editTagsAsync). Until the live row catches up, the list shows the change; a
  * change that comes in from elsewhere (a sync, Tag again) shows as it lands.
  */
-export default function usePhotoTagsEdit(asset) {
+export default function usePhotoTagsEdit(asset: Pick<AssetRow, 'id' | 'tags'>) {
   const haptics = useHaptics();
   const live = asset.tags ?? [];
   const liveKey = JSON.stringify(live);
   const liveKeyRef = useRef(liveKey);
   liveKeyRef.current = liveKey;
   // What a change shows until the row holds it: `{ tags, sinceKey }`, sinceKey null while writing.
-  const [pending, setPending] = useState(null);
+  const [pending, setPending] = useState<{ tags: string[]; sinceKey: string | null } | null>(null);
   const writing = useRef(0);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function usePhotoTagsEdit(asset) {
 
   const tags = pending?.tags ?? live;
 
-  function change(next) {
+  function change(next: string[]) {
     const edit = tagsDifference(tags, next);
     if (edit.add.length === 0 && edit.remove.length === 0) return;
     const startKey = liveKeyRef.current;

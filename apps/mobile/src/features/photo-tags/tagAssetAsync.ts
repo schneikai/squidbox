@@ -1,5 +1,7 @@
-import tagAssetFileAsync from './tagAssetFileAsync';
+import tagAssetFileAsync, { type TagDeps } from './tagAssetFileAsync';
 import tagAttempts from './tagAttempts';
+
+import type { VisionAsset } from '@/utils/assets/readVisionImageAsync';
 
 /**
  * Tags the asset (POST /ai/tags on its thumbnail; a video's is its frame) and stores the tags on it,
@@ -9,7 +11,11 @@ import tagAttempts from './tagAttempts';
  * Once started it runs to its end and lands on the row, whoever still waits for it. `deps` are
  * readVisionImageAsync's (useVisionImageDeps).
  */
-export default function tagAssetAsync(asset, deps, { before } = {}) {
+export default function tagAssetAsync(
+  asset: VisionAsset,
+  deps: TagDeps,
+  { before }: { before?: () => Promise<unknown> } = {},
+): Promise<string[]> {
   return tagAttempts.run(asset.id, async () => {
     await before?.();
     return tagAssetFileAsync(asset, deps);

@@ -1,4 +1,4 @@
-import editedTags from './editedTags';
+import editedTags, { type TagsEdit } from './editedTags';
 
 import { setTags } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
@@ -9,7 +9,7 @@ import { requestSync } from '@/sync/worker';
  * inside the write (setTags), so an edit never undoes another stored meanwhile; an edit that leaves
  * them as they were writes nothing. Then syncs.
  */
-export default async function editTagsAsync(id, edit) {
+export default async function editTagsAsync(id: string, edit: TagsEdit): Promise<void> {
   await setTags(getDb(), id, (stored) => editedTags(stored, edit));
   requestSync();
 }

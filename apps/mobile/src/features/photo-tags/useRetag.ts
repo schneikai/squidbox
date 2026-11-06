@@ -5,6 +5,7 @@ import tagAttempts from './tagAttempts';
 
 import useHaptics from '@/hooks/useHaptics';
 import useVisionImageDeps from '@/hooks/useVisionImageDeps';
+import type { VisionAsset } from '@/utils/assets/readVisionImageAsync';
 
 /**
  * Tagging the asset anew from a screen: `retag(before)` runs `before` first (a draft's flush, say),
@@ -12,7 +13,7 @@ import useVisionImageDeps from '@/hooks/useVisionImageDeps';
  * are the asset's tagging wherever it started (tagAttempts: the chat's too). A success or a failure
  * is felt.
  */
-export default function useRetag(asset) {
+export default function useRetag(asset: VisionAsset) {
   const haptics = useHaptics();
   const deps = useVisionImageDeps();
   const attempt = useSyncExternalStore(
@@ -20,7 +21,7 @@ export default function useRetag(asset) {
     useCallback(() => tagAttempts.get()[asset.id], [asset.id]),
   );
 
-  async function retag(before) {
+  async function retag(before?: () => Promise<unknown>) {
     try {
       const tags = await tagAssetAsync(asset, deps, { before });
       haptics.success();

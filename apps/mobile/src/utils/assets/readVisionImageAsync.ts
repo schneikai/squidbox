@@ -8,6 +8,12 @@ import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThum
 import visionImage from '@/utils/assets/visionImage';
 import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
 
+// What a tagging (or the vision compare) reads of an asset.
+export type VisionAsset = Pick<
+  AssetRecord,
+  'id' | 'filename' | 'thumbnailFilename' | 'mediaType' | 'isThumbnailSynced' | 'width' | 'height'
+>;
+
 export type VisionImageDeps = AssetFileLocation &
   Pick<CloudContextValue, 'preloadAssetThumbnailsAsync'> & { signal?: AbortSignal };
 
@@ -19,10 +25,7 @@ export type VisionImageDeps = AssetFileLocation &
  * when there's none to be had.
  */
 export default async function readVisionImageAsync(
-  asset: Pick<
-    AssetRecord,
-    'id' | 'filename' | 'thumbnailFilename' | 'mediaType' | 'isThumbnailSynced' | 'width' | 'height'
-  >,
+  asset: VisionAsset,
   { library, isAuthenticated, preloadAssetThumbnailsAsync, signal }: VisionImageDeps,
 ): Promise<VisionImage> {
   const status = await getAssetThumbnailStatusAsync(asset, { isAuthenticated, library, signal });

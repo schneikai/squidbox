@@ -1,16 +1,22 @@
 import createStore from '@/lib/createStore';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// The taggings under way and the ones that failed in this app run, by asset id: `{ status: 'loading'
-// | 'error', error, promise }`; a tagging that landed leaves (its tags are on the row). Every tagging
-// goes through here (tagAssetAsync), so every screen shows one started anywhere.
-const attempts = createStore({});
+// A tagging under way or failed; every tagging resolves to the stored tags (tagAssetFileAsync's).
+export type TagAttempt = { status: 'loading' | 'error'; error: string | null; promise: Promise<string[]> };
+
+// By asset id; none for a photo with no attempt.
+export type TagAttempts = Partial<Record<string, TagAttempt>>;
+
+// The taggings under way and the ones that failed in this app run, by asset id; a tagging that
+// landed leaves (its tags are on the row). Every tagging goes through here (tagAssetAsync), so every
+// screen shows one started anywhere.
+const attempts = createStore<TagAttempts>({});
 // The photos tagged in this app run, whatever came of it: a photo is tagged by itself once, one
 // whose tagging failed waits for a retry, and one that was tagged isn't "not tagged" while its row
 // catches up.
-const ran = new Set();
+const ran = new Set<string>();
 
-function setAttempt(id, attempt) {
+function setAttempt(id: string, attempt: TagAttempt | null) {
   attempts.set((current) => {
     const { [id]: _dropped, ...rest } = current;
     return attempt ? { ...rest, [id]: attempt } : rest;
@@ -21,11 +27,11 @@ function setAttempt(id, attempt) {
  * Runs `tag()` (a promise) for the photo, or joins the one under way; the result is `tag()`'s, a
  * failure staying in the attempts until the next run.
  */
-function run(id, tag) {
+function run(id: string, tag: () => Promise<string[]>): Promise<string[]> {
   const running = attempts.get()[id];
   if (running?.status === 'loading') return running.promise;
   ran.add(id);
-  const promise = new Promise((resolve) => resolve(tag())).then(
+  const promise = new Promise<string[]>((resolve) => resolve(tag())).then(
     (result) => {
       setAttempt(id, null);
       return result;
@@ -40,7 +46,7 @@ function run(id, tag) {
 }
 
 /** Runs `tag()` for the photo unless it was tagged before in this app run. */
-function once(id, tag) {
+function once(id: string, tag: () => Promise<string[]>): void {
   if (ran.has(id)) return;
   run(id, tag).catch(() => {});
 }
@@ -55,7 +61,7 @@ const tagAttempts = {
   once,
   get: attempts.get,
   subscribe: attempts.subscribe,
-  hasRun: (id) => ran.has(id),
+  hasRun: (id: string) => ran.has(id),
 };
 
 export default tagAttempts;

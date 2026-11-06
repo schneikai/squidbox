@@ -2,13 +2,18 @@ import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 
 import usePhotoTagsEdit from './usePhotoTagsEdit';
 
-import TagsField from '@/components/TagsField';
+import TagsField, { type TagsFieldProps } from '@/components/TagsField';
+import type { AssetRow } from '@/sync/db/schema';
+
+export type PhotoTagsFieldProps = { asset: Pick<AssetRow, 'id' | 'tags'> } & Required<
+  Pick<TagsFieldProps, 'placeholder' | 'disabled' | 'guardPress'>
+>;
 
 /**
  * The tags of `asset` (its live row), edited in place (usePhotoTagsEdit): a tap on a chip takes it
  * off, Add adds one. `disabled` while a tagging runs; `guardPress`, TagsField's.
  */
-export default function PhotoTagsField({ asset, placeholder, disabled, guardPress }) {
+export default function PhotoTagsField({ asset, placeholder, disabled, guardPress }: PhotoTagsFieldProps) {
   const { tags, change } = usePhotoTagsEdit(asset);
   return (
     <TagsField

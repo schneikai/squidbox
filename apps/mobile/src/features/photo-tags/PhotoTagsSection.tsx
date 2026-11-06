@@ -4,9 +4,13 @@ import PhotoTagsField from './PhotoTagsField';
 import useRetag from './useRetag';
 
 import Button from '@/components/Button';
+import type { TagsFieldProps } from '@/components/TagsField';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import { space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import type { AssetRow } from '@/sync/db/schema';
+
+export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: NonNullable<TagsFieldProps['guardPress']> };
 
 /**
  * The tags the assistant sees in the asset, in its details, edited in place (PhotoTagsField: a tap
@@ -15,7 +19,7 @@ import listTextStyles from '@/styles/listTextStyles';
  * yet" with Tag it instead. `guardPress` (useDetailsPanelDrag's) keeps a touch that dragged the panel
  * from pressing a chip or a button. It never tags by itself.
  */
-export default function PhotoTagsSection({ asset, guardPress }) {
+export default function PhotoTagsSection({ asset, guardPress }: PhotoTagsSectionProps) {
   const isAssistantAvailable = useIsAssistantAvailable();
   const { retag, isRunning, error } = useRetag(asset);
 
