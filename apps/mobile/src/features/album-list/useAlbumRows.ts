@@ -1,5 +1,5 @@
 import { MIN_REREAD_INTERVAL } from '@/constants';
-import albumQuery from '@/features/album-list/albumQuery';
+import albumQuery, { type AlbumListRow, type AlbumQueryScope } from '@/features/album-list/albumQuery';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import { useLiveQueryState } from '@/sync/useLiveQuery';
 
@@ -7,7 +7,10 @@ import { useLiveQueryState } from '@/sync/useLiveQuery';
  * The albums of `scope` with their stats, live (albumQuery; `options`: useLiveQuery's `isLive`):
  * `rows` (`undefined` until read) and their `readAt`.
  */
-export default function useAlbumRows(scope, { isLive } = {}) {
+export default function useAlbumRows(
+  scope: AlbumQueryScope,
+  { isLive }: { isLive?: boolean } = {},
+): { rows: AlbumListRow[] | undefined; readAt: number } {
   const { albumSortOrders } = useAppSettings();
   // Only the ids the query reads, so another album sort change doesn't re-read the albums.
   const oldestFirstIds = Object.keys(albumSortOrders)

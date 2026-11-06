@@ -4,12 +4,16 @@ import { useLiveQuery } from './useLiveQuery';
 
 /**
  * One record of `table`, live: `undefined` until read, `null` when it doesn't exist or was deleted.
- * After a change of `id` it is `undefined` again until that record is read, not the previous one's.
+ * After a change of `id` it is `undefined` again until that record is read, not the previous one's;
+ * an `undefined` id (nothing to show yet) is `null`.
  */
-export function useLiveRecord<T extends CollectionTable>(table: T, id: string): RowOf<T> | null | undefined {
+export function useLiveRecord<T extends CollectionTable>(
+  table: T,
+  id: string | undefined,
+): RowOf<T> | null | undefined {
   const result = useLiveQuery(
     async (db) => {
-      const [record] = await readByIds(db, table, [id]);
+      const [record] = await readByIds(db, table, id === undefined ? [] : [id]);
       return { id, record: record && !record.deletedAt ? record : null };
     },
     [table],

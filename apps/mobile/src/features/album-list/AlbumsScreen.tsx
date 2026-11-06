@@ -7,12 +7,16 @@ import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
+import type { ReorderChange } from '@/components/sortable-grid/useDragReorder';
+import type { AlbumListProps } from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
 import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
+import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
+import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useListControls from '@/hooks/useListControls';
@@ -24,13 +28,15 @@ export default function AlbumsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
-  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({ onSort: sortAlbums });
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
+    onSort: sortAlbums,
+  });
 
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { albums, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
 
-  const renderItem = useCallback(
+  const renderItem = useCallback<AlbumListProps['renderItem']>(
     ({ album, elementWidth }) => (
       <SuperPressable
         onPress={() => router.navigate(`/album/${album.id}`)}
@@ -46,7 +52,7 @@ export default function AlbumsScreen() {
   const reorderEnabled = activeFilter.length === 0 && !searchText.trim();
 
   // A drag under another sort makes the order on screen the custom one (reorderUnderSort).
-  function handleReorder(change) {
+  function handleReorder(change: ReorderChange) {
     return reorderUnderSort(change, {
       sortOrder,
       setSortOrder: sortAlbums,

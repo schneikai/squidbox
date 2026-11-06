@@ -5,10 +5,13 @@ import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAlbums from '@/features/albums-context/useAlbums';
+import type { AlbumRow } from '@/sync/db/schema';
 import confirmAsync from '@/utils/confirmAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
-export default function MoreAction({ album, afterDelete, onSelect }) {
+type MoreActionProps = { album: AlbumRow; afterDelete?: () => void; onSelect?: () => void };
+
+export default function MoreAction({ album, afterDelete, onSelect }: MoreActionProps) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
 
   async function handleDeleteAlbum() {

@@ -7,7 +7,7 @@ import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 
 export default function AlbumScreen() {
-  const { albumId } = useLocalSearchParams();
+  const { albumId } = useLocalSearchParams<{ albumId: string }>();
   const album = useAlbum(albumId);
   useCloseWhenGone(album, 'This album was deleted');
 

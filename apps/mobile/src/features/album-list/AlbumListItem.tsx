@@ -5,13 +5,16 @@ import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import Text from '@/components/Text';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
+import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import cornerStyles from '@/styles/cornerStyles';
 import { layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
+type AlbumListItemProps = { album: AlbumListRow; elementWidth: number; showLastPostedAt: boolean };
+
 // `album` is an albumQuery row: it carries its cover and stats.
-export default function AlbumListItem({ album, elementWidth, showLastPostedAt }) {
+export default function AlbumListItem({ album, elementWidth, showLastPostedAt }: AlbumListItemProps) {
   return (
     <View testID="album-tile" style={{ width: elementWidth }}>
       <CoverImage asset={album.cover} style={{ height: elementWidth }}>

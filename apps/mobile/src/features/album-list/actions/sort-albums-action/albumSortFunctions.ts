@@ -1,6 +1,18 @@
 import sortAlbumsByCustomOrder from './sortAlbumsByCustomOrder';
 import sortAlbumsByLastPostedDesc from './sortAlbumsByLastPostedDesc';
 
+import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import isOneOf from '@/lib/isOneOf';
+
+const ALBUM_SORTS = ['custom', 'createdAt:asc', 'createdAt:desc', 'lastPostedAt:asc', 'lastPostedAt:desc'] as const;
+
+export type AlbumSort = (typeof ALBUM_SORTS)[number];
+
+export const isAlbumSort = isOneOf(ALBUM_SORTS);
+
+type SortableAlbum = Pick<AlbumListRow, 'id' | 'position' | 'createdAt' | 'lastPostedAt'>;
+type AlbumCompare = (a: SortableAlbum, b: SortableAlbum) => number;
+
 // The albums list's compare functions, by sort order key.
 export default {
   custom: sortAlbumsByCustomOrder,
@@ -24,4 +36,4 @@ export default {
     return a.lastPostedAt - b.lastPostedAt;
   },
   'lastPostedAt:desc': sortAlbumsByLastPostedDesc,
-};
+} satisfies Record<AlbumSort, AlbumCompare>;

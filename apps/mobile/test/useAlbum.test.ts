@@ -34,7 +34,7 @@ describe('useAlbum', () => {
       makeAlbumRecord({ id: 'gone', deletedAt: 5 }),
     ]);
     liveQuery.mockReturnValue(undefined);
-    const readOf = (albumId: string) => {
+    const readOf = (albumId: string | undefined) => {
       renderUseAlbum(albumId);
       return liveQuery.mock.lastCall![0](db);
     };
@@ -42,6 +42,7 @@ describe('useAlbum', () => {
     expect(await readOf('live')).toEqual({ id: 'live', record: expect.objectContaining({ name: 'Beach' }) });
     expect(await readOf('gone')).toEqual({ id: 'gone', record: null });
     expect(await readOf('missing')).toEqual({ id: 'missing', record: null });
+    expect(await readOf(undefined)).toEqual({ id: undefined, record: null });
   });
 
   it("is undefined until its album is read, not the previous album's", () => {

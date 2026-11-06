@@ -3,10 +3,13 @@ import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
+import type { AlbumSubsetScope } from '@/features/album-list/albumQuery';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
-import unguarded from '@/lib/unguarded';
+import unguarded, { type GuardPress } from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
+
+type AssetAlbumsProps = { scope: AlbumSubsetScope; emptyText: string; guardPress?: GuardPress; isLive?: boolean };
 
 /**
  * The albums of `scope` (`{ assetIds }`: holding any of the assets; `{ contactId }`: a contact is
@@ -15,14 +18,7 @@ import pluralizeText from '@/utils/pluralizeText';
  * `guardPress` may wrap the rows' presses (useDetailsPanelDrag's); `isLive: false` reads them once
  * (useLiveQuery's).
  */
-/**
- * @param {object} props
- * @param {{ assetIds: string[] } | { contactId: string }} props.scope
- * @param {string} props.emptyText
- * @param {(onPress: () => void) => () => void} [props.guardPress]
- * @param {boolean} [props.isLive]
- */
-export default function AssetAlbums({ scope, emptyText, guardPress = unguarded, isLive }) {
+export default function AssetAlbums({ scope, emptyText, guardPress = unguarded, isLive }: AssetAlbumsProps) {
   const albums = useAssetAlbums(scope, { isLive });
 
   if (!albums) return null;

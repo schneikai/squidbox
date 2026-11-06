@@ -13,12 +13,15 @@ import useAssetCells from '@/features/asset-list/useAssetCells';
 import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { getDb } from '@/sync/db/client';
+import type { AlbumRow } from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
 const query = assetQuery({ scope: 'deleted' });
 
-export default function AlbumScreenComponentForDeletedAssets({ album }) {
+type DeletedAssetsAlbumProps = { album: AlbumRow };
+
+export default function DeletedAssetsAlbum({ album }: DeletedAssetsAlbumProps) {
   const { restore, deletePermanently } = useDeletedAssetsActions();
   const navigation = useNavigation();
   const { paddingTop } = useScreenPadding('detail');
@@ -30,7 +33,7 @@ export default function AlbumScreenComponentForDeletedAssets({ album }) {
 
   // Select mode acts on the selection, otherwise on every deleted asset.
   const targetCount = isSelectMode ? selectedAssetIds.length : (count ?? 0);
-  const targetIds = () => (isSelectMode ? selectedAssetIds : query.ids(getDb()));
+  const targetIds = isSelectMode ? selectedAssetIds : () => query.ids(getDb());
 
   function handleRestoreAssets() {
     const message = isSelectMode

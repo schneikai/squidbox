@@ -10,27 +10,33 @@ import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
+import type { SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
+import type { SortOption } from '@/components/floating-bars/SortFilterMenu';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
+import type { ReorderChange } from '@/components/sortable-grid/useDragReorder';
 import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
 import useAlbums from '@/features/albums-context/useAlbums';
+import type { AppSettings } from '@/features/app-settings/appSettingsDefaults';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import SelectionActions from '@/features/asset-list/SelectionActions';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import assetQuery from '@/features/asset-list/assetQuery';
+import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { press, space } from '@/styles/designTokens';
+import type { AssetSort } from '@/sync/assetSql';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
+import type { AlbumRow } from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
@@ -39,14 +45,18 @@ import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 import pluralizeText from '@/utils/pluralizeText';
 
-const TABS = [
+type AlbumTab = 'Assets' | 'Posts';
+
+const TABS: SegmentedPillItem<AlbumTab>[] = [
   { key: 'Assets', icon: 'grid', label: 'Assets' },
   { key: 'Posts', icon: 'share-alt', label: 'Posts' },
 ];
 
-const ALBUM_SORT_OPTIONS = [...assetSortOptions, { key: 'custom', label: 'Custom order' }];
+const ALBUM_SORT_OPTIONS: SortOption<AssetSort>[] = [...assetSortOptions, { key: 'custom', label: 'Custom order' }];
 
-export default function Album({ album }) {
+type AlbumProps = { album: AlbumRow };
+
+export default function Album({ album }: AlbumProps) {
   const { setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrders, setAlbumSortOrders } = useAppSettings();
@@ -54,16 +64,18 @@ export default function Album({ album }) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { showActionSheetWithOptions } = useActionSheet();
 
-  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({ onSort: applySort });
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AssetSort, AssetFilter>({
+    onSort: applySort,
+  });
   const runWithProgress = useRunWithProgress();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, selectAssets } = selection;
   // The sort picked on this screen (or a drop's switch to Custom order) wins while it is open, so it
   // shows at once rather than when the synced Custom order flag catches up.
-  const [sessionSortOrder, setSessionSortOrder] = useState(null);
+  const [sessionSortOrder, setSessionSortOrder] = useState<AssetSort | null>(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrders);
-  const [activeTab, setActiveTab] = useState('Assets');
-  const [postCount, setPostCount] = useState();
+  const [activeTab, setActiveTab] = useState<AlbumTab>('Assets');
+  const [postCount, setPostCount] = useState<number>();
   const expandProgress = useSharedValue(0);
 
   const query = assetQuery({
@@ -89,7 +101,7 @@ export default function Album({ album }) {
 
   // Custom order is flagged on the album (synced); a date sort is remembered for the album on this
   // device and takes it off Custom order (its edge positions, the custom order, are kept for later).
-  function applySort(order) {
+  function applySort(order: AssetSort) {
     if (order === 'custom') {
       updateAlbum(album.id, { sortOrder: 'custom' });
     } else {
@@ -103,7 +115,7 @@ export default function Album({ album }) {
   // A drag under another sort adopts the order on screen and switches the album to Custom
   // (reorderUnderSort); the loaded grid keeps its depth, so no scroll-to-top. A failed write goes back
   // to the sort it was made on.
-  function handleReorder(change) {
+  function handleReorder(change: ReorderChange) {
     return reorderUnderSort(change, {
       sortOrder,
       setSortOrder: (order) => {
@@ -129,7 +141,7 @@ export default function Album({ album }) {
         cancelButtonIndex: 2,
         title: `${getAssetCountInfo(counts).toLowerCase()} selected`,
       },
-      (index) => {
+      (index?: number) => {
         if (index === 2) return;
         exitSelectMode();
         runWithProgress((batchOptions) =>
@@ -243,7 +255,7 @@ export default function Album({ album }) {
 }
 
 // Only sorts other than the default Newest first are kept.
-function withAlbumSortOrder(albumSortOrders, albumId, order) {
+function withAlbumSortOrder(albumSortOrders: AppSettings['albumSortOrders'], albumId: string, order: AssetSort) {
   const { [albumId]: _previous, ...others } = albumSortOrders;
   return order === 'createdAt:desc' ? others : { ...others, [albumId]: order };
 }

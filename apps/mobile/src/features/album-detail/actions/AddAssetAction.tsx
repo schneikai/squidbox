@@ -1,8 +1,11 @@
 import Button from '@/components/Button';
 import useAlbums from '@/features/albums-context/useAlbums';
 import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
+import type { AlbumRow } from '@/sync/db/schema';
 
-export default function AddAssetAction({ album }) {
+type AddAssetActionProps = { album: AlbumRow };
+
+export default function AddAssetAction({ album }: AddAssetActionProps) {
   const { addAssetsToAlbum } = useAlbums();
 
   return (

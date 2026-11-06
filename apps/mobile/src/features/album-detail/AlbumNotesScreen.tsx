@@ -7,7 +7,7 @@ import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 
 // An album's notes as a draft sheet, saved on Save (an asset's are edited in its details, AssetNote).
 export default function AlbumNotesScreen() {
-  const { albumId } = useLocalSearchParams();
+  const { albumId } = useLocalSearchParams<{ albumId: string }>();
   const album = useAlbum(albumId);
   const { updateAlbum } = useAlbums();
   useCloseWhenGone(album, 'This album was deleted');
