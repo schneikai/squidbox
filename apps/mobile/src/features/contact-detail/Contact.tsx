@@ -1,7 +1,7 @@
 import { CONTACT_LIMITS } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import ContactAvatarPicker from './ContactAvatarPicker';
 import ContactMenu from './ContactMenu';
@@ -23,6 +23,7 @@ import Button from '@/components/Button';
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import Text from '@/components/Text';
 import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
@@ -33,7 +34,7 @@ import useContacts from '@/features/contacts-context/useContacts';
 import PostRows from '@/features/post-list/PostRows';
 import useHaptics from '@/hooks/useHaptics';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
-import { colors, typography } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
@@ -136,7 +137,9 @@ export default function Contact({ contact }: ContactProps) {
           maxLength={CONTACT_LIMITS.name}
           style={styles.name}
         />
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text variant="status" style={styles.subtitle}>
+          {subtitle}
+        </Text>
 
         <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.handles} />
 
@@ -193,15 +196,13 @@ function usePhotos(scope: { contactId: string }) {
 
 const styles = StyleSheet.create({
   name: {
-    marginTop: 14,
+    marginTop: space.lg,
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: space.xs,
     textAlign: 'center',
-    fontSize: typography.subheadline,
-    color: colors.text.secondary,
   },
   handles: {
-    marginTop: 22,
+    marginTop: layout.sectionGap,
   },
 });

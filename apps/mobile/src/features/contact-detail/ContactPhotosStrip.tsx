@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import CoverImage from '@/components/CoverImage';
 import type { CoverImageProps } from '@/components/CoverImage';
 import assetHref, { type AssetHrefScope } from '@/features/asset-list/assetHref';
-import { press, scale } from '@/styles/designTokens';
+import { press, scale, space } from '@/styles/designTokens';
 
 const SIZE = scale(84);
 
@@ -31,7 +31,7 @@ export default function ContactPhotosStrip({ assets, scope }: ContactPhotosStrip
 
 const styles = StyleSheet.create({
   row: {
-    gap: 8,
+    gap: space.sm,
   },
   thumbnail: {
     width: SIZE,

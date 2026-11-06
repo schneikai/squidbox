@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { type RefObject, useCallback } from 'react';
-import { type FlatList, type ListRenderItemInfo, StyleSheet, Text } from 'react-native';
+import { type FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ContactListMenu from './ContactListMenu';
@@ -8,6 +8,7 @@ import ContactListMenu from './ContactListMenu';
 import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
+import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import ContactRow from '@/features/contact-list/ContactRow';
@@ -16,7 +17,7 @@ import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { colors, layout, typography } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import type * as schema from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
@@ -45,7 +46,11 @@ export default function ContactList({ list }: ContactListProps) {
     [lastIndex],
   );
 
-  const header = list.notes ? <Text style={styles.description}>{list.notes}</Text> : undefined;
+  const header = list.notes ? (
+    <Text variant="status" style={styles.description}>
+      {list.notes}
+    </Text>
+  ) : undefined;
 
   return (
     <Page>
@@ -101,11 +106,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.sideGutter,
   },
   description: {
-    paddingHorizontal: 6,
-    paddingTop: 10,
-    paddingBottom: 16,
-    fontSize: typography.subheadline,
-    lineHeight: 21,
-    color: colors.text.secondary,
+    paddingHorizontal: layout.rowInset, // over the rows' text, as the section headers are
+    paddingTop: space.md,
+    paddingBottom: space.lg,
   },
 });

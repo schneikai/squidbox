@@ -27,6 +27,7 @@ import useContactRows from '@/features/contact-list/useContactRows';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
+import { space } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 const EMPTY_DRAFT = contactDraft();
@@ -132,6 +133,6 @@ export default function NewContactScreen() {
 const styles = StyleSheet.create({
   // More room above the photo than the sheet's gap, so the quick adds read as their own group.
   photo: {
-    marginTop: 8,
+    marginTop: space.sm,
   },
 });

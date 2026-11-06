@@ -4,7 +4,7 @@ import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar, { type ContactAvatarProps } from '@/features/contact-avatar/ContactAvatar';
-import { colors, press, scale, shadows, sizes } from '@/styles/designTokens';
+import { colors, press, scale, shadows, sizes, space } from '@/styles/designTokens';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 const CAMERA_DISC = scale(38);
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   },
   // Its own padding leaves the touch room; it sits close under the photo.
   link: {
-    marginTop: -6,
+    marginTop: -space.sm,
   },
   placeholder: {
     width: PLACEHOLDER,
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
   },
   camera: {
     position: 'absolute',
-    right: -2,
-    bottom: -2,
+    right: -space.hair,
+    bottom: -space.hair,
     width: CAMERA_DISC,
     height: CAMERA_DISC,
     borderRadius: CAMERA_DISC / 2,

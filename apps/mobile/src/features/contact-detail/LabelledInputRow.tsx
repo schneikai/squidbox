@@ -2,14 +2,14 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import TextInput, { type TextInputProps } from '@/components/TextInput';
-import { colors, layout, scale, typography } from '@/styles/designTokens';
+import { colors, layout, scale, sizes, space, textStyles } from '@/styles/designTokens';
 
 // Wide enough for "OnlyFans" and "Country"; a larger text size widens it instead of clipping.
 const LABEL_WIDTH = scale(84);
-const GAP = 12;
+const GAP = space.md;
 
 /** Where a row's text starts, from the card's left edge: what sits under the text lines up there. */
-export const LABELLED_INPUT_TEXT_INSET = layout.sideGutter + LABEL_WIDTH + GAP;
+export const LABELLED_INPUT_TEXT_INSET = layout.rowInset + LABEL_WIDTH + GAP;
 
 /**
  * A row of a card with its label on the left and its text on the right (HandleField,
@@ -44,19 +44,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: GAP,
     minHeight: scale(52),
-    paddingHorizontal: layout.sideGutter,
+    paddingHorizontal: layout.rowInset,
   },
+  // The button's glyph ends rowInset from the edge, as a trailing icon's does.
   endsWithButton: {
-    paddingRight: 4,
+    paddingRight: layout.rowInset - (sizes.iconButton - sizes.icon) / 2,
   },
   label: {
     minWidth: LABEL_WIDTH,
-    fontSize: typography.body,
+    ...textStyles.body,
     color: colors.text.primary,
   },
   input: {
     flex: 1,
     minWidth: 0, // a web input is as wide as its text box otherwise, which pushes the button out
-    paddingVertical: 14,
+    paddingVertical: space.lg,
   },
 });

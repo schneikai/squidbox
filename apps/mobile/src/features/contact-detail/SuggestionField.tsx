@@ -6,7 +6,7 @@ import LabelledInputRow, { LABELLED_INPUT_TEXT_INSET } from './LabelledInputRow'
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import type { TextInputProps } from '@/components/TextInput';
-import { layout } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 const MAX_SHOWN = 5;
 
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   // Under the text, where it starts.
   suggestions: {
     paddingLeft: LABELLED_INPUT_TEXT_INSET,
-    paddingRight: layout.sideGutter,
-    paddingBottom: 12,
+    paddingRight: layout.rowInset,
+    paddingBottom: space.md,
   },
 });

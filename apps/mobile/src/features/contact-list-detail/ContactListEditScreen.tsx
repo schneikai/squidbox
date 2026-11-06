@@ -9,7 +9,7 @@ import TextInput from '@/components/TextInput';
 import useContacts from '@/features/contacts-context/useContacts';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useEditSheet from '@/hooks/useEditSheet';
-import { scale } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useLiveRecord } from '@/sync/useLiveRecord';
 import changedValues from '@/utils/changedValues';
@@ -78,6 +78,6 @@ function ContactListEditor({ list }: ContactListEditorProps) {
 
 const styles = StyleSheet.create({
   fields: {
-    gap: 20,
+    gap: space.xl,
   },
 });

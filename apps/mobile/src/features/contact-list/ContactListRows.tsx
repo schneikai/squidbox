@@ -5,12 +5,12 @@ import type { ContactListSummary } from './contactListQuery';
 
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, sizes, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
 const STACK_SIZE = sizes.avatar.row;
-const OVERLAP = -scale(24);
+const OVERLAP = -space.xxl;
 
 /**
  * The contact lists (contactListQuery's rows) in one section: each list's name and count, the
@@ -77,8 +77,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moreText: {
-    fontSize: typography.footnote,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
     color: colors.text.muted,
   },
 });

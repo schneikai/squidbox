@@ -13,12 +13,15 @@ import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContacts from '@/features/contacts-context/useContacts';
 import useHaptics from '@/hooks/useHaptics';
-import { colors, layout, press, radii, sizes } from '@/styles/designTokens';
+import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 // Between the avatar and the text; the divider starts where the text does.
-const GAP = 14;
-const AVATAR_INSET = layout.sideGutter + sizes.avatar.row + GAP;
+const GAP = layout.rowLeadingGap;
+const AVATAR_INSET = layout.rowInset + sizes.avatar.row + GAP;
+// The row's inset at its end, outside the press area: a trailing 44 pt button's glyph ends rowInset
+// from the edge, and so does the text, with the press area's own padding.
+const END_INSET = layout.rowInset - (sizes.iconButton - sizes.icon) / 2;
 
 /**
  * A contact in a list of contacts: its avatar (with the favorite's heart), name and "place ·
@@ -118,22 +121,22 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 6,
+    paddingRight: END_INSET,
   },
   pressable: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: GAP,
-    paddingLeft: layout.sideGutter,
-    paddingRight: 10,
-    paddingVertical: 12,
+    paddingLeft: layout.rowInset,
+    paddingRight: layout.rowInset - END_INSET,
+    paddingVertical: layout.rowPaddingYCompact,
   },
   labels: {
     flex: 1,
   },
   indicator: {
-    marginRight: 6,
+    marginRight: space.xs,
   },
   divider: {
     marginLeft: AVATAR_INSET,

@@ -6,10 +6,8 @@ import Divider from '@/components/Divider';
 import Icon, { type IconName } from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
 import AddRow from '@/components/settings-list/AddRow';
-import { colors, layout, press, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, press, scale, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-
-const ICON_GAP = 12;
 
 type IconRow = {
   key: string;
@@ -83,29 +81,27 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ICON_GAP,
-    paddingHorizontal: layout.sideGutter,
+    gap: layout.rowLeadingGap,
+    paddingHorizontal: layout.rowInset,
   },
   oneLine: {
     minHeight: scale(52),
   },
   twoLine: {
     minHeight: scale(60),
-    paddingVertical: 8,
+    paddingVertical: space.sm,
   },
-  // A button sits in a 44 pt slot, so the row's right inset is smaller than its left.
+  // A button sits in a 44 pt slot, so the row's right inset is smaller than its left: its glyph
+  // ends rowInset from the edge.
   withButton: {
-    paddingRight: 4,
+    paddingRight: layout.rowInset - (sizes.iconButton - sizes.icon) / 2,
   },
   labels: {
     flex: 1,
   },
-  title: {
-    fontSize: typography.body,
-    color: colors.text.primary,
-  },
+  title: listTextStyles.title,
   // Under every row, the line starts at the text, the one above the add row too.
   divider: {
-    marginLeft: layout.sideGutter + sizes.icon + ICON_GAP,
+    marginLeft: layout.rowInset + sizes.icon + layout.rowLeadingGap,
   },
 });

@@ -1,6 +1,6 @@
 import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS, type ContactFromScreenshotResponse } from '@squidbox/shared';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import QuickAddCard from './QuickAddCard';
 import contactFromScreenshotAsync from './contactFromScreenshotAsync';
@@ -10,9 +10,10 @@ import useNewContactDraft from './useNewContactDraft';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
+import Text from '@/components/Text';
 import { type ContactDraft, handleText, storedPlace } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
-import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
+import { colors, layout, scale } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The draft fields a screenshot's reading fills, from what it read: only what it found, within the
@@ -96,7 +97,9 @@ export default function QuickAddBar() {
         <Card style={styles.note}>
           {/* The same sparkle as on the fields it filled, so the note points at them. */}
           <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />
-          <Text style={styles.noteText}>Filled from your screenshot. Check the marked fields.</Text>
+          <Text size="small" style={styles.noteText}>
+            Filled from your screenshot. Check the marked fields.
+          </Text>
           <Button label="Undo" size="small" onPress={undoFill} />
         </Card>
       )}
@@ -107,23 +110,21 @@ export default function QuickAddBar() {
 const styles = StyleSheet.create({
   // The sheet's own gap between its parts, so the cards, the note and the cards under it sit evenly.
   bar: {
-    gap: 12,
+    gap: layout.cardGap,
   },
   cards: {
     flexDirection: 'row',
-    gap: 12,
+    gap: layout.cardGap,
   },
+  // A Note's row on the white card: its sparkle, its text and Undo.
   note: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    gap: layout.rowLeadingGap,
+    paddingVertical: layout.rowPaddingYCompact,
+    paddingHorizontal: layout.cardInset,
   },
   noteText: {
     flex: 1,
-    fontSize: typography.detail,
-    lineHeight: lineHeights.subheadline,
-    color: colors.text.primary,
   },
 });

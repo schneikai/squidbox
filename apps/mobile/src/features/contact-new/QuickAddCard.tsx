@@ -1,7 +1,8 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import Icon, { type IconName } from '@/components/Icon';
-import { colors, disabledOpacity, press, radii, scale, shadows, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors, disabledOpacity, layout, press, radii, scale, shadows } from '@/styles/designTokens';
 
 const DISC = scale(40);
 
@@ -43,7 +44,9 @@ export default function QuickAddCard({
           <Icon name={icon} size={scale(20)} color={iconColor} filled={isAssistant} />
         )}
       </View>
-      <Text style={styles.title}>{title}</Text>
+      <Text variant="title" size="small">
+        {title}
+      </Text>
     </Pressable>
   );
 }
@@ -51,8 +54,9 @@ export default function QuickAddCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    gap: 10,
-    padding: 14,
+    // A padded Card's.
+    gap: layout.cardGap,
+    padding: layout.cardInset,
     borderRadius: radii.card,
     backgroundColor: colors.background.surface,
     ...shadows.card,
@@ -70,10 +74,5 @@ const styles = StyleSheet.create({
   },
   assistantDisc: {
     backgroundColor: colors.accent.light,
-  },
-  title: {
-    fontSize: typography.callout,
-    fontWeight: '600',
-    color: colors.text.primary,
   },
 });

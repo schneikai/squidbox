@@ -1,16 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 
 import type { DuplicateMatch } from './findDuplicates';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
+import Text from '@/components/Text';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import DuplicateDot from '@/features/contact-detail/DuplicateDot';
-import { colors, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, sizes, space, textStyles } from '@/styles/designTokens';
 
-const PADDING_X = 14;
-const GAP = 12;
+const PADDING_X = layout.cardInset;
+const GAP = layout.rowLeadingGap;
 
 /**
  * "Already in your contacts": the contacts a new one may duplicate (findDuplicates), each with why
@@ -23,7 +24,9 @@ export default function DuplicatesCard({ matches, onOpen }: DuplicatesCardProps)
     <Card style={styles.card} accessibilityRole="alert">
       <View style={styles.header}>
         <DuplicateDot />
-        <Text style={styles.title}>Already in your contacts</Text>
+        <Text variant="title" size="small">
+          Already in your contacts
+        </Text>
       </View>
       {matches.map(({ contact, reason }, index) => (
         <View key={contact.id}>
@@ -31,10 +34,10 @@ export default function DuplicatesCard({ matches, onOpen }: DuplicatesCardProps)
           <View style={[styles.row, index === matches.length - 1 && styles.lastRow]}>
             <ContactAvatar contact={contact} size="compact" />
             <View style={styles.labels}>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text variant="title" size="small" numberOfLines={1}>
                 {contact.name}
               </Text>
-              <Text style={styles.reason}>{reason}</Text>
+              <RNText style={styles.reason}>{reason}</RNText>
             </View>
             <Button label="Open" size="small" onPress={() => onOpen(contact)} />
           </View>
@@ -51,25 +54,20 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: layout.iconGap,
     paddingHorizontal: PADDING_X,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  title: {
-    fontSize: typography.detail,
-    fontWeight: '600',
-    color: colors.text.primary,
+    paddingTop: layout.rowPaddingYCompact,
+    paddingBottom: space.xs,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: GAP,
     paddingHorizontal: PADDING_X,
-    paddingVertical: 8,
+    paddingVertical: space.sm,
   },
   lastRow: {
-    paddingBottom: 12,
+    paddingBottom: layout.rowPaddingYCompact,
   },
   divider: {
     marginLeft: PADDING_X + sizes.avatar.compact + GAP,
@@ -77,14 +75,10 @@ const styles = StyleSheet.create({
   labels: {
     flex: 1,
   },
-  name: {
-    fontSize: typography.subheadline,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
+  // `muted`, not a Text tone: secondary would fade on the note's yellow.
   reason: {
-    marginTop: 1,
-    fontSize: typography.footnote,
+    marginTop: space.hair,
+    ...textStyles.footnote,
     color: colors.text.muted,
   },
 });

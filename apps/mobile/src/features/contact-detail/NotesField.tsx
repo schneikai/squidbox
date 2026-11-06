@@ -1,10 +1,10 @@
 import { CONTACT_LIMITS } from '@squidbox/shared';
 
 import TextInput from '@/components/TextInput';
-import { lineHeights } from '@/styles/designTokens';
+import { lineHeights, space } from '@/styles/designTokens';
 
 // Room for three lines of a note, plus the field's padding; a longer note grows the field.
-const MIN_HEIGHT = lineHeights.reading * 3 + 24;
+const MIN_HEIGHT = lineHeights.reading * 3 + space.md * 2;
 
 /** A contact's notes as a field on its own card, three lines tall when empty. */
 type NotesFieldProps = {
