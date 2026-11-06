@@ -39,7 +39,7 @@ function VerifyPhotoRow({ uri, turn, isRunning }: VerifyPhotoRowProps) {
         <View style={styles.tags}>
           {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
           {!!turn && turn.items.length > 0 && <TagChips tags={turn.items} />}
-          {status === 'missed' && <Text variant="error">Missed: {missReason(turn)}</Text>}
+          {!!turn && status === 'missed' && <Text variant="error">Missed: {missReason(turn)}</Text>}
         </View>
       }
       size="small"

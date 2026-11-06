@@ -6,13 +6,19 @@ import usePersona from '@/hooks/usePersona';
 import useYourDefaults from '@/hooks/useYourDefaults';
 import applyAiCatalog from '@/lib/applyAiCatalog';
 import useOpenLibrary from '@/library/useOpenLibrary';
-import { addYourModel, type ModelRef, readModelList, seedYourModels } from '@/sync/aiStateRepository';
+import {
+  addYourModel,
+  type ModelListEntry,
+  type ModelRef,
+  readModelList,
+  seedYourModels,
+} from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { clearPicks, clearPicksEqualTo, pickDefault as savePick, readModelPicks } from '@/sync/modelChoicesRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import { requestSync } from '@/sync/worker';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
-import joinYourModels from '@/utils/ai/joinYourModels';
+import joinYourModels, { type YourModel } from '@/utils/ai/joinYourModels';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 import seedModels from '@/utils/ai/seedModels';
 import usedModelId from '@/utils/ai/usedModelId';
@@ -131,3 +137,6 @@ export default function useYourModels(kind: AiModelKind) {
     resetDefaults,
   };
 }
+
+export type YourModels = ReturnType<typeof useYourModels>;
+export type YourModelRow = YourModel<ModelListEntry>;

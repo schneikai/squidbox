@@ -3,11 +3,14 @@ import {
   type ApiAiModel,
   MODEL_DEFAULT_LABELS,
   MODEL_DEFAULT_VARIANTS,
+  type ModelDefaultLabel,
   type ModelDefaults,
   type ModelLabel,
 } from '@squidbox/shared';
 
 import isVerifiedModel from '@/utils/ai/isVerifiedModel';
+
+export type ModelLabels = Record<ModelLabel | 'changed', boolean>;
 
 /**
  * The labels the model `modelId` has for `kind` (`model` its catalog model, null once Venice
@@ -24,7 +27,7 @@ export default function modelLabels(
   model: ApiAiModel | null,
   yourDefaults: ModelDefaults | null | undefined,
   defaults?: ModelDefaults | null,
-): Record<ModelLabel | 'changed', boolean> {
+): ModelLabels {
   if (!yourDefaults) {
     return { verified: false, uncensored: false, default: false, uncensoredDefault: false, changed: false };
   }
@@ -38,6 +41,6 @@ export default function modelLabels(
     uncensored: model ? model.isUncensored : false,
     ...(Object.fromEntries(
       Object.entries(MODEL_DEFAULT_LABELS).map(([label, variant]) => [label, yourDefaults[kind][variant] === modelId]),
-    ) as Record<keyof typeof MODEL_DEFAULT_LABELS, boolean>),
+    ) as Record<ModelDefaultLabel, boolean>),
   };
 }
