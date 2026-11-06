@@ -7,6 +7,7 @@ import Button from '@/components/Button';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
+import type { SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
 import useAlbum from '@/features/album-detail/useAlbum';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
@@ -16,10 +17,13 @@ import useScrollY from '@/hooks/useScrollY';
 import listParam from '@/lib/listParam';
 import { layout } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
+import type { AlbumRow, AssetRow } from '@/sync/db/schema';
 import { readByIds } from '@/sync/readByIds';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
 
-const TABS = [
+type PickerTab = 'Library' | 'Albums';
+
+const TABS: SegmentedPillItem<PickerTab>[] = [
   { key: 'Library', icon: 'grid', label: 'Library' },
   { key: 'Albums', icon: 'library', label: 'Albums' },
 ];
@@ -29,12 +33,14 @@ const TABS = [
 // across both, and Add hands the picked assets to the caller.
 export default function AssetPickerScreen() {
   const navigation = useNavigation();
-  const params = useLocalSearchParams();
+  // The params pickerParams (AssetPickerProvider) writes.
+  const params = useLocalSearchParams<{ excludeAlbumId?: string; exclude?: string }>();
   const exclude = params.excludeAlbumId ? { albumId: params.excludeAlbumId } : listParam(params.exclude);
   const { finishAssetPicking } = useAssetPicker();
   const selection = useToggleSelectAssetsAction();
-  const [activeTab, setActiveTab] = useState('Library');
-  const [pickedAlbum, setPickedAlbum] = useState(null);
+  const [activeTab, setActiveTab] = useState<PickerTab>('Library');
+  const [pickedAlbum, setPickedAlbum] = useState<AlbumRow | null>(null);
+  // useAlbum is JS: its JSDoc promises AlbumRow | null | undefined.
   const liveAlbum = useAlbum(pickedAlbum?.id);
   const [isAdding, setIsAdding] = useState(false);
   const expandProgress = useSharedValue(0);
@@ -57,7 +63,7 @@ export default function AssetPickerScreen() {
   const title = album?.name ?? activeTab;
 
   // Each view starts at its top, so drag-select reads the new list's offset.
-  function showView(nextTab, nextAlbum) {
+  function showView(nextTab: PickerTab, nextAlbum: AlbumRow | null) {
     setActiveTab(nextTab);
     setPickedAlbum(nextAlbum);
     scrollY.value = 0;
@@ -67,9 +73,9 @@ export default function AssetPickerScreen() {
   // turns back on only when the read fails and the picker stays open.
   async function handleAdd() {
     setIsAdding(true);
-    let assets;
+    let assets: AssetRow[];
     try {
-      assets = await readByIds(getDb(), schema.assets, selection.selectedAssetIds);
+      assets = await readByIds<AssetRow>(getDb(), schema.assets, selection.selectedAssetIds);
     } catch {
       setIsAdding(false);
       Alert.alert("Couldn't add the photos", 'Please try again.');
@@ -102,7 +108,7 @@ export default function AssetPickerScreen() {
 
       {isPickingAlbum ? (
         <AlbumPicker
-          onPick={(nextAlbum) => showView('Albums', nextAlbum)}
+          onPick={(nextAlbum: AlbumRow) => showView('Albums', nextAlbum)}
           showSmartAlbums
           paddingTop={layout.sheetContentTop}
           onScroll={onScroll}
