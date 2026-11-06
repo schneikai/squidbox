@@ -1,4 +1,4 @@
-import type { AiModelKind, ModelDefaultVariant } from '@squidbox/shared';
+import type { AiModelKind, ModelDefaultVariants } from '@squidbox/shared';
 
 import modelKindText from './modelKindText';
 
@@ -9,7 +9,7 @@ import type { YourModels } from '@/hooks/useYourModels';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 // "<lead> A, or B for Adult content." or, for one model, "<lead> A." (`names` by variant).
-function usesText(lead: string, { regular, unrestricted }: Record<ModelDefaultVariant, string>) {
+function usesText(lead: string, { regular, unrestricted }: ModelDefaultVariants) {
   return regular === unrestricted ? `${lead} ${regular}.` : `${lead} ${regular}, or ${unrestricted} for Adult content.`;
 }
 

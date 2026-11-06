@@ -3,6 +3,7 @@ import {
   type ApiAiModel,
   MODEL_DEFAULT_LABEL_KEYS,
   MODEL_DEFAULT_LABELS,
+  MODEL_LABEL_KEYS,
   MODEL_LABEL_NAMES,
   type ModelLabel,
 } from '@squidbox/shared';
@@ -66,8 +67,7 @@ export default function ModelLabelsSection({ kind, model, verification }: ModelL
   return (
     <>
       <Section isHeaderless>
-        {/* Object.keys is string[] whatever the record: these are its ModelLabel keys. */}
-        {(Object.keys(changes) as ModelLabel[]).map((label) => (
+        {MODEL_LABEL_KEYS.map((label) => (
           <Row
             key={label}
             label={MODEL_LABEL_NAMES[label]}

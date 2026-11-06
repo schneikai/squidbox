@@ -1,4 +1,4 @@
-import { type ApiAiModel, MODEL_LABEL_NAMES } from '@squidbox/shared';
+import { MODEL_LABEL_NAMES } from '@squidbox/shared';
 import { useSyncExternalStore } from 'react';
 
 import uncensoredMarks from './uncensoredMarks';
@@ -23,9 +23,10 @@ export default function UncensoredToggle({ modelId, label }: UncensoredTogglePro
   const model = findCatalogModel(models, modelId);
   const isOn = wanted[modelId] ?? model?.isUncensored ?? false;
 
-  function handlePress(found: ApiAiModel) {
+  function handlePress() {
+    if (!model) return;
     haptics.selection();
-    uncensoredMarks.set(found, !isOn, (error) => {
+    uncensoredMarks.set(model, !isOn, (error) => {
       haptics.error();
       uncensoredMarks.alertFailed(error);
     });
@@ -39,7 +40,7 @@ export default function UncensoredToggle({ modelId, label }: UncensoredTogglePro
       variant="secondary"
       isSelected={isOn}
       isSwitch
-      onPress={() => handlePress(model)}
+      onPress={handlePress}
       accessibilityLabel={`${MODEL_LABEL_NAMES.uncensored}, ${label}`}
     />
   );

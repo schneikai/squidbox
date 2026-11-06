@@ -3,7 +3,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import CompareRound from './CompareRound';
-import useCompareSheet from './useCompareSheet';
 
 import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
@@ -12,6 +11,7 @@ import ModalSheet from '@/components/ModalSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import { useRequiredSheetRoute } from '@/hooks/useSheetRoute';
 import listParam from '@/lib/listParam';
 import { layout } from '@/styles/designTokens';
 import { readModelList, readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
@@ -27,7 +27,7 @@ const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. B
 // read once with the ticked models' names.
 export default function CompareRoundScreen() {
   const { kind, modelIds } = useLocalSearchParams<{ kind: AiModelKind; modelIds: string }>();
-  const sheet = useCompareSheet();
+  const sheet = useRequiredSheetRoute();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { texts, error, retry } = useInstructions();
   const seed = useSeedOrClose((db) => readSeed(db, kind, listParam(modelIds)), `${kind}:${modelIds}`);

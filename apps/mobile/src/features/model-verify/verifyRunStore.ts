@@ -112,9 +112,10 @@ const runs = new Map<string, VerifyRunHandle>();
  */
 export default function verifyRunStore(kind: AiModelKind, modelId: string): VerifyRunHandle {
   const key = `${kind}:${modelId}`;
-  const existing = runs.get(key);
-  if (existing) return existing;
-  const created = createVerifyRun(kind, modelId);
-  runs.set(key, created);
-  return created;
+  let run = runs.get(key);
+  if (!run) {
+    run = createVerifyRun(kind, modelId);
+    runs.set(key, run);
+  }
+  return run;
 }

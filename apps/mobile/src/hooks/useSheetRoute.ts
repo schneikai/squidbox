@@ -21,3 +21,10 @@ export default function useSheetRoute(): SheetRoute | null {
   const isFirstScreen = route.key === sheet.routeKey || navigation.getState()?.routes[0]?.key === route.key;
   return { routeKey: sheet.routeKey, isFirstScreen, close: sheet.close, setOptions: sheet.setOptions };
 }
+
+/** useSheetRoute for a screen that only ever opens in a sheet (a SheetStack's group): throws outside one. */
+export function useRequiredSheetRoute(): SheetRoute {
+  const sheet = useSheetRoute();
+  if (!sheet) throw new Error('This screen opens only in a sheet');
+  return sheet;
+}

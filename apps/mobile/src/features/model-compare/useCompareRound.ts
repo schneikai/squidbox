@@ -1,9 +1,9 @@
 import type {
   AiModelKind,
   CompareVisionRequest,
-  CompareVisionResponse,
   CompareWritingRequest,
-  CompareWritingResponse,
+  VisionResult,
+  WritingResult,
 } from '@squidbox/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -26,19 +26,25 @@ const RETRY_DELAY_MS = 1500;
 // The results key of a writing round, which has no photos.
 export const TEXT_KEY = 'text';
 
-// A model's answer to one step: the posts (or a photo's tags) once done, or why it failed. Each
-// member names the others' fields as absent, so `result?.items` and `result.error` read on any.
+// A model's answer to one step: the posts (or a photo's tags) once done, or why it failed.
 export type ModelResult =
-  | { status: 'loading'; items?: undefined; error?: undefined }
-  | { status: 'done'; items: string[]; error?: undefined }
-  | { status: 'error'; items?: undefined; error: string };
+  { status: 'loading' } | { status: 'done'; items: string[] } | { status: 'error'; error: string };
 // By model id.
 export type ModelResults = Record<string, ModelResult>;
+// A tweet's thumbs up (0, 1 or 2, an outstanding one) or a tag's mark as fitting (0 or 1).
+export type TapLevel = 0 | 1 | 2;
 // A model's taps on its answers of one step, by the answer's index.
-export type TapLevels = Record<number, number>;
+export type TapLevels = Record<number, TapLevel>;
 // By model id.
 export type ModelTaps = Record<string, TapLevels>;
 
+// The round on screen: its number, letters, and results and taps by results key.
+type Round = {
+  number: number;
+  letters: ModelLetter[];
+  results: Record<string, ModelResults>;
+  taps: Record<string, ModelTaps>;
+};
 type RoundInput = { prompt: string; photos: readonly AssetRow[] };
 // What a step sends besides the models and their earlier rounds.
 type CompareBody = Pick<CompareWritingRequest, 'prompt'> | Pick<CompareVisionRequest, 'prompt' | 'image'>;
@@ -66,12 +72,7 @@ type EarlierByKey = Partial<Record<string, Record<string, string[][]>>>;
 export default function useCompareRound({ kind, modelIds }: { kind: AiModelKind; modelIds: string[] }) {
   const haptics = useHaptics();
   const imageDeps = useVisionImageDeps();
-  const [round, setRound] = useState<{
-    number: number;
-    letters: ModelLetter[];
-    results: Record<string, ModelResults>;
-    taps: Record<string, ModelTaps>;
-  }>({ number: 0, letters: [], results: {}, taps: {} });
+  const [round, setRound] = useState<Round>({ number: 0, letters: [], results: {}, taps: {} });
   const controllerRef = useRef<AbortController | null>(null);
   // The taps as of the last toggle: two taps before a re-render must see each other.
   const tapsRef = useRef<Record<string, ModelTaps>>({});
@@ -193,8 +194,8 @@ export default function useCompareRound({ kind, modelIds }: { kind: AiModelKind;
     const controller = new AbortController();
     controllerRef.current = controller;
     const jobs = jobsFor(input, earlierRoundsOf(input.prompt));
-    const loading = Object.fromEntries(
-      modelIds.map((modelId): [string, ModelResult] => [modelId, { status: 'loading' }]),
+    const loading: ModelResults = Object.fromEntries(
+      modelIds.map((modelId) => [modelId, { status: 'loading' as const }]),
     );
     tapsRef.current = {};
     setRound((current) => ({
@@ -212,7 +213,7 @@ export default function useCompareRound({ kind, modelIds }: { kind: AiModelKind;
       const levels = taps[key]?.[modelId] ?? {};
       const level = levels[index] ?? 0;
       // A tweet steps through one thumb up and two (an outstanding one) back to none; a tag is on or off.
-      const next = level < (kind === 'vision' ? 1 : 2) ? level + 1 : 0;
+      const next: TapLevel = level === 0 ? 1 : level === 1 && kind !== 'vision' ? 2 : 0;
       const nextTaps = { ...taps, [key]: { ...taps[key], [modelId]: { ...levels, [index]: next } } };
       tapsRef.current = nextTaps;
       setRound((current) => ({ ...current, taps: nextTaps }));
@@ -245,11 +246,7 @@ function newTagsOnly(earlier: Record<string, string[][]>): (tags: string[]) => s
 }
 
 // A compare request, asked once more when the dev client's tunnel turned it away.
-async function compareOnceMoreAsync(
-  kind: AiModelKind,
-  body: CompareWritingRequest | CompareVisionRequest,
-  signal: AbortSignal,
-) {
+async function compareOnceMoreAsync(kind: AiModelKind, body: Parameters<typeof compareAsync>[1], signal: AbortSignal) {
   try {
     return await compareAsync(kind, body, { signal });
   } catch (error) {
@@ -261,7 +258,7 @@ async function compareOnceMoreAsync(
 
 // The server's results by model, done or failed: a model's items are its posts or its tags,
 // whichever the answer has.
-function byModel(results: CompareWritingResponse['results'] | CompareVisionResponse['results']): ModelResults {
+function byModel(results: readonly (WritingResult | VisionResult)[]): ModelResults {
   return Object.fromEntries(
     results.map((result) => [
       result.modelId,

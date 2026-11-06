@@ -41,7 +41,8 @@ function ModelAnswers({
   toggle,
 }: ModelAnswersProps) {
   return letters.map(({ modelId, label }) => {
-    const items = results[modelId]?.items ?? [];
+    const result = results[modelId];
+    const items = result?.status === 'done' ? result.items : [];
     const levels = taps[modelId] ?? {};
     return (
       <ModelCard
@@ -49,7 +50,7 @@ function ModelAnswers({
         modelId={modelId}
         label={label}
         name={namesById[modelId]}
-        result={results[modelId]}
+        result={result}
       >
         {kind === 'vision' ? (
           <VisionTags answerKey={answerKey} modelId={modelId} items={items} levels={levels} toggle={toggle} />

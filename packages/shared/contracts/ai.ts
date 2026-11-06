@@ -48,6 +48,8 @@ export const MODEL_LABEL_NAMES = {
   uncensoredDefault: 'Uncensored default',
 } as const;
 export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
+/** Every label, in MODEL_LABEL_NAMES' order. */
+export const MODEL_LABEL_KEYS = Object.keys(MODEL_LABEL_NAMES) as ModelLabel[];
 
 // The labels that are a kind's defaults, by their variant.
 export const MODEL_DEFAULT_LABELS = {

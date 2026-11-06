@@ -37,7 +37,7 @@ export default function ModelListScreen() {
     useYourModels(kind);
 
   const availableCount = rows?.filter((row) => row.model !== null).length ?? 0;
-  const hasScores = rows?.some(({ score }) => score !== null && score > 0) ?? false;
+  const hasScores = rows?.some(({ score }) => (score ?? 0) > 0) ?? false;
   const text = modelKindText[kind];
 
   function handleOpen(row: YourModelRow) {

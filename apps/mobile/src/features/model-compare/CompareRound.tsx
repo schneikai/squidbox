@@ -7,7 +7,6 @@ import Animated from 'react-native-reanimated';
 import ModelAnswers from './ModelAnswers';
 import PhotoAnswers from './PhotoAnswers';
 import useCompareRound, { TEXT_KEY } from './useCompareRound';
-import useCompareSheet from './useCompareSheet';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -21,6 +20,7 @@ import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloat
 import { SCREEN_PADDING } from '@/constants';
 import assetHref from '@/features/asset-list/assetHref';
 import useScrollY from '@/hooks/useScrollY';
+import { useRequiredSheetRoute } from '@/hooks/useSheetRoute';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
 import { layout, scale, space } from '@/styles/designTokens';
 import { type ModelRef, setPrompt } from '@/sync/aiStateRepository';
@@ -48,7 +48,7 @@ type CompareRoundProps = {
  * photo. Both add up in the model list. X closes the whole compare.
  */
 export default function CompareRound({ kind, models, savedPrompt, defaultPrompt, photos }: CompareRoundProps) {
-  const sheet = useCompareSheet();
+  const sheet = useRequiredSheetRoute();
   const isVision = kind === 'vision';
   const { scrollY, onScroll } = useScrollY();
   const paddingBottom = useFloatingPrimaryActionPadding();

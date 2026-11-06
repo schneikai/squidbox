@@ -3,7 +3,6 @@ import {
   type ApiAiModel,
   MODEL_DEFAULT_LABELS,
   MODEL_DEFAULT_VARIANTS,
-  type ModelDefaultLabel,
   type ModelDefaults,
   type ModelLabel,
 } from '@squidbox/shared';
@@ -39,8 +38,7 @@ export default function modelLabels(
       ),
     verified: model ? isVerifiedModel(kind, model) : false,
     uncensored: model ? model.isUncensored : false,
-    ...(Object.fromEntries(
-      Object.entries(MODEL_DEFAULT_LABELS).map(([label, variant]) => [label, yourDefaults[kind][variant] === modelId]),
-    ) as Record<ModelDefaultLabel, boolean>),
+    default: yourDefaults[kind][MODEL_DEFAULT_LABELS.default] === modelId,
+    uncensoredDefault: yourDefaults[kind][MODEL_DEFAULT_LABELS.uncensoredDefault] === modelId,
   };
 }

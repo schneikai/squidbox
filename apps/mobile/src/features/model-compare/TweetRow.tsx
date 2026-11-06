@@ -1,8 +1,10 @@
+import type { TapLevel } from './useCompareRound';
+
 import Button from '@/components/Button';
 import Note from '@/components/Note';
 import Text from '@/components/Text';
 
-export type TweetRowProps = { text: string; level: number; onToggle: () => void };
+export type TweetRowProps = { text: string; level: TapLevel; onToggle: () => void };
 
 // A tweet a model wrote, with its thumbs up: `level` 0, 1 (a thumb up) or 2 (two, an outstanding
 // one); `onToggle` steps it on, from two back to none.
