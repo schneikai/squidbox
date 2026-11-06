@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { type RefObject, useState } from 'react';
+import { type RefObject, useCallback, useState } from 'react';
 import { type FlatList, type ListRenderItemInfo, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -7,7 +7,7 @@ import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
 import ContactRow from './ContactRow';
 import ContactRowMenu from './ContactRowMenu';
-import contactQuery from './contactQuery';
+import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
 import useAddListAction from './useAddListAction';
 import useContactListRows from './useContactListRows';
@@ -23,7 +23,6 @@ import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingB
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
-import type * as schema from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -34,7 +33,7 @@ const SEGMENTS: SegmentedPillItem<Segment>[] = [
   { key: 'lists', label: 'Lists' },
 ];
 const PAGE_SIZE = 100;
-const keyExtractor = (contact: schema.ContactRow) => contact.id;
+const keyExtractor = (contact: ContactSummary) => contact.id;
 
 // The Contacts tab: the contacts (favorites first as a row of avatars, then everyone, by name or recently added) or
 // the contact lists, switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
@@ -46,30 +45,33 @@ export default function ContactsScreen() {
   const scrollHandler = useFloatingBarScrollHandler();
   const promptAddList = useAddListAction();
 
-  const query = contactQuery({ scope: 'all', search: searchText, sort: sortOrder });
-  const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
-  // Each stays live only while it shows.
-  const favorites = useContactRows({ scope: 'favorites' }, { isLive: segment === 'contacts' && !searchText.trim() });
-  const lists = useContactListRows({ isLive: segment === 'lists' });
-
   const isContacts = segment === 'contacts';
   const isSearching = !!searchText.trim();
+  // Trimmed, so a trailing space doesn't read the list again.
+  const query = contactQuery({ scope: 'all', search: searchText.trim(), sort: sortOrder });
+  const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
+  // Each stays live only while it shows.
+  const favorites = useContactRows({ scope: 'favorites' }, { isLive: isContacts && !isSearching });
+  const lists = useContactListRows({ isLive: segment === 'lists' });
+
   const data = isContacts ? (rows ?? []) : [];
-
-  function handleAdd() {
-    if (isContacts) router.navigate('/new-contact');
-    else promptAddList();
-  }
-
-  function renderItem({ item: contact, index }: ListRenderItemInfo<schema.ContactRow>) {
-    return (
+  const lastIndex = data.length - 1;
+  // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
+  const renderItem = useCallback(
+    ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
       <ContactRow
         contact={contact}
         trailing={<ContactRowMenu contact={contact} />}
         isFirst={index === 0}
-        isLast={index === data.length - 1}
+        isLast={index === lastIndex}
       />
-    );
+    ),
+    [lastIndex],
+  );
+
+  function handleAdd() {
+    if (isContacts) router.navigate('/new-contact');
+    else promptAddList();
   }
 
   const header = (
@@ -119,7 +121,7 @@ export default function ContactsScreen() {
       />
       <Animated.FlatList
         // The list fills the ref; useListControls only calls its scrollToOffset.
-        ref={listRef as RefObject<FlatList<schema.ContactRow> | null>}
+        ref={listRef as RefObject<FlatList<ContactSummary> | null>}
         data={data}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

@@ -1,5 +1,5 @@
 import type { ContactLinkRecord } from '@squidbox/shared';
-import { and, asc, count, desc, eq, getTableColumns, isNull, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, type SQL, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import contactSearchText, { SEARCHED_FIELDS } from './contactSearchText';
@@ -47,7 +47,7 @@ export type ContactDescriptor = {
 
 /**
  * What a contact list shows (ContactDescriptor), as SQL: `read(db, { limit })` → `{ rows, count }`
- * from one transaction (no `limit` reads them all), `summaries(db)` → all the rows without their
+ * from one transaction (no `limit` reads them all), the rows as SUMMARY, `summaries(db)` → all the rows without their
  * count, only what a row shows and a search runs over (SUMMARY), `ids(db)` → the matching ids in the
  * same order, `tables` → what a live read watches. Live contacts only, in `sort` order (Favorites
  * always by when they were favorited, newest first), with an id tie-break so pages see one stable
@@ -99,12 +99,12 @@ export default function contactQuery({ scope = 'all', search = '', sort = 'name:
   return {
     descriptor: { scope, search, sort },
     tables,
-    read(db: SyncDb, { limit }: { limit?: number } = {}): Promise<{ rows: schema.ContactRow[]; count: number }> {
+    read(db: SyncDb, { limit }: { limit?: number } = {}): Promise<{ rows: ContactSummary[]; count: number }> {
       return db.transaction(async (tx) => {
         const ids = await matchedIds(tx);
         const [{ count: total }] = await tx.select({ count: count() }).from(c).where(where(ids));
         const query = tx
-          .select(getTableColumns(c))
+          .select(SUMMARY)
           .from(c)
           .where(where(ids))
           .orderBy(...order);

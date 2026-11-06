@@ -17,7 +17,8 @@ export type ContactListSummary = schema.ContactListRow & { memberCount: number; 
  * The contact lists, by name, as SQL: `read(db)` → every live list with `memberCount` (its live
  * contacts, each once) and, `withMembers`, `firstMembers` (the first three of them by name: `id`,
  * `name`, `avatarFilename`, for the row's avatar stack), from one transaction; `tables` → what a
- * live read watches. SQL counts and ranks the members, so it reads lists × 3 rows, not every member.
+ * live read watches. SQL counts and ranks the members (in one windowed pass `withMembers`), so it
+ * reads lists × 3 rows, not every member.
  */
 export default function contactListQuery({ withMembers = true }: { withMembers?: boolean } = {}) {
   return {
@@ -37,10 +38,10 @@ export default function contactListQuery({ withMembers = true }: { withMembers?:
           .innerJoin(c, and(eq(c.id, m.contactId), isNull(c.deletedAt)))
           .where(isNull(m.deletedAt))
           .as('p');
-        const counts = await tx.select({ listId: pairs.listId, count: count() }).from(pairs).groupBy(pairs.listId);
-        const memberCounts = new Map(counts.map((row) => [row.listId, row.count]));
+        const memberCounts = new Map<string, number>();
         const byList = new Map(lists.map((list): [string, ListMember[]] => [list.id, []]));
         if (withMembers) {
+          // The count and the first members in one windowed pass: every list with a member has its rank 1.
           const ranked = tx
             .select({
               listId: pairs.listId,
@@ -50,6 +51,7 @@ export default function contactListQuery({ withMembers = true }: { withMembers?:
               rank: sql<number>`row_number() over (partition by ${pairs.listId} order by ${c.name} collate nocase, ${c.id})`.as(
                 'rank',
               ),
+              total: sql<number>`count(*) over (partition by ${pairs.listId})`.as('total'),
             })
             .from(pairs)
             .innerJoin(c, eq(c.id, pairs.contactId))
@@ -59,7 +61,13 @@ export default function contactListQuery({ withMembers = true }: { withMembers?:
             .from(ranked)
             .where(lte(ranked.rank, STACK))
             .orderBy(asc(ranked.listId), asc(ranked.rank));
-          for (const { listId, rank: _rank, ...member } of first) byList.get(listId)?.push(member);
+          for (const { listId, rank: _rank, total, ...member } of first) {
+            memberCounts.set(listId, total);
+            byList.get(listId)?.push(member);
+          }
+        } else {
+          const counts = await tx.select({ listId: pairs.listId, count: count() }).from(pairs).groupBy(pairs.listId);
+          for (const row of counts) memberCounts.set(row.listId, row.count);
         }
         return lists.map((list) => ({
           ...list,

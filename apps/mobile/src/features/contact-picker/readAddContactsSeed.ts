@@ -107,6 +107,10 @@ async function contactsOnAlbums(tx: SyncDb, albums: AlbumName[]): Promise<Map<st
     )
     .orderBy(asc(sql`${c.name} collate nocase`), asc(c.id));
   const byAlbum = new Map<string, string[]>();
-  for (const { albumId, contactId } of rows) byAlbum.set(albumId, [...(byAlbum.get(albumId) ?? []), contactId]);
+  for (const { albumId, contactId } of rows) {
+    const ids = byAlbum.get(albumId);
+    if (ids) ids.push(contactId);
+    else byAlbum.set(albumId, [contactId]);
+  }
   return byAlbum;
 }

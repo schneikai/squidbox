@@ -7,6 +7,9 @@ export type SearchedContact = Pick<ContactRecord, (typeof SEARCHED_FIELDS)[numbe
 
 /** The text a contact search runs over (matchingIds): the name, the handles, the phone number and each part of its places. */
 export default function contactSearchText(contact: SearchedContact): string {
-  const places = contact.places.flatMap((place) => CONTACT_PLACE_PARTS.map((part) => placeParts(place)[part]));
+  const places = contact.places.flatMap((place) => {
+    const parts = placeParts(place);
+    return CONTACT_PLACE_PARTS.map((part) => parts[part]);
+  });
   return [...SEARCHED_FIELDS.map((name) => contact[name]), ...places].filter(Boolean).join('\n');
 }

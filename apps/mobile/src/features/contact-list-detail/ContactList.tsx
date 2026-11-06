@@ -1,5 +1,5 @@
 import { router, useNavigation } from 'expo-router';
-import type { RefObject } from 'react';
+import { type RefObject, useCallback } from 'react';
 import { type FlatList, type ListRenderItemInfo, StyleSheet, Text } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -11,7 +11,7 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import ContactRow from '@/features/contact-list/ContactRow';
-import contactQuery from '@/features/contact-list/contactQuery';
+import contactQuery, { type ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
 import useListControls from '@/hooks/useListControls';
@@ -21,7 +21,7 @@ import type * as schema from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
-const keyExtractor = (contact: schema.ContactRow) => contact.id;
+const keyExtractor = (contact: ContactSummary) => contact.id;
 
 type ContactListProps = { list: schema.ContactListRow };
 
@@ -33,12 +33,17 @@ export default function ContactList({ list }: ContactListProps) {
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { sortOrder, sortContacts } = useContactSort();
   const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
-  const query = contactQuery({ scope: { listId: list.id }, search: searchText, sort: sortOrder });
+  // Trimmed, so a trailing space doesn't read the list again.
+  const query = contactQuery({ scope: { listId: list.id }, search: searchText.trim(), sort: sortOrder });
   const { rows, count, loadMore } = usePagedQuery(query, 100);
-
-  function renderItem({ item: contact, index }: ListRenderItemInfo<schema.ContactRow>) {
-    return <ContactRow contact={contact} isFirst={index === 0} isLast={index === (rows?.length ?? 0) - 1} />;
-  }
+  const lastIndex = (rows?.length ?? 0) - 1;
+  // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
+  const renderItem = useCallback(
+    ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
+      <ContactRow contact={contact} isFirst={index === 0} isLast={index === lastIndex} />
+    ),
+    [lastIndex],
+  );
 
   const header = list.notes ? <Text style={styles.description}>{list.notes}</Text> : undefined;
 
@@ -62,7 +67,7 @@ export default function ContactList({ list }: ContactListProps) {
       />
       <Animated.FlatList
         // The list fills the ref; useListControls only calls its scrollToOffset.
-        ref={listRef as RefObject<FlatList<schema.ContactRow> | null>}
+        ref={listRef as RefObject<FlatList<ContactSummary> | null>}
         data={rows}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

@@ -1,6 +1,6 @@
 import { CONTACT_LINK_TARGETS, type ContactLinkRecord } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
-import { useDeferredValue, useMemo, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { SectionList, type SectionListRenderItemInfo, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,16 +24,16 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
 
-/**
- * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
- * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
- * with a search. Save adds the ones picked here and removes the ones unpicked here.
- */
 type ContactSectionData = { title: string; data: ContactSummary[] };
 
 const isTargetType = (type: string | undefined): type is ContactLinkRecord['targetType'] =>
   CONTACT_LINK_TARGETS.some((target) => target === type);
 
+/**
+ * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
+ * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
+ * with a search. Save adds the ones picked here and removes the ones unpicked here.
+ */
 export default function AddContactsScreen() {
   const params = useLocalSearchParams<{ listId?: string; targetType?: string; targetId?: string }>();
   const target: AddContactsTarget | null = params.listId
@@ -61,16 +61,16 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const searchText = useDeferredValue(typedText).trim().toLowerCase();
   // Every contact, read once (and on writes); a search filters them here, so typing reads nothing.
   const allContacts = useContactRows({ scope: 'all' });
+  // Each contact's searched text, made once per read rather than per keystroke.
+  const searchList = useMemo(
+    () => allContacts?.map((contact) => ({ id: contact.id, text: contactSearchText(contact) })),
+    [allContacts],
+  );
   const contacts = useMemo(() => {
-    if (!allContacts || !searchText) return allContacts;
-    const matched = new Set(
-      matchingIds(
-        allContacts.map((contact) => ({ id: contact.id, text: contactSearchText(contact) })),
-        searchText,
-      ),
-    );
+    if (!allContacts || !searchList || !searchText) return allContacts;
+    const matched = new Set(matchingIds(searchList, searchText));
     return allContacts.filter((contact) => matched.has(contact.id));
-  }, [allContacts, searchText]);
+  }, [allContacts, searchList, searchText]);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const linked = useMemo(() => new Set(seed.linked), [seed.linked]);
   const sections = useMemo(() => (contacts ? toSections(contacts, seed) : []), [contacts, seed]);
@@ -88,25 +88,23 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
     return 'listId' in target ? changeListContacts(target.listId, change) : changeTargetContacts(target, change);
   }
 
-  function renderItem({
-    item: contact,
-    index,
-    section,
-  }: SectionListRenderItemInfo<ContactSummary, ContactSectionData>) {
-    const isSelected = selected.has(contact.id);
-    return (
-      <View style={styles.gutter}>
-        <ContactRow
-          contact={contact}
-          onPress={() => setSelectedIds((current) => toggleItem(current, contact.id))}
-          isSelected={isSelected}
-          subtitle={contactPlace(contact)}
-          isFirst={index === 0}
-          isLast={index === section.data.length - 1}
-        />
-      </View>
-    );
-  }
+  const handleToggle = useCallback(
+    (contactId: string) => setSelectedIds((current) => toggleItem(current, contactId)),
+    [],
+  );
+  // Stable while the picks are; a pick re-renders only the rows it changes (PickRow is memo).
+  const renderItem = useCallback(
+    ({ item: contact, index, section }: SectionListRenderItemInfo<ContactSummary, ContactSectionData>) => (
+      <PickRow
+        contact={contact}
+        isSelected={selected.has(contact.id)}
+        onToggle={handleToggle}
+        isFirst={index === 0}
+        isLast={index === section.data.length - 1}
+      />
+    ),
+    [selected, handleToggle],
+  );
 
   return (
     <ModalSheet>
@@ -140,6 +138,30 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
     </ModalSheet>
   );
 }
+
+type PickRowProps = {
+  contact: ContactSummary;
+  isSelected: boolean;
+  onToggle: (contactId: string) => void;
+  isFirst: boolean;
+  isLast: boolean;
+};
+
+// A contact to pick, with its place under its name.
+const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, isLast }: PickRowProps) {
+  return (
+    <View style={styles.gutter}>
+      <ContactRow
+        contact={contact}
+        onPress={() => onToggle(contact.id)}
+        isSelected={isSelected}
+        subtitle={contactPlace(contact)}
+        isFirst={isFirst}
+        isLast={isLast}
+      />
+    </View>
+  );
+});
 
 // The contacts in the seed's sections, each once, where it first fits; everyone else after them.
 function toSections(contacts: ContactSummary[], seed: AddContactsSeed): ContactSectionData[] {

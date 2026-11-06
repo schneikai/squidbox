@@ -1,6 +1,6 @@
 import type { ContactHandleField } from '@squidbox/shared';
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ContactSummary } from './contactQuery';
@@ -37,7 +37,7 @@ type ContactRowProps = {
   isLast?: boolean;
 };
 
-export default function ContactRow({
+function ContactRow({
   contact,
   subtitle: givenSubtitle,
   trailing,
@@ -71,7 +71,7 @@ export default function ContactRow({
           style={({ pressed }) => [styles.pressable, pressed && press.flat]}
           onPress={handlePress}
           accessibilityRole="button"
-          accessibilityState={isSelected === undefined ? undefined : { selected: isSelected }}
+          accessibilityState={canFavorite ? undefined : { selected: isSelected }}
         >
           {canFavorite ? (
             <SuperPressable
@@ -90,7 +90,7 @@ export default function ContactRow({
             <Text style={listTextStyles.name}>{contact.name}</Text>
             {!!subtitle && <Text style={listTextStyles.detail}>{subtitle}</Text>}
           </View>
-          {isSelected !== undefined && <SelectIndicator isSelected={isSelected} style={styles.indicator} />}
+          {!canFavorite && <SelectIndicator isSelected={isSelected} style={styles.indicator} />}
         </Pressable>
         {/* A full 44 pt slot, so its icon sits in from the card's edge. */}
         <IconSlotContext.Provider value>{trailing}</IconSlotContext.Provider>
@@ -99,6 +99,8 @@ export default function ContactRow({
     </View>
   );
 }
+
+export default memo(ContactRow);
 
 const styles = StyleSheet.create({
   surface: {
