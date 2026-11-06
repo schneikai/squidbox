@@ -261,6 +261,7 @@ export const instructions = pgTable(
     moreLikeThis: text('more_like_this'),
     modelCheckJudge: text('model_check_judge'),
     contactScreenshot: text('contact_screenshot'),
+    contactXProfile: text('contact_x_profile'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('instructions_user_seq_idx').on(t.userId, t.serverSeq)],
 );

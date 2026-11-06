@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
 import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
-import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
+import { contactReadSchema } from './contacts';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -308,16 +308,7 @@ export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 export const contactFromScreenshotRequestSchema = z.object({ image: visionImageSchema });
 export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotRequestSchema>;
 
-export const contactFromScreenshotResponseSchema = z.object({
-  name: z.string(),
-  ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, z.string()])) as Record<
-    ContactHandleField,
-    z.ZodString
-  >),
-  city: z.string(),
-  state: z.string(),
-  country: z.string(),
-});
+export const contactFromScreenshotResponseSchema = contactReadSchema;
 export type ContactFromScreenshotResponse = z.infer<typeof contactFromScreenshotResponseSchema>;
 
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
