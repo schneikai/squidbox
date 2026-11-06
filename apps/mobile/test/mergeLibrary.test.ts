@@ -3,19 +3,23 @@ import { tick } from '@squidbox/shared/testing/tick';
 import { isNull } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { writesTarget, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
+import * as contactLists from '../src/sync/contactListsRepository';
+import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
+import { retryMissingFiles, setOutboxError } from '../src/sync/outbox';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
 import { upsertRows } from '../src/sync/upsertRows';
-import { getAssetFileUri, getAssetThumbnailUri } from '../src/utils/assets/assetStorage';
+import { getAssetFileUri, getAssetThumbnailUri, getAvatarUri } from '../src/utils/assets/assetStorage';
 
 // The device's files, by uri, and every move made (one that `loses` its file reports no error).
 const files = new Set<string>();
@@ -704,5 +708,122 @@ describe('a big device library', () => {
     await repo.createMany(source, photos);
     const plan = await planMerge(source, target, SRC, TGT);
     expect(plan.assets).toHaveLength(10_000);
+  });
+});
+
+describe('contacts', () => {
+  it('come over with their lists, members and links, each with an outbox row', async () => {
+    const photo = await devicePhoto();
+    const album = await albums.create(source, makeAlbumRecord({ name: 'Trip' }));
+    await createPost(source, { id: 'post-1', text: 'hello' });
+    const maya = await contacts.create(source, makeContactRecord({ name: 'Maya', isFavorite: true }));
+    const jon = await contacts.create(source, makeContactRecord({ name: 'Jon' }));
+    const gone = await contacts.create(source, makeContactRecord({ name: 'Gone' }));
+    const list = await contactLists.create(source, {
+      id: 'list-1',
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null,
+      name: 'Climbers',
+      notes: 'n',
+    });
+    await contactListMembers.add(source, { listId: list.id }, [maya.id, jon.id, gone.id], newEdgeId);
+    await contactLinks.add(source, { targetType: 'asset', targetId: photo.id }, [maya.id], newEdgeId);
+    await contactLinks.add(source, { targetType: 'album', targetId: album.id }, [jon.id], newEdgeId);
+    await contactLinks.add(source, { targetType: 'post', targetId: 'post-1' }, [maya.id, gone.id], newEdgeId);
+    await contacts.remove(source, [gone.id]);
+
+    const plan = await commitPass();
+
+    expect((await target.select().from(schema.contacts)).map((row) => row.name).sort()).toEqual(['Jon', 'Maya']);
+    expect(await target.select().from(schema.contactLists)).toMatchObject([
+      { id: list.id, name: 'Climbers', notes: 'n' },
+    ]);
+    expect((await target.select().from(schema.contactListMembers)).map((row) => row.contactId).sort()).toEqual(
+      [maya.id, jon.id].sort(),
+    );
+    expect(
+      (await target.select().from(schema.contactLinks)).map((row) => `${row.targetType}:${row.contactId}`).sort(),
+    ).toEqual([`album:${jon.id}`, `asset:${maya.id}`, `post:${maya.id}`].sort());
+    const copied =
+      plan.contacts.length + plan.contactLists.length + plan.contactListMembers.length + plan.contactLinks.length;
+    expect((await outbox(target)).filter((row) => row.collection.startsWith('contact'))).toHaveLength(copied);
+    expect(copied).toBe(2 + 1 + 2 + 3);
+    expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false); // nothing copied twice
+  });
+
+  it('a link to a photo matched into the account’s points at the account’s photo', async () => {
+    const theirs = makeAssetRecord({ mediaLibraryAssetId: 'm-1' });
+    await upsertRows(target, 'assets', schema.assets, [{ ...theirs, syncError: null }]);
+    const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1' });
+    const maya = await contacts.create(source, makeContactRecord({ name: 'Maya' }));
+    await contactLinks.add(source, { targetType: 'asset', targetId: mine.id }, [maya.id], newEdgeId);
+
+    const plan = await commitPass();
+
+    expect(plan.assets).toEqual([]);
+    expect(await target.select().from(schema.contactLinks)).toMatchObject([
+      { targetType: 'asset', targetId: theirs.id, contactId: maya.id },
+    ]);
+  });
+
+  it('a photo the device holds moves with its contact, which names it in the account', async () => {
+    const maya = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-2.jpg' }));
+    files.add(getAvatarUri('avatar-m-2.jpg', SRC));
+
+    const plan = await commitPass();
+    await moveMergedFiles(plan, SRC, TGT);
+
+    expect(plan.fieldFiles).toEqual({ avatarsDir: same('avatar-m-2.jpg') });
+    expect(files.has(getAvatarUri('avatar-m-2.jpg', TGT))).toBe(true);
+    expect(await target.select().from(schema.contacts)).toMatchObject([
+      { id: maya.id, avatarFilename: 'avatar-m-2.jpg' },
+    ]);
+    // Its outbox row names the photo, which the sync uploads before it pushes the contact.
+    expect((await outbox(target)).find((row) => row.recordId === maya.id)).toMatchObject({
+      payload: { avatarFilename: 'avatar-m-2.jpg' },
+      fields: { avatarFilename: expect.any(Number) },
+      uploadedFiles: [],
+    });
+  });
+
+  it('a photo a later pass delivers clears the contact’s upload refused as missing, and no other error', async () => {
+    const maya = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-1.jpg' }));
+    const jon = await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-j-1.jpg' }));
+    files.add(getAvatarUri('avatar-m-1.jpg', SRC));
+    files.add(getAvatarUri('avatar-j-1.jpg', SRC));
+    await commitPass(); // their photos not moved yet
+    await setOutboxError(target, 'contacts', [maya.id], 'Contact photo is missing on this device: choose it again');
+    await setOutboxError(target, 'contacts', [jon.id], 'schema:name');
+
+    const again = await planMerge(source, target, SRC, TGT);
+    expect(again.retriedRows.contacts?.sort()).toEqual([maya.id, jon.id].sort());
+    await moveMergedFiles(again, SRC, TGT);
+    for (const [collection, ids] of Object.entries(again.retriedRows)) await retryMissingFiles(target, collection, ids);
+
+    const rows = await outbox(target);
+    expect(rows.find((row) => row.recordId === maya.id)).toMatchObject({ error: null });
+    expect(rows.find((row) => row.recordId === jon.id)).toMatchObject({ error: 'schema:name' });
+  });
+
+  it('a device edit naming a photo the device doesn’t hold isn’t replayed onto the account’s contact', async () => {
+    const shared = makeContactRecord({ name: 'Maya', updatedAt: 5000 });
+    await upsertRows(target, 'contacts', schema.contacts, [shared]);
+    await upsertRows(source, 'contacts', schema.contacts, [shared]);
+    await contacts.update(source, shared.id, { name: 'Maya L', avatarFilename: 'avatar-m-9.jpg' });
+
+    const plan = await planMerge(source, target, SRC, TGT);
+
+    expect(plan.replays.map((replay) => Object.keys(replay.fields))).toEqual([['name']]);
+    expect(plan.fieldFiles).toEqual({});
+  });
+
+  it('a photo only in another account’s storage is dropped: the account couldn’t fetch it', async () => {
+    await contacts.create(source, makeContactRecord({ avatarFilename: 'avatar-m-1.jpg' }));
+
+    const plan = await commitPass();
+
+    expect(plan.fieldFiles).toEqual({});
+    expect(await target.select().from(schema.contacts)).toMatchObject([{ avatarFilename: null }]);
   });
 });

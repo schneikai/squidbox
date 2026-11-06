@@ -20,6 +20,10 @@ const instructionText: Record<InstructionKind, InstructionText> = {
     title: 'Verify judge',
     description: 'The system instructions for the model that decides if a reply passes Verify.',
   },
+  contactScreenshot: {
+    title: 'From screenshot',
+    description: 'What the assistant is asked when you use From screenshot on a new contact.',
+  },
 };
 
 export default instructionText;

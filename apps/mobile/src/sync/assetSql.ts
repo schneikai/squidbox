@@ -1,5 +1,5 @@
 import { eq, sql, type SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/sqlite-core';
+import { alias, type SQLiteColumn } from 'drizzle-orm/sqlite-core';
 
 import * as schema from './db/schema';
 import { isCanonicalEdge } from './edgeSql';
@@ -16,13 +16,19 @@ export const a = alias(schema.assets, 'a');
  * An asset scope: the library, a smart album (Deleted: not the purged), an album by id (a value, or
  * SQL naming a column), a post's assets as the post screen shows them, in its order, a trashed
  * one included (one post, or several for postQuery, which reads its posts' assets at once), or one
- * live asset alone (a post suggestion's).
+ * live asset alone (a post suggestion's), or the live assets a contact is on.
  */
 // How a grid orders its assets (assetQuery's `sort`): `custom` is an album's own order.
 export type AssetSort = 'createdAt:asc' | 'createdAt:desc' | 'custom' | 'random';
 
 export type AssetScope =
-  'library' | 'favorites' | 'deleted' | { albumId: string | SQL } | { postId: string | string[] } | { assetId: string };
+  | 'library'
+  | 'favorites'
+  | 'deleted'
+  | { albumId: string | SQL }
+  | { postId: string | string[] }
+  | { assetId: string }
+  | { contactId: string };
 
 function isPostScope(scope: AssetScope): scope is { postId: string | string[] } {
   return typeof scope === 'object' && 'postId' in scope;
@@ -72,6 +78,16 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
+/** Whether the album `albumId` (a column, or an id) holds any of these assets, through a live edge. */
+export function albumHoldsAny(albumId: string | SQL | SQLiteColumn, assetIds: string[]): SQL {
+  return sql`exists (select 1 from album_assets where album_id = ${albumId} and deleted_at is null and ${inJson(sql.raw('asset_id'), assetIds)})`;
+}
+
+/** The ids of the photos, albums or posts (`targetType`) a contact is on, through its live links. */
+export function contactTargetIds(contactId: string, targetType: 'asset' | 'album' | 'post'): SQL {
+  return sql`(select target_id from contact_links where contact_id = ${contactId} and target_type = ${targetType} and deleted_at is null)`;
+}
+
 /**
  * The ids of the assets of a post's live albums (the albums holding any of the assets the post
  * screen shows, its thread's following posts' included, so not the purged), through live edges. A
@@ -115,6 +131,8 @@ export function assetScopeWhere(scope: AssetScope, sort: AssetSort = 'createdAt:
   if (edges) return sql`${deletion} and ${edges.where}`;
   if (scope === 'favorites') return sql`${deletion} and a.is_favorite = 1`;
   if (typeof scope === 'object' && 'assetId' in scope) return sql`${deletion} and a.id = ${scope.assetId}`;
+  if (typeof scope === 'object' && 'contactId' in scope)
+    return sql`${deletion} and a.id in ${contactTargetIds(scope.contactId, 'asset')}`;
   if (typeof scope !== 'object' || !('albumId' in scope)) return deletion;
   return sql`${deletion} and a.id in ${liveAlbumAssetIds(scope.albumId)}`;
 }

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { FieldClocks, VerifyResult } from '@squidbox/shared';
+import type { ContactPlace, FieldClocks, VerifyResult } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -260,6 +260,7 @@ export const instructions = pgTable(
     visionTagging: text('vision_tagging'),
     moreLikeThis: text('more_like_this'),
     modelCheckJudge: text('model_check_judge'),
+    contactScreenshot: text('contact_screenshot'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('instructions_user_seq_idx').on(t.userId, t.serverSeq)],
 );
@@ -280,6 +281,66 @@ export const modelChoices = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('model_choices_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
+
+// --- Contacts (sync-design §10) ---
+// The people the user works with, their lists, and where they are on photos, albums and posts.
+// `places` is a jsonb array of `{ city, state, country }` that merges as one value.
+export const contacts = pgTable(
+  'contacts',
+  {
+    ...syncableBase(),
+    name: text('name').notNull(),
+    isFavorite: boolean('is_favorite').notNull(),
+    favoritedAt: bigint('favorited_at', { mode: 'number' }),
+    notes: text('notes'),
+    xHandle: text('x_handle'),
+    blueskyHandle: text('bluesky_handle'),
+    onlyFansHandle: text('only_fans_handle'),
+    jffHandle: text('jff_handle'),
+    phoneNumber: text('phone_number'),
+    places: jsonb('places').$type<ContactPlace[]>().notNull(),
+    avatarFilename: text('avatar_filename'),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contacts_user_seq_idx').on(t.userId, t.serverSeq)],
+);
+export type ContactRow = typeof contacts.$inferSelect;
+
+export const contactLists = pgTable(
+  'contact_lists',
+  {
+    ...syncableBase(),
+    name: text('name').notNull(),
+    notes: text('notes'),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_lists_user_seq_idx').on(t.userId, t.serverSeq)],
+);
+export type ContactListRow = typeof contactLists.$inferSelect;
+
+export const contactListMembers = pgTable(
+  'contact_list_members',
+  {
+    ...syncableBase(),
+    listId: uuid('list_id').notNull(),
+    contactId: uuid('contact_id').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.id] }),
+    index('contact_list_members_user_seq_idx').on(t.userId, t.serverSeq),
+  ],
+);
+export type ContactListMemberRow = typeof contactListMembers.$inferSelect;
+
+export const contactLinks = pgTable(
+  'contact_links',
+  {
+    ...syncableBase(),
+    contactId: uuid('contact_id').notNull(),
+    targetType: text('target_type').notNull(), // 'asset' | 'album' | 'post' (validated via Zod)
+    targetId: uuid('target_id').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_links_user_seq_idx').on(t.userId, t.serverSeq)],
+);
+export type ContactLinkRow = typeof contactLinks.$inferSelect;
 
 // --- Model verification (app-wide, server-owned) ---
 // Facts an ai_admin sets for every account, read through the API and never synced: plain tables

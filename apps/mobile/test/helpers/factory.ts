@@ -1,4 +1,4 @@
-import type { AlbumRecord, AssetRecord, PostRecord } from '@squidbox/shared';
+import type { AlbumRecord, AssetRecord, ContactRecord, PostRecord } from '@squidbox/shared';
 import { randomUUID } from 'node:crypto';
 
 import * as schema from '../../src/sync/db/schema';
@@ -45,6 +45,27 @@ export function makeAlbumRecord(over: Partial<AlbumRecord> = {}) {
     sortOrder: null,
     smartAlbumType: null,
     position: null,
+    ...over,
+  };
+}
+
+export function makeContactRecord(over: Partial<ContactRecord> = {}): ContactRecord {
+  return {
+    id: randomUUID(),
+    createdAt: 1,
+    updatedAt: 1,
+    deletedAt: null,
+    name: 'Contact',
+    isFavorite: false,
+    favoritedAt: null,
+    notes: null,
+    xHandle: null,
+    blueskyHandle: null,
+    onlyFansHandle: null,
+    jffHandle: null,
+    phoneNumber: null,
+    places: [],
+    avatarFilename: null,
     ...over,
   };
 }

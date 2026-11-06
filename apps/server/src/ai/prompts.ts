@@ -1,10 +1,12 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
+  contactFromScreenshotResponseSchema,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
   type ChatTurn,
+  type ContactFromScreenshotResponse,
   type Instructions,
   type PersonaFields,
 } from '@squidbox/shared';
@@ -225,6 +227,11 @@ export function writingBriefingText(
   });
 }
 
+/** A photo sent in a request body (`{ base64, mimeType }`) as the data URL a vision message carries. */
+export function imageDataUrl({ base64, mimeType }: { base64: string; mimeType: string }): string {
+  return `data:${mimeType};base64,${base64}`;
+}
+
 /**
  * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
  * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line
@@ -329,4 +336,23 @@ export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: strin
   name: 'judge_verdict',
   jsonSchema: objectSchema({ pass: { type: 'boolean' }, reason: { type: 'string' } }),
   zod: z.object({ pass: z.boolean(), reason: z.string() }),
+};
+
+const CONTACT_FIELDS = contactFromScreenshotResponseSchema.keyof().options;
+// A field the model left out or set to null reads as not shown.
+const contactField = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? '');
+
+// A contact read from a profile screenshot: each field a string, empty when not shown.
+export const contactSchema: JsonSchemaSpec<ContactFromScreenshotResponse> = {
+  name: 'contact',
+  jsonSchema: objectSchema(Object.fromEntries(CONTACT_FIELDS.map((field) => [field, { type: 'string' }]))),
+  zod: z.object(
+    Object.fromEntries(CONTACT_FIELDS.map((field) => [field, contactField])) as Record<
+      (typeof CONTACT_FIELDS)[number],
+      typeof contactField
+    >,
+  ),
 };

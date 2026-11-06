@@ -9,10 +9,12 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { LogBlock, LogEmpty, LogLine } from '@/components/settings-list/LogBlock';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
+import { clientCollectionTables } from '@/sync/clientCollections';
 import { getDb, schema } from '@/sync/db/client';
 import { retryFailures } from '@/sync/outbox';
 import { readPushFailures } from '@/sync/readPushFailures';
-import { useCollectionStats, useSyncLogRows } from '@/sync/useInspector';
+import { usePendingByCollection, useSyncLogRows } from '@/sync/useInspector';
+import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync, runClearOutbox, runFullResync } from '@/sync/worker';
 import confirmAsync from '@/utils/confirmAsync';
@@ -26,7 +28,7 @@ const pushFailuresQuery = { read: readPushFailures, tables: [schema.outbox] };
 export default function SyncScreen() {
   const navigation = useNavigation();
   const { phase, pendingCount, failedCount, cursor, lastPullAt, lastError } = useSyncStatus();
-  const stats = useCollectionStats();
+  const pendingByCollection = usePendingByCollection();
   const log = useSyncLogRows();
   const [showErrors, setShowErrors] = useState(false);
 
@@ -76,8 +78,8 @@ export default function SyncScreen() {
         <Section>
           <Row label="Cursor" value={String(cursor)} />
           <Row label="Pending changes" value={String(pendingCount)} />
-          {stats.map((s) => (
-            <Row key={s.name} label={s.name} value={`${s.records} · ${s.pending} pending · ${s.tombstones} tomb`} />
+          {Object.entries(clientCollectionTables).map(([name, table]) => (
+            <CollectionRow key={name} name={name} table={table} pending={pendingByCollection.get(name) ?? 0} />
           ))}
         </Section>
 
@@ -119,4 +121,10 @@ export default function SyncScreen() {
       </DetailScrollView>
     </Page>
   );
+}
+
+// One collection's records, pending changes and tombstones; each row watches only its own table.
+function CollectionRow({ name, table, pending }) {
+  const { records, tombstones } = useRecordCounts(table);
+  return <Row label={name} value={`${records} · ${pending} pending · ${tombstones} tomb`} />;
 }

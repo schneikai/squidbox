@@ -4,7 +4,7 @@ import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
 import { readPersona } from './persona.js';
-import { visionMessages } from './prompts.js';
+import { imageDataUrl, visionMessages } from './prompts.js';
 import { photoTagsTask, runChosenModelTask } from './tasks.js';
 
 /**
@@ -27,7 +27,7 @@ export async function tagPhotoAsync({
     const [persona, instructions] = await Promise.all([readPersona(db, user.id), readInstructions(db, user)]);
     return visionMessages({
       prompt: instructions.visionTagging,
-      imageDataUrl: `data:${image.mimeType};base64,${image.base64}`,
+      imageDataUrl: imageDataUrl(image),
       contentTags: persona?.contentTags ?? [],
     });
   }

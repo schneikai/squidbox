@@ -18,6 +18,7 @@ export const instructionCollection = defineCollection({
     // Optional: the builds before it push instructions without it (sync-design §6, a new synced
     // column is optional and the server ships first); its stored value stays as it is then.
     modelCheckJudge: instructionText.optional(),
+    contactScreenshot: instructionText.optional(),
   }),
 });
 
@@ -35,9 +36,16 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  * - `modelCheckJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
  *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
- *   last message), `{reply}`.
+ *   last message), `{reply}`;
+ * - `contactScreenshot`, the system message of a New contact's From screenshot: no placeholders.
  */
-export const INSTRUCTION_KINDS = ['writing', 'visionTagging', 'moreLikeThis', 'modelCheckJudge'] as const;
+export const INSTRUCTION_KINDS = [
+  'writing',
+  'visionTagging',
+  'moreLikeThis',
+  'modelCheckJudge',
+  'contactScreenshot',
+] as const;
 
 // The placeholders the server fills in each kind (see INSTRUCTION_KINDS); a text without one leaves
 // that out of what the assistant gets.
@@ -47,6 +55,7 @@ export const INSTRUCTION_PLACEHOLDERS: Readonly<Record<InstructionKind, readonly
   visionTagging: ['themes'],
   moreLikeThis: [],
   modelCheckJudge: [...CREATOR_AND_POST, 'transcript', 'request', 'reply'],
+  contactScreenshot: [],
 });
 
 /** The placeholders of `kind` that `text` lacks, as INSTRUCTION_PLACEHOLDERS orders them. */
@@ -151,6 +160,12 @@ Write handles exactly as given.`,
     '',
     '# The reply to judge',
     '{reply}',
+  ].join('\n'),
+  // From screenshot (New contact): what to read from a profile screenshot.
+  contactScreenshot: [
+    "Extract the profile's name, X handle, Bluesky handle, OnlyFans handle, JFF handle and location from this social media profile screenshot. Look for every username, handle or profile link visible in it: in the bio, the links and the header.",
+    '',
+    'Return only a JSON object with the keys "name", "xHandle", "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the screenshot doesn\'t show. Handles without @ and without a URL. The location as its "city", "state" (the state or province, only in the US) and "country", with official English names; always try to name the country, even when only the city is shown. No commentary or Markdown.',
   ].join('\n'),
 });
 

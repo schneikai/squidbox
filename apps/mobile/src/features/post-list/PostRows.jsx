@@ -17,6 +17,14 @@ const identity = (onPress) => onPress;
  * only the newest `limit` (no `limit` reads them all). `guardPress` may wrap the rows' presses
  * (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
+/**
+ * @param {object} props
+ * @param {object} props.scope
+ * @param {string} props.emptyText
+ * @param {number} [props.limit]
+ * @param {(onPress: () => void) => () => void} [props.guardPress]
+ * @param {boolean} [props.isLive]
+ */
 export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }) {
   const posts = useScopePosts(scope, limit, isLive);
 

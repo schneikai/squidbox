@@ -23,7 +23,7 @@ const SUBJECTS = { draft: 'New post', edit: 'Edit post', post: 'This post' };
  */
 export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEditTags, mentions, onEditMentions }) {
   const assetIds = assets.map((asset) => asset.id);
-  const albums = useAssetAlbums(assetIds, { isLive: false });
+  const albums = useAssetAlbums({ assetIds }, { isLive: false });
 
   const albumName = albums?.find((album) => album.heldCount === new Set(assetIds).size)?.name;
   const counts = countMediaTypes(assets);

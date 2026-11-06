@@ -1,4 +1,4 @@
-import type { FieldClocks } from '@squidbox/shared';
+import type { ContactPlace, FieldClocks } from '@squidbox/shared';
 import { sql } from 'drizzle-orm';
 import { sqliteTable, text, integer, real, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
@@ -211,6 +211,7 @@ export const instructions = sqliteTable('instructions', {
   visionTagging: text('vision_tagging'),
   moreLikeThis: text('more_like_this'),
   modelCheckJudge: text('model_check_judge'),
+  contactScreenshot: text('contact_screenshot'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 
@@ -228,6 +229,88 @@ export const modelChoices = sqliteTable('model_choices', {
   visionUncensoredModel: text('vision_uncensored_model', { mode: 'json' }).$type<{ id: string; name: string }>(),
 });
 export type ModelChoiceRow = typeof modelChoices.$inferSelect;
+
+// Contacts (mirror @squidbox/shared contacts / contact_lists / contact_list_members / contact_links).
+// `places` is JSON text (`{ city, state, country }`s) that merges as one value.
+export const contacts = sqliteTable(
+  'contacts',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    name: text('name').notNull(),
+    isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
+    favoritedAt: integer('favorited_at'),
+    notes: text('notes'),
+    xHandle: text('x_handle'),
+    blueskyHandle: text('bluesky_handle'),
+    onlyFansHandle: text('only_fans_handle'),
+    jffHandle: text('jff_handle'),
+    phoneNumber: text('phone_number'),
+    places: text('places', { mode: 'json' }).$type<ContactPlace[]>().notNull(),
+    avatarFilename: text('avatar_filename'),
+  },
+  (t) => [
+    // By name as the app sorts it (nocase), so a page of contacts reads the index in order.
+    index('contacts_live_name_idx')
+      .on(sql`${t.name} collate nocase`, t.id)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type ContactRow = typeof contacts.$inferSelect;
+
+export const contactLists = sqliteTable('contact_lists', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  name: text('name').notNull(),
+  notes: text('notes'),
+});
+export type ContactListRow = typeof contactLists.$inferSelect;
+
+export const contactListMembers = sqliteTable(
+  'contact_list_members',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    listId: text('list_id').notNull(),
+    contactId: text('contact_id').notNull(),
+  },
+  (t) => [
+    // Tombstones included: adding a contact again restores its edge (membershipRepository).
+    index('contact_list_members_list_idx').on(t.listId, t.contactId),
+    index('contact_list_members_contact_idx')
+      .on(t.contactId, t.listId)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type ContactListMemberRow = typeof contactListMembers.$inferSelect;
+
+export const contactLinks = sqliteTable(
+  'contact_links',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    contactId: text('contact_id').notNull(),
+    // The values of CONTACT_LINK_TARGETS in @squidbox/shared, whose Zod schema validates them.
+    targetType: text('target_type', { enum: ['asset', 'album', 'post'] }).notNull(),
+    targetId: text('target_id').notNull(),
+  },
+  (t) => [
+    // Tombstones included, as contact_list_members_list_idx.
+    index('contact_links_target_idx').on(t.targetType, t.targetId, t.contactId),
+    index('contact_links_contact_idx')
+      .on(t.contactId, t.targetType, t.targetId)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type ContactLinkRow = typeof contactLinks.$inferSelect;
 
 // key/value store for the pull cursor + sync status (all local-only).
 export const syncMeta = sqliteTable('sync_meta', {
@@ -254,6 +337,9 @@ export const outbox = sqliteTable(
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
     error: text('error'),
+    // The file keys this row's uploads have put in the user's storage (a file field's, sync-design §6):
+    // a retried or coalesced row never uploads one again.
+    uploadedFiles: text('uploaded_files', { mode: 'json' }).$type<string[]>().notNull().default([]),
   },
   (t) => [
     uniqueIndex('outbox_collection_record_idx').on(t.collection, t.recordId),

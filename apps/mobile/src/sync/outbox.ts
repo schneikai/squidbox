@@ -3,6 +3,7 @@ import { and, count, eq, isNotNull, isNull, max, min, sql, sum } from 'drizzle-o
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { MISSING_ON_DEVICE } from './fileUploadErrors';
 import { inJson } from './inJson';
 import { localOnlyKeys } from './localOnlyKeys';
 import { SQL_BATCH } from './sqlBatch';
@@ -87,14 +88,56 @@ export async function clearOutboxRows(db: SyncDb, collection: string, recordIds:
   await db.delete(schema.outbox).where(recordsIn(collection, recordIds));
 }
 
-/** Records why the server rejected these records' pending payloads; a failed row waits (§6). */
+/**
+ * Records why these records' pending payloads failed (a rejection, a refused upload; §6): a failed row
+ * waits. `null` clears it, so each is pushed again.
+ */
 export async function setOutboxError(
   db: SyncDb,
   collection: string,
   recordIds: string[],
-  error: string,
+  error: string | null,
 ): Promise<void> {
   await db.update(schema.outbox).set({ error }).where(recordsIn(collection, recordIds));
+}
+
+/**
+ * Clears the error of these records' rows held back because their file was missing from the device
+ * (MISSING_ON_DEVICE), once a merge delivered it; a row failed for another reason keeps its error.
+ */
+export async function retryMissingFiles(db: SyncDb, collection: string, recordIds: string[]): Promise<void> {
+  await db
+    .update(schema.outbox)
+    .set({ error: null })
+    .where(and(recordsIn(collection, recordIds), sql`instr(${schema.outbox.error}, ${MISSING_ON_DEVICE}) > 0`));
+}
+
+/**
+ * Flags this pushed row with `error`, unless an edit replaced it meanwhile (it then holds a payload
+ * nobody tried yet). One statement: it runs after a network call, outside any transaction.
+ */
+export async function flagOutboxRow(db: SyncDb, row: schema.OutboxRow, error: string): Promise<void> {
+  await db
+    .update(schema.outbox)
+    .set({ error })
+    .where(and(eq(schema.outbox.id, row.id), eq(schema.outbox.updatedAt, row.updatedAt)));
+}
+
+/**
+ * Notes that this record's row has put `filename` in the user's storage (a file field's upload, §6),
+ * so a retry or a coalesced edit never uploads it again. One statement: it runs after a network call,
+ * outside any transaction, and an edit enqueued meanwhile keeps the list.
+ */
+export async function markFileUploaded(
+  db: SyncDb,
+  collection: string,
+  recordId: string,
+  filename: string,
+): Promise<void> {
+  await db
+    .update(schema.outbox)
+    .set({ uploadedFiles: sql`json_insert(${schema.outbox.uploadedFiles}, '$[#]', ${filename})` })
+    .where(recordsIn(collection, [recordId]));
 }
 
 // The push sends only the pushable rows; a failed one waits (§6).

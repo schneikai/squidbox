@@ -2,7 +2,9 @@
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
  * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
- * and posts, all by one guy who posts his outdoor photos on Bluesky, and his assistant setup: Writing
+ * and posts, all by one guy who posts his outdoor photos on Bluesky, the people he shoots and
+ * sells prints with (contacts, one with a photo, in two lists, on a photo, an album and a post), and
+ * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more) and the
  * Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
  * are deterministic and anything else in these collections is tombstoned.
@@ -23,6 +25,10 @@ import {
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
+  type ContactLinkRecord,
+  type ContactListMemberRecord,
+  type ContactListRecord,
+  type ContactRecord,
   type InstructionRecord,
   type NewPromptButton,
   type PersonaRecord,
@@ -148,6 +154,66 @@ const POSTS: {
   { text: 'Throwback to the first trip', media: [25, 11], postedDaysAgo: 290 },
   { text: 'Wish I had stayed longer', media: [5], postedDaysAgo: 320 },
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
+];
+
+// The people he hikes, shoots and sells prints with. `avatar`: a picsum id, uploaded as the contact's
+// photo; `on`: the photo (media index), album (ALBUMS index) or post (POSTS index) they are on.
+const CONTACTS: {
+  name: string;
+  fields: Partial<ContactRecord>;
+  isFavorite?: boolean;
+  avatar?: number;
+  on?: { asset?: number; album?: number; post?: number };
+}[] = [
+  {
+    name: 'Sam Ridge',
+    fields: {
+      blueskyHandle: 'ridgeline.bsky.social',
+      places: [{ city: 'Squamish', state: 'British Columbia', country: 'Canada' }],
+      notes: 'Hiking buddy. Shoots on film, knows every trailhead.',
+    },
+    isFavorite: true,
+    avatar: 1005,
+    on: { asset: 14, post: 1 },
+  },
+  {
+    name: 'Maya Lindqvist',
+    fields: {
+      xHandle: 'mayalindqvist',
+      blueskyHandle: 'mayalindqvist.bsky.social',
+      places: [{ city: 'Tromsø', state: '', country: 'Norway' }],
+      notes: 'Landscape photographer. Met at the print fair; swap prints every spring.',
+    },
+    isFavorite: true,
+    on: { album: 2 },
+  },
+  {
+    name: 'Theo Park',
+    fields: {
+      xHandle: 'theoparkphoto',
+      phoneNumber: '+1 303 555 0187',
+      places: [{ city: 'Denver', state: 'Colorado', country: 'United States' }],
+    },
+    on: { asset: 14 },
+  },
+  {
+    name: 'Lena Ortiz',
+    fields: { blueskyHandle: 'lenaortiz.bsky.social', places: [{ city: 'Lisbon', state: '', country: 'Portugal' }] },
+  },
+  {
+    name: 'Jonas Weber',
+    fields: {
+      blueskyHandle: 'jonasweber.bsky.social',
+      places: [{ city: 'Innsbruck', state: 'Tyrol', country: 'Austria' }],
+      notes: 'Runs the gallery that sells my prints.',
+    },
+  },
+];
+
+// The lists, with the CONTACTS (by index) in them.
+const CONTACT_LISTS: { name: string; notes: string; members: number[] }[] = [
+  { name: 'Hiking crew', notes: 'Who to ask along for a weekend trip.', members: [0, 2, 4] },
+  { name: 'Print buyers', notes: 'Send them the new prints first.', members: [1, 3, 4] },
 ];
 
 // The app's default prompt buttons (by name) in his words, for Bluesky: Thread becomes a print teaser,
@@ -318,6 +384,64 @@ const instructions: InstructionRecord[] = [
   },
 ];
 
+const contacts: ContactRecord[] = [];
+for (const [index, contact] of CONTACTS.entries()) {
+  const record = baseRecord(`contact:${index}`, now - (index + 3) * 7 * DAY);
+  let avatarFilename: string | null = null;
+  if (contact.avatar !== undefined) {
+    avatarFilename = `avatar-${record.id}-1.jpg`;
+    await upload(
+      avatarFilename,
+      await download(`https://picsum.photos/id/${contact.avatar}/512/512.jpg`),
+      'image/jpeg',
+    );
+  }
+  contacts.push({
+    ...record,
+    name: contact.name,
+    isFavorite: contact.isFavorite ?? false,
+    favoritedAt: contact.isFavorite ? record.createdAt : null,
+    notes: null,
+    xHandle: null,
+    blueskyHandle: null,
+    onlyFansHandle: null,
+    jffHandle: null,
+    phoneNumber: null,
+    places: [],
+    ...contact.fields,
+    avatarFilename,
+  });
+}
+const contactLists: ContactListRecord[] = CONTACT_LISTS.map((list, index) => ({
+  ...baseRecord(`contact-list:${index}`, now - 14 * DAY),
+  name: list.name,
+  notes: list.notes,
+}));
+const contactListMembers: ContactListMemberRecord[] = CONTACT_LISTS.flatMap((list, index) =>
+  list.members.map((member) => ({
+    ...baseRecord(`contact-list:${index}:contact:${member}`, now),
+    listId: contactLists[index]!.id,
+    contactId: contacts[member]!.id,
+  })),
+);
+const contactLinks: ContactLinkRecord[] = CONTACTS.flatMap(({ on = {} }, index) =>
+  [
+    on.asset === undefined ? null : { targetType: 'asset' as const, targetId: assetAt(on.asset).id },
+    on.album === undefined ? null : { targetType: 'album' as const, targetId: albums[on.album]!.id },
+    on.post === undefined ? null : { targetType: 'post' as const, targetId: posts[on.post]!.id },
+  ].flatMap((link) =>
+    link
+      ? [
+          {
+            ...baseRecord(`contact:${index}:${link.targetType}:${link.targetId}`, now),
+            contactId: contacts[index]!.id,
+            ...link,
+          },
+        ]
+      : [],
+  ),
+);
+
 // In order, positioned like the app's seed (seedPromptButtons).
 let lastPosition: string | null = null;
 // Parsed, so each takes the schema's default placement.
@@ -339,13 +463,18 @@ const mockRecords: Record<string, { id: string }[]> = {
   personas,
   prompt_buttons: promptButtons,
   instructions,
+  contacts,
+  contact_lists: contactLists,
+  contact_list_members: contactListMembers,
+  contact_links: contactLinks,
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
 await push(mutations);
 
 console.log(
   `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
-    ` ${promptButtons.length} prompt buttons, default instructions (${mutations.length} records pushed).`,
+    ` ${promptButtons.length} prompt buttons, default instructions, ${contacts.length} contacts in` +
+    ` ${contactLists.length} lists (${mutations.length} records pushed).`,
 );
 
 async function createPhotoAsset(

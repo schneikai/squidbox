@@ -5,7 +5,7 @@ import { getDb, openAppDb, setOpenDb } from '@/sync/db/client';
 import { retryFailures } from '@/sync/outbox';
 import { getOwner, setOwner } from '@/sync/status';
 import { sweepPurgedFiles } from '@/sync/sweepPurgedFiles';
-import webThumbnailUrls from '@/utils/assets/thumbnails/webThumbnailUrls';
+import webFileUrls from '@/utils/assets/webFileUrls';
 
 export interface OpenLibrary extends LibraryPaths {
   id: string;
@@ -71,7 +71,7 @@ export async function closeLibrary(): Promise<void> {
   deviceSweeps = null;
   setOpenDb(null);
   current = null;
-  webThumbnailUrls.clear();
+  webFileUrls.clear();
   await db.close();
 }
 

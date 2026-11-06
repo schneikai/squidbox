@@ -41,6 +41,7 @@ export async function readInstructions(db: Db, user: Pick<User, 'id' | 'features
         visionTagging: instructions.visionTagging,
         moreLikeThis: instructions.moreLikeThis,
         modelCheckJudge: instructions.modelCheckJudge,
+        contactScreenshot: instructions.contactScreenshot,
       })
       .from(instructions)
       .where(and(eq(instructions.userId, userId), eq(instructions.id, userId), isNull(instructions.deletedAt))),

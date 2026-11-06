@@ -1,9 +1,17 @@
 import type { ReactNode } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, type TextStyle, View } from 'react-native';
 
 import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
-export type ScreenSectionHeaderProps = { title: string; trailing?: ReactNode; isFlush?: boolean };
+type ScreenSectionHeaderSize = 'small' | 'regular';
+
+export type ScreenSectionHeaderProps = {
+  title: string;
+  trailing?: ReactNode;
+  isFlush?: boolean;
+  isFirst?: boolean;
+  size?: ScreenSectionHeaderSize;
+};
 
 /**
  * A section label above grouped rows or content: Settings and its screens, the asset's details,
@@ -12,15 +20,27 @@ export type ScreenSectionHeaderProps = { title: string; trailing?: ReactNode; is
  * When trailing is provided the component renders a flex row with the title
  * on the left and the slot on the right. Over cards it sits a little in from
  * their edge; `isFlush` lines it up with content that has no card around it.
+ * `isFirst` drops its top margin, for the first thing under a screen's content top (the Contacts tab's).
+ * `size` is `regular` (the default, also for the sections of one item's screen) or `small` (a count
+ * or a group over a long list: the contacts, the lists).
  */
-export default function ScreenSectionHeader({ title, trailing, isFlush = false }: ScreenSectionHeaderProps) {
+export default function ScreenSectionHeader({
+  title,
+  trailing,
+  isFlush = false,
+  isFirst = false,
+  size = 'regular',
+}: ScreenSectionHeaderProps) {
+  const label = [styles.label, LABEL_STYLES[size], isFlush && styles.flush];
+  const spacing = [styles.spacing, isFirst && styles.first];
+
   if (!trailing) {
-    return <Text style={[styles.label, isFlush && styles.flush]}>{title}</Text>;
+    return <Text style={[label, spacing]}>{title}</Text>;
   }
 
   return (
-    <View style={styles.row}>
-      <Text style={[styles.labelInRow, isFlush && styles.flush]}>{title}</Text>
+    <View style={[styles.row, spacing]}>
+      <Text style={[label, styles.labelInRow]}>{title}</Text>
       {trailing}
     </View>
   );
@@ -28,17 +48,20 @@ export default function ScreenSectionHeader({ title, trailing, isFlush = false }
 
 const styles = StyleSheet.create({
   label: {
-    ...textStyles.bodyBold,
     color: colors.text.secondary,
-    marginBottom: space.sm,
     marginLeft: layout.rowInset, // over the rows' text
+  },
+  label_small: textStyles.subheadlineBold,
+  label_regular: textStyles.bodyBold,
+  spacing: {
     marginTop: layout.sectionGap,
+    marginBottom: space.sm,
   },
   labelInRow: {
     flex: 1,
-    ...textStyles.bodyBold,
-    color: colors.text.secondary,
-    marginLeft: layout.rowInset,
+  },
+  first: {
+    marginTop: 0,
   },
   flush: {
     marginLeft: 0,
@@ -46,7 +69,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: space.sm,
-    marginTop: layout.sectionGap,
   },
 });
+
+const LABEL_STYLES: Record<ScreenSectionHeaderSize, TextStyle> = {
+  small: styles.label_small,
+  regular: styles.label_regular,
+};

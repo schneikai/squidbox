@@ -1,5 +1,6 @@
 import { useNavigation } from 'expo-router';
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,7 +15,7 @@ import type useToggleSelectAssetsAction from '@/features/asset-list/actions/togg
 import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
 
 export type FloatingHeaderProps = {
-  title: string;
+  title: ReactNode;
   onAdd: () => void;
 } & (
   | {
@@ -25,7 +26,8 @@ export type FloatingHeaderProps = {
   | { selection?: undefined; selectionActions?: undefined; onDelete?: undefined }
 );
 
-// The main screens' header. A screen with select mode passes its `selection`
+// The main screens' header. `title` is the screen's title, or a node that stands in for it (the
+// Contacts tab's Contacts | Lists switcher), at the same place. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
 export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }: FloatingHeaderProps) {
   const insets = useSafeAreaInsets();
@@ -67,7 +69,13 @@ export default function FloatingHeader({ title, onAdd, selection, selectionActio
   return (
     <View style={[styles.container, { top: insets.top }]} pointerEvents="box-none">
       {/* Page title */}
-      <Animated.Text style={[styles.title, titleStyle]}>{title}</Animated.Text>
+      {typeof title === 'string' ? (
+        <Animated.Text style={[styles.title, titleStyle]} accessibilityRole="header">
+          {title}
+        </Animated.Text>
+      ) : (
+        <Animated.View style={[styles.titleSlot, titleStyle]}>{title}</Animated.View>
+      )}
 
       {/* Normal mode: action pill + account */}
       <Animated.View style={[styles.rightGroup, normalStyle]}>
@@ -104,6 +112,10 @@ const styles = StyleSheet.create({
     ...textStyles.title1,
     color: colors.text.primary,
     flex: 1,
+  },
+  titleSlot: {
+    flex: 1,
+    flexDirection: 'row',
   },
   rightGroup: {
     flexDirection: 'row',

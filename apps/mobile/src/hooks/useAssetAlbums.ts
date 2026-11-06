@@ -4,11 +4,15 @@ import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-a
 import useAlbumRows from '@/features/album-list/useAlbumRows';
 
 /**
- * The albums holding any of `assetIds`, live, in the albums' custom order, each with its stats and
- * `heldCount` (how many of the assets it holds); undefined while reading. `isLive: false` reads them
- * once (useLiveQuery's). The rows are albumQuery's, loosely typed until that feature is TypeScript.
+ * The albums of `scope` (albumQuery's: `{ assetIds }`, those holding any of the assets, each with
+ * `heldCount`, how many of them it holds; `{ contactId }`, those a contact is on), live, in the
+ * albums' custom order, each with its stats; undefined while reading. `isLive: false` reads them once
+ * (useLiveQuery's). The rows are albumQuery's, loosely typed until that feature is TypeScript.
  */
-export default function useAssetAlbums(assetIds: string[], { isLive }: { isLive?: boolean } = {}) {
-  const { rows } = useAlbumRows({ assetIds }, { isLive });
+export default function useAssetAlbums(
+  scope: { assetIds: string[] } | { contactId: string },
+  { isLive }: { isLive?: boolean } = {},
+) {
+  const { rows } = useAlbumRows(scope, { isLive });
   return useMemo(() => rows && [...rows].sort(sortAlbumsByCustomOrder), [rows]);
 }

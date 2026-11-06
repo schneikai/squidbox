@@ -1,5 +1,6 @@
 import { File, type UploadProgress, type UploadResult, UploadType } from 'expo-file-system';
 
+import UploadFailedError from '@/features/cloud/assets/UploadFailedError';
 import cancelledError from '@/features/cloud/assets/cancelledError';
 import type { SyncIdentity } from '@/library/sessionMatches';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
@@ -13,7 +14,8 @@ type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?:
 // The API only responds 200 after S3 confirms the upload, so no extra validation is needed.
 // The access token is read fresh for `identity`, the user the upload runs for, and refused once
 // someone else is signed in (requireSession). `onProgress({ bytesSent, totalBytes })` follows it;
-// aborting `signal` cancels it, which rejects with an `AbortError` (like downloadAssetFileAsync).
+// aborting `signal` cancels it, which rejects with an `AbortError` (like downloadAssetFileAsync). A
+// refused one rejects with an UploadFailedError.
 export default async function uploadFileAsync(
   filename: string,
   fileUri: string,
@@ -67,16 +69,28 @@ async function doUploadAsync(
 function assertSuccess(result: UploadResult | undefined, filename: string, signal?: AbortSignal) {
   if (signal?.aborted) throw cancelled(filename);
   if (!result || result.status < 200 || result.status >= 300) {
-    throw new Error(serverErrorMessage(result?.body) ?? `Upload failed with status ${result?.status}`);
+    const body = parseBody(result?.body);
+    throw new UploadFailedError(envelopeMessage(body) ?? `Upload failed with status ${result?.status}`, {
+      status: result?.status,
+      code: envelopeCode(body),
+    });
   }
 }
 
-// The server's error message, if the body is its JSON error envelope (a proxy's HTML page isn't).
-function serverErrorMessage(body: string | undefined): string | undefined {
+// The body as JSON, or nothing when it isn't (a proxy's HTML page).
+function parseBody(body: string | undefined): unknown {
   if (!body) return undefined;
   try {
-    return envelopeMessage(JSON.parse(body));
+    return JSON.parse(body);
   } catch {
     return undefined;
   }
+}
+
+// The error code of the server's envelope (`read_only_library`, `rate_limited`…), else null.
+function envelopeCode(data: unknown): string | null {
+  if (typeof data !== 'object' || data === null || !('error' in data)) return null;
+  const { error } = data;
+  if (typeof error !== 'object' || error === null || !('code' in error)) return null;
+  return typeof error.code === 'string' ? error.code : null;
 }

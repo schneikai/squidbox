@@ -16,7 +16,7 @@ import { withLibraryDb } from './withLibraryDb';
 
 import { setSyncError } from '@/sync/assetsRepository';
 import type { SyncDb } from '@/sync/db/types';
-import { outboxVersion } from '@/sync/outbox';
+import { outboxVersion, retryMissingFiles } from '@/sync/outbox';
 import {
   getKeptFor,
   getMergeCommit,
@@ -130,6 +130,8 @@ export async function mergeLibrary(sourceId: string, targetId: string): Promise<
     }
     await moveMergedFiles(plan, sourcePaths, targetPaths);
     await setSyncError(targetDb, plan.retried, null); // only once their files arrived
+    for (const [collection, ids] of Object.entries(plan.retriedRows))
+      await retryMissingFiles(targetDb, collection, ids);
     if (committed) {
       await setMergeCommit(targetDb, name, { ...committed, source: sourceVersion });
       if (!(await isPushed(targetDb, committed))) return 'waits';

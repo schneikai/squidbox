@@ -369,6 +369,26 @@ d('sync engine (Postgres)', () => {
         writingUncensoredModel: { id: 'venice-uncensored-1-2', name: 'Venice Uncensored' },
         visionUncensoredModel: null,
       }),
+      contacts: () => ({
+        ...base(),
+        name: 'Maya Lindqvist',
+        isFavorite: true,
+        favoritedAt: 1000,
+        notes: 'Shoots golden hour on the Chief.',
+        xHandle: 'mayalindqvist',
+        blueskyHandle: 'maya.bsky.social',
+        onlyFansHandle: null,
+        jffHandle: null,
+        phoneNumber: '+1 604 555 0142',
+        places: [
+          { city: 'Squamish', state: 'British Columbia', country: 'Canada' },
+          { city: 'Tofino', state: 'British Columbia', country: 'Canada' },
+        ],
+        avatarFilename: null,
+      }),
+      contact_lists: () => ({ ...base(), name: 'Squamish', notes: null }),
+      contact_list_members: () => ({ ...base(), listId: randomUUID(), contactId: randomUUID() }),
+      contact_links: () => ({ ...base(), contactId: randomUUID(), targetType: 'album', targetId: randomUUID() }),
     };
 
     for (const name of collectionNames) {

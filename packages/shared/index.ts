@@ -20,6 +20,10 @@ export * from './collections/promptButton';
 export * from './collections/favorite';
 export * from './collections/instruction';
 export * from './collections/modelChoice';
+export * from './collections/contact';
+export * from './collections/contactList';
+export * from './collections/contactListMember';
+export * from './collections/contactLink';
 export * from './collections/defaultPromptButtons';
 export * from './collections/registry';
 export * from './collections/widenToGroups';
@@ -30,6 +34,8 @@ export * from './movePositions';
 export * from './positionsInOrder';
 export * from './chunk';
 export * from './uniqueTags';
+export * from './contacts/formatPlace';
+export * from './contacts/normalizeHandle';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

@@ -2,12 +2,14 @@ import type { AlbumRecord, AssetRecord, PullResponse } from '@squidbox/shared';
 import { initialKeys } from '@squidbox/shared';
 import { describe, it, expect } from 'vitest';
 
-import { makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
+import { makeAlbumRecord, makeAssetRecord, makeContactRecord, makePostRecord } from './helpers/factory';
 import { makeMeasuredTestDb, type Work } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
+import contactQuery from '../src/features/contact-list/contactQuery';
 import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
+import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { makeRepository } from '../src/sync/repository';
@@ -368,6 +370,14 @@ describe('plan guard', () => {
     const work = await plansOf({ scope: 'library', sort: 'random' });
     expect(work.fullScans).toEqual(Array(3).fill('SCAN a USING INDEX assets_live_created_idx'));
     expect(work.plans).toContain('USE TEMP B-TREE FOR ORDER BY');
+  });
+
+  it('reads a page of contacts by name through the name index, sorting nothing', async () => {
+    const { db, measure } = makeMeasuredTestDb();
+    for (const name of ['maya', 'Jon', 'ada', 'Zoe']) await contacts.create(db, makeContactRecord({ name }));
+    const work = await measure(() => contactQuery({ scope: 'all' }).read(db, { limit: 100 }));
+    expectIndexedPlan(work);
+    expect(work.plans).toContain('SCAN contacts USING INDEX contacts_live_name_idx');
   });
 });
 

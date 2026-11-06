@@ -14,6 +14,14 @@ propose, don't add. Remove an entry once it's done.
 
 ## Bugs
 
+### [ ] Signing out leaves the account's data on screen
+
+A privacy problem, more so with contacts. Sign out (`CloudProvider.logoutAsync`) only drops the
+tokens and stops sync; `openLibraryForSession` (`src/library/sessionLibrary.ts`) then keeps the
+account's library open without them, so its photos, albums, posts and contacts stay visible to
+anyone holding the phone. Signed out should show the device's own library (or nothing) and park or
+remove the account's copy; unsynced changes need a warning first so nothing is lost.
+
 ## Features
 
 ### [ ] Search suggestions as you type, like Apple Photos

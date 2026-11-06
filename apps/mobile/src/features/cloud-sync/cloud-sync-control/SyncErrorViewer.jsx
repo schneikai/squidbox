@@ -1,5 +1,6 @@
+import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { FlatList, Modal, View, Text as RNText, StyleSheet } from 'react-native';
+import { FlatList, Modal, Pressable, View, Text as RNText, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
@@ -8,12 +9,13 @@ import ModalSheet from '@/components/ModalSheet';
 import Text from '@/components/Text';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
-import { layout, space } from '@/styles/designTokens';
+import { layout, press, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
-// The failures a paged `query` reads, as `{ id, title, error }` rows: what failed and why. `onRetryAll`
-// retries every one of them, not just the loaded page. Closes itself once none are left.
+// The failures a paged `query` reads, as `{ id, title, error, href? }` rows: what failed and why; a row
+// with an `href` opens it (where the way out is). `onRetryAll` retries every one of them, not just the
+// loaded page. Closes itself once none are left.
 export default function SyncErrorViewer({ query, onRetryAll, close }) {
   const { bottom } = useSafeAreaInsets();
   const { rows, count, loadMore } = usePagedQuery(query, 50);
@@ -21,6 +23,11 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
   useEffect(() => {
     if (count === 0) close();
   }, [count, close]);
+
+  function handleOpen(href) {
+    close();
+    router.navigate(href);
+  }
 
   async function handleRetry() {
     await onRetryAll();
@@ -42,12 +49,17 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
           keyExtractor={(row) => String(row.id)}
           renderItem={({ item: row }) => (
             <Section>
-              <View style={styles.errorRow}>
+              <Pressable
+                style={({ pressed }) => [styles.errorRow, pressed && press.flat]}
+                disabled={!row.href}
+                onPress={() => handleOpen(row.href)}
+                accessibilityRole={row.href ? 'link' : undefined}
+              >
                 <RNText style={[listTextStyles.caption, styles.errorTitle]} numberOfLines={1}>
                   {row.title}
                 </RNText>
                 <Text variant="error">{row.error}</Text>
-              </View>
+              </Pressable>
             </Section>
           )}
           onEndReached={loadMore}

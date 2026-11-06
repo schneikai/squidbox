@@ -27,13 +27,13 @@ export default function PopoverSurface({ progress, origin, style, children, ...p
 const styles = StyleSheet.create({
   surface: {
     position: 'absolute',
-    borderRadius: radii.modal,
+    borderRadius: radii.card,
     overflow: 'hidden',
     ...shadows.floating,
   },
   overlay: {
     backgroundColor: colors.background.menu,
-    borderRadius: radii.modal,
+    borderRadius: radii.card,
     ...shadows.litEdge,
   },
 });

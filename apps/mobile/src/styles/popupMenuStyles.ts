@@ -9,7 +9,6 @@ import { layout, sizes } from '@/styles/designTokens';
 // that still wraps is measured with all its lines.
 const frame = {
   width: sizes.popoverWidth,
-  paddingVertical: layout.barPaddingY,
 };
 
 export default {
@@ -24,6 +23,6 @@ export default {
     alignItems: 'center',
     paddingHorizontal: layout.menuRowPaddingX,
     paddingVertical: layout.menuRowPaddingY,
-    minHeight: sizes.iconButton, // Apple's 44 pt target; a larger text size grows the row
+    minHeight: layout.menuRowHeight, // above Apple's 44 pt target; a larger text size grows the row
   } satisfies ViewStyle,
 };

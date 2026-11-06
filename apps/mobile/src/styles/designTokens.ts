@@ -27,6 +27,7 @@ const palette = {
   gray300: '#D3D3D3',
   gray400: '#9CA3AF',
   gray500: '#6B7280',
+  gray600: '#4B5563',
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet75: '#EFEDF8', // the page gray with a touch of lavender
@@ -43,6 +44,7 @@ const palette = {
   blue600: '#2563EB',
   cyan100: '#B1F1FF',
   yellow100: '#FEF6C7',
+  amber500: '#F59E0B',
 };
 
 // Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
@@ -51,6 +53,7 @@ export const colors = {
   text: {
     primary: palette.gray900,
     secondary: palette.gray500, // details, inactive icons
+    muted: palette.gray600, // details on a grey or yellow fill, where `secondary` would fade ("+3", a duplicate's reason)
     tertiary: palette.gray400, // placeholders and disabled text only, too faint for copy
     inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
   },
@@ -70,6 +73,7 @@ export const colors = {
     dangerLight: alpha(palette.rose600, 0.1),
     info: palette.blue600, // a neutral fact about an entry (a model is the Default)
     infoLight: alpha(palette.blue600, 0.12),
+    warning: palette.amber500, // a mark on what a warning is about (a field a duplicate contact shares)
   },
   background: {
     // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
@@ -97,6 +101,7 @@ export const colors = {
   },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface
+    menuGap: alpha(palette.black, 0.05), // the band between groups of a popover menu's rows (Divider)
     dim: alpha(palette.black, 0.35), // under a badge over a picture, behind a small dialog
     scrim: alpha(palette.black, 0.8), // dims the whole app behind a blocking overlay
     track: alpha(palette.white, 0.1), // the empty part of a progress ring on the scrim
@@ -134,6 +139,14 @@ export const shadows = {
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
+  },
+  // A thumb raised off the toolbar it sits in (the active text segment of a SegmentedPill)
+  thumb: {
+    boxShadow: `0 2px 8px ${alpha(palette.black, 0.08)}`,
+  },
+  // A picture raised off the page (the contact screen's avatar)
+  avatar: {
+    boxShadow: `0 10px 40px ${alpha(palette.black, 0.12)}`,
   },
   // A small floating button on its own (the account avatar): a softer floating shadow
   subtle: {
@@ -183,12 +196,22 @@ export const sizes = {
   icon: scale(20), // inside a button
   iconSmall: scale(18), // compact: avatars, secondary indicators
   iconLarge: scale(32), // stands for content (a not-uploaded thumbnail)
-  menuIcon: scale(16),
+  menuIcon: scale(16), // beside a chip's label
+  menuItemIcon: scale(22), // at the end of a popover menu's row (MenuItemContent)
   thumbnail: scale(72), // a list row's leading picture (ThumbnailRow)
   thumbnailSmall: scale(36), // a small leading picture: a pick row's, what a chat is about
   postTile: { width: scale(84), height: scale(112) }, // a post's picture as a row card's tile (PostRowCard)
+  // A contact's avatar (ContactAvatar's sizes): a chip's, a duplicate's, a contact's or a list's row
+  // (ContactRow, ContactListRows), the favorites row's and New contact's, the contact screen's.
+  avatar: {
+    chip: scale(32),
+    compact: scale(36),
+    row: scale(48),
+    medium: scale(72),
+    hero: scale(120),
+  },
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
-  popoverWidth: Math.min(scale(230), SCREEN_WIDTH - 2 * SIDE_GUTTER),
+  popoverWidth: Math.min(scale(250), SCREEN_WIDTH - 2 * SIDE_GUTTER),
 };
 
 const BAR_HEIGHT = sizes.iconButton + BAR_MARGIN * 2;
@@ -234,8 +257,9 @@ export const layout = {
   introGap: space.md, // between a screen's intro text (IntroText at its top) and the content below it
   actionsGap: space.xxl, // between a screen's content and its text actions under it (ActionButtons)
   menuRowPaddingX: space.lg,
-  menuRowPaddingY: space.md, // with the row's minHeight (popupMenuStyles), a menu row is at least 44 pt
-  menuIconGap: space.md, // between a menu row's leading icon and its label
+  menuRowHeight: scale(50), // a popover menu row's minHeight (popupMenuStyles), iOS's
+  menuRowPaddingY: space.sm, // a menu row's text from its edge once a larger text size grows it
+  menuIconGap: space.lg, // between a menu row's label and its icon at the end
   // A post's card (PostView, and a thread's following post, ThreadPost): its padding, the further inset
   // of its text on each side (so text starts at cardInset with or without photos) and below, and the
   // room between its photos and its text.

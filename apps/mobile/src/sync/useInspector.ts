@@ -2,24 +2,14 @@ import { count, desc } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import { useLiveQuery } from './useLiveQuery';
-import { useRecordCounts } from './useRecordCounts';
 
 // Reactive data for the Sync Inspector, counted and ordered in SQL.
-
-export interface CollectionStats {
-  name: string;
-  records: number; // live (non-tombstoned)
-  tombstones: number;
-  pending: number;
-}
 
 const SYNC_LOG_SHOWN = 30;
 const NO_ROWS: never[] = [];
 
-export function useCollectionStats(): CollectionStats[] {
-  const assets = useRecordCounts(schema.assets);
-  const albums = useRecordCounts(schema.albums);
-  const posts = useRecordCounts(schema.posts);
+/** Each collection's pending outbox rows, by collection name. */
+export function usePendingByCollection(): Map<string, number> {
   const pending =
     useLiveQuery(
       (db) =>
@@ -29,15 +19,7 @@ export function useCollectionStats(): CollectionStats[] {
           .groupBy(schema.outbox.collection),
       [schema.outbox],
     ) ?? NO_ROWS;
-
-  const pendingByCollection = new Map(pending.map((row) => [row.collection, row.count]));
-  const stat = (name: string, counts: { records: number; tombstones: number }): CollectionStats => ({
-    name,
-    ...counts,
-    pending: pendingByCollection.get(name) ?? 0,
-  });
-
-  return [stat('assets', assets), stat('albums', albums), stat('posts', posts)];
+  return new Map(pending.map((row) => [row.collection, row.count]));
 }
 
 export function useSyncLogRows(): schema.SyncLogRow[] {

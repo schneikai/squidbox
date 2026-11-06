@@ -103,6 +103,17 @@ function veniceAnswers({
   tags: replyTags = tags,
   chatReply = CHAT_REPLY,
   posts = ['one', 'two', 'three'],
+  contact = CONTACT_READ,
+  rawContent,
+}: {
+  catalogStatus?: number;
+  balanceStatus?: number;
+  chatStatus?: number;
+  tags?: string[];
+  chatReply?: unknown;
+  posts?: string[];
+  contact?: unknown;
+  rawContent?: string;
 } = {}) {
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/api_keys/rate_limits')) {
@@ -124,9 +135,12 @@ function veniceAnswers({
       tags: { tags: replyTags },
       posts: { posts },
       chat_reply: chatReply,
+      contact,
     }[response_format.json_schema.name as string];
     return new Response(
-      JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] }),
+      JSON.stringify({
+        choices: [{ finish_reason: 'stop', message: { content: rawContent ?? JSON.stringify(content) } }],
+      }),
     );
   });
 }
@@ -138,6 +152,16 @@ const chatBodies = () =>
 
 const writing = { prompt: 'Write 3 posts about a sunrise hike', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
 const tagRequest = { image: { base64: 'AAAA', mimeType: 'image/jpeg' } };
+const CONTACT_READ = {
+  name: ' Maya Lindqvist ',
+  xHandle: '@MayaL',
+  blueskyHandle: 'https://bsky.app/profile/maya.bsky.social',
+  onlyFansHandle: '',
+  jffHandle: '',
+  city: ' Squamish ',
+  state: '',
+  country: 'Canada',
+};
 const chatRequest = {
   context: {
     kind: 'draft',
@@ -210,6 +234,7 @@ describe('account features', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
+      ['POST', '/ai/contact-from-screenshot', tagRequest],
       ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
@@ -476,6 +501,33 @@ describe('POST /api/v1/ai/compare/vision', () => {
     const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
     const res = await call('POST', '/ai/compare/vision', { ...vision, image: { ...vision.image, base64 } });
     expect(res.statusCode).toBe(413);
+  });
+});
+
+describe('POST /api/v1/ai/contact-from-screenshot', () => {
+  it("reads the screenshot with the user's From screenshot instructions, handles normalized", async () => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/contact-from-screenshot', tagRequest);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      name: 'Maya Lindqvist',
+      xHandle: 'mayal',
+      blueskyHandle: 'maya.bsky.social',
+      onlyFansHandle: '',
+      jffHandle: '',
+      city: 'Squamish',
+      state: '',
+      country: 'Canada',
+    });
+    const [body] = chatBodies();
+    expect(body.messages[0]).toEqual({ role: 'system', content: DEFAULT_INSTRUCTIONS.contactScreenshot });
+  });
+
+  it('502 ai_unavailable when the answer is not JSON', async () => {
+    veniceAnswers({ rawContent: 'I see a profile of a woman named Maya.' });
+    const res = await call('POST', '/ai/contact-from-screenshot', tagRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json().error.code).toBe('ai_unavailable');
   });
 });
 

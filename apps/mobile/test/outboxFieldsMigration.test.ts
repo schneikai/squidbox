@@ -37,3 +37,22 @@ describe('migration 0011_outbox_fields', () => {
     expect(JSON.parse(fields)).toEqual(Object.fromEntries(expected.map((key) => [key, 2000])));
   });
 });
+
+describe('migration 0031_contacts', () => {
+  it('gives an outbox row from before it an empty list of uploaded files', () => {
+    const sqlite = new Database(':memory:');
+    const contacts = journal.entries.findIndex((entry) => entry.tag === '0031_contacts');
+    migrate(sqlite, 0, contacts);
+    const asset = makeAssetRecord();
+    sqlite
+      .prepare(
+        `INSERT INTO outbox (collection, record_id, op, payload, updated_at) VALUES ('assets', ?, 'upsert', ?, 1)`,
+      )
+      .run(asset.id, JSON.stringify(asset));
+
+    migrate(sqlite, contacts, contacts + 1);
+
+    const { uploaded_files } = sqlite.prepare('SELECT uploaded_files FROM outbox').get() as { uploaded_files: string };
+    expect(JSON.parse(uploaded_files)).toEqual([]);
+  });
+});

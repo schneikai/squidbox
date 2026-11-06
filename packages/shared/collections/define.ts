@@ -35,6 +35,11 @@ export interface CollectionDescriptor<S extends z.ZodTypeAny = z.ZodTypeAny, L e
   fieldGroups: readonly (readonly string[])[];
   /** A write-once field set only on a deleted record, which it freezes (e.g. purgedAt, sync-design §7). */
   finalField?: string;
+  /**
+   * Synced fields whose value is the key of a file in the user's storage: the sync uploads the file
+   * before it pushes the record (sync-design §6).
+   */
+  fileFields: readonly string[];
   /** The fields that merge one by one: every synced field but `id`, `createdAt` and `updatedAt`. */
   readonly mergeFields: readonly string[];
   /** The merge fields with a clock of their own: all but the final field, which goes with deletedAt. */
@@ -48,8 +53,11 @@ export function defineCollection<S extends z.ZodTypeAny, L extends z.ZodRawShape
   localOnly?: L;
   fieldGroups?: readonly (readonly string[])[];
   finalField?: string;
+  fileFields?: readonly string[];
 }): CollectionDescriptor<S, L> {
   const { shape } = config.schema as unknown as z.ZodObject<z.ZodRawShape>;
+  for (const field of config.fileFields ?? [])
+    if (!(field in shape)) throw new Error(`${config.name}: file field "${field}" is not in its schema`);
   const mergeFields = Object.keys(shape).filter((key) => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');
   return {
     name: config.name,
@@ -57,6 +65,7 @@ export function defineCollection<S extends z.ZodTypeAny, L extends z.ZodRawShape
     localOnly: (config.localOnly ?? {}) as L,
     fieldGroups: config.fieldGroups ?? [],
     finalField: config.finalField,
+    fileFields: Object.freeze([...(config.fileFields ?? [])]),
     mergeFields: Object.freeze(mergeFields),
     clockedFields: Object.freeze(mergeFields.filter((field) => field !== config.finalField)),
   };

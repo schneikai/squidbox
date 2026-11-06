@@ -10,8 +10,9 @@ const RECOVERY_INTERVAL = 60000; // ms between second chances for the failed one
 // listens to are kept, the newest (or the one asked for again) loading first, in batches behind a
 // hard cap. `load(assets, signal)` resolves the names of those it has on the device afterwards and
 // throws when the whole batch failed; `dispose` drops everything and aborts what's in flight.
-export default function createThumbnailQueue({ load, onError }) {
-  // by thumbnailFilename: { asset, listeners, failures, state: 'queued' | 'loading' | 'waiting' | 'failed' }
+// `keyOf(item)` names an item's file, its thumbnail's unless told (a contact's avatar, say).
+export default function createThumbnailQueue({ load, onError, keyOf = (asset) => asset.thumbnailFilename }) {
+  // by keyOf: { asset, listeners, failures, state: 'queued' | 'loading' | 'waiting' | 'failed' }
   let requests = new Map();
   let stack = []; // the keys of the 'queued' requests, the newest last
   let activeBatches = 0;
@@ -21,7 +22,7 @@ export default function createThumbnailQueue({ load, onError }) {
   let recoveryTimer = null;
 
   function request(asset, onResult) {
-    const key = asset?.thumbnailFilename;
+    const key = asset && keyOf(asset);
     if (!key) return () => {};
     let entry = requests.get(key);
     if (!entry) {

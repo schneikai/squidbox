@@ -40,6 +40,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" />
       <Tabs.Screen name="albums" />
       <Tabs.Screen name="posts" />
+      <Tabs.Screen name="contacts" />
       <Tabs.Screen name="settings" />
     </Tabs>
   );

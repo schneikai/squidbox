@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 
 import { albumOrder } from './helpers/albumOrder';
-import { createPost, makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord, makePostRecord } from './helpers/factory';
 import {
   A,
   B,
@@ -29,11 +29,13 @@ import {
   synced,
   transportOf,
   unansweredTransport,
+  uploadLog,
   useTwoDeviceServer,
 } from './helpers/twoDeviceServer';
 import * as serverSchema from '../../server/src/db/schema.js';
 import readPost from '../src/features/post-list/readPost';
 import * as repo from '../src/sync/assetsRepository';
+import * as contacts from '../src/sync/contactsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
@@ -692,5 +694,21 @@ describe('two devices and a whole-record app on one server', () => {
         expect(row).toMatchObject({ notes, isFavorite: true, deletedAt: i % 5 === 0 ? expect.any(Number) : null });
       }
     }, 120_000);
+  });
+
+  describe('contact photos', () => {
+    it('a photo set on one device is uploaded before its contact is pushed and shows on the other; a removal too', async () => {
+      const contact = makeContactRecord({ name: 'Maya', avatarFilename: 'avatar-m-1.jpg' });
+      await edit(A, S + 100, () => contacts.create(A, contact));
+      await sync(A);
+      expect(uploadLog).toEqual(['contacts.avatarFilename avatar-m-1.jpg']);
+      await sync(B);
+      expect(await localRow(B, 'contacts', contact.id)).toMatchObject({ avatarFilename: 'avatar-m-1.jpg' });
+
+      await edit(A, S + 200, () => contacts.update(A, contact.id, { avatarFilename: null }));
+      await settle([A, B]);
+      expect(await expectConverged('contacts', contact.id, [A, B])).toMatchObject({ avatarFilename: null });
+      expect(uploadLog).toHaveLength(1);
+    });
   });
 });

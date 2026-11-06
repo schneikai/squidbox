@@ -1,4 +1,5 @@
 import type { FieldClocks, PushMutation, PushResult } from '@squidbox/shared';
+import { isDeepStrictEqual } from 'node:util';
 import { expect } from 'vitest';
 
 import { serverCollections } from '../../../server/src/sync/collections.js';
@@ -36,7 +37,8 @@ export async function pushViolations(
       sentFields(col, record as never, mutation.fields as FieldClocks | undefined, Number.MAX_SAFE_INTEGER),
     );
     const row = rows.get(mutation.collection)!.get(result.id);
-    const lost = merged.filter((field) => !Object.is(row?.[field], record[field]));
+    // A JSON field (a contact's places, a persona's lists) holds the pushed value when equal by content.
+    const lost = merged.filter((field) => !isDeepStrictEqual(row?.[field], record[field]));
     const final = col.descriptor.finalField;
     const purgeMissing = !!final && row?.[final] != null && !Object.is(row[final], record[final] ?? null);
     const where = `${mutation.collection} ${result.id}`;

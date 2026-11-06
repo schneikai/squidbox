@@ -1,4 +1,5 @@
 import {
+  collectionsByName,
   lostFields,
   PUSH_BODY_LIMIT,
   PUSH_MAX_MUTATIONS,
@@ -11,8 +12,11 @@ import { and, gt } from 'drizzle-orm';
 import { clientCollectionTables } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { FileUploadRefusedError } from './fileUploadErrors';
 import {
   clearOutboxRows,
+  flagOutboxRow,
+  markFileUploaded,
   pendingEdits,
   pushableOutboxRows,
   retryFailures,
@@ -42,13 +46,21 @@ const TOO_LARGE = `too-large: over the server's ${PUSH_BODY_LIMIT}-byte request 
 // page: on web, a 50k first sync drops from ~3 min to ~40 s.
 export const APPLY_BATCH = 5000;
 
-// An aborted `signal` ends the run between push batches, or in a pull after the page at hand, with
-// everything so far committed (the cursor moves per applied batch, so the next run resumes).
-// `removeFiles` removes this device's copies of assets whose purge the server confirmed (§7a); a run
-// without it leaves them for one with it.
+/**
+ * Uploads a file field's file (`filename`, the value of `collection`'s `field`) to the user's storage
+ * under its name. Rejects with a FileUploadRefusedError for what fails the same way next time.
+ */
+export type UploadFile = (collection: string, field: string, filename: string, signal: AbortSignal) => Promise<void>;
+
+// An aborted `signal` ends the run between push batches (or a batch's uploads), or in a pull after the
+// page at hand, with everything so far committed (the cursor moves per applied batch, so the next run
+// resumes). `removeFiles` removes this device's copies of assets whose purge the server confirmed
+// (§7a); a run without it leaves them for one with it. `uploadFile` uploads the files a batch's
+// records name before they are pushed (§6); a run without it refuses to push such a record.
 interface SyncRunOptions {
   signal?: AbortSignal;
   removeFiles?: RemoveFiles;
+  uploadFile?: UploadFile;
 }
 
 // ── DI core: one push→pull pass against an injected db + transport, recording a sync_log entry
@@ -57,7 +69,7 @@ interface SyncRunOptions {
 export async function runSyncOnce(
   db: SyncDb,
   transport: SyncTransport,
-  { signal = new AbortController().signal, removeFiles }: SyncRunOptions = {},
+  { signal = new AbortController().signal, removeFiles, uploadFile }: SyncRunOptions = {},
 ): Promise<void> {
   const ranAt = Date.now();
   let pushed = 0;
@@ -65,7 +77,7 @@ export async function runSyncOnce(
   const notes: string[] = [];
   let error: string | null = null;
   try {
-    const p = await pushPhase(db, transport, signal);
+    const p = await pushPhase(db, transport, signal, uploadFile);
     pushed = p.pushed;
     notes.push(...p.notes);
     if (p.stopped) notes.push('stopped during push');
@@ -98,6 +110,7 @@ async function pushPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
+  uploadFile: UploadFile | undefined,
 ): Promise<{ pushed: number; notes: string[]; stopped: boolean }> {
   let pushed = 0;
   const notes: string[] = [];
@@ -119,8 +132,20 @@ async function pushPhase(
     if (rows.length === 0) break;
     if (pushed === 0) await patchStatus(db, { phase: 'pushing' });
     lastId = rows.at(-1)!.id;
-    const { batch, mutations, tooLarge, scanned } = request(rows);
+    const planned = request(rows);
+    const { tooLarge, scanned } = planned;
     carried = rows.filter((row) => row.id > scanned);
+    // The files the batch's records name go up first: a pushed record never names a file the user's
+    // storage lacks. A row whose upload failed leaves the batch and waits with its error.
+    const uploads = await uploadBatchFiles(db, planned.batch, uploadFile, signal);
+    notes.push(...uploads.notes);
+    if (uploads.stopped) {
+      stopped = true;
+      break;
+    }
+    const kept = (_: unknown, index: number) => !uploads.refused.has(planned.batch[index]!.id);
+    const batch = planned.batch.filter(kept);
+    const mutations = planned.mutations.filter(kept);
     const { results } = mutations.length > 0 ? await transport.push({ mutations }) : { results: [] };
     const refused = tooLarge.map((row) => ({
       id: row.recordId,
@@ -134,6 +159,56 @@ async function pushPhase(
   }
   if (pushed > 0) await patchStatus(db, { lastPushAt: Date.now() });
   return { pushed, notes, stopped };
+}
+
+// The files a row's push needs in storage first: those of its file fields (sync-design §6) the edit
+// changed to a file, that this row hasn't uploaded yet. A tombstone needs none (nothing shows it).
+function filesToUpload(row: schema.OutboxRow): [field: string, filename: string][] {
+  if (row.op !== 'upsert') return [];
+  return (collectionsByName[row.collection]?.fileFields ?? []).flatMap((field) => {
+    const filename = row.payload[field];
+    return field in row.fields && typeof filename === 'string' && !row.uploadedFiles.includes(filename)
+      ? [[field, filename] as [string, string]]
+      : [];
+  });
+}
+
+// Uploads the files the batch's rows need, one at a time in row order, each noted on its row as it
+// lands. A failed upload flags its row with the error (unless an edit replaced it meanwhile) and
+// leaves it out of the push, so one file that keeps failing never holds back the other rows or the
+// pull: a refused one (FileUploadRefusedError) waits for the user, any other is tried again with
+// the failed pushes (on the app's return to the foreground, a launch, Retry All). An abort stops
+// before the push.
+async function uploadBatchFiles(
+  db: SyncDb,
+  batch: schema.OutboxRow[],
+  uploadFile: UploadFile | undefined,
+  signal: AbortSignal,
+): Promise<{ refused: Set<number>; notes: string[]; stopped: boolean }> {
+  const refused = new Set<number>();
+  const notes: string[] = [];
+  for (const row of batch) {
+    for (const [field, filename] of filesToUpload(row)) {
+      if (signal.aborted) return { refused, notes, stopped: true };
+      if (!uploadFile)
+        throw new Error(`This run cannot upload files: ${row.collection} ${row.recordId} names ${filename}`);
+      try {
+        await uploadFile(row.collection, field, filename, signal);
+      } catch (error) {
+        if (signal.aborted) return { refused, notes, stopped: true };
+        const isRefusal = error instanceof FileUploadRefusedError;
+        const message = error instanceof Error ? error.message : String(error);
+        await flagOutboxRow(db, row, isRefusal ? message : `Upload of ${filename} failed: ${message}`);
+        refused.add(row.id);
+        notes.push(
+          `${row.collection} ${row.recordId}: upload of ${filename} ${isRefusal ? `refused (${error.reason})` : `failed (${message})`}`,
+        );
+        break;
+      }
+      await markFileUploaded(db, row.collection, row.recordId, filename);
+    }
+  }
+  return { refused, notes, stopped: false };
 }
 
 // The leading rows whose mutations fit in PUSH_BYTES (at least one, when any fits the server at all)
@@ -373,7 +448,10 @@ async function applyRecord(db: SyncDb, collection: string, record: Record<string
 }
 
 // ── Dev/Inspector operations ────────────────────────────────────────────────
-/** Delete all pending outbox rows (dev). Can strand never-pushed local records. */
+/**
+ * Delete all pending outbox rows (dev), and with them the files they uploaded: a photo added again
+ * uploads again. Can strand never-pushed local records.
+ */
 export async function clearOutbox(db: SyncDb): Promise<void> {
   await db.delete(schema.outbox);
 }
@@ -467,11 +545,13 @@ async function withSyncRun(work: SyncWork, blocked: () => void): Promise<void> {
   // Their session store and file system need the native modules the tests lack.
   const { httpTransport } = await import('./transport');
   const { purgedFilesRemover } = await import('../library/fs');
+  const { fileUploader } = await import('./fileUploads');
   const removeFiles = purgedFilesRemover(library);
+  const uploadFile = fileUploader(identity, library);
   let signal: AbortSignal | undefined;
   const run = startRun((runSignal) => {
     signal = runSignal;
-    return work(db, httpTransport(identity), { signal: runSignal, removeFiles });
+    return work(db, httpTransport(identity), { signal: runSignal, removeFiles, uploadFile });
   });
   if (!run) {
     blocked();

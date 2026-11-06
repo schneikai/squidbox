@@ -17,7 +17,8 @@ export type SearchSortFilterBarProps<Sort extends string> = {
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
  * use it through FloatingActionsBar). `search` is the `searchBar` from useListControls; pass
  * `expandProgress` to animate a sibling (a segment pill) with the search field. The other props go to
- * SortFilterMenu; the options button lights up while `activeFilter` holds a filter.
+ * SortFilterMenu; the options button lights up while `activeFilter` holds a filter. Without sort,
+ * filter or view options the bar is search only.
  */
 export default function SearchSortFilterBar<Sort extends string>({
   search,
@@ -34,21 +35,24 @@ export default function SearchSortFilterBar<Sort extends string>({
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const ownExpandProgress = useSharedValue(0);
+  const hasOptions = !!sortOptions?.length || !!filterOptions?.length || !!showViewOptions;
 
   return (
     <SearchOptionsBar
       {...search}
       expandProgress={expandProgress ?? ownExpandProgress}
       optionsMenu={
-        <SortFilterMenu
-          sortOrder={sortOrder}
-          sortOptions={sortOptions}
-          activeFilter={activeFilter}
-          filterOptions={filterOptions}
-          onSort={onSort}
-          onFilter={onFilter}
-          showViewOptions={showViewOptions}
-        />
+        hasOptions && (
+          <SortFilterMenu
+            sortOrder={sortOrder}
+            sortOptions={sortOptions}
+            activeFilter={activeFilter}
+            filterOptions={filterOptions}
+            onSort={onSort}
+            onFilter={onFilter}
+            showViewOptions={showViewOptions}
+          />
+        )
       }
       hasActiveState={activeFilter.length > 0}
       placeholder={placeholder}

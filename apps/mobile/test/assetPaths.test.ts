@@ -29,8 +29,14 @@ vi.mock('expo-file-system', async () =>
 // The status helper makes a missing thumbnail again from its original; none of these assets has one.
 vi.mock('../src/utils/thumbnails/createThumbnail', () => ({ default: vi.fn() }));
 
-const { getAssetFileUri, createAssetDirectoriesAsync, assetFileExistsAsync, getAssetThumbnailUri, hasThumbnailAsync } =
-  await import('../src/utils/assets/assetStorage');
+const {
+  getAssetFileUri,
+  createAssetDirectoriesAsync,
+  assetFileExistsAsync,
+  getAssetThumbnailUri,
+  getAvatarUri,
+  hasThumbnailAsync,
+} = await import('../src/utils/assets/assetStorage');
 const { default: getAssetThumbnailStatusAsync } =
   await import('../src/utils/assets/thumbnails/getAssetThumbnailStatusAsync');
 const { purgedFilesRemover, removeAssetFiles } = await import('../src/library/fs');
@@ -45,10 +51,12 @@ describe('asset file and thumbnail paths', () => {
   it('resolve against the library they are given', async () => {
     expect(getAssetFileUri('a.jpg', abc)).toBe('file:///documents/libraries/abc/files/a.jpg');
     expect(getAssetThumbnailUri('athumb.jpg', abc)).toBe('file:///documents/libraries/abc/thumbnails/athumb.jpg');
+    expect(getAvatarUri('avatar-c-1.jpg', abc)).toBe('file:///documents/libraries/abc/avatars/avatar-c-1.jpg');
     await createAssetDirectoriesAsync(abc);
     expect(fs).toEqual([
       'mkdir file:///documents/libraries/abc/files/',
       'mkdir file:///documents/libraries/abc/thumbnails/',
+      'mkdir file:///documents/libraries/abc/avatars/',
     ]);
   });
 

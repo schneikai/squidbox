@@ -4,7 +4,10 @@ import {
   ASSET_TAG_LIMITS,
   assetTagSchema,
   CHAT_LIMITS,
+  CONTACT_HANDLE_FIELDS,
+  normalizeHandle,
   uniqueTags,
+  type ContactFromScreenshotResponse,
   type AiModelKind,
   type ChatReply,
 } from '@squidbox/shared';
@@ -13,7 +16,7 @@ import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { chatReplyJsonSpec, judgeVerdictJsonSpec, postsSchema, tagsSchema } from './prompts.js';
+import { chatReplyJsonSpec, contactSchema, judgeVerdictJsonSpec, postsSchema, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /**
@@ -111,6 +114,20 @@ export const visionTask: AiTask<{ tags: string[] }> = {
 export const photoTagsTask: AiTask<{ tags: string[] }> = {
   schema: tagsSchema,
   check: ({ tags }) => ({ tags: fitTags(tags) }),
+};
+
+// A contact read from a profile screenshot (POST /ai/contact-from-screenshot): the handles as
+// contacts store them, the name and the place's parts trimmed.
+export const contactFromScreenshotTask: AiTask<ContactFromScreenshotResponse> = {
+  schema: contactSchema,
+  check: (read) => ({
+    ...read,
+    ...Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, normalizeHandle(read[field])])),
+    name: read.name.trim(),
+    city: read.city.trim(),
+    state: read.state.trim(),
+    country: read.country.trim(),
+  }),
 };
 
 // The model check's judge: whether a chat turn's reply answered the request, and why in one line.

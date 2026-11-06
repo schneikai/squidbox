@@ -7,6 +7,26 @@ import useAssetCells from '@/features/asset-list/useAssetCells';
 // `selectAssets`). `onScroll` gets the grid's scroll events and `scrollY` is the offset it writes,
 // which the drag-select then reads. A grid that is a sheet's own screen passes `isSheet`, so a
 // drag-select leaves the sheet's swipe down on.
+/**
+ * @param {object} props
+ * @param {object[] | undefined} props.rows
+ * @param {number} [props.rowsReadAt]
+ * @param {() => void} props.loadMore
+ * @param {boolean} [props.isSelectMode]
+ * @param {Set<string>} [props.selectedAssetIds]
+ * @param {(asset: object) => boolean} [props.isAssetSelected]
+ * @param {(asset: { id: string }) => void} props.onPressAsset
+ * @param {object} [props.listRef]
+ * @param {number} [props.paddingTop]
+ * @param {number} [props.paddingBottom]
+ * @param {Function} [props.onScroll]
+ * @param {object} [props.scrollY]
+ * @param {Function} [props.selectAssets]
+ * @param {boolean} [props.isSheet]
+ * @param {boolean} [props.isSortable]
+ * @param {boolean} [props.reorderEnabled]
+ * @param {Function} [props.onReorder]
+ */
 export default function AssetGrid({
   rows,
   rowsReadAt,

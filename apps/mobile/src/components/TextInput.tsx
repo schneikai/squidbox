@@ -2,7 +2,7 @@ import { type ComponentProps, useState } from 'react';
 import { TextInput as RNTextInput, StyleSheet } from 'react-native';
 
 import Card from '@/components/Card';
-import { colors, layout, scale, space, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, textStyles, typography } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 
 // A multiline field grows with its text up to this, then scrolls inside, so a long text never
@@ -10,7 +10,7 @@ import textareaTextStyle from '@/styles/textareaTextStyle';
 const MAX_FIELD_HEIGHT = scale(240);
 
 export type TextInputProps = ComponentProps<typeof RNTextInput> & {
-  variant?: 'inline' | 'field';
+  variant?: 'inline' | 'field' | 'title';
   minHeight?: number;
   isFilling?: boolean;
 };
@@ -22,6 +22,8 @@ export type TextInputProps = ComponentProps<typeof RNTextInput> & {
  *   field  — a field of its own on a Card, inset like a list row's text. A multiline one grows up
  *            to MAX_FIELD_HEIGHT; `isFilling` makes it fill the space its parent gives the card,
  *            scrolling its text inside, as in Notes (TextEditSheet). style is for layout only
+ *   title  — an item's name as the big bold heading of its own screen, edited in place (a contact's),
+ *            centered, without a card. style is for layout only
  * `multiline` takes many lines at the reading line height (`minHeight` sets its height). The other
  * props are React Native's TextInput's.
  *
@@ -60,6 +62,10 @@ export default function TextInput({
     );
   }
 
+  if (variant === 'title') {
+    return <RNTextInput placeholderTextColor={colors.text.tertiary} style={[styles.title, style]} {...rest} />;
+  }
+
   return (
     <RNTextInput
       multiline={multiline}
@@ -80,6 +86,14 @@ const styles = StyleSheet.create({
   field: {
     paddingHorizontal: layout.rowInset,
     paddingVertical: space.md,
+  },
+  // title1's size and weight, without its line height (as `line`).
+  title: {
+    fontSize: typography.title1,
+    fontWeight: textStyles.title1.fontWeight,
+    textAlign: 'center',
+    color: colors.text.primary,
+    paddingVertical: 0,
   },
   capped: {
     maxHeight: MAX_FIELD_HEIGHT,

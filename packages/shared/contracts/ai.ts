@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
 import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
+import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -299,6 +300,25 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
+
+// POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the New
+// contact sheet, as instructions.contactScreenshot says. Each field is empty when the screenshot
+// doesn't show it; the handles come normalized (normalizeHandle), the place as its city, state and
+// country. The screenshot is never stored.
+export const contactFromScreenshotRequestSchema = z.object({ image: visionImageSchema });
+export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotRequestSchema>;
+
+export const contactFromScreenshotResponseSchema = z.object({
+  name: z.string(),
+  ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, z.string()])) as Record<
+    ContactHandleField,
+    z.ZodString
+  >),
+  city: z.string(),
+  state: z.string(),
+  country: z.string(),
+});
+export type ContactFromScreenshotResponse = z.infer<typeof contactFromScreenshotResponseSchema>;
 
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
 // collaborator, with post options only when asked, briefed by instructions.writing filled with

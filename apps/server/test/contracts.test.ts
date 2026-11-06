@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { getTableColumns } from 'drizzle-orm';
+import type { z } from 'zod';
 import {
   assetCollection,
+  baseRecordSchema,
   collections,
+  contactCollection,
+  defineCollection,
   fieldClocksSchema,
   lostFields,
   widenToGroups,
@@ -85,6 +89,26 @@ describe('merge fields', () => {
       ['isFavorite', 'favoritedAt'],
       ['deletedAt', 'purgedAt'],
     ]);
+  });
+
+  it('file fields are nullable string merge fields of their schema', () => {
+    for (const collection of collections) {
+      const { shape } = collection.schema as unknown as z.ZodObject<z.ZodRawShape>;
+      for (const field of collection.fileFields) {
+        const label = `${collection.name}.${field}`;
+        expect(collection.mergeFields, label).toContain(field);
+        expect(shape[field]!.safeParse(null).success, label).toBe(true);
+        expect(shape[field]!.safeParse('avatar-x-1.jpg').success, label).toBe(true);
+        expect(shape[field]!.safeParse(1).success, label).toBe(false);
+      }
+    }
+    expect(contactCollection.fileFields).toEqual(['avatarFilename']);
+  });
+
+  it('a file field the schema lacks fails the definition', () => {
+    expect(() =>
+      defineCollection({ name: 'things', schema: baseRecordSchema.extend({}), fileFields: ['photo'] }),
+    ).toThrow('things: file field "photo" is not in its schema');
   });
 
   it('widen a group with a member among the clocks to all its members, at its newest clock', () => {

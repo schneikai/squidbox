@@ -17,7 +17,8 @@ type AutoSaverOptions<T> = {
  * stores the latest at once. `save(next, stored)` gets the latest value and what is stored now
  * (compare them to write only what changed) and stores all of `next`. A save that throws stores
  * nothing and goes to `onError`. `flush({ shouldSync: true })` calls `sync()` after it if a
- * save stored anything since the last sync.
+ * save stored anything since the last sync. `adopt(value)` takes `value` as what is stored now (a
+ * change another device made, shown on the screen), after any save under way, without saving it.
  */
 export default function createAutoSaver<T>({
   value,
@@ -62,5 +63,12 @@ export default function createAutoSaver<T>({
     timer = setTimeout(flush, delayMs);
   }
 
-  return { change, flush };
+  function adopt(value: T) {
+    queue = queue.then(() => {
+      stored = value;
+    });
+    return queue;
+  }
+
+  return { change, flush, adopt };
 }
