@@ -25,7 +25,8 @@
     "db:setup": "npm run db:migrate && npm run db:seed",
     "user:features": "node --env-file=.env --import tsx scripts/user-features.ts",
     "split:link-threads": "node --env-file=.env --import tsx scripts/split-link-threads.ts",
-    "split:link-threads:prod": "node --import tsx scripts/split-link-threads.ts"
+    "split:link-threads:prod": "node --import tsx scripts/split-link-threads.ts",
+    "import:collab-connect": "NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 node --env-file-if-exists=.env --import tsx scripts/import-collab-connect.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.705.0",
@@ -49,6 +50,7 @@
     "@types/node": "^22.10.5",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.30.1",
+    "sharp": "^0.33.5",
     "typescript": "^5.6.0",
     "vitest": "^2.1.8"
   }
