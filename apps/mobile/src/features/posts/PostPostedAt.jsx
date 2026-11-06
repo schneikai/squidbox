@@ -5,8 +5,14 @@ import listTextStyles from '@/styles/listTextStyles';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatDateTime from '@/utils/date-time/formatDateTime';
 
-// Tap toggles between "3 days ago" and the exact date and time. Nothing for a post never posted.
-// A caption; `style` adds layout.
+/**
+ * Tap toggles between "3 days ago" and the exact date and time. Nothing for a post never posted.
+ * A caption; `style` adds layout.
+ *
+ * @param {object} props
+ * @param {number | null} props.postedAt
+ * @param {import('react-native').StyleProp<import('react-native').TextStyle>} [props.style]
+ */
 export default function PostPostedAt({ postedAt, style }) {
   const [format, setFormat] = useState('inWords');
 

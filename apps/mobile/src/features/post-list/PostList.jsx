@@ -9,13 +9,25 @@ import toggleItem from '@/utils/toggleItem';
 const FIRST_ENTRY = { id: 'FirstListEntryComponent' };
 const keyExtractor = (post) => post.id;
 
-// The posts list: `rows` are the loaded posts of a paged query (each with its `postAssets`),
-// `loadMore` reads the next page when the end comes near. A tap on a post opens it;
-// `renderPostActions(post)` (shown in the post's card, under it) is optional. A thread's mark (or
-// the item's accessibility action) unfolds it in place; which are unfolded is kept per list, for as
-// long as the list is mounted. Every change of a post's place glides (`reflow`): the posts below a
-// thread that unfolds or folds, and as well any post added, removed or resized (a sync, a page of the
-// Ignored sheet), on purpose.
+/**
+ * The posts list: `rows` are the loaded posts of a paged query (each with its `postAssets`),
+ * `loadMore` reads the next page when the end comes near. A tap on a post opens it;
+ * `renderPostActions(post)` (shown in the post's card, under it) is optional. A thread's mark (or
+ * the item's accessibility action) unfolds it in place; which are unfolded is kept per list, for as
+ * long as the list is mounted. Every change of a post's place glides (`reflow`): the posts below a
+ * thread that unfolds or folds, and as well any post added, removed or resized (a sync, a page of the
+ * Ignored sheet), on purpose.
+ *
+ * @param {object} props
+ * @param {import('./postQuery').PostListRow[] | undefined} props.rows
+ * @param {() => void} props.loadMore
+ * @param {import('react').ReactElement} [props.ListHeaderComponent]
+ * @param {import('react').ComponentType} [props.FirstListEntryComponent]
+ * @param {(post: import('./postQuery').PostListRow) => import('react').ReactNode} [props.renderPostActions]
+ * @param {import('react').Ref<import('react-native').FlatList>} [props.listRef]
+ * @param {import('react-native').StyleProp<import('react-native').ViewStyle>} [props.contentContainerStyle]
+ * @param {import('react-native').FlatListProps<unknown>['onScroll']} [props.onScroll]
+ */
 export default function PostList({
   rows,
   loadMore,

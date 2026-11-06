@@ -21,6 +21,30 @@ import { isListedPost, listedPostId, postsHoldingAssets, repostDate } from '@/sy
 const p = alias(schema.posts, 'p');
 
 /**
+ * A post with its assets in order.
+ *
+ * @typedef {schema.PostRow & { postAssets: import('@/utils/posts/buildPostAsset').PostAsset<schema.AssetRow>[] }} PostWithAssets
+ */
+
+/**
+ * A row of a post list: the post with its assets and its live following posts' count.
+ *
+ * @typedef {PostWithAssets & { threadCount: number }} PostListRow
+ */
+
+/**
+ * The query: a paged query of post list rows whose `read` also takes `withCount` (false: no count,
+ * `count` undefined) and `firstAssetOnly`.
+ *
+ * @typedef {import('@/sync/usePagedQuery').PagedQuery<PostListRow> & {
+ *   read(
+ *     db: import('@/sync/db/types').SyncDb,
+ *     options: { limit: number; withCount?: boolean; firstAssetOnly?: boolean },
+ *   ): Promise<{ rows: PostListRow[]; count: number | undefined }>;
+ * }} PostQuery
+ */
+
+/**
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
  * (no `limit` reads them all; `withCount: false` skips the count, for a read of one post),
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
@@ -36,6 +60,8 @@ const p = alias(schema.posts, 'p');
  *   (a contact's: the posts it is on)
  * @param {'postedAt:asc' | 'postedAt:desc' | 'suggestRepostAt:asc' | 'updatedAt:desc'} [descriptor.sort]
  * @param {string} [descriptor.search] a text substring, matched as the list did: Unicode-aware, literal, case-insensitive
+ *
+ * @returns {PostQuery}
  */
 export default function postQuery({ scope = 'all', sort = 'postedAt:desc', search = '' }) {
   const descriptor = { scope, sort, search };
