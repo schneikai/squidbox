@@ -1,4 +1,5 @@
 import { and, isNull, max, sql, type SQL } from 'drizzle-orm';
+import type { SQLiteColumn } from 'drizzle-orm/sqlite-core';
 
 import { albumAssetIdsOf } from './assetSql';
 import * as schema from './db/schema';
@@ -17,7 +18,7 @@ export const { create, update, updateAll, remove } = repository;
  * When a post comes up for a repost: its suggestion date, else its post date (a suggestion of 0 is
  * unset, as in drafts and older posts), else 0. `posts` is the posts table or an alias of it.
  */
-export function repostDate(posts: typeof schema.posts = schema.posts): SQL<number> {
+export function repostDate(posts: Record<'suggestRepostAt' | 'postedAt', SQLiteColumn> = schema.posts): SQL<number> {
   return sql<number>`coalesce(nullif(${posts.suggestRepostAt}, 0), ${posts.postedAt}, 0)`;
 }
 

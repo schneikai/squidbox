@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, type StyleProp, View, type ViewStyle } from 'react-native';
 import Animated, {
+  type EntryAnimationsValues,
+  type EntryExitAnimationFunction,
+  type ExitAnimationsValues,
   FadeIn,
   FadeOut,
   useAnimatedStyle,
@@ -9,6 +12,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import type { PostListItemProps } from './PostListItem';
 import stackEdge from './stackEdge';
 import usePost from './usePost';
 
@@ -27,6 +31,14 @@ const lineOut = FadeOut.duration(motion.exit.duration).easing(motion.exit.easing
 // from the blank edge, and fade out over the first half of the fold, gone before it's an edge again.
 const contentOut = FadeOut.duration(motion.fill.duration).easing(motion.exit.easing);
 
+type ThreadFollowingPostsProps = {
+  postId: string;
+  edgeCount: number;
+  isUnfoldAnimated: boolean;
+  unfoldedPosts: PostListItemProps['unfoldedPosts'];
+  roomStyle: StyleProp<ViewStyle>;
+};
+
 /**
  * The following posts of a thread unfolded in the posts list, each as a row card (ThreadPost, like
  * the post screen's; a tap on it opens the thread like the rest of the item), joined by the thread's
@@ -40,9 +52,15 @@ const contentOut = FadeOut.duration(motion.fill.duration).easing(motion.exit.eas
  * the cards go back into the stack the same way, their photos and text fading out over the first
  * half.
  */
-export default function ThreadFollowingPosts({ postId, edgeCount, isUnfoldAnimated, unfoldedPosts, roomStyle }) {
+export default function ThreadFollowingPosts({
+  postId,
+  edgeCount,
+  isUnfoldAnimated,
+  unfoldedPosts,
+  roomStyle,
+}: ThreadFollowingPostsProps) {
   const livePost = usePost(postId);
-  const [unfoldPartIds, setUnfoldPartIds] = useState(null);
+  const [unfoldPartIds, setUnfoldPartIds] = useState<Set<string> | null>(null);
   const contentOpacity = useSharedValue(isUnfoldAnimated ? 0 : 1);
 
   const post = livePost ?? unfoldedPosts.get(postId);
@@ -97,24 +115,26 @@ export default function ThreadFollowingPosts({ postId, edgeCount, isUnfoldAnimat
 }
 
 // Following post `index` (of `edgeCount` edges) out of its stack edge to its place (`isOut`), or
-// from its place back into the edge.
-function stackMove(index, edgeCount, isOut) {
-  return (values) => {
+// from its place back into the edge. Entering, Reanimated passes the target values; exiting, the
+// current ones.
+function stackMove(index: number, edgeCount: number, isOut: boolean): EntryExitAnimationFunction {
+  return (values: EntryAnimationsValues | ExitAnimationsValues) => {
     'worklet';
     const edge = stackEdge(index, edgeCount);
-    const place = isOut
-      ? {
-          originX: values.targetOriginX,
-          originY: values.targetOriginY,
-          width: values.targetWidth,
-          height: values.targetHeight,
-        }
-      : {
-          originX: values.currentOriginX,
-          originY: values.currentOriginY,
-          width: values.currentWidth,
-          height: values.currentHeight,
-        };
+    const place =
+      'targetOriginX' in values
+        ? {
+            originX: values.targetOriginX,
+            originY: values.targetOriginY,
+            width: values.targetWidth,
+            height: values.targetHeight,
+          }
+        : {
+            originX: values.currentOriginX,
+            originY: values.currentOriginY,
+            width: values.currentWidth,
+            height: values.currentHeight,
+          };
     const inStack = {
       originX: place.originX + edge.inset,
       originY: edge.top,

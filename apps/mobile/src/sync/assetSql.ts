@@ -42,6 +42,11 @@ const postEdge = alias(schema.postAssets, 'e');
  * order. `e` joins `a` (fromScope), and `where` keeps the parents' live edges, one canonical edge
  * per asset.
  */
+export function scopeEdges(scope: { postId: string | string[] }, sort?: AssetSort): { e: typeof postEdge; where: SQL };
+export function scopeEdges(
+  scope: AssetScope,
+  sort?: AssetSort,
+): { e: typeof postEdge | typeof albumEdge; where: SQL } | null;
 export function scopeEdges(scope: AssetScope, sort: AssetSort = 'createdAt:desc') {
   if (isPostScope(scope)) {
     const parent = sql.raw('e.post_id');

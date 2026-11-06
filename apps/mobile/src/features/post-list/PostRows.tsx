@@ -3,12 +3,20 @@ import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
 import { MIN_REREAD_INTERVAL } from '@/constants';
-import postQuery from '@/features/post-list/postQuery';
+import postQuery, { type PostListRow, type PostQueryScope } from '@/features/post-list/postQuery';
 import listTextStyles from '@/styles/listTextStyles';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 
-const identity = (onPress) => onPress;
+const identity = (onPress: () => void) => onPress;
+
+type PostRowsProps = {
+  scope: PostQueryScope;
+  emptyText: string;
+  limit?: number;
+  guardPress?: (onPress: () => void) => () => void;
+  isLive?: boolean;
+};
 
 /**
  * Every post in `scope` (postQuery's), newest first by postedAt (never-posted ones last), as rows
@@ -17,15 +25,7 @@ const identity = (onPress) => onPress;
  * only the newest `limit` (no `limit` reads them all). `guardPress` may wrap the rows' presses
  * (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
-/**
- * @param {object} props
- * @param {object} props.scope
- * @param {string} props.emptyText
- * @param {number} [props.limit]
- * @param {(onPress: () => void) => () => void} [props.guardPress]
- * @param {boolean} [props.isLive]
- */
-export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }) {
+export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }: PostRowsProps) {
   const posts = useScopePosts(scope, limit, isLive);
 
   if (!posts) return null;
@@ -43,13 +43,13 @@ export default function PostRows({ scope, emptyText, limit, guardPress = identit
 }
 
 // The caption over when it was posted; a post without a caption shows only the date.
-function postRowText(post) {
+function postRowText(post: PostListRow) {
   const posted = post.postedAt ? dateToTimeAgo(post.postedAt) : 'Not posted yet';
   const caption = post.text?.trim();
   return caption ? { title: caption, subtitle: posted } : { title: posted };
 }
 
-function useScopePosts(scope, limit, isLive) {
+function useScopePosts(scope: PostQueryScope, limit: number | undefined, isLive: boolean | undefined) {
   const query = postQuery({ scope });
   return useLiveQuery(
     async (db) => (await query.read(db, { limit, withCount: false, firstAssetOnly: true })).rows,

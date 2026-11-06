@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { memo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { memo, type ReactNode, useState } from 'react';
+import { type AccessibilityActionEvent, StyleSheet, View } from 'react-native';
 
 import ThreadFollowingPosts from './ThreadFollowingPosts';
+import type { PostDetailRow, PostListRow } from './postQuery';
 import stackEdge from './stackEdge';
 
 import Button from '@/components/Button';
@@ -15,6 +16,14 @@ import { layout, space } from '@/styles/designTokens';
 // One stack edge per following post, at most this many.
 const MAX_EDGES = 2;
 
+export type PostListItemProps = {
+  post: PostListRow;
+  renderPostActions?: (post: PostListRow) => ReactNode;
+  isExpanded: boolean;
+  onToggleThread: (postId: string) => void;
+  unfoldedPosts: Map<string, PostDetailRow>;
+};
+
 /**
  * A post in the posts list, as a card (PostView) that opens the post, with `renderPostActions(post)`
  * (buttons for this post, e.g. the Ignored sheet's Restore) in it. A thread (a post with following posts) sits on
@@ -26,7 +35,7 @@ const MAX_EDGES = 2;
  * postQuery row: it carries its `postAssets` and `threadCount`; the following posts are read only
  * while unfolded, and kept in `unfoldedPosts` (the list's) so the cell comes back on screen with them.
  */
-function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unfoldedPosts }) {
+function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unfoldedPosts }: PostListItemProps) {
   // A cell that comes back on screen unfolded shows its following posts at once; once folded, the
   // next unfold animates.
   const [isUnfoldAnimated, setIsUnfoldAnimated] = useState(!isExpanded);
@@ -48,7 +57,7 @@ function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unf
     onToggleThread(post.id);
   }
 
-  function handleAccessibilityAction(event) {
+  function handleAccessibilityAction(event: AccessibilityActionEvent) {
     if (event.nativeEvent.actionName === 'toggleThread') toggleThread();
   }
 
@@ -107,7 +116,7 @@ function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unf
 export default memo(PostListItem);
 
 // Where edge `index` of a stack of `edgeCount` is drawn (stackEdge).
-function edgeFrame(index, edgeCount) {
+function edgeFrame(index: number, edgeCount: number) {
   const { top, height, inset } = stackEdge(index, edgeCount);
   return { top, height, left: inset, right: inset };
 }

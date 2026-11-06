@@ -3,17 +3,22 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadParts from '@/components/ThreadParts';
+// AssetAlbums, WriteWithAi and useSubjectChat are JS: typed as allowJs infers them.
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
+import type { PostDetailRow } from '@/features/post-list/postQuery';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
 import { layout, space } from '@/styles/designTokens';
+import type { AssetRow } from '@/sync/db/schema';
 
 const OTHER_POSTS_LIMIT = 30;
+
+type PostProps = { post: PostDetailRow; contentPaddingTop?: number; contentPaddingBottom?: number };
 
 /**
  * A post and its thread: the post's card (PostView; a long press copies a post's text), then each following post's card
@@ -21,13 +26,13 @@ const OTHER_POSTS_LIMIT = 30;
  * the other posts from the thread's albums. `post` is a postQuery row read by id (with its
  * `threadPosts`).
  */
-export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }) {
+export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }: PostProps) {
   const sessionId = useSubjectChat({ kind: 'post', text: post.text, postAssets: post.postAssets });
 
   const assetIds = [post, ...post.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
 
   // Pushed, so back returns to the post. A picture opens with the others of its own post.
-  function openAsset(postId, asset) {
+  function openAsset(postId: string, asset: Pick<AssetRow, 'id'>) {
     router.push(assetHref(asset.id, { scope: { postId } }));
   }
 
