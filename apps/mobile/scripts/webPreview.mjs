@@ -99,11 +99,15 @@ export function launchOptions() {
 }
 
 // The mock account's sign-in, from the local backend's settings.
+/** @returns {{ email: string, password: string }} */
 export function readSeedCredentials() {
   const { SEED_USER_EMAIL: email, SEED_USER_PASSWORD: password } = readServerEnv();
+  if (!email || !password)
+    throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD are not both set (apps/server/.env or .env.docker)');
   return { email, password };
 }
 
+/** @returns {Promise<import('@squidbox/shared').LoginResponse>} */
 export async function loginAsync() {
   const { email, password } = readSeedCredentials();
   const res = await fetch(`${API_URL}/auth/login`, {

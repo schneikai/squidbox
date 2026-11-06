@@ -233,15 +233,10 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly, and `test` and the UI flows
-(`e2e`) in their own program. Still JavaScript: `app/_layout.jsx` (convert it, then turn
-`tsconfig.json`'s `allowJs` off: `sync/db/migrations/migrations.js`, drizzle-kit's output, is typed
-by the `.d.ts` beside it, and the test program keeps its own `allowJs` for the two scripts the UI
-flows import, `scripts/webPreview.mjs` and `scripts/localBackend.mjs`, which stay JavaScript), and
-`apps/mobile/playwright.config.mjs`: without `"type": "module"` Playwright would require() a
-TypeScript config and compile the two scripts it imports to CommonJS, which an ES module can't run,
-before the config's `build.external`, which the flows rely on, takes effect; `.mts` would load, but
-`lint:files`, `scripts/check.mjs` and knip's Playwright plugin don't know the extension.
+Left: convert `app/_layout.jsx`, then turn `allowJs` off in `apps/mobile/tsconfig.json`, so no app
+code can be JavaScript. `sync/db/migrations/migrations.js` (drizzle-kit's output) is typed by the
+`.d.ts` beside it, and the test program keeps its own `allowJs` for the two scripts the UI flows
+import.
 
 ### [ ] Add UI tests
 

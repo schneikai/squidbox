@@ -23,8 +23,6 @@ test.describe('signed out', () => {
     // The first pull of the account comes on top of the usual test.
     test.slow();
     const { email, password } = readSeedCredentials();
-    if (!email || !password)
-      throw new Error('SEED_USER_EMAIL and SEED_USER_PASSWORD are not both set (apps/server/.env.docker)');
     const settings = await openSettings(page);
     await settings.getByPlaceholder('Email').fill(email);
     await settings.getByPlaceholder('Password').fill(password);

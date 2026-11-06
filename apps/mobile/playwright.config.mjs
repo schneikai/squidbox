@@ -4,9 +4,7 @@
  * data, one flow after another, each in a fresh browser context. `npm run test:ui` reuses a running
  * `npm run dev:local -- --web` or starts one (and stops it after the run); CI always starts its own.
  * The device and the browser's proxy are the web preview's (scripts/webPreview.mjs); the e2e
- * fixtures sign in and load the app as it does. This file is an ES module (.mjs, not .ts): without
- * `"type": "module"` in package.json Playwright would require() a .ts config, and its imports of the
- * two scripts run before `build.external` applies.
+ * fixtures sign in and load the app as it does. This file stays .mjs: see build.external.
  */
 import { defineConfig } from 'playwright/test';
 
@@ -20,7 +18,8 @@ export default defineConfig({
   // No "type": "module" here, so Playwright require()s a .ts file and compiles what it imports to
   // CommonJS, .mjs included, which an ES module can't run: the two scripts the flows import are left
   // to Node's require() (so nothing in them awaits at top level: scripts/webPreview.mjs runs its CLI
-  // from main()).
+  // from main()). This file stays .mjs: as .ts it would be require()d too, and its own imports of the
+  // two scripts run before this applies.
   build: { external: ['**/scripts/*.mjs'] },
   // The flows share one account and one Metro, one after another. A flaky test gets fixed, not
   // retried (no retries is the default).
