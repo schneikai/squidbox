@@ -1,7 +1,8 @@
 import type { NewPromptButton } from '@squidbox/shared';
 
+import iconOrNone from './iconOrNone';
+
 import Chip, { type ChipProps, type ChipVariant } from '@/components/Chip';
-import iconOrNone from '@/components/iconOrNone';
 
 type PromptButtonChipProps = {
   button: NewPromptButton;

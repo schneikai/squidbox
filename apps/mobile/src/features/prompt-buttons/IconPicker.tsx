@@ -2,17 +2,19 @@ import type { PromptButtonRecord } from '@squidbox/shared';
 import { useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, StyleSheet, type LayoutChangeEvent } from 'react-native';
 
+import iconOrNone from './iconOrNone';
 import PROMPT_BUTTON_ICONS from './promptButtonIcons';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import IconSlotContext from '@/components/IconSlotContext';
-import iconOrNone from '@/components/iconOrNone';
 import useHaptics from '@/hooks/useHaptics';
+import isOneOf from '@/lib/isOneOf';
 import { sizes, space } from '@/styles/designTokens';
 
 const GAP = space.xs;
 const PADDING = space.sm;
+const isPromptButtonIcon = isOneOf(PROMPT_BUTTON_ICONS);
 
 type IconPickerProps = {
   value: PromptButtonRecord['icon'];
@@ -86,9 +88,7 @@ export default function IconPicker({ value, onChange }: IconPickerProps) {
 
 // The icons to offer: the list, and a stored name it doesn't have at the end.
 function cellsFor(value: PromptButtonRecord['icon']): readonly string[] {
-  return value && !PROMPT_BUTTON_ICONS.some((name) => name === value)
-    ? [...PROMPT_BUTTON_ICONS, value]
-    : PROMPT_BUTTON_ICONS;
+  return value && !isPromptButtonIcon(value) ? [...PROMPT_BUTTON_ICONS, value] : PROMPT_BUTTON_ICONS;
 }
 
 const styles = StyleSheet.create({

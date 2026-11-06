@@ -362,9 +362,9 @@ export default function useZoomGesture({
       },
       onActivate: (event) => {
         'worklet';
-        // The flag is only ever set through `verticalDrag`.
-        if (verticalDrag && isDraggingVertically.value) {
-          verticalDrag.onStart();
+        // The flag is only ever set through `verticalDrag`; a drag that outlives it still ends here.
+        if (isDraggingVertically.value) {
+          if (verticalDrag) verticalDrag.onStart();
           return;
         }
         cancelAnimation(translateX);
@@ -378,8 +378,8 @@ export default function useZoomGesture({
       },
       onUpdate: (event) => {
         'worklet';
-        if (verticalDrag && isDraggingVertically.value) {
-          verticalDrag.onChange(event.changeY);
+        if (isDraggingVertically.value) {
+          if (verticalDrag) verticalDrag.onChange(event.changeY);
           return;
         }
         const hasSamePointers = event.numberOfPointers === lastPanPointers.value;
@@ -393,8 +393,8 @@ export default function useZoomGesture({
       },
       onDeactivate: (event) => {
         'worklet';
-        if (verticalDrag && isDraggingVertically.value) {
-          verticalDrag.onEnd(event.velocityY);
+        if (isDraggingVertically.value) {
+          if (verticalDrag) verticalDrag.onEnd(event.velocityY);
           return;
         }
         // A pan last moved by two fingers was the pinch's, which settles the image itself.
@@ -411,10 +411,10 @@ export default function useZoomGesture({
         isDraggingVertically.value = false;
         // A pan that held the pager snaps it, a cancelled one without velocity: never leave the list
         // between pages.
-        // The flag is only ever set through `edgeSwipe`.
-        if (edgeSwipe && isHoldingPager.value) {
+        // The flag is only ever set through `edgeSwipe`, and is cleared even if that has gone since.
+        if (isHoldingPager.value) {
           isHoldingPager.value = false;
-          edgeSwipe.release(event.canceled ? 0 : (event as PanEndEvent).velocityX);
+          if (edgeSwipe) edgeSwipe.release(event.canceled ? 0 : (event as PanEndEvent).velocityX);
         }
       },
     };

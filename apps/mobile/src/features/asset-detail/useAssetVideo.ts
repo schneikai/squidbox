@@ -18,8 +18,8 @@ const TIME_UPDATE_INTERVAL = 0.25;
 // half that instead of waiting for a new one.
 const URL_REUSE_MS = 30 * 60 * 1000;
 
-// The player's own failure, as AssetFileSource's unavailable member with its own status.
-type FailedSource = Omit<Extract<AssetFileSource, { uri?: undefined }>, 'status'> & { status: 'error' };
+// The player's own failure, in AssetFileSource's shape (the members it doesn't get are undefined).
+type FailedSource = { uri?: undefined; isRemote?: undefined; status: 'error' };
 type ResolvedSource = { assetId: string; resolvedAt: number } & (AssetFileSource | FailedSource);
 
 export type VideoStatus = UnavailableStatus | 'error' | 'loading';

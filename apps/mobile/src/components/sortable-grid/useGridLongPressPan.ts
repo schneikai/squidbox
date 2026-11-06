@@ -11,8 +11,6 @@ const EDGE_ZONE = 90; // px from top/bottom where auto-scroll kicks in
 const MAX_SCROLL_STEP = 16; // px per tick at the very edge
 const SCROLL_TICK_MS = 16;
 
-export type { Point };
-
 export type UseGridLongPressPanOptions = {
   enabled: boolean;
   waitsFor?: PanGesture;
