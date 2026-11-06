@@ -1,0 +1,1 @@
+ALTER TABLE "instructions" ADD COLUMN "contact_x_profile" text;

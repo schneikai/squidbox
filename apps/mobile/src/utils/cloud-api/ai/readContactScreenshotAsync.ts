@@ -1,4 +1,4 @@
-import type { ContactFromScreenshotRequest, ContactFromScreenshotResponse, VisionImage } from '@squidbox/shared';
+import type { ContactFromScreenshotRequest, ContactRead, VisionImage } from '@squidbox/shared';
 
 import { AI_REQUEST_TIMEOUT_MS } from './aiRequestTimeout';
 
@@ -9,8 +9,8 @@ import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
  * their From screenshot instructions ask: `{ name, xHandle, blueskyHandle, onlyFansHandle,
  * jffHandle, city, state, country }`, each empty when it isn't shown, the handles normalized.
  */
-export default async function readContactScreenshotAsync(image: VisionImage): Promise<ContactFromScreenshotResponse> {
-  const { data } = await apiWithAuthentication.post<ContactFromScreenshotResponse>(
+export default async function readContactScreenshotAsync(image: VisionImage): Promise<ContactRead> {
+  const { data } = await apiWithAuthentication.post<ContactRead>(
     'ai/contact-from-screenshot',
     { image } satisfies ContactFromScreenshotRequest,
     { timeout: AI_REQUEST_TIMEOUT_MS },

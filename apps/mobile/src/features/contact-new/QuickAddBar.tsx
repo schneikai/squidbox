@@ -1,46 +1,45 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import type { NewContactDraftValue } from './NewContactDraftContext';
 import QuickAddCard from './QuickAddCard';
 import contactFromScreenshotAsync from './contactFromScreenshotAsync';
-import filledFromScreenshot from './filledFromScreenshot';
-import useClipboardXLink from './useClipboardXLink';
+import filledFrom from './filledFrom';
+import useFillFromLink from './useFillFromLink';
 import useNewContactDraft from './useNewContactDraft';
 
 import Button from '@/components/Button';
-import Card from '@/components/Card';
-import Icon from '@/components/Icon';
+import Note from '@/components/Note';
 import Text from '@/components/Text';
-import { contactDraft, handleText } from '@/features/contact-detail/contactFields';
+import FillMark from '@/features/contact-detail/FillMark';
+import { type ContactDraft, HANDLE_FIELDS, contactDraft } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
-import { colors, layout, scale } from '@/styles/designTokens';
+import { layout } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
+// What a fill's note says: by whom it was filled, and to check the marked fields when it marked any
+// (the name and the handles carry marks; the photo, notes and places don't).
+const MARKED_FIELDS = new Set<keyof ContactDraft>(['name', ...HANDLE_FIELDS.map(({ field }) => field)]);
+function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
+  const isAssisted = Object.values(fill.fieldSources).includes('assistant');
+  const from =
+    fill.source === 'assistant'
+      ? 'Filled from your screenshot.'
+      : `Filled from the X profile${isAssisted ? ' and by the assistant' : ''}.`;
+  return fill.fields.some((field) => MARKED_FIELDS.has(field)) ? `${from} Check the marked fields.` : from;
+}
+
 /**
- * The New contact sheet's quick adds, side by side as cards: From link, which fills the X handle
- * (and the name when empty) from the X profile link on the clipboard; and with the `ai` feature From
- * screenshot, which fills what the assistant read, says so in a card with Undo, and marks the fields.
+ * The New contact sheet's quick adds, side by side as cards: From link, which fills what the public
+ * X profile on the clipboard shows (useFillFromLink); and with the `ai` feature From screenshot,
+ * which fills what the assistant read. A fill says so in a note with Undo, and marks the fields: the
+ * link icon for From link, the sparkle for From screenshot (FillMark).
  */
 export default function QuickAddBar() {
-  const { draft, setField, fillFields, filledFields, undoFill } = useNewContactDraft();
-  const { readAsync } = useClipboardXLink();
+  const { fillFields, fill, undoFill } = useNewContactDraft();
   const canReadScreenshots = useHasFeature('ai');
   const [isReading, setIsReading] = useState(false);
-
-  async function handlePaste() {
-    let pasted: Awaited<ReturnType<typeof readAsync>> = null;
-    try {
-      pasted = await readAsync();
-    } catch (error) {
-      console.warn('Could not read the clipboard', error);
-    }
-    if (!pasted) {
-      Alert.alert('No X link on the clipboard', 'Copy the link of a profile on X, then tap From link.');
-      return;
-    }
-    setField('xHandle', handleText('xHandle', pasted.handle));
-    if (!draft.name.trim()) setField('name', pasted.handle);
-  }
+  const { isReading: isReadingLink, fillFromLinkAsync } = useFillFromLink(handleScreenshot);
 
   async function handleScreenshot() {
     setIsReading(true);
@@ -49,9 +48,9 @@ export default function QuickAddBar() {
       if (!read) return;
       // Whether it read anything; what it fills is worked out against the draft as it is now, edits
       // made during the read included.
-      if (Object.keys(filledFromScreenshot(read, contactDraft())).length === 0)
+      if (Object.keys(filledFrom(read, contactDraft())).length === 0)
         Alert.alert('Nothing to fill', 'The assistant found no name or handle in it.');
-      else fillFields((current) => filledFromScreenshot(read, current));
+      else fillFields('assistant', (current) => filledFrom(read, current));
     } catch (error) {
       Alert.alert("Couldn't read the screenshot", apiErrorMessage(error));
     } finally {
@@ -62,7 +61,7 @@ export default function QuickAddBar() {
   return (
     <View style={styles.bar}>
       <View style={styles.cards}>
-        <QuickAddCard icon="link" title="From link" onPress={handlePaste} />
+        <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={fillFromLinkAsync} />
         {canReadScreenshots && (
           <QuickAddCard
             icon="sparkle"
@@ -73,15 +72,14 @@ export default function QuickAddBar() {
           />
         )}
       </View>
-      {filledFields.length > 0 && (
-        <Card style={styles.note}>
-          {/* The same sparkle as on the fields it filled, so the note points at them. */}
-          <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />
-          <Text size="small" style={styles.noteText}>
-            Filled from your screenshot. Check the marked fields.
-          </Text>
-          <Button label="Undo" size="small" onPress={undoFill} />
-        </Card>
+      {fill && (fill.fields.length > 0 || fill.photoUri) && (
+        <Note
+          tone="card"
+          leading={<FillMark source={fill.source} />}
+          trailing={<Button label="Undo" size="small" onPress={undoFill} />}
+        >
+          <Text size="small">{noteText(fill)}</Text>
+        </Note>
       )}
     </View>
   );
@@ -95,16 +93,5 @@ const styles = StyleSheet.create({
   cards: {
     flexDirection: 'row',
     gap: layout.cardGap,
-  },
-  // A Note's row on the white card: its sparkle, its text and Undo.
-  note: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.rowLeadingGap,
-    paddingVertical: layout.rowPaddingYCompact,
-    paddingHorizontal: layout.cardInset,
-  },
-  noteText: {
-    flex: 1,
   },
 });

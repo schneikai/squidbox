@@ -1,10 +1,10 @@
-import { CONTACT_HANDLE_BY_FIELD } from '@squidbox/shared';
+import { CONTACT_HANDLE_BY_FIELD, X_HANDLE_PATTERN } from '@squidbox/shared';
 
 // The hosts an X profile is linked from (CONTACT_HANDLES, which normalizeHandle strips too).
 const X_HOSTS = CONTACT_HANDLE_BY_FIELD.xHandle.hosts;
-// What follows the host in a profile link: an X handle (letters, digits and underscores; X allows up
-// to 15, older ones can be longer), then nothing but a query or fragment. A post's link has more path.
-const PROFILE_PATH = /^@?([A-Za-z0-9_]{1,50})\/?(?:[?#].*)?$/;
+// What follows the host in a profile link: an X handle, then nothing but a query or fragment. A
+// post's link has more path.
+const PROFILE_PATH = new RegExp(String.raw`^@?(${X_HANDLE_PATTERN.source})\/?(?:[?#].*)?$`);
 // Paths of x.com that are pages, not profiles.
 const NOT_PROFILES = new Set([
   'home',

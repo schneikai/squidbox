@@ -42,4 +42,6 @@ export * from './contracts/auth';
 export * from './contracts/assets';
 export * from './contracts/sync';
 export * from './contracts/ai';
+export * from './contracts/contacts';
+export * from './contracts/image';
 export * from './contracts/server';

@@ -136,6 +136,7 @@ function veniceAnswers({
       posts: { posts },
       chat_reply: chatReply,
       contact,
+      x_profile_contact: contact,
     }[response_format.json_schema.name as string];
     return new Response(
       JSON.stringify({
@@ -161,6 +162,14 @@ const CONTACT_READ = {
   city: ' Squamish ',
   state: '',
   country: 'Canada',
+};
+// What From link sends its assistant pass: the profile POST /contacts/x-profile read.
+const xProfileRequest = {
+  handle: 'mayal',
+  name: 'Maya Lindqvist',
+  bio: 'Trail runs and tide pools <3 🦋 maya.studio',
+  location: 'Squamish, BC',
+  website: '',
 };
 const chatRequest = {
   context: {
@@ -213,6 +222,7 @@ describe('without VENICE_API_KEY', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
+      ['POST', '/ai/contact-from-x-profile', xProfileRequest],
       ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
@@ -235,6 +245,7 @@ describe('account features', () => {
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
       ['POST', '/ai/contact-from-screenshot', tagRequest],
+      ['POST', '/ai/contact-from-x-profile', xProfileRequest],
       ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
@@ -526,6 +537,54 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
   it('502 ai_unavailable when the answer is not JSON', async () => {
     veniceAnswers({ rawContent: 'I see a profile of a woman named Maya.' });
     const res = await call('POST', '/ai/contact-from-screenshot', tagRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json().error.code).toBe('ai_unavailable');
+  });
+});
+
+describe('POST /api/v1/ai/contact-from-x-profile', () => {
+  it("reads the profile with the user's From link instructions on their writing model, handles normalized", async () => {
+    veniceAnswers({
+      contact: {
+        blueskyHandle: '@Maya.Studio',
+        onlyFansHandle: '',
+        jffHandle: '',
+        city: ' Squamish ',
+        state: '',
+        country: 'Canada',
+      },
+    });
+    const res = await call('POST', '/ai/contact-from-x-profile', xProfileRequest);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      blueskyHandle: 'maya.studio',
+      onlyFansHandle: '',
+      jffHandle: '',
+      city: 'Squamish',
+      state: '',
+      country: 'Canada',
+    });
+    const [body] = chatBodies();
+    expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }), 'writing');
+    expect(body.messages).toEqual([
+      {
+        role: 'user',
+        content: DEFAULT_INSTRUCTIONS.contactXProfile.replace(
+          '{profile}',
+          [
+            'Handle: @mayal',
+            'Name: Maya Lindqvist',
+            'Bio: Trail runs and tide pools <3 🦋 maya.studio',
+            'Location: Squamish, BC',
+          ].join('\n'),
+        ),
+      },
+    ]);
+  });
+
+  it('502 ai_unavailable when the answer is not JSON', async () => {
+    veniceAnswers({ rawContent: 'Maya lives in Squamish.' });
+    const res = await call('POST', '/ai/contact-from-x-profile', xProfileRequest);
     expect(res.statusCode).toBe(502);
     expect(res.json().error.code).toBe('ai_unavailable');
   });

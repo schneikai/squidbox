@@ -10,13 +10,13 @@ import Divider from '@/components/Divider';
 /**
  * A contact form's card of handles and phone number (HANDLE_FIELDS), one HandleField row each, from
  * the `draft` and `onChange(field, text)`. `children` go first (the New contact sheet's name);
- * `fieldProps(field)` adds a row's marks (isFilled, isDuplicate); `isOpenable` the open buttons.
+ * `fieldProps(field)` adds a row's marks (filledBy, isDuplicate); `isOpenable` the open buttons.
  */
 type HandleFieldsCardProps = {
   draft: Pick<ContactDraft, HandleFormField>;
   onChange: (field: HandleFormField, text: string) => void;
   onBlur?: HandleFieldProps['onBlur'];
-  fieldProps?: (field: HandleFormField) => Pick<HandleFieldProps, 'isFilled' | 'isDuplicate'>;
+  fieldProps?: (field: HandleFormField) => Pick<HandleFieldProps, 'filledBy' | 'isDuplicate'>;
   isOpenable?: boolean;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;

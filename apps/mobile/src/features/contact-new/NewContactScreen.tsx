@@ -39,7 +39,7 @@ const EMPTY = JSON.stringify(storedContactFields(EMPTY_DRAFT));
 export default function NewContactScreen() {
   const haptics = useHaptics();
   const { addContact } = useContacts();
-  const { draft, setField, avatarUri, setAvatarUri, listIds, setListIds, filledFields } = useNewContactDraft();
+  const { draft, setField, avatarUri, setAvatarUri, listIds, setListIds, fill } = useNewContactDraft();
   const allContacts = useContactRows({ scope: 'all' });
   const lists = useContactListRows({ withMembers: false });
   // Rescanned only when the contacts or what the check reads change, not on every keystroke in the notes.
@@ -76,7 +76,7 @@ export default function NewContactScreen() {
   }
 
   function fieldProps(field: HandleFormField | 'name') {
-    return { isFilled: filledFields.includes(field), isDuplicate: sharedFields.has(field) };
+    return { filledBy: fill?.fieldSources[field], isDuplicate: sharedFields.has(field) };
   }
 
   // Opening a duplicate leaves the draft, after asking when it has changes.
