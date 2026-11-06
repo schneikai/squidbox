@@ -1,6 +1,6 @@
 {
   // Every TypeScript file in src, strictly (tsconfig.json), without Node's types, so a Node-only
-  // global in app code fails. test/ has its own program (tsconfig.test.json); the config files
+  // global in app code fails. test/ and e2e/ have their own program (tsconfig.test.json); the config files
   // (vitest, drizzle, playwright, app.config) are in neither.
   "extends": "./tsconfig.json",
   "include": ["src/**/*.ts", "src/**/*.tsx"]

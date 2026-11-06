@@ -133,7 +133,9 @@ function storeSession({ accessToken, refreshToken, user, serverId }) {
   localStorage.setItem('session', JSON.stringify(session));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// The CLI. Not awaited at top level: the UI flow tests import this module from Playwright's
+// CommonJS, and require() refuses an ES module graph with a top-level await.
+async function main() {
   const out = process.argv.slice(2).find((arg) => !arg.startsWith('--')) ?? 'web-preview.png';
   const { page, pageErrors, consoleErrors, close } = await openWebPreview({
     production: process.argv.includes('--production'),
@@ -144,3 +146,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   printErrors(pageErrors, consoleErrors);
   await close();
 }
+
+if (import.meta.url === `file://${process.argv[1]}`) main();

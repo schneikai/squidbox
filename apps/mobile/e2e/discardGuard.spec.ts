@@ -1,9 +1,10 @@
-/* eslint-env node, browser */
-import { expect, test } from './fixtures.mjs';
-import { button, openTab, postCards, uniqueName, withDialog } from './helpers.mjs';
+import type { Page } from 'playwright/test';
+
+import { expect, test } from './fixtures';
+import { button, openTab, postCards, uniqueName, withDialog } from './helpers';
 
 // Opens the first post's editor and changes its text; returns the editor and the original text.
-async function editFirstPost(page) {
+async function editFirstPost(page: Page) {
   await openTab(page, 'Posts');
   await postCards(page.getByTestId('posts-screen')).first().click();
   const post = page.getByTestId('post-screen');

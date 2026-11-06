@@ -1,5 +1,6 @@
-/* eslint-env node, browser */
-import { expect, test } from './fixtures.mjs';
+import type { Page } from 'playwright/test';
+
+import { expect, test } from './fixtures';
 import {
   assetCells,
   button,
@@ -9,10 +10,10 @@ import {
   pickFromSquidbox,
   uniqueName,
   withDialog,
-} from './helpers.mjs';
+} from './helpers';
 
 // Adds an album named `name` from the Albums tab (its name asked in an alert prompt).
-async function createAlbum(page, name) {
+async function createAlbum(page: Page, name: string) {
   await openTab(page, 'Albums');
   await withDialog(
     page,
@@ -23,7 +24,7 @@ async function createAlbum(page, name) {
 }
 
 // Opens the album and adds the library's first `count` photos to it.
-async function addPhotos(page, name, count) {
+async function addPhotos(page: Page, name: string, count: number) {
   await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
   const album = page.getByTestId('album-screen');
   await button(album, 'Add').click();
