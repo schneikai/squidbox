@@ -4,6 +4,7 @@ import AssetImage from '@/components/AssetImage';
 import SuperPressable from '@/components/SuperPressable';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { radii, scale, space } from '@/styles/designTokens';
+import type { AssetRow } from '@/sync/db/schema';
 
 const IMAGE_ELEMENT_HEIGHT = scale(240);
 const GAP = space.xs;
@@ -11,8 +12,10 @@ const GAP = space.xs;
 // A post's pictures as rounded tiles: one or two side by side, three as one and a column of two,
 // four or more as a 2×2 grid with "+N" for the rest. With `onPressAsset(asset)` each tile opens its
 // picture (the post screen); without it the tiles are part of whatever holds them (a list card).
-export default function PostImage({ assets, onPressAsset }) {
-  const tile = (asset) => <Tile key={asset.id} asset={asset} onPressAsset={onPressAsset} />;
+export type PostImageProps = { assets: AssetRow[]; onPressAsset?: (asset: AssetRow) => void };
+
+export default function PostImage({ assets, onPressAsset }: PostImageProps) {
+  const tile = (asset: AssetRow) => <Tile key={asset.id} asset={asset} onPressAsset={onPressAsset} />;
 
   switch (assets.length) {
     case 0:
@@ -38,8 +41,10 @@ export default function PostImage({ assets, onPressAsset }) {
   }
 }
 
+type TileProps = { asset: AssetRow; onPressAsset?: PostImageProps['onPressAsset'] };
+
 // Each picture in its own box: a loading placeholder fills its box, not the whole row.
-function Tile({ asset, onPressAsset }) {
+function Tile({ asset, onPressAsset }: TileProps) {
   if (!onPressAsset) {
     return (
       <View style={styles.tile}>

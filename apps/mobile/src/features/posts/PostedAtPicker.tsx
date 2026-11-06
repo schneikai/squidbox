@@ -11,7 +11,9 @@ import PostedAtCalendar from '@/features/posts/PostedAtCalendar';
 import { layout, space } from '@/styles/designTokens';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
-export default function PostedAtPicker({ timestamp, isShown, onChange, style }) {
+type PostedAtPickerProps = { timestamp: number | null; isShown: boolean; onChange: (timestamp: number | null) => void };
+
+export default function PostedAtPicker({ timestamp, isShown, onChange }: PostedAtPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const label = timestamp == null ? 'Not posted' : formatLabel(timestamp);
@@ -27,7 +29,7 @@ export default function PostedAtPicker({ timestamp, isShown, onChange, style }) 
   }
 
   return (
-    <View style={[styles.row, style]}>
+    <View style={styles.row}>
       <Button icon="clock" accessibilityLabel={accessibilityLabel} onPress={open} />
       {isShown && (
         <Button
@@ -48,7 +50,7 @@ export default function PostedAtPicker({ timestamp, isShown, onChange, style }) 
   );
 }
 
-function formatLabel(timestamp) {
+function formatLabel(timestamp: number) {
   const { title, subtitle } = formatDetailHeaderDate(timestamp);
   return `${title}, ${subtitle}`;
 }

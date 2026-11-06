@@ -1,21 +1,30 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import PostImage from './PostImage';
+import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
+import type { PostWithAssets } from '@/features/post-list/postQuery';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { layout, scale } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
+
+type PostViewProps = {
+  post: Pick<PostWithAssets, 'text' | 'postAssets' | 'postedAt'>;
+  onPressAsset?: PostImageProps['onPressAsset'];
+  isTextSelectable?: boolean;
+  meta?: ReactNode;
+  children?: ReactNode;
+};
 
 /**
  * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text (copied on a
  * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
  * place shows about it: a thread's size), and `children` under that row (buttons for this post).
  * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
- * @param {{ post: import('@/features/post-list/postQuery').PostWithAssets; onPressAsset?: (asset: import('@/sync/db/schema').AssetRow) => void; isTextSelectable?: boolean; meta?: import('react').ReactNode; children?: import('react').ReactNode }} props
  */
-export default function PostView({ post, onPressAsset, isTextSelectable = false, meta, children }) {
+export default function PostView({ post, onPressAsset, isTextSelectable = false, meta, children }: PostViewProps) {
   const { text, postAssets, postedAt } = post;
 
   return (

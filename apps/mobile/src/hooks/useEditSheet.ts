@@ -12,7 +12,7 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 // with, anything else (a store write's own result) goes back.
 export type EditSheetWrite = () => Promise<unknown>;
 
-type EditSheetOptions = {
+export type EditSheetOptions = {
   isNew?: boolean;
   isValid?: boolean;
   isDirty: boolean;

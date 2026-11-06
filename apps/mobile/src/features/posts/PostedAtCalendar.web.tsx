@@ -2,12 +2,16 @@
 // own date and time field (`datetime-local`), which opens the browser's native picker. Each change
 // applies at once; clearing the field changes nothing (Remove takes the time away).
 import moment from 'moment';
+import type { ChangeEvent, CSSProperties } from 'react';
+
+// Type-only, so Babel erases it and Metro never follows it into the native module on web.
+import type { PostedAtCalendarProps } from './PostedAtCalendar';
 
 import { colors, layout, radii, space, typography } from '@/styles/designTokens';
 import { LOCAL_INPUT_FORMAT } from '@/utils/date-time/constants';
 
-export default function PostedAtCalendar({ timestamp, onChange }) {
-  function handleChange(event) {
+export default function PostedAtCalendar({ timestamp, onChange }: PostedAtCalendarProps) {
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const time = new Date(event.target.value).getTime();
     if (!Number.isNaN(time)) onChange(time);
   }
@@ -24,11 +28,11 @@ export default function PostedAtCalendar({ timestamp, onChange }) {
 }
 
 // `datetime-local` reads and writes the local time as "YYYY-MM-DDTHH:mm".
-function toLocalInputValue(timestamp) {
+function toLocalInputValue(timestamp: number) {
   return moment(timestamp).format(LOCAL_INPUT_FORMAT);
 }
 
-const INPUT_STYLE = {
+const INPUT_STYLE: CSSProperties = {
   boxSizing: 'border-box',
   width: '100%',
   // A field's insets (TextInput's).

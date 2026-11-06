@@ -7,6 +7,8 @@ import chatSessions from './chatSessions';
  * the post (its editor, or a posted post) and closed with it, told the text and the assets as they
  * change, and given `setText` for Use (none for a posted post: its options have Copy). → the chat's
  * id, null until it is open.
+ * @param {{ kind: import('@squidbox/shared').ChatSubjectKind; text: string; postAssets: { asset: import('@squidbox/shared').AssetRecord }[]; setText?: ((text: string) => void) | null }} options
+ * @returns {string | null}
  */
 export default function useSubjectChat({ kind, text, postAssets, setText = null }) {
   const [sessionId, setSessionId] = useState(null);

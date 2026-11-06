@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 
 import readPost from '@/features/post-list/readPost';
-import PostEditor from '@/features/posts/PostEditor';
+import PostEditor, { type EditedPost } from '@/features/posts/PostEditor';
 import usePosts from '@/features/posts-context/usePosts';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import changedValues from '@/utils/changedValues';
@@ -10,11 +10,11 @@ import changedValues from '@/utils/changedValues';
 // is when the screen opens, and saves what the user changed from that seed; a post deleted meanwhile
 // (e.g. by a sync) closes the editor.
 export default function EditPostScreen() {
-  const { postId } = useLocalSearchParams();
+  const { postId } = useLocalSearchParams<{ postId: string }>();
   const { updatePost } = usePosts();
   const post = useSeedOrClose((db) => readPost(db, postId), postId, 'This post was deleted');
 
-  async function handleUpdatePost(data, seed) {
+  async function handleUpdatePost(data: EditedPost, seed: EditedPost) {
     await updatePost(postId, changedValues(seed, data), seed);
   }
 

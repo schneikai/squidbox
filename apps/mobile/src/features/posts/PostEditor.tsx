@@ -1,17 +1,39 @@
+import type { ChatSubjectKind } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import PostCard from './PostCard';
+import PostCard, { type PostCardChange, type PostCardData } from './PostCard';
 import postedAtToSave from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
 import ThreadConnector from '@/components/ThreadConnector';
-import useEditSheet from '@/hooks/useEditSheet';
+import type { PostWithAssets } from '@/features/post-list/postQuery';
+import type { PostFields } from '@/features/posts-context/PostsContext';
+import useEditSheet, { type EditSheetOptions } from '@/hooks/useEditSheet';
+import type { ThreadPart } from '@/sync/postThreads';
 import changedValues from '@/utils/changedValues';
 import confirmAsync from '@/utils/confirmAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import isPresent from '@/utils/isPresent';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
+
+export type PostEditorKind = Extract<ChatSubjectKind, 'draft' | 'edit'>;
+
+// What the editor is seeded with: a post as readPost reads it, or a new post's seed.
+export type PostEditorPost = Pick<PostWithAssets, 'text' | 'postedAt' | 'postAssets'> & {
+  threadPosts: Pick<PostWithAssets, 'id' | 'text' | 'postAssets'>[];
+};
+
+// The post as the posts store takes it.
+export type EditedPost = Required<Pick<PostFields, 'text' | 'assetRefs' | 'postedAt' | 'threadPosts'>>;
+
+type PostEditorProps = {
+  kind: PostEditorKind;
+  post: PostEditorPost;
+  onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
+};
+
+type Draft = { cards: PostCardData[]; postedAt: number | null; pickedPostedAt: number | null | undefined };
 
 // Edits a post and its thread, seeded from `post` ({ text, postAssets, postedAt, threadPosts }), as a
 // draft sheet: one card per post, the first post's on top, each following post's below it, joined by
@@ -21,12 +43,12 @@ import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 // so an edit can save only what changed; a save that throws says so and keeps the editor open. × or a
 // swipe down with changes asks first. `kind` is also what each card's assistant chat is about
 // (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
-export default function PostEditor({ kind, post, onSave }) {
+export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
   const nextKey = useRef(0);
   const newKey = () => `card-${nextKey.current++}`;
   const [cards, setCards] = useState(() => seedCards(post).map((card) => ({ ...card, key: newKey() })));
   // The Posted time the user picked: undefined while untouched, null once removed (postedAtToSave).
-  const [pickedPostedAt, setPickedPostedAt] = useState(undefined);
+  const [pickedPostedAt, setPickedPostedAt] = useState<number | null | undefined>(undefined);
   const [activeKey, setActiveKey] = useState(cards[0].key);
 
   const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
@@ -36,7 +58,7 @@ export default function PostEditor({ kind, post, onSave }) {
 
   const seed = useMemo(() => postData({ cards: seedCards(post), postedAt: post.postedAt }), [post]);
 
-  const updateCard = useCallback((key, changes) => {
+  const updateCard = useCallback((key: string, changes: PostCardChange) => {
     setCards((current) => current.map((card) => (card.key === key ? { ...card, ...changes } : card)));
     setActiveKey(key);
   }, []);
@@ -53,8 +75,10 @@ export default function PostEditor({ kind, post, onSave }) {
     setActiveKey(key);
   }
 
-  async function removeCard(key) {
-    if (hasCardContent(cards.find((c) => c.key === key))) {
+  async function removeCard(key: string) {
+    const card = cards.find((c) => c.key === key);
+    if (!card) throw new Error(`No card ${key}`);
+    if (hasCardContent(card)) {
       const isConfirmed = await confirmAsync({
         title: 'Remove this post?',
         message: 'Its text and photos go with it.',
@@ -94,7 +118,7 @@ export default function PostEditor({ kind, post, onSave }) {
 }
 
 // The editor's cards from the post it edits: the first post's, then one per following post.
-function seedCards(post) {
+function seedCards(post: PostEditorPost): Omit<PostCardData, 'key'>[] {
   const first = { id: null, text: post.text, postAssets: post.postAssets };
   const following = post.threadPosts.map(({ id, text, postAssets }) => ({ id, text, postAssets }));
   return [first, ...following];
@@ -102,7 +126,12 @@ function seedCards(post) {
 
 // What useEditSheet needs to know about the draft `current` of the post seeded as `seed` (postData).
 // The save resolves an untouched Posted time (postedAtToSave): a new post's is the time of the save.
-function draftSheetOptions(kind, seed, current, onSave) {
+function draftSheetOptions(
+  kind: PostEditorKind,
+  seed: EditedPost,
+  current: Draft,
+  onSave: PostEditorProps['onSave'],
+): Pick<EditSheetOptions, 'isNew' | 'isValid' | 'isDirty' | 'save'> {
   const isNew = kind === 'draft';
   const data = postData(current);
   return {
@@ -122,17 +151,20 @@ function draftSheetOptions(kind, seed, current, onSave) {
 }
 
 // The post as the posts store takes it.
-function postData({ cards: [first, ...following], postedAt }) {
+function postData({
+  cards: [first, ...following],
+  postedAt,
+}: Pick<Draft, 'postedAt'> & { cards: Omit<PostCardData, 'key'>[] }): EditedPost {
   const { text, assetRefs } = partData(first);
   return { text, assetRefs, postedAt, threadPosts: following.map(partData) };
 }
 
 // One card as the posts store takes a post of the thread.
-function partData({ id, text, postAssets }) {
+function partData({ id, text, postAssets }: Omit<PostCardData, 'key'>): ThreadPart {
   return { id, text, assetRefs: postAssetsToAssetRefs(postAssets) };
 }
 
 // A post needs text or at least one photo.
-function hasCardContent({ text, postAssets }) {
+function hasCardContent({ text, postAssets }: Pick<PostCardData, 'text' | 'postAssets'>): boolean {
   return Boolean(text) || postAssets.length > 0;
 }

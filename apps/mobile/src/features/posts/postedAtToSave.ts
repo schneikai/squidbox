@@ -4,7 +4,17 @@
  * untouched new post (`isNew`) is posted now, at the save (`now`); an untouched edit keeps the time it
  * was seeded with (`seedPostedAt`).
  */
-export default function postedAtToSave({ isNew, picked, seedPostedAt, now }) {
+export default function postedAtToSave({
+  isNew,
+  picked,
+  seedPostedAt,
+  now,
+}: {
+  isNew: boolean;
+  picked: number | null | undefined;
+  seedPostedAt: number | null;
+  now: number;
+}): number | null {
   if (picked !== undefined) return picked;
   return isNew ? now : seedPostedAt;
 }

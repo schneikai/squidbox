@@ -3,8 +3,19 @@ import { StyleSheet, View } from 'react-native';
 import PostedAtPicker from './PostedAtPicker';
 
 import Button from '@/components/Button';
-import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
+import AddMediaMenu, { type AddMediaMenuProps } from '@/features/asset-picker/AddMediaMenu';
 import { space } from '@/styles/designTokens';
+
+type PostCardToolbarProps = {
+  isFirst: boolean;
+  exclude: AddMediaMenuProps['exclude'];
+  onAddMedia: AddMediaMenuProps['onAdd'];
+  postedAt: number | null;
+  isPostedAtShown: boolean;
+  onChangePostedAt: (timestamp: number | null) => void;
+  onAddToThread?: () => void;
+  onActivate: () => void;
+};
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
 // Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and ⊕ Add to
@@ -19,20 +30,15 @@ export default function PostCardToolbar({
   onChangePostedAt,
   onAddToThread,
   onActivate,
-}) {
-  function handleAddMedia(toggle) {
+}: PostCardToolbarProps) {
+  function handleAddMedia(toggle: () => void) {
     onActivate();
     toggle();
   }
 
-  function handleChangePostedAt(timestamp) {
+  function handleChangePostedAt(timestamp: number | null) {
     onActivate();
     onChangePostedAt(timestamp);
-  }
-
-  function handleAddToThread() {
-    onActivate();
-    onAddToThread();
   }
 
   return (
@@ -55,7 +61,10 @@ export default function PostCardToolbar({
           icon="add-circle"
           colorPalette="accent"
           accessibilityLabel="Add to thread"
-          onPress={handleAddToThread}
+          onPress={() => {
+            onActivate();
+            onAddToThread();
+          }}
           style={styles.trailing}
         />
       )}

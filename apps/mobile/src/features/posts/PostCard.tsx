@@ -1,16 +1,39 @@
+import type { AssetRecord } from '@squidbox/shared';
 import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostCardToolbar from './PostCardToolbar';
+import type { PostEditorKind } from './PostEditor';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import TextInput from '@/components/TextInput';
+import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
+// WriteWithAi and useSubjectChat are JS: typed as allowJs infers them (useSubjectChat by its JSDoc).
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import { layout, scale, space } from '@/styles/designTokens';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
+
+export type PostCardData = { key: string; id: string | null; text: string; postAssets: EditorPostAsset[] };
+
+// What a card reports changed to the editor.
+export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'postAssets'>>;
+
+type PostCardProps = {
+  kind: PostEditorKind;
+  card: PostCardData;
+  isFirst: boolean;
+  isActive: boolean;
+  postedAt: number | null;
+  isPostedAtShown: boolean;
+  onChangePostedAt: (timestamp: number | null) => void;
+  onChange: (key: string, changes: PostCardChange) => void;
+  onActivate: (key: string) => void;
+  onRemove?: (key: string) => void;
+  onAddToThread?: () => void;
+};
 
 /**
  * One post of the post editor (`card`: { key, text, postAssets }): its text, its photos once it has
@@ -31,9 +54,9 @@ export default function PostCard({
   onActivate,
   onRemove,
   onAddToThread,
-}) {
+}: PostCardProps) {
   const { key, text, postAssets } = card;
-  const setText = useCallback((value) => onChange(key, { text: value }), [onChange, key]);
+  const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
   const sessionId = useSubjectChat({ kind, text, postAssets, setText });
 
   // The first card leaves room to write until photos come in under the text.
@@ -43,7 +66,7 @@ export default function PostCard({
     onActivate(key);
   }
 
-  function addPostAssets(assets) {
+  function addPostAssets(assets: AssetRecord[]) {
     onChange(key, { postAssets: [...postAssets, ...buildPostAssets(assets)] });
   }
 
