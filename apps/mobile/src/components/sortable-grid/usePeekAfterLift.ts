@@ -11,7 +11,7 @@ import { PEEK_AFTER_LIFT_MS } from '@/constants';
 export type UsePeekAfterLiftOptions<Row> = { onPeek?: (row: Row) => void; onPeekEnd?: () => void };
 
 export default function usePeekAfterLift<Row>({ onPeek, onPeekEnd }: UsePeekAfterLiftOptions<Row>) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPeekingRef = useRef(false);
   // Called after a timer, so read when they run.
   const callbacks = useRef({ onPeek, onPeekEnd });

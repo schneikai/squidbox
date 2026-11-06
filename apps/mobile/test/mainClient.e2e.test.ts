@@ -156,11 +156,13 @@ d('the installed app (its client code, as built) against this server', () => {
   const synced = (row: Record<string, unknown> | undefined) =>
     row && Object.fromEntries(syncedKeys.map((key) => [key, row[key] ?? null]));
   async function serverAsset(id: string) {
-    const { wireColumns } = serverCollections.assets!;
+    const { table, wireColumns } = serverCollections.assets!;
+    // drizzle: the registry's table has no typed columns; for assets it is the assets table
+    const assets = table as typeof serverSchema.assets;
     const [row] = await pgDb
       .select(wireColumns)
-      .from(serverSchema.assets)
-      .where(and(eq(serverSchema.assets.userId, USER), eq(serverSchema.assets.id, id)));
+      .from(assets)
+      .where(and(eq(assets.userId, USER), eq(assets.id, id)));
     return row;
   }
   async function localAsset(phone: Phone, id: string) {

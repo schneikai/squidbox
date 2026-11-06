@@ -1,6 +1,7 @@
 {
-  // Every TypeScript file in src and test, strictly (tsconfig.json). The config files join once
-  // "Widen what CI checks" (todo.md) is done; then this file goes and typecheck runs tsconfig.json.
+  // Every TypeScript file in src, strictly (tsconfig.json), without Node's types, so a Node-only
+  // global in app code fails. test/ has its own program (tsconfig.test.json); the config files
+  // (vitest, drizzle, playwright, app.config) are in neither.
   "extends": "./tsconfig.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

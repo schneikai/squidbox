@@ -149,7 +149,9 @@ describe('asset file and thumbnail paths', () => {
   });
 
   it('refuse to resolve without a library, instead of guessing the open one', () => {
-    // @ts-expect-error -- the rule under test: a call without a library
-    expect(() => getAssetFileUri('a.jpg')).toThrow(TypeError);
+    expect(() =>
+      // @ts-expect-error -- the rule under test: a call without a library
+      getAssetFileUri('a.jpg'),
+    ).toThrow(TypeError);
   });
 });

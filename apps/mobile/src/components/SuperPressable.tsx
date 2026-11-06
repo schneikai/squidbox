@@ -18,7 +18,7 @@ export default function SuperPressable({
   ...props
 }: SuperPressableProps) {
   const lastPressRef = useRef(0);
-  const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = useRef(false);
 
   useEffect(() => () => clearTimeout(timeoutIdRef.current), []);

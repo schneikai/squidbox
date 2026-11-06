@@ -233,12 +233,12 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`npm run typecheck` checks every `.ts`/`.tsx` in `src` and `test` strictly. Still JavaScript:
-`app/_layout.jsx`, `sync/db/migrations/migrations.js` (drizzle-kit's output, the last file
-`allowJs` carries), and the Playwright flows in `apps/mobile/e2e/*.mjs`: Playwright loads a `.ts`
-spec as CommonJS here, and `scripts/webPreview.mjs`, which they import, awaits at top level, which
-`require()` refuses; convert them once that script is TypeScript or loses the await. Convert the
-layout, then turn `allowJs` off.
+`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly, and `test` in its own program.
+Still JavaScript: `app/_layout.jsx`, `sync/db/migrations/migrations.js` (drizzle-kit's output, the
+last file `allowJs` carries), and the Playwright flows in `apps/mobile/e2e/*.mjs`: Playwright loads
+a `.ts` spec as CommonJS here, and `scripts/webPreview.mjs`, which they import, awaits at top level,
+which `require()` refuses; convert them once that script is TypeScript or loses the await. Convert
+the layout and `migrations.js` (or give it a `.d.ts`), then turn `allowJs` off.
 
 ### [ ] Add UI tests
 

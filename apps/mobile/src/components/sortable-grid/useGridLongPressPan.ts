@@ -57,7 +57,7 @@ export default function useGridLongPressPan({
   handlers.current = { onLift, onMove, onRelease };
   const containerHeightRef = useRef(0);
   const pointRef = useRef<Point>({ x: 0, y: 0 });
-  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liftedRef = useRef(false);
   useEffect(() => () => clearInterval(timerRef.current), []);
 
@@ -104,7 +104,7 @@ export default function useGridLongPressPan({
       // Also runs for touches that never lifted (a tap), which have nothing to release.
       onFinalize: (e) => {
         clearInterval(timerRef.current);
-        timerRef.current = undefined;
+        timerRef.current = null;
         if (!liftedRef.current) return;
         liftedRef.current = false;
         handlers.current.onRelease({ canceled: e.canceled });

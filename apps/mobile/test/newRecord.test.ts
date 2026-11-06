@@ -22,13 +22,23 @@ describe('newRecord', () => {
     expect(album.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  // The next two guard a caller the types don't hold to one collection's fields (userRecord picks
+  // its collection by name), so they call it past the types.
   it('drops keys the collection has no field for', () => {
-    // @ts-expect-error -- the rule under test: a key the collection has no field for
-    expect(newRecord(albumCollection, defaults, { assets: ['a'] })).not.toHaveProperty('assets');
+    expect(
+      newRecord(albumCollection, defaults, {
+        // @ts-expect-error -- the rule under test: a key the collection has no field for
+        assets: ['a'],
+      }),
+    ).not.toHaveProperty('assets');
   });
 
   it('throws on a wrong field', () => {
-    // @ts-expect-error -- the rule under test: a value the schema rejects
-    expect(() => newRecord(albumCollection, defaults, { sortOrder: 'name' })).toThrow();
+    expect(() =>
+      newRecord(albumCollection, defaults, {
+        // @ts-expect-error -- the rule under test: a value the schema rejects
+        sortOrder: 'name',
+      }),
+    ).toThrow();
   });
 });

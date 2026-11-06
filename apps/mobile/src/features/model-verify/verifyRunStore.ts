@@ -35,7 +35,7 @@ function merged(current: VerifyRunState['run'], next: VerifyRun | null): VerifyR
 function createVerifyRun(kind: AiModelKind, modelId: string) {
   const store = createStore<VerifyRunState>({ run: undefined, plan: undefined, error: null });
   let followers = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: ReturnType<typeof setTimeout> | null = null;
   let isReading = false;
   let failures = 0;
   // Bumped by `show`: a read that started before it answers an older run, and is dropped.
@@ -43,13 +43,13 @@ function createVerifyRun(kind: AiModelKind, modelId: string) {
 
   function schedule(delay: number | null) {
     clearTimeout(timer);
-    timer = undefined;
+    timer = null;
     if (delay === null || followers === 0 || isReading) return;
     timer = setTimeout(read, delay);
   }
 
   async function read() {
-    timer = undefined;
+    timer = null;
     isReading = true;
     const startedAt = version;
     let delay: number | null;

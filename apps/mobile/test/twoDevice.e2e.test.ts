@@ -282,13 +282,14 @@ describe('two devices and a whole-record app on one server', () => {
 
   describe('editors', () => {
     it('EditPostScreen saves only what the user changed: another device’s newer text survives a stale form', async () => {
+      const [asset1, asset2] = [await seedAsset(), await seedAsset()];
       at(S);
       const postId = randomUUID();
-      const [asset1, asset2] = [randomUUID(), randomUUID()];
       await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'draft' }, [asset1]);
       await settle();
-      // A opens the editor: its seed is the post as it is now.
+      // A opens the editor: its seed is the post as it is now, with asset1's edge, which the save keeps.
       const original = await openEditor(A, postId);
+      expect(original.assetRefs).toMatchObject([{ assetId: asset1 }]);
       await edit(B, S + 100, () => posts.update(B, postId, { text: 'B rewrote it' }));
       await sync(B);
       await sync(A); // the edit arrives while A's editor is open
