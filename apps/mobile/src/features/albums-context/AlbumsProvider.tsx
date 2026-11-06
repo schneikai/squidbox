@@ -16,7 +16,7 @@ import newRecord from '@/utils/newRecord';
 // The album writes. Membership lives in the album_assets edge collection (add/remove/reorder are
 // independent edge writes that don't clobber across devices). Screens read albums through their
 // own live queries (albumQuery, readByIds).
-const repo = makeRepository<AlbumRecord>('albums', schema.albums);
+const repo = makeRepository('albums', schema.albums);
 const edges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
 
 // A new album isn't on Custom order (no `sortOrder`) and has no place in the albums' custom order yet.

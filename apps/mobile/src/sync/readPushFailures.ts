@@ -39,13 +39,9 @@ export async function readPushFailures(
       .where(failedOutboxRows)
       .orderBy(asc(schema.outbox.id))
       .limit(limit);
-    const albums = await readByIdMap<schema.AlbumRow>(tx, schema.albums, parentIds(rows, 'album_assets', 'albumId'));
-    const posts = await readByIdMap<schema.PostRow>(tx, schema.posts, parentIds(rows, 'post_assets', 'postId'));
-    const lists = await readByIdMap<schema.ContactListRow>(
-      tx,
-      schema.contactLists,
-      parentIds(rows, 'contact_list_members', 'listId'),
-    );
+    const albums = await readByIdMap(tx, schema.albums, parentIds(rows, 'album_assets', 'albumId'));
+    const posts = await readByIdMap(tx, schema.posts, parentIds(rows, 'post_assets', 'postId'));
+    const lists = await readByIdMap(tx, schema.contactLists, parentIds(rows, 'contact_list_members', 'listId'));
     return {
       rows: rows.map((row) => ({
         id: row.id,

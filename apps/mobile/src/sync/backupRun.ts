@@ -63,7 +63,7 @@ async function backupAssets(
   for (const [index, id] of ids.entries()) {
     if (signal.aborted) return;
     onProgress?.({ index, total: ids.length });
-    const [asset] = await readByIds<BackupAsset>(db, schema.assets, [id]);
+    const [asset] = await readByIds(db, schema.assets, [id]);
     if (!asset || !repo.isUnsynced(asset) || (await isUnconfirmed(db, id))) continue;
     if (await backupAsset(db, asset, bound, signal)) return;
   }
@@ -138,7 +138,7 @@ async function markAsset(
 ): Promise<boolean> {
   if (!uploaded.file && !uploaded.thumbnail && failures.length === 0) return false;
   return db.transaction(async (tx) => {
-    const [row] = await readByIds<BackupAsset>(tx, schema.assets, [id]);
+    const [row] = await readByIds(tx, schema.assets, [id]);
     if (!row || row.deletedAt !== null || row.purgedAt !== null) return false;
     const changes: Partial<BackupAsset> = {};
     if (uploaded.file && !row.isFileSynced) changes.isFileSynced = true;

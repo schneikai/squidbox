@@ -1,12 +1,12 @@
 import { type BaseRecord, chunk, collectionsByName, mergeRecord, type FieldClocks } from '@squidbox/shared';
 import { and, isNull } from 'drizzle-orm';
-import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
+import type { SQLiteColumn } from 'drizzle-orm/sqlite-core';
 
 import { FILE_FOLDERS, fileFieldsOf, type FileFolder } from './fileFields';
 import { copyFile, fileExists, listFiles, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
-import { clientCollectionTables } from '@/sync/clientCollections';
+import { type CollectionTable, type RowOf, clientCollectionTables } from '@/sync/clientCollections';
 import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
@@ -142,7 +142,7 @@ export async function planMerge(
   };
   // The collections with file fields, their source rows and those copied: their files are planned last,
   // once every replay is known.
-  const withFiles: { collection: string; table: SQLiteTable; sourceRows: Row[]; copied: Row[] }[] = [];
+  const withFiles: { collection: string; table: CollectionTable; sourceRows: Row[]; copied: Row[] }[] = [];
 
   // Replays, one per record, merged onto the target's row as the server would merge it (replayOnto).
   const replays = new Map<string, Replay>();
@@ -172,8 +172,12 @@ export async function planMerge(
 
   // Replays consider every source record the target has by id, tombstones included (a deletion
   // made on the device after the copy is an edit too).
-  async function planRecords<R extends Row>(collection: string, table: SQLiteTable, sourceRows: R[]) {
-    const targetRows = await readByIdMap<R>(
+  async function planRecords<T extends CollectionTable, R extends RowOf<T>>(
+    collection: string,
+    table: T,
+    sourceRows: R[],
+  ) {
+    const targetRows = await readByIdMap(
       target,
       table,
       sourceRows.map((row) => row.id),
@@ -183,7 +187,11 @@ export async function planMerge(
   }
   // The live records the target has no row of: copied, unless a pass skipped them (a copy whose row
   // is gone is copied again), a file field naming no file the source doesn't hold.
-  async function freshRecords<R extends Row>(collection: string, table: SQLiteTable, sourceRows: R[]) {
+  async function freshRecords<T extends CollectionTable, R extends RowOf<T>>(
+    collection: string,
+    table: T,
+    sourceRows: R[],
+  ): Promise<R[]> {
     const { targetRows } = await planRecords(collection, table, sourceRows);
     const fresh = live(sourceRows)
       .filter((row) => !targetRows.has(row.id) && decided[`${collection}:${row.id}`]?.as !== 'skip')
@@ -206,7 +214,7 @@ export async function planMerge(
     const made = decided[`assets:${asset.id}`];
     return made?.as === 'match' ? [made.into] : [];
   });
-  const matchesBefore = await readByIdMap<AssetRow>(target, schema.assets, matchedBefore);
+  const matchesBefore = await readByIdMap(target, schema.assets, matchedBefore);
   const targetByMediaId = new Map<string, AssetRow>();
   if (mediaIds.length > 0) {
     const rows = await target
@@ -331,9 +339,9 @@ export async function planMerge(
   // has it (re-pointed at a matched asset; null for one that isn't copied), unless the target has
   // that edge (`keyOf`) live once this plan's replays apply (a replay may tombstone the one that has
   // it). The target's edges are read by `lookup`.
-  async function planEdges<E extends Row>(
+  async function planEdges<T extends EdgeTable, E extends RowOf<T>>(
     collection: string,
-    table: EdgeTable,
+    table: T,
     edges: E[],
     copiedAs: (edge: E) => E | null,
     lookup: { column: SQLiteColumn; of: (edge: E) => string },
@@ -444,7 +452,7 @@ export async function planMerge(
     );
   }
   for (const { collection, table, sourceRows, copied } of withFiles) {
-    const targetRows = await readByIdMap<Row>(
+    const targetRows = await readByIdMap(
       target,
       table,
       sourceRows.map((row) => row.id),
@@ -624,7 +632,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
     await saveRecords(tx, 'contact_list_members', schema.contactListMembers, plan.contactListMembers, { isNew: true });
     await saveRecords(tx, 'contact_links', schema.contactLinks, plan.contactLinks, { isNew: true });
     const duplicateIds = plan.duplicates.map((duplicate) => duplicate.id);
-    const beforeReplays = await readByIdMap<AssetRow>(tx, schema.assets, duplicateIds);
+    const beforeReplays = await readByIdMap(tx, schema.assets, duplicateIds);
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave
     // the row stale, and the pull keeps a pending record's fields local.
     for (const collection of new Set(plan.replays.map((row) => row.collection))) {
@@ -633,7 +641,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
         plan.replays.filter((row) => row.collection === collection).map((row) => [row.recordId, row.sent]),
       );
       const ids = [...sent.keys()];
-      const stored = await readByIdMap<Row>(tx, table, ids);
+      const stored = await readByIdMap(tx, table, ids);
       const pending = await pendingEdits(tx, collection, ids, { fields: true });
       const replays = ids.flatMap((id) => {
         const row = stored.get(id);
@@ -649,7 +657,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
         { clocks },
       );
     }
-    const rows = await readByIdMap<AssetRow>(tx, schema.assets, duplicateIds);
+    const rows = await readByIdMap(tx, schema.assets, duplicateIds);
     const next: AssetRow[] = [];
     const clocks = new Map<string, FieldClocks>();
     for (const { id, photos } of plan.duplicates) {

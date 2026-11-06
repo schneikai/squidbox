@@ -195,9 +195,11 @@ export function makeEdgeRepository(collection: string, table: SQLiteTable, paren
         }
         const keys = keysInOrder(order.map((id) => liveById.get(id)?.position ?? null));
 
+        // `t`, not `table`: this takes any SQLiteTable, which CollectionTable doesn't accept, although
+        // album_assets and post_assets are in the registry.
         const removedById = await readByIdMap(
           tx,
-          table,
+          t,
           wanted.filter((r) => !liveById.has(r.id)).map((r) => r.id),
         );
         const now = Date.now();

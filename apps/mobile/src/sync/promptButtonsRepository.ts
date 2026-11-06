@@ -27,7 +27,7 @@ type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 
 const t = schema.promptButtons;
 // A seeded default's clock: older than any real write, so every edit of the default wins over it.
 const SEED_CLOCK = 1;
-const repository = makeRepository<PromptButtonRecord>('prompt_buttons', t);
+const repository = makeRepository('prompt_buttons', t);
 
 /** The live buttons, in their order. */
 export async function readPromptButtons(db: SyncDb): Promise<PromptButtonRecord[]> {

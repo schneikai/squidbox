@@ -13,7 +13,7 @@ import { useLiveRecord } from '@/sync/useLiveRecord';
 // places as they are stored then (changePlace), so a change to them meanwhile is kept.
 export default function ContactPlaceScreen() {
   const { contactId, index: indexParam } = useLocalSearchParams<{ contactId: string; index?: string }>();
-  const contact = useLiveRecord<schema.ContactRow>(schema.contacts, contactId);
+  const contact = useLiveRecord(schema.contacts, contactId);
   const { changePlace } = useContacts();
   useCloseWhenGone(contact, 'This contact was deleted');
   const index = placeIndex(indexParam);

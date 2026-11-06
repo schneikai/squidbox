@@ -16,7 +16,7 @@ describe('readByIds', () => {
     ]);
     let ids: string[] = [];
     const work = await measure(async () => {
-      ids = (await readByIds<{ id: string }>(db, schema.assets, ['c', 'unknown', 'a', 'b', 'c'])).map((row) => row.id);
+      ids = (await readByIds(db, schema.assets, ['c', 'unknown', 'a', 'b', 'c'])).map((row) => row.id);
     });
     expect(ids).toEqual(['c', 'a', 'b']);
     expect(work.statements).toBe(1);
@@ -26,7 +26,7 @@ describe('readByIds', () => {
   it('reads them by id as a map', async () => {
     const { db } = makeMeasuredTestDb();
     await repo.createMany(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
-    const byId = await readByIdMap<{ id: string }>(db, schema.assets, ['b', 'b', 'x']);
+    const byId = await readByIdMap(db, schema.assets, ['b', 'b', 'x']);
     expect([...byId.keys()]).toEqual(['b']);
   });
 });

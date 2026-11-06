@@ -4,6 +4,7 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import assetQuery from '@/features/asset-list/assetQuery';
 import contactQuery from '@/features/contact-list/contactQuery';
 import { albumHoldsAny } from '@/sync/assetSql';
+import type { CollectionTable } from '@/sync/clientCollections';
 import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
@@ -11,7 +12,10 @@ import { readByIds } from '@/sync/readByIds';
 
 type TargetType = ContactLinkRecord['targetType'];
 
-const TABLES = { asset: schema.assets, album: schema.albums, post: schema.posts } satisfies Record<TargetType, unknown>;
+const TABLES = { asset: schema.assets, album: schema.albums, post: schema.posts } satisfies Record<
+  TargetType,
+  CollectionTable
+>;
 const TITLES: Record<TargetType, string> = { asset: 'On this photo', album: 'On this album', post: 'On this post' };
 
 /** What Add contacts adds to: a photo, album or post, or a list. */
@@ -35,13 +39,13 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
   return db.transaction(async (tx) => {
     if ('listId' in target) {
       const { listId } = target;
-      const [list] = await readByIds<schema.ContactListRow>(tx, schema.contactLists, [listId]);
+      const [list] = await readByIds(tx, schema.contactLists, [listId]);
       if (!list || list.deletedAt) return null;
       const linked = await contactQuery({ scope: { listId } }).ids(tx);
       return { title: `to ${list.name}`, linkedTitle: 'In this list', linked, related: [] };
     }
     const { targetType, targetId } = target;
-    const [record] = await readByIds<{ name?: string; deletedAt: number | null }>(tx, TABLES[targetType], [targetId]);
+    const [record] = await readByIds(tx, TABLES[targetType], [targetId]);
     if (!record || record.deletedAt) return null;
     const linked = await contactQuery({ scope: { targetType, targetId } }).ids(tx);
     const onTargets = async (type: TargetType, ids: string[]): Promise<string[]> =>
@@ -70,7 +74,9 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       }
     }
 
-    const title = { asset: 'to 1 photo', album: `to ${record.name}`, post: 'to this post' }[targetType];
+    const title = { asset: 'to 1 photo', album: `to ${'name' in record ? record.name : ''}`, post: 'to this post' }[
+      targetType
+    ];
     return { title, linkedTitle: TITLES[targetType], linked, related: related.filter((section) => section.ids.length) };
   });
 }
