@@ -1,9 +1,9 @@
-import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS, type ContactFromScreenshotResponse } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import QuickAddCard from './QuickAddCard';
 import contactFromScreenshotAsync from './contactFromScreenshotAsync';
+import filledFromScreenshot from './filledFromScreenshot';
 import useClipboardXLink from './useClipboardXLink';
 import useNewContactDraft from './useNewContactDraft';
 
@@ -11,31 +11,10 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
-import { type ContactDraft, handleText, storedPlace } from '@/features/contact-detail/contactFields';
+import { contactDraft, handleText } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
 import { colors, layout, scale } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-
-// The draft fields a screenshot's reading fills, from what it read: only what it found, within the
-// contact's limits (a place it read joins first, unless the draft has it, and the last one goes past
-// CONTACT_LIMITS.places).
-function filledFrom(read: ContactFromScreenshotResponse, draft: ContactDraft): Partial<ContactDraft> {
-  const fields: Partial<ContactDraft> = {};
-  for (const field of CONTACT_HANDLE_FIELDS)
-    if (read[field]) fields[field] = handleText(field, read[field].slice(0, CONTACT_LIMITS.handle));
-  if (read.name) fields.name = read.name.slice(0, CONTACT_LIMITS.name);
-  const part = (text: string | undefined) => (text ?? '').slice(0, CONTACT_LIMITS.place);
-  const place = storedPlace({ city: part(read.city), state: part(read.state), country: part(read.country) });
-  // The draft's places that hold something, each with its stored form to compare.
-  const draftPlaces = draft.places.flatMap((typed) => {
-    const stored = storedPlace(typed);
-    return stored ? [{ typed, stored: JSON.stringify(stored) }] : [];
-  });
-  const isKnown = draftPlaces.some(({ stored }) => stored === JSON.stringify(place));
-  if (place && !isKnown)
-    fields.places = [place, ...draftPlaces.map(({ typed }) => typed)].slice(0, CONTACT_LIMITS.places);
-  return fields;
-}
 
 /**
  * The New contact sheet's quick adds, side by side as cards: From link, which fills the X handle
@@ -68,10 +47,11 @@ export default function QuickAddBar() {
     try {
       const read = await contactFromScreenshotAsync();
       if (!read) return;
-      const fields = filledFrom(read, draft);
-      if (Object.keys(fields).length === 0)
+      // Whether it read anything; what it fills is worked out against the draft as it is now, edits
+      // made during the read included.
+      if (Object.keys(filledFromScreenshot(read, contactDraft())).length === 0)
         Alert.alert('Nothing to fill', 'The assistant found no name or handle in it.');
-      else fillFields(fields);
+      else fillFields((current) => filledFromScreenshot(read, current));
     } catch (error) {
       Alert.alert("Couldn't read the screenshot", apiErrorMessage(error));
     } finally {

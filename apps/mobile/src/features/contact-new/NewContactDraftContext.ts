@@ -5,8 +5,8 @@ import type { ContactDraft } from '@/features/contact-detail/contactFields';
 export type NewContactDraftValue = {
   draft: ContactDraft;
   setField: <F extends keyof ContactDraft>(field: F, value: ContactDraft[F]) => void;
-  // Fills these fields over the draft and remembers it for Undo.
-  fillFields: (fields: Partial<ContactDraft>) => void;
+  // Fills the fields `fieldsFor` returns for the draft as it is then over it, and remembers it for Undo.
+  fillFields: (fieldsFor: (draft: ContactDraft) => Partial<ContactDraft>) => void;
   filledFields: (keyof ContactDraft)[];
   undoFill: () => void;
   avatarUri: string | null;
