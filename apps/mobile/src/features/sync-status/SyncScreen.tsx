@@ -8,36 +8,33 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { LogBlock, LogEmpty, LogLine } from '@/components/settings-list/LogBlock';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import useCloud from '@/features/cloud/useCloud';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
-import { clientCollectionTables } from '@/sync/clientCollections';
+import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
+import { type CollectionTable, clientCollectionTables } from '@/sync/clientCollections';
 import { getDb, schema } from '@/sync/db/client';
 import { retryFailures } from '@/sync/outbox';
-import { readPushFailures } from '@/sync/readPushFailures';
+import { type PushFailure, readPushFailures } from '@/sync/readPushFailures';
 import { usePendingByCollection, useSyncLogRows } from '@/sync/useInspector';
+import type { PagedQuery } from '@/sync/usePagedQuery';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync, runClearOutbox, runFullResync } from '@/sync/worker';
 import confirmAsync from '@/utils/confirmAsync';
-import formatErrorCount from '@/utils/formatErrorCount';
 import relativeTime from '@/utils/relativeTime';
 
-const pushFailuresQuery = { read: readPushFailures, tables: [schema.outbox] };
+const pushFailuresQuery: PagedQuery<PushFailure> = { read: readPushFailures, tables: [schema.outbox] };
 
 // Library-sync detail (the metadata engine): a calm status + Sync now for everyday use, troubleshooting
 // below, and the raw inspector under "Developer". Records/edges sync automatically in the background.
 export default function SyncScreen() {
   const navigation = useNavigation();
   const { phase, pendingCount, failedCount, cursor, lastPullAt, lastError } = useSyncStatus();
+  const { needsReauth } = useCloud();
   const pendingByCollection = usePendingByCollection();
   const log = useSyncLogRows();
   const [showErrors, setShowErrors] = useState(false);
-
-  function statusText() {
-    if (lastError) return "Can't reach server";
-    if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
-    if (failedCount > 0) return formatErrorCount(failedCount);
-    return 'Up to date';
-  }
+  const statusText = getLibrarySyncStatusText({ phase, lastError, pendingCount, failedCount, needsReauth });
 
   async function retryAll() {
     await retryFailures(getDb());
@@ -68,7 +65,7 @@ export default function SyncScreen() {
       <DetailScrollView>
         <ScreenSectionHeader title="Status" />
         <Section>
-          <Row label="Status" value={statusText()} />
+          <Row label="Status" value={statusText} />
           <Row label="Last synced" value={relativeTime(lastPullAt)} />
           {failedCount > 0 && <Row label="View errors" onPress={() => setShowErrors(true)} hasChevron />}
           <Row label="Sync now" onPress={() => requestSync()} hasChevron />
@@ -123,8 +120,10 @@ export default function SyncScreen() {
   );
 }
 
+type CollectionRowProps = { name: string; table: CollectionTable; pending: number };
+
 // One collection's records, pending changes and tombstones; each row watches only its own table.
-function CollectionRow({ name, table, pending }) {
+function CollectionRow({ name, table, pending }: CollectionRowProps) {
   const { records, tombstones } = useRecordCounts(table);
   return <Row label={name} value={`${records} · ${pending} pending · ${tombstones} tomb`} />;
 }

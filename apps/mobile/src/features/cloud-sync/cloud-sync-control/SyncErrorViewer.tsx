@@ -11,12 +11,21 @@ import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import { layout, press, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-import { usePagedQuery } from '@/sync/usePagedQuery';
+import { type PagedQuery, usePagedQuery } from '@/sync/usePagedQuery';
+
+/** A failure the viewer lists: what failed (`title`), why (`error`), and where the way out is (`href`). */
+type SyncFailureRow = { id: string | number; title: string; error: string | null; href?: string };
+
+type SyncErrorViewerProps = {
+  query: PagedQuery<SyncFailureRow>;
+  onRetryAll: () => Promise<unknown>;
+  close: () => void;
+};
 
 // The failures a paged `query` reads, as `{ id, title, error, href? }` rows: what failed and why; a row
 // with an `href` opens it (where the way out is). `onRetryAll` retries every one of them, not just the
 // loaded page. Closes itself once none are left.
-export default function SyncErrorViewer({ query, onRetryAll, close }) {
+export default function SyncErrorViewer({ query, onRetryAll, close }: SyncErrorViewerProps) {
   const { bottom } = useSafeAreaInsets();
   const { rows, count, loadMore } = usePagedQuery(query, 50);
 
@@ -24,7 +33,7 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
     if (count === 0) close();
   }, [count, close]);
 
-  function handleOpen(href) {
+  function handleOpen(href: string) {
     close();
     router.navigate(href);
   }
@@ -47,21 +56,24 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
         <FlatList
           data={rows}
           keyExtractor={(row) => String(row.id)}
-          renderItem={({ item: row }) => (
-            <Section>
-              <Pressable
-                style={({ pressed }) => [styles.errorRow, pressed && press.flat]}
-                disabled={!row.href}
-                onPress={() => handleOpen(row.href)}
-                accessibilityRole={row.href ? 'link' : undefined}
-              >
-                <RNText style={[listTextStyles.caption, styles.errorTitle]} numberOfLines={1}>
-                  {row.title}
-                </RNText>
-                <Text variant="error">{row.error}</Text>
-              </Pressable>
-            </Section>
-          )}
+          renderItem={({ item: row }) => {
+            const { href } = row;
+            return (
+              <Section>
+                <Pressable
+                  style={({ pressed }) => [styles.errorRow, pressed && press.flat]}
+                  disabled={!href}
+                  onPress={href ? () => handleOpen(href) : undefined}
+                  accessibilityRole={href ? 'link' : undefined}
+                >
+                  <RNText style={[listTextStyles.caption, styles.errorTitle]} numberOfLines={1}>
+                    {row.title}
+                  </RNText>
+                  <Text variant="error">{row.error}</Text>
+                </Pressable>
+              </Section>
+            );
+          }}
           onEndReached={loadMore}
           onEndReachedThreshold={2}
           contentContainerStyle={styles.list}

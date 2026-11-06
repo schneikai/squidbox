@@ -1,6 +1,6 @@
 import { DEFAULT_PROMPT_BUTTONS } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
 import ActionButtons from '@/components/ActionButtons';
@@ -33,7 +33,7 @@ import WarningNote from '@/components/WarningNote';
 import AccountButton from '@/components/floating-bars/AccountButton';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import SegmentedPill from '@/components/floating-bars/SegmentedPill';
+import SegmentedPill, { type SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
 import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
@@ -43,12 +43,18 @@ import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
-const TAB_ITEMS = [
+type GalleryTab = 'library' | 'albums' | 'posts' | 'contacts';
+
+const TAB_ITEMS: SegmentedPillItem<GalleryTab>[] = [
   { key: 'library', icon: 'image', label: 'Library' },
   { key: 'albums', icon: 'images', label: 'Albums' },
   { key: 'posts', icon: 'send', label: 'Posts' },
   { key: 'contacts', icon: 'contacts', label: 'Contacts' },
 ];
+
+// The categories, in the order of the chips.
+const CATEGORIES = ['Toolbars', 'Buttons', 'Surfaces', 'Lists', 'Inputs', 'Text', 'Status', 'Icons'] as const;
+type Category = (typeof CATEGORIES)[number];
 
 const noop = () => {};
 
@@ -65,13 +71,13 @@ const POPOVER_SHOWN = new Animated.Value(1);
  */
 export default function ComponentGalleryScreen() {
   const navigation = useNavigation();
-  const [category, setCategory] = useState('Toolbars');
-  const [activeTab, setActiveTab] = useState('library');
+  const [category, setCategory] = useState<Category>('Toolbars');
+  const [activeTab, setActiveTab] = useState<GalleryTab>('library');
   const [isOn, setIsOn] = useState(true);
   const [selectedTags, setSelectedTags] = useState(['Hiking']);
   const [text, setText] = useState('');
 
-  function toggleTag(tag) {
+  function toggleTag(tag: string) {
     setSelectedTags((tags) => (tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]));
   }
 
@@ -345,8 +351,8 @@ export default function ComponentGalleryScreen() {
     );
   }
 
-  // One per category, in the order of the chips.
-  const renderers = {
+  // One per category.
+  const renderers: Record<Category, () => ReactNode> = {
     Toolbars: renderToolbars,
     Buttons: renderButtons,
     Surfaces: renderSurfaces,
@@ -362,7 +368,7 @@ export default function ComponentGalleryScreen() {
       <FloatingDetailHeader title="Components" onBack={() => navigation.goBack()} />
       <DetailScrollView>
         <ChipRow>
-          {Object.keys(renderers).map((name) => (
+          {CATEGORIES.map((name) => (
             <Chip
               key={name}
               label={name}
@@ -378,8 +384,10 @@ export default function ComponentGalleryScreen() {
   );
 }
 
+type SpecimenProps = { name: string; children: ReactNode };
+
 // One component's name over its variants, side by side.
-function Specimen({ name, children }) {
+function Specimen({ name, children }: SpecimenProps) {
   return (
     <Field label={name} style={styles.specimen}>
       <View style={styles.variants}>{children}</View>
