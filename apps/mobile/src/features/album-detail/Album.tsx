@@ -55,7 +55,6 @@ const TABS: SegmentedPillItem<AlbumTab>[] = [
 const ALBUM_SORT_OPTIONS: SortOption<AssetSort>[] = [...assetSortOptions, { key: 'custom', label: 'Custom order' }];
 
 type AlbumProps = { album: AlbumRow };
-
 export default function Album({ album }: AlbumProps) {
   const { setAssetsDeleted } = useAssets();
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();

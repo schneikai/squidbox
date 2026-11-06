@@ -20,7 +20,6 @@ import pluralizeText from '@/utils/pluralizeText';
 const query = assetQuery({ scope: 'deleted' });
 
 type DeletedAssetsAlbumProps = { album: AlbumRow };
-
 export default function DeletedAssetsAlbum({ album }: DeletedAssetsAlbumProps) {
   const { restore, deletePermanently } = useDeletedAssetsActions();
   const navigation = useNavigation();

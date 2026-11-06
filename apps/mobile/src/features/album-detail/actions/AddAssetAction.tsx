@@ -4,7 +4,6 @@ import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
 import type { AlbumRow } from '@/sync/db/schema';
 
 type AddAssetActionProps = { album: AlbumRow };
-
 export default function AddAssetAction({ album }: AddAssetActionProps) {
   const { addAssetsToAlbum } = useAlbums();
 

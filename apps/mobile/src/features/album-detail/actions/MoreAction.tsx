@@ -10,7 +10,6 @@ import confirmAsync from '@/utils/confirmAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
 type MoreActionProps = { album: AlbumRow; afterDelete?: () => void; onSelect?: () => void };
-
 export default function MoreAction({ album, afterDelete, onSelect }: MoreActionProps) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
 

@@ -11,7 +11,6 @@ import { colors, scale } from '@/styles/designTokens';
 const IOS_CALENDAR_INSET = scale(16);
 
 export type PostedAtCalendarProps = { timestamp: number | null; onChange: (time: number) => void };
-
 export default function PostedAtCalendar({ timestamp, onChange }: PostedAtCalendarProps) {
   function handleChange(_: DateTimePickerChangeEvent, date: Date) {
     // The type says always a date; the deprecated `onChange` passed none on a dismiss.

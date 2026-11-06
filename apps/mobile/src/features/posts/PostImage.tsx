@@ -13,7 +13,6 @@ const GAP = space.xs;
 // four or more as a 2×2 grid with "+N" for the rest. With `onPressAsset(asset)` each tile opens its
 // picture (the post screen); without it the tiles are part of whatever holds them (a list card).
 export type PostImageProps = { assets: AssetRow[]; onPressAsset?: (asset: AssetRow) => void };
-
 export default function PostImage({ assets, onPressAsset }: PostImageProps) {
   const tile = (asset: AssetRow) => <Tile key={asset.id} asset={asset} onPressAsset={onPressAsset} />;
 
