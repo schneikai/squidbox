@@ -88,12 +88,12 @@ export function placeInPost(scope: PostScope): SQL<number> {
 }
 
 /** A drizzle `select` from the scope's assets: `a`, joined from its edges when they drive the read. */
-export function fromScope<Selection extends SelectedFields>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SyncDb's run result (db/types)
-  select: SQLiteSelectBuilder<Selection, 'async', any>,
-  scope: AssetScope,
-  sort: AssetSort = 'createdAt:desc',
-) {
+export function fromScope<
+  Selection extends SelectedFields,
+  Mode extends 'sync' | 'async',
+  Run,
+  Builder extends 'db' | 'qb',
+>(select: SQLiteSelectBuilder<Selection, Mode, Run, Builder>, scope: AssetScope, sort: AssetSort = 'createdAt:desc') {
   const edges = scopeEdges(scope, sort);
   if (!edges) return select.from(a);
   // Typed as the read from `a` alone: an inner join of explicit fields reads the same rows' shape,

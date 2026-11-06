@@ -3,7 +3,8 @@ import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
 import PostListItem, { type PostListItemProps } from './PostListItem';
-import type { PostDetailRow, PostListRow } from './postQuery';
+import type { PostListRow } from './postQuery';
+import type { PostDetailRow } from './readPost';
 
 import type { ScrollableList } from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';

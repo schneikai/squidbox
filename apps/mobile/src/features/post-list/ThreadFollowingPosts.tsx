@@ -11,7 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import type { PostDetailRow } from './postQuery';
+import type { PostDetailRow } from './readPost';
 import stackEdge from './stackEdge';
 import usePost from './usePost';
 

@@ -13,7 +13,7 @@ const NOT_READ = { data: undefined, readAt: -1 };
  * WatchOptions, and `isLive` (default true): false reads once and then only notes writes, until it
  * turns true and catches up — for data shown ahead of time, such as the next page's.
  */
-type LiveOptions = WatchOptions & { isLive?: boolean };
+export type LiveOptions = WatchOptions & { isLive?: boolean };
 
 /**
  * The result of `read`, re-run after each committed write to any of `tables` while the screen is

@@ -235,11 +235,11 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 ### [ ] Rewrite the app in TypeScript
 
 `npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
-posts (next: it types against post-list's rows), album-list, album-detail, asset-detail, post-chat,
-prompt-buttons, model-compare and model-verify, `app/_layout.jsx` and those features' routes.
-Convert them feature by feature, then add `test/` to the check and turn `allowJs` off. `PostView.jsx`
-and `PromptButtonRow.jsx` hold JSDoc `@param` stand-ins for their props' types (allowJs reads their
-optional props as required): drop them when those files convert.
+asset-detail, post-chat, prompt-buttons, model-compare and model-verify, those features' routes, and
+the layouts: `app/_layout.jsx` and the groups' (`(editor)`, `(new-post)`, `(compare)`, `(main)/(chat)`,
+`(main)/(tabs)`, `(main)/(tabs)/settings`). Convert them feature by feature, then add `test/` to the check and turn `allowJs`
+off. `PromptButtonRow.jsx` holds a JSDoc `@param` stand-in for its props' types (allowJs reads
+optional props as required): drop it when that file converts.
 
 ### [ ] Add UI tests
 

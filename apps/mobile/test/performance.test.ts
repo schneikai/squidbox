@@ -8,6 +8,7 @@ import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
 import postQuery from '../src/features/post-list/postQuery';
+import readPost from '../src/features/post-list/readPost';
 import * as repo from '../src/sync/assetsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
@@ -335,7 +336,7 @@ describe('plan guard', () => {
     expect(work.plans).toContain('CORRELATED SCALAR SUBQUERY 1');
     expect(work.plans).toContain('SEARCH r USING INDEX sqlite_autoindex_posts_1 (id=?)');
     expect(work.plans).toContain('SEARCH c USING INDEX posts_thread_idx (thread_root_id=?)');
-    const post = await measure(() => postQuery({ scope: { postId: 'post-1' } }).readRows(db));
+    const post = await measure(() => readPost(db, 'post-1'));
     expect(unindexedScans(post)).toEqual([]);
     expect(post.plans).toContain('SEARCH posts USING INDEX posts_thread_idx (thread_root_id=?)');
   });

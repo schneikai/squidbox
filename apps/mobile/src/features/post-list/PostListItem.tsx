@@ -3,7 +3,8 @@ import { memo, type ReactNode, useState } from 'react';
 import { type AccessibilityActionEvent, StyleSheet, View } from 'react-native';
 
 import ThreadFollowingPosts from './ThreadFollowingPosts';
-import type { PostDetailRow, PostListRow } from './postQuery';
+import type { PostListRow } from './postQuery';
+import type { PostDetailRow } from './readPost';
 import stackEdge from './stackEdge';
 
 import Button from '@/components/Button';

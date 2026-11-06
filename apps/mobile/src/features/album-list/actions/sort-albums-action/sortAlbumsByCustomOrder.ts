@@ -5,7 +5,7 @@
  */
 import type { AlbumRow } from '@/sync/db/schema';
 
-type OrderedAlbum = Pick<AlbumRow, 'id' | 'position' | 'createdAt'>;
+export type OrderedAlbum = Pick<AlbumRow, 'id' | 'position' | 'createdAt'>;
 
 export default function sortAlbumsByCustomOrder(a: OrderedAlbum, b: OrderedAlbum): number {
   if (a.position == null && b.position == null) {
