@@ -8,7 +8,6 @@ import { colors, press, scale, shadows, sizes } from '@/styles/designTokens';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
 const CAMERA_DISC = scale(38);
-const RING = scale(4);
 const PLACEHOLDER = sizes.avatar.hero; // as big as the photo it stands for, and the contact screen's
 
 /**
@@ -52,20 +51,18 @@ export default function ContactAvatarPicker({
     const isBlank = !uri && !contact.name.trim();
     return (
       <View style={[styles.form, style]}>
-        <View style={styles.raised}>
-          {isBlank ? (
-            <Pressable
-              onPress={handlePick}
-              accessibilityRole="button"
-              accessibilityLabel="Add photo"
-              style={({ pressed }) => [styles.placeholder, pressed && press.filled]}
-            >
-              <Icon name="camera" size={scale(40)} color={colors.accent.base} />
-            </Pressable>
-          ) : (
-            <ContactAvatar contact={contact} uri={uri} size="hero" />
-          )}
-        </View>
+        {isBlank ? (
+          <Pressable
+            onPress={handlePick}
+            accessibilityRole="button"
+            accessibilityLabel="Add photo"
+            style={({ pressed }) => [styles.placeholder, pressed && press.filled]}
+          >
+            <Icon name="camera" size={scale(40)} color={colors.accent.base} />
+          </Pressable>
+        ) : (
+          <ContactAvatar contact={contact} uri={uri} size="hero" />
+        )}
         <Button label={hasPhoto ? 'Change photo' : 'Add photo'} onPress={handlePick} style={styles.link} />
       </View>
     );
@@ -116,11 +113,8 @@ const styles = StyleSheet.create({
   hero: {
     alignSelf: 'center',
   },
-  // A white ring and a soft shadow lift the photo (or its pale initials) off the grey page.
   raised: {
-    padding: RING,
-    borderRadius: sizes.avatar.hero / 2 + RING,
-    backgroundColor: colors.background.surface,
+    borderRadius: sizes.avatar.hero / 2,
     ...shadows.avatar,
   },
   camera: {
