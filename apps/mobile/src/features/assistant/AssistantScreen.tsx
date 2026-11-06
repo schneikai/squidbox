@@ -1,5 +1,6 @@
 import { aiModelKindSchema } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
+import type { ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 
 import personaSummary from './personaSummary';
@@ -76,10 +77,12 @@ export default function AssistantScreen() {
   );
 }
 
+type AdminSectionProps = { children: ReactNode };
+
 // Admin, for an ai_admin account only: the model lists of each kind (Writing, Vision), Changed
 // while this account's picks differ from the published defaults, then `children` (Instructions),
 // and the Venice balance.
-function AdminSection({ children }) {
+function AdminSection({ children }: AdminSectionProps) {
   const { changedKinds } = useYourDefaults();
 
   return (
@@ -109,7 +112,7 @@ function InstructionsRow() {
 
   return (
     <Row label="Instructions" onPress={() => router.navigate('/settings/assistant/instructions')} hasChevron>
-      {changedKinds?.length > 0 && <ChangedBadge />}
+      {!!changedKinds?.length && <ChangedBadge />}
     </Row>
   );
 }
