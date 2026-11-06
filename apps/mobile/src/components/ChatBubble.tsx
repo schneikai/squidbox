@@ -5,7 +5,7 @@ import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
 import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 
-export type ChatBubbleProps = { side: 'user' | 'assistant'; label?: string; text: string; children?: ReactNode };
+export type ChatBubbleProps = { side: 'user' | 'assistant'; label?: string | null; text: string; children?: ReactNode };
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt

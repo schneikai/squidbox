@@ -3,11 +3,13 @@ import useCopyText from './useCopyText';
 import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 
+type AssistantBubbleProps = { text: string };
+
 /**
  * What the assistant says in the chat (`text`): its bubble, with Copy in the ⋯ (a bio or a profile
  * text).
  */
-export default function AssistantBubble({ text }) {
+export default function AssistantBubble({ text }: AssistantBubbleProps) {
   const copy = useCopyText();
 
   return (

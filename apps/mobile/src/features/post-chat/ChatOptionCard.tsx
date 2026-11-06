@@ -11,11 +11,17 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 // Memoized: a new reply renders only its own options.
 export default memo(ChatOptionCard);
 
+export type ChatOptionCardProps = {
+  text: string;
+  onMoreLikeThis: (text: string) => void;
+  onUse: ((text: string) => void) | null;
+};
+
 /**
  * One option of the chat's reply: its text with ⋯ → More like this (`onMoreLikeThis(text)`), and Use
  * (`onUse(text)`, when given) or else Copy.
  */
-function ChatOptionCard({ text, onMoreLikeThis, onUse }) {
+function ChatOptionCard({ text, onMoreLikeThis, onUse }: ChatOptionCardProps) {
   const copy = useCopyText();
 
   return (

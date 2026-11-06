@@ -1,6 +1,7 @@
+import type { ChatContext } from '@squidbox/shared';
 import { useMemo, useSyncExternalStore } from 'react';
 
-import chatSessions from './chatSessions';
+import chatSessions, { type UserTurn } from './chatSessions';
 
 import chatAsync from '@/utils/cloud-api/ai/chatAsync';
 
@@ -13,8 +14,8 @@ const getNone = () => null;
  * `send(turn, context)` and `retry(context)` asking the server (POST /ai/chat; each → the reply's
  * promise, or null when nothing was sent). null when there is no such chat (closed, or no id yet).
  */
-export default function useChatSession(id) {
-  const session = id ? chatSessions.get(id) : undefined;
+export default function useChatSession(id: string | null) {
+  const session = chatSessions.get(id);
   const state = useSyncExternalStore(session?.subscribe ?? subscribeNone, session?.getState ?? getNone);
 
   return useMemo(() => {
@@ -22,8 +23,8 @@ export default function useChatSession(id) {
     return {
       ...state,
       getDraft: session.getDraft,
-      send: (turn, context) => session.send(turn, context, chatAsync),
-      retry: (context) => session.retry(context, chatAsync),
+      send: (turn: UserTurn, context: ChatContext) => session.send(turn, context, chatAsync),
+      retry: (context: ChatContext) => session.retry(context, chatAsync),
       reset: session.reset,
       applyText: session.applyText,
       editTags: session.editTags,
@@ -31,3 +32,5 @@ export default function useChatSession(id) {
     };
   }, [session, state]);
 }
+
+export type LiveChat = NonNullable<ReturnType<typeof useChatSession>>;

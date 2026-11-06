@@ -1,22 +1,23 @@
 import { Alert } from 'react-native';
 
+import type { UserChatMessage } from './chatSessions';
+
 import ChatBubble from '@/components/ChatBubble';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useHaptics from '@/hooks/useHaptics';
 import ruleResultText from '@/lib/ruleResultText';
-import useLibrary from '@/library/useLibrary';
 import { getDb } from '@/sync/db/client';
 import { addRule } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
+
+type UserMessageProps = Pick<UserChatMessage, 'label' | 'content'> & { userId: string };
 
 /**
  * One of the user's turns in the chat: a violet bubble with the prompt button's name (`label`) over
  * what was sent (`content`), and a ⋯ under it to add the text to the Rules.
  */
-export default function UserMessage({ label, content }) {
+export default function UserMessage({ label, content, userId }: UserMessageProps) {
   const haptics = useHaptics();
-  const { library } = useLibrary();
-  const userId = library.owner.userId;
 
   async function handleAddToRules() {
     try {
@@ -34,7 +35,7 @@ export default function UserMessage({ label, content }) {
     } catch (error) {
       console.error('Adding the rule failed', error);
       haptics.error();
-      Alert.alert("Couldn't add the rule", error.message);
+      Alert.alert("Couldn't add the rule", error instanceof Error ? error.message : String(error));
     }
   }
 

@@ -2,6 +2,9 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import type { ChatSeed } from './chatSessions';
+import type { PostChatState } from './usePostChat';
+
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import FoldingTextInput from '@/components/FoldingTextInput';
@@ -9,20 +12,28 @@ import { colors, lineHeights, scale, sizes, space } from '@/styles/designTokens'
 
 const MAX_INPUT_HEIGHT = scale(120);
 
+type ChatComposerProps = {
+  seed?: ChatSeed;
+  placeholder: string;
+  disabled: boolean;
+  isWaiting: boolean;
+  onSend: PostChatState['send'];
+};
+
 /**
  * Where the user writes to the assistant: a text field, one line while not typing, seeded with `seed` (`{ label, content }`, a
  * prompt button's, whose name goes with it until the text is edited), and Send, which hands
  * `onSend({ label, content })` the trimmed text and empties the field once it was sent. Send waits
  * while `disabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
  */
-export default function ChatComposer({ seed, placeholder, disabled, isWaiting, onSend }) {
+export default function ChatComposer({ seed, placeholder, disabled, isWaiting, onSend }: ChatComposerProps) {
   const [text, setText] = useState(seed?.content ?? '');
   const [label, setLabel] = useState(seed?.label ?? null);
 
   const content = text.trim();
   const canSend = Boolean(content) && !disabled && !isWaiting;
 
-  function handleChangeText(next) {
+  function handleChangeText(next: string) {
     setText(next);
     setLabel(null);
   }

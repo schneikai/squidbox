@@ -8,7 +8,7 @@ export default function useCopyText() {
   const haptics = useHaptics();
 
   return useCallback(
-    async (text) => {
+    async (text: string) => {
       await Clipboard.setStringAsync(text);
       haptics.success();
     },

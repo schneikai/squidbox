@@ -6,8 +6,8 @@ const HANDLE = /(^|[^\w@])(@\w+(?:[.-]\w+)*)/g;
  * The distinct @handles in `texts`, those used most first (then the first seen), compared without
  * case; each keeps the spelling it was first seen with.
  */
-export default function extractHandles(texts) {
-  const byKey = new Map();
+export default function extractHandles(texts: readonly string[]): string[] {
+  const byKey = new Map<string, { handle: string; count: number; order: number }>();
   for (const text of texts) {
     for (const [, , handle] of text.matchAll(HANDLE)) {
       const key = handle.toLowerCase();

@@ -1,7 +1,6 @@
 import type { AssetRecord, ChatSubjectKind } from '@squidbox/shared';
 import { useEffect, useState } from 'react';
 
-// JS, typed as allowJs infers it.
 import chatSessions from './chatSessions';
 
 import type { PostAsset } from '@/utils/posts/buildPostAsset';
