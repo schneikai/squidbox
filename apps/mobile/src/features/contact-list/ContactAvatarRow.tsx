@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
-/** The favorites row: each favorite's avatar (no heart: they are all favorites here) with its first name, side by side, opening the contact. */
+/** The pinned row on Contacts (Favorites, or the list pinned in their place): each contact's avatar (no heart) with its first name, side by side, opening the contact. */
 type ContactAvatarRowProps = { contacts: Pick<ContactRecord, 'id' | 'name' | 'avatarFilename'>[] };
 
 export default function ContactAvatarRow({ contacts }: ContactAvatarRowProps) {
@@ -36,7 +36,7 @@ export default function ContactAvatarRow({ contacts }: ContactAvatarRowProps) {
 
 const styles = StyleSheet.create({
   // Reaches the screen's edges, so it scrolls edge to edge, with the first avatar under the
-  // Favorites label (a section header's inset in from the gutter).
+  // row's label (a section header's inset in from the gutter).
   scroller: {
     marginHorizontal: -layout.sideGutter,
   },

@@ -6,6 +6,7 @@ import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import contactListQuery from '../src/features/contact-list/contactListQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
+import pinnedList from '../src/features/contact-list/pinnedList';
 import * as assets from '../src/sync/assetsRepository';
 import * as lists from '../src/sync/contactListsRepository';
 import * as contacts from '../src/sync/contactsRepository';
@@ -149,5 +150,32 @@ describe('contactListQuery', () => {
     const [counted] = await contactListQuery({ withMembers: false }).read(db);
     expect(counted).toMatchObject({ id: 'l1', memberCount: 3 });
     expect(counted).not.toHaveProperty('firstMembers');
+  });
+});
+
+describe('pinned list', () => {
+  const makeList = (id: string, fields: Partial<schema.ContactListRow> = {}) =>
+    lists.create(db, { id, createdAt: 1, updatedAt: 1, deletedAt: null, name: id, notes: null, ...fields });
+  const pinnedId = async () => pinnedList(await contactListQuery({ withMembers: false }).read(db))?.id ?? null;
+
+  it('pinning a list unpins the one pinned before, and pinning Favorites unpins every list', async () => {
+    await makeList('hiking');
+    await makeList('brands');
+    await lists.pin(db, 'hiking');
+    await lists.pin(db, 'brands');
+    expect(await pinnedId()).toBe('brands');
+    expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(1);
+    await lists.pin(db, null);
+    expect(await pinnedId()).toBeNull();
+  });
+
+  it('shows the list pinned last when two devices pinned one each, and Favorites once it is deleted', async () => {
+    await makeList('hiking', { pinnedAt: 10 });
+    await makeList('brands', { pinnedAt: 20 });
+    expect(await pinnedId()).toBe('brands');
+    await lists.remove(db, ['brands']);
+    expect(await pinnedId()).toBe('hiking');
+    await lists.remove(db, ['hiking']);
+    expect(await pinnedId()).toBeNull();
   });
 });

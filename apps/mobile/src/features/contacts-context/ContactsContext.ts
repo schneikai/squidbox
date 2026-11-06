@@ -20,6 +20,7 @@ export type ContactsContextValue = {
   addList: (name: string) => Promise<ContactListRecord>;
   updateList: (id: string, fields: Partial<ContactListRecord>) => Promise<void>;
   setListDeleted: (id: string) => Promise<void>;
+  pinList: (id: string | null) => Promise<void>;
   addToLists: (contactIds: string[], listIds: string[]) => Promise<void>;
   changeListContacts: (listId: string, change: MembershipChange) => Promise<void>;
   changeTargetContacts: (target: ContactTarget, change: MembershipChange) => Promise<void>;

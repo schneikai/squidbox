@@ -7,14 +7,17 @@ import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
 import ContactRow from './ContactRow';
 import ContactRowMenu from './ContactRowMenu';
+import PinnedContactsMenu from './PinnedContactsMenu';
 import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
+import pinnedList from './pinnedList';
 import useAddListAction from './useAddListAction';
 import useContactListRows from './useContactListRows';
 import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
 
 import EmptyState from '@/components/EmptyState';
+import IntroText from '@/components/IntroText';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
@@ -36,7 +39,7 @@ const SEGMENTS: SegmentedPillItem<Segment>[] = [
 const PAGE_SIZE = 100;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
-// The Contacts tab: the contacts (favorites first as a row of avatars, then everyone, by name or recently added) or
+// The Contacts tab: the contacts (favorites first as a row of avatars, or the list the pen pinned in their place, then everyone, by name or recently added) or
 // the contact lists, switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
 export default function ContactsScreen() {
   const [segment, setSegment] = useState<Segment>('contacts');
@@ -53,8 +56,15 @@ export default function ContactsScreen() {
   const query = contactQuery({ scope: 'all', search: searchText.trim(), sort: sortOrder });
   // Each stays live only while it shows.
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
-  const favorites = useContactRows({ scope: 'favorites' }, { isLive: isContacts && !isSearching });
   const lists = useContactListRows({ isLive: segment === 'lists' });
+  // The lists the pen picks from, and the one pinned in place of Favorites.
+  const pinOptions = useContactListRows({ withMembers: false, isLive: isContacts && !isSearching });
+  const pinned = pinnedList(pinOptions);
+  const pinnedContacts = useContactRows(pinned ? { scope: { listId: pinned.id } } : { scope: 'favorites' }, {
+    isLive: isContacts && !isSearching,
+  });
+  // Favorites shows once there are some; a pinned list even while it is empty, so the pen can change it.
+  const hasPinned = !isSearching && (!!pinnedContacts?.length || (!!pinned && !!pinnedContacts));
 
   const data = isContacts ? (rows ?? []) : [];
   const lastIndex = data.length - 1;
@@ -80,17 +90,28 @@ export default function ContactsScreen() {
     <View>
       {isContacts ? (
         <>
-          {!isSearching && !!favorites?.length && (
+          {hasPinned && (
             <>
-              <ScreenSectionHeader title="Favorites" size="small" isFirst />
-              <ContactAvatarRow contacts={favorites} />
+              <ScreenSectionHeader
+                title={pinned?.name ?? 'Favorites'}
+                size="small"
+                isFirst
+                trailing={
+                  !!pinOptions?.length && <PinnedContactsMenu lists={pinOptions} pinnedId={pinned?.id ?? null} />
+                }
+              />
+              {pinnedContacts?.length ? (
+                <ContactAvatarRow contacts={pinnedContacts} />
+              ) : (
+                <IntroText isScreenIntro>No contacts in this list yet.</IntroText>
+              )}
             </>
           )}
           {!!count && (
             <ScreenSectionHeader
               title={pluralizeText('1 contact', `${count.toLocaleString()} contacts`, count)}
               size="small"
-              isFirst={isSearching || !favorites?.length}
+              isFirst={!hasPinned}
             />
           )}
           {count === 0 && (

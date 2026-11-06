@@ -268,6 +268,7 @@ export const contactLists = sqliteTable('contact_lists', {
   deletedAt: integer('deleted_at'),
   name: text('name').notNull(),
   notes: text('notes'),
+  pinnedAt: integer('pinned_at'),
 });
 export type ContactListRow = typeof contactLists.$inferSelect;
 

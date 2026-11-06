@@ -312,6 +312,7 @@ export const contactLists = pgTable(
     ...syncableBase(),
     name: text('name').notNull(),
     notes: text('notes'),
+    pinnedAt: bigint('pinned_at', { mode: 'number' }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_lists_user_seq_idx').on(t.userId, t.serverSeq)],
 );

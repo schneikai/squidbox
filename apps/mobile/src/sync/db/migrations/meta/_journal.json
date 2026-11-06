@@ -232,6 +232,13 @@
       "when": 1793964365672,
       "tag": "0032_contact_x_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1793977282112,
+      "tag": "0033_contact_list_pinned",
+      "breakpoints": true
     }
   ]
 }

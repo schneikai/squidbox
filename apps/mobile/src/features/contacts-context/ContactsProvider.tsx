@@ -131,6 +131,7 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           await lists.remove(tx, [id]);
           await contactListMembers.tombstoneWhere(tx, { listId: id });
         }),
+      pinList: (id) => written((tx) => lists.pin(tx, id)),
       addToLists: (contactIds, listIds) =>
         written((tx) =>
           contactListMembers.addToEach(
