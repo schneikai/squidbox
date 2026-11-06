@@ -9,7 +9,10 @@ import contactSubtitle from './contactSubtitle';
 import Divider from '@/components/Divider';
 import IconSlotContext from '@/components/IconSlotContext';
 import SelectIndicator from '@/components/SelectIndicator';
+import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
+import useContacts from '@/features/contacts-context/useContacts';
+import useHaptics from '@/hooks/useHaptics';
 import { colors, layout, press, radii, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -43,18 +46,46 @@ export default function ContactRow({
   isFirst,
   isLast,
 }: ContactRowProps) {
+  const { toggleFavoriteContact } = useContacts();
+  const haptics = useHaptics();
   const subtitle = givenSubtitle === undefined ? contactSubtitle(contact) : givenSubtitle;
+  // A picker's row (isSelected given) only picks; a browsing row's avatar favorites on a double tap.
+  const canFavorite = isSelected === undefined;
+
+  function handlePress() {
+    if (onPress) onPress();
+    else router.navigate(`/contact/${contact.id}`);
+  }
+
+  function handleToggleFavorite() {
+    haptics.selection();
+    toggleFavoriteContact(contact.id);
+  }
+
+  const avatar = <ContactAvatar contact={contact} size="row" isFavorite={contact.isFavorite} />;
 
   return (
     <View style={[styles.surface, isFirst && styles.first, isLast && styles.last]}>
       <View style={styles.row}>
         <Pressable
           style={({ pressed }) => [styles.pressable, pressed && press.flat]}
-          onPress={onPress ?? (() => router.navigate(`/contact/${contact.id}`))}
+          onPress={handlePress}
           accessibilityRole="button"
           accessibilityState={isSelected === undefined ? undefined : { selected: isSelected }}
         >
-          <ContactAvatar contact={contact} size="row" isFavorite={contact.isFavorite} />
+          {canFavorite ? (
+            <SuperPressable
+              onPress={handlePress}
+              onDoublePress={handleToggleFavorite}
+              accessibilityRole="button"
+              accessibilityLabel={contact.name}
+              accessibilityHint={contact.isFavorite ? 'Double tap to remove from favorites' : 'Double tap to favorite'}
+            >
+              {avatar}
+            </SuperPressable>
+          ) : (
+            avatar
+          )}
           <View style={styles.labels}>
             <Text style={listTextStyles.name}>{contact.name}</Text>
             {!!subtitle && <Text style={listTextStyles.detail}>{subtitle}</Text>}
