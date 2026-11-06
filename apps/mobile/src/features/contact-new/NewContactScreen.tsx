@@ -8,13 +8,13 @@ import findDuplicates from './findDuplicates';
 import useContactHandles from './useContactHandles';
 import useNewContactDraft from './useNewContactDraft';
 
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import EditSheet from '@/components/EditSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ContactAvatarPicker from '@/features/contact-detail/ContactAvatarPicker';
 import HandleField from '@/features/contact-detail/HandleField';
 import HandleFieldsCard from '@/features/contact-detail/HandleFieldsCard';
+import ListsField from '@/features/contact-detail/ListsField';
+import NotesField from '@/features/contact-detail/NotesField';
 import PlacesField from '@/features/contact-detail/PlacesField';
 import { contactDraft, storedContactFields } from '@/features/contact-detail/contactFields';
 import useContactListRows from '@/features/contact-list/useContactListRows';
@@ -24,18 +24,18 @@ import useHaptics from '@/hooks/useHaptics';
 
 const EMPTY = JSON.stringify(storedContactFields(contactDraft()));
 
-// The New contact sheet: a photo, the name, handles, phone and places, and the lists to put it in
+// The New contact sheet: a photo, the name, handles and phone, a note, places, and the lists to put it in
 // (a place and the lists are steps pushed inside the sheet). Contacts it may duplicate show above the form, their shared
 // fields marked. Add saves it and opens it.
 export default function NewContactScreen() {
   const haptics = useHaptics();
   const { addContact } = useContacts();
-  const { draft, setField, avatarUri, setAvatarUri, listIds, filledFields } = useNewContactDraft();
+  const { draft, setField, avatarUri, setAvatarUri, listIds, setListIds, filledFields } = useNewContactDraft();
   const handles = useContactHandles();
   const lists = useContactListRows({ withMembers: false });
   const fields = storedContactFields(draft);
   const { matches, sharedFields } = findDuplicates(fields, handles ?? []);
-  const listNames = (lists ?? []).filter((list) => listIds.includes(list.id)).map((list) => list.name);
+  const selectedLists = (lists ?? []).filter((list) => listIds.includes(list.id));
   const isDirty = JSON.stringify(fields) !== EMPTY || !!avatarUri || listIds.length > 0;
   const { sheetProps, finish, confirmDiscard } = useEditSheet({
     isNew: true,
@@ -93,20 +93,23 @@ export default function NewContactScreen() {
         />
       </HandleFieldsCard>
 
+      <ScreenSectionHeader title="Notes" size="large" />
+      <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} />
+
+      <ScreenSectionHeader title="Places" size="large" />
       <PlacesField
         places={draft.places}
         onEdit={(index) => router.navigate({ pathname: '/new-contact/place', params: { index } })}
         onAdd={() => router.navigate('/new-contact/place')}
       />
 
-      {/* The same chips as on the contact screen; the lists step is pushed inside the sheet. */}
+      {/* The lists step is pushed inside the sheet. */}
       <ScreenSectionHeader title="Lists" size="large" />
-      <ChipRow>
-        {listNames.map((name) => (
-          <Chip key={name} label={name} onPress={() => router.navigate('/new-contact/lists')} />
-        ))}
-        <Chip variant="add" label="Add to list" onPress={() => router.navigate('/new-contact/lists')} />
-      </ChipRow>
+      <ListsField
+        lists={selectedLists}
+        onRemove={(listId) => setListIds(listIds.filter((id) => id !== listId))}
+        onAdd={() => router.navigate('/new-contact/lists')}
+      />
     </EditSheet>
   );
 }

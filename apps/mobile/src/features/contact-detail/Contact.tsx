@@ -7,13 +7,13 @@ import ContactAvatarPicker from './ContactAvatarPicker';
 import ContactMenu from './ContactMenu';
 import ContactPhotosStrip from './ContactPhotosStrip';
 import HandleFieldsCard from './HandleFieldsCard';
+import ListsField from './ListsField';
+import NotesField from './NotesField';
 import PlacesField from './PlacesField';
 import { type ContactDraft, type ContactFormFields, contactDraft, storedContactFields } from './contactFields';
 import useListsOfContact from './useListsOfContact';
 
 import Button from '@/components/Button';
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -43,7 +43,7 @@ type PhotoPage = { rows: schema.AssetRow[]; count: number };
 
 type ContactProps = { contact: schema.ContactRow };
 
-// A contact, edited as you type (useSaveAsYouType): its avatar, name, handles, places and notes,
+// A contact, edited as you type (useSaveAsYouType): its avatar, name, handles, notes and places,
 // then the lists it is in and the photos, albums and posts it is on. A change another device makes
 // while it is open shows in the fields not edited here since. The name is its title, edited in
 // place; the camera on the avatar's corner changes the photo. The heart and ⋯ share the header's
@@ -51,7 +51,7 @@ type ContactProps = { contact: schema.ContactRow };
 export default function Contact({ contact }: ContactProps) {
   const navigation = useNavigation();
   const haptics = useHaptics();
-  const { toggleFavoriteContact, setAvatarAsync } = useContacts();
+  const { toggleFavoriteContact, setAvatarAsync, changeListContacts } = useContacts();
   const [draft, setDraft] = useState(() => contactDraft(contact));
   const [seen, setSeen] = useState(contact); // the stored contact the draft last took in
   const saver = useSaveAsYouType(storedContactFields(draft), save);
@@ -141,6 +141,9 @@ export default function Contact({ contact }: ContactProps) {
 
         <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.handles} />
 
+        <ScreenSectionHeader title="Notes" size="large" />
+        <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} onBlur={() => flush()} />
+
         <ScreenSectionHeader title="Places" size="large" />
         <PlacesField
           places={draft.places}
@@ -148,25 +151,13 @@ export default function Contact({ contact }: ContactProps) {
           onAdd={() => router.navigate(`/contact/${contact.id}/place`)}
         />
 
-        <TextInput
-          variant="field"
-          multiline
-          value={draft.notes}
-          onChangeText={(text) => setField('notes', text)}
-          onBlur={() => flush()}
-          placeholder="Add a note…"
-          accessibilityLabel="Notes"
-          maxLength={CONTACT_LIMITS.notes}
-          style={styles.notes}
-        />
-
         <ScreenSectionHeader title="Lists" size="large" />
-        <ChipRow>
-          {lists?.map((list) => (
-            <Chip key={list.id} label={list.name} onPress={() => router.navigate(`/contact-list/${list.id}`)} />
-          ))}
-          <Chip variant="add" label="Add to list" onPress={() => router.navigate(addToContactListHref([contact.id]))} />
-        </ChipRow>
+        <ListsField
+          lists={lists ?? []}
+          onOpen={(listId) => router.navigate(`/contact-list/${listId}`)}
+          onRemove={(listId) => changeListContacts(listId, { added: [], removed: [contact.id] })}
+          onAdd={() => router.navigate(addToContactListHref([contact.id]))}
+        />
 
         <ScreenSectionHeader
           title="Photos"
@@ -214,8 +205,5 @@ const styles = StyleSheet.create({
   },
   handles: {
     marginTop: 22,
-  },
-  notes: {
-    marginTop: 12,
   },
 });
