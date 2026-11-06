@@ -1,0 +1,32 @@
+import type { IconName } from '@/components/Icon';
+
+// The icons a prompt button can lead with, in the picker's order (Icon names).
+const PROMPT_BUTTON_ICONS: readonly IconName[] = [
+  'scissors',
+  'expand',
+  'list-checks',
+  'edit',
+  'spell-check',
+  'translate',
+  'formal',
+  'feather',
+  'laugh',
+  'smile',
+  'sparkle',
+  'heading',
+  'quote',
+  'thread',
+  'poll',
+  'hash',
+  'mention',
+  'image',
+  'award',
+  'mountain',
+  'map-pin',
+  'printer',
+  'repeat',
+  'link',
+  'megaphone',
+];
+
+export default PROMPT_BUTTON_ICONS;

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import getCurrentAssetId from '../src/features/asset-detail/getCurrentAssetId';
+import nextZoomedAssetId from '../src/features/asset-detail/nextZoomedAssetId';
 
 const dropped = (...ids: string[]) => new Set(ids);
 
@@ -30,5 +31,19 @@ describe('asset pager state (getCurrentAssetId)', () => {
 
   it('has no current asset when every asset is gone', () => {
     expect(getCurrentAssetId({ assetIds: ['a', 'b'], droppedIds: dropped('a', 'b'), selectedAssetId: 'a' })).toBeNull();
+  });
+});
+
+describe('asset pager state (nextZoomedAssetId)', () => {
+  it('locks on the page that zoomed in', () => {
+    expect(nextZoomedAssetId({ zoomed: null, assetId: 'b', isZoomed: true })).toBe('b');
+  });
+
+  it('unlocks when that page zooms out', () => {
+    expect(nextZoomedAssetId({ zoomed: 'b', assetId: 'b', isZoomed: false })).toBeNull();
+  });
+
+  it('keeps the lock when another page reports zooming out', () => {
+    expect(nextZoomedAssetId({ zoomed: 'b', assetId: 'a', isZoomed: false })).toBe('b');
   });
 });

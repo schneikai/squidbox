@@ -14,7 +14,7 @@ import getAssetThumbnailStatusAsync, {
   type ThumbnailStatusAsset,
 } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
-type ThumbnailStatus = AssetFileStatus | 'failed';
+export type ThumbnailStatus = AssetFileStatus | 'failed';
 
 // Thumbnails that have loaded on this device since launch. A cell that shows one again (an album
 // opened again, the cell a drag lifts) skips the file check and the placeholder: the picture comes

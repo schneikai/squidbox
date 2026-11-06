@@ -5,12 +5,11 @@ import type { SharedValue } from 'react-native-reanimated';
 import type { GridLayout } from './gridSlotOrigin';
 
 import type { ScrollableList } from '@/hooks/useListControls';
+import type { Point } from '@/lib/Point';
 
 const EDGE_ZONE = 90; // px from top/bottom where auto-scroll kicks in
 const MAX_SCROLL_STEP = 16; // px per tick at the very edge
 const SCROLL_TICK_MS = 16;
-
-export type Point = { x: number; y: number };
 
 export type UseGridLongPressPanOptions = {
   enabled: boolean;

@@ -3,10 +3,11 @@ import { type RefObject, useEffect, useRef } from 'react';
 
 import type { GridLayout, GridRow } from './gridSlotOrigin';
 import isPastTapSlop from './isPastTapSlop';
-import useGridLongPressPan, { type Point, type UseGridLongPressPanOptions } from './useGridLongPressPan';
+import useGridLongPressPan, { type UseGridLongPressPanOptions } from './useGridLongPressPan';
 import usePeekAfterLift, { type UsePeekAfterLiftOptions } from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
+import type { Point } from '@/lib/Point';
 
 // Apple Photos-style drag-to-select for a grid (the asset grids).
 //
