@@ -163,6 +163,7 @@ export default function Contact({ contact }: ContactProps) {
 
         <ScreenSectionHeader
           title="Photos"
+          isFlush
           trailing={
             !!photos?.count && (
               <Button
@@ -179,10 +180,10 @@ export default function Contact({ contact }: ContactProps) {
           photos && <Text style={listTextStyles.subtitle}>Not on a photo</Text>
         )}
 
-        <ScreenSectionHeader title="Albums" />
+        <ScreenSectionHeader title="Albums" isFlush />
         <AssetAlbums scope={scope} emptyText="Not on an album" />
 
-        <ScreenSectionHeader title="Posts" />
+        <ScreenSectionHeader title="Posts" isFlush />
         <PostRows scope={scope} emptyText="Not on a post" />
       </DetailScrollView>
     </Page>
