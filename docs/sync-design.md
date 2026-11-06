@@ -987,7 +987,7 @@ its prompt box, without system instructions), `visionTagging` (the photo tags br
 message of every tags request, filled with Your content's themes; a Compare sends its prompt box
 instead, without them), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
 a writing Verify asks its judge after each chat turn) and `contactScreenshot` (the system message of a
-New contact's Get info from screenshot, no placeholders; optional, server 0032, app 0032), templates the server fills in, each that
+New contact's From screenshot, no placeholders; optional, server 0032, app 0032), templates the server fills in, each that
 account's override or null for the app's default (the text published for every account in the
 server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
 `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the

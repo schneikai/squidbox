@@ -1,5 +1,5 @@
 // Reading a profile screenshot for the New contact sheet (POST /ai/contact-from-screenshot): the
-// user's Get info from screenshot instructions, their chosen vision model or the default one.
+// user's From screenshot instructions, their chosen vision model or the default one.
 import type { ContactFromScreenshotResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';

@@ -37,7 +37,7 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
  *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
  *   last message), `{reply}`;
- * - `contactScreenshot`, the system message of a New contact's Get info from screenshot: no placeholders.
+ * - `contactScreenshot`, the system message of a New contact's From screenshot: no placeholders.
  */
 export const INSTRUCTION_KINDS = [
   'writing',
@@ -161,7 +161,7 @@ Write handles exactly as given.`,
     '# The reply to judge',
     '{reply}',
   ].join('\n'),
-  // Get info from screenshot (New contact): what to read from a profile screenshot.
+  // From screenshot (New contact): what to read from a profile screenshot.
   contactScreenshot: [
     "Extract the profile's name, X handle, Bluesky handle, OnlyFans handle, JFF handle and location from this social media profile screenshot. Look for every username, handle or profile link visible in it: in the bio, the links and the header.",
     '',

@@ -159,7 +159,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     });
 
     // POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the
-    // New contact sheet (Get info from screenshot): name, handles and place. Nothing is stored.
+    // New contact sheet (From screenshot): name, handles and place. Nothing is stored.
     r.route({
       method: 'POST',
       url: '/ai/contact-from-screenshot',

@@ -21,8 +21,8 @@ const instructionText: Record<InstructionKind, InstructionText> = {
     description: 'The system instructions for the model that decides if a reply passes Verify.',
   },
   contactScreenshot: {
-    title: 'Get info from screenshot',
-    description: 'What the assistant is asked when you use Get info from screenshot on a new contact.',
+    title: 'From screenshot',
+    description: 'What the assistant is asked when you use From screenshot on a new contact.',
   },
 };
 

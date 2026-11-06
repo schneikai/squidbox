@@ -505,7 +505,7 @@ describe('POST /api/v1/ai/compare/vision', () => {
 });
 
 describe('POST /api/v1/ai/contact-from-screenshot', () => {
-  it("reads the screenshot with the user's Get info from screenshot instructions, handles normalized", async () => {
+  it("reads the screenshot with the user's From screenshot instructions, handles normalized", async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/contact-from-screenshot', tagRequest);
     expect(res.statusCode).toBe(200);
