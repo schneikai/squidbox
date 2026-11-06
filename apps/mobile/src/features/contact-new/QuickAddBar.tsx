@@ -14,9 +14,10 @@ import useNewContactDraft from './useNewContactDraft';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+import Icon from '@/components/Icon';
 import { type ContactDraft, handleText, storedPlace } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The draft fields a screenshot's reading fills, from what it read: only what it found, within the
@@ -93,6 +94,8 @@ export default function QuickAddBar() {
       </View>
       {filledFields.length > 0 && (
         <Card style={styles.note}>
+          {/* The same sparkle as on the fields it filled, so the note points at them. */}
+          <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />
           <Text style={styles.noteText}>Filled from your screenshot. Check the marked fields.</Text>
           <Button label="Undo" size="small" onPress={undoFill} />
         </Card>
