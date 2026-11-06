@@ -1,7 +1,14 @@
+import type { UpdateFeaturesRequest } from '@squidbox/shared';
+
+// The features a developer account switches: what PATCH /me/features takes.
+export type SwitchableFeature = UpdateFeaturesRequest['feature'];
+
+export type FeatureText = { title: string; description: string; requires?: SwitchableFeature };
+
 // What each account feature is called and unlocks, as Settings → Features shows it, and the feature
 // it needs to do anything (`requires`). developer is left out: it is the page itself, and
 // only the server script changes it.
-const featureText = {
+const featureText: Record<SwitchableFeature, FeatureText> = {
   ai: {
     title: 'Assistant',
     description: 'Settings → Assistant: writing as you, prompt buttons and instructions.',

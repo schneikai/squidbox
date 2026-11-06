@@ -1,11 +1,10 @@
 // Asset-file (S3) wire contract — 2026 rewrite.
 //
-// Split architecture, chosen deliberately (see apps/mobile/src/obsolete-code):
+// Split architecture, chosen deliberately:
 //   • DOWNLOADS are direct-to-S3 via presigned GET URLs (a plain GET streams fine on Expo).
-//   • UPLOADS are server-proxied streaming. Direct-to-S3 presigned upload was tried and
-//     abandoned: Expo/React Native cannot split large files for client-side S3 multipart, and
-//     single-PUT presigned uploads crash on large files (`cloudFileUtils.js`
-//     "Upload crashes on large files"; `fileUtils.js` "crashes on files larger than 2GB!").
+//   • UPLOADS are server-proxied streaming. Direct-to-S3 presigned upload was tried in the first
+//     uploader (2024) and abandoned: Expo/React Native cannot split large files for client-side
+//     S3 multipart, and single-PUT presigned uploads crashed on large files (over 2 GB).
 //     A single S3 PUT is also capped at 5 GB, so anything larger REQUIRES multipart (up to
 //     5 TB) — which the client can't orchestrate. So the client streams the whole file as ONE
 //     binary PUT and the SERVER splits it into S3 multipart parts (via @aws-sdk/lib-storage).

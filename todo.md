@@ -226,10 +226,11 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 ### [ ] Rewrite the app in TypeScript
 
 `src/sync`, `src/library`, `src/utils`, `src/hooks`, `src/lib`, `src/components`, `src/styles`, the
-data contexts (assets, posts, albums), app settings, the cloud, the thumbnail loader's context and
-`SelectionActions` are strict TypeScript, and `npm run typecheck` checks every `.ts`/`.tsx` in `src`
-strictly. Still JavaScript: the other features and the routes. Convert them feature by feature, then
-add `test/` to the check and turn `allowJs` off.
+data contexts (assets, posts, albums), app settings, the cloud, the thumbnail loader's context,
+`SelectionActions`, the small features (instructions, assistant, boot, account features, dev
+accounts) with their routes, and the polyfills are strict TypeScript, and `npm run typecheck` checks
+every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the other features and their routes. Convert
+them feature by feature, then add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 
