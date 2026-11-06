@@ -233,12 +233,15 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly, and `test` in its own program.
-Still JavaScript: `app/_layout.jsx`, `sync/db/migrations/migrations.js` (drizzle-kit's output, the
-last file `allowJs` carries), and the Playwright flows in `apps/mobile/e2e/*.mjs`: Playwright loads
-a `.ts` spec as CommonJS here, and `scripts/webPreview.mjs`, which they import, awaits at top level,
-which `require()` refuses; convert them once that script is TypeScript or loses the await. Convert
-the layout and `migrations.js` (or give it a `.d.ts`), then turn `allowJs` off.
+`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly, and `test` and the UI flows
+(`e2e`) in their own program. Still JavaScript: `app/_layout.jsx` (convert it, then turn
+`tsconfig.json`'s `allowJs` off: `sync/db/migrations/migrations.js`, drizzle-kit's output, is typed
+by the `.d.ts` beside it, and the test program keeps its own `allowJs` for the two scripts the UI
+flows import, `scripts/webPreview.mjs` and `scripts/localBackend.mjs`, which stay JavaScript), and
+`apps/mobile/playwright.config.mjs`: without `"type": "module"` Playwright would require() a
+TypeScript config and compile the two scripts it imports to CommonJS, which an ES module can't run,
+before the config's `build.external`, which the flows rely on, takes effect; `.mts` would load, but
+`lint:files`, `scripts/check.mjs` and knip's Playwright plugin don't know the extension.
 
 ### [ ] Add UI tests
 
