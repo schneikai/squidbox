@@ -10,13 +10,9 @@ import { saveUserRecord } from './userRecord';
 
 const t = schema.instructions;
 
-const EMPTY_INSTRUCTIONS = Object.freeze({
-  writing: null,
-  visionTagging: null,
-  moreLikeThis: null,
-  modelCheckJudge: null,
-  contactScreenshot: null,
-});
+const EMPTY_INSTRUCTIONS = Object.freeze(
+  Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, null])) as Record<InstructionKind, null>,
+);
 
 /** The user's instructions, or null before the first save. */
 export async function readInstructions(db: SyncDb, userId: string): Promise<InstructionRecord | null> {

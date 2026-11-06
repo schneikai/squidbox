@@ -60,6 +60,11 @@ export const CONTACT_HANDLES = [
 ] as const;
 export type ContactHandleField = (typeof CONTACT_HANDLES)[number]['field'];
 export const CONTACT_HANDLE_FIELDS: readonly ContactHandleField[] = CONTACT_HANDLES.map(({ field }) => field);
+/** The handles besides X's: those a profile on X names. */
+export type OtherHandleField = Exclude<ContactHandleField, 'xHandle'>;
+export const OTHER_HANDLE_FIELDS = CONTACT_HANDLE_FIELDS.filter(
+  (field): field is OtherHandleField => field !== 'xHandle',
+);
 /** Each handle's entry of CONTACT_HANDLES, by its field. */
 export const CONTACT_HANDLE_BY_FIELD = Object.fromEntries(CONTACT_HANDLES.map((handle) => [handle.field, handle])) as {
   [F in ContactHandleField]: Extract<(typeof CONTACT_HANDLES)[number], { field: F }>;

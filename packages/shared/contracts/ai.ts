@@ -4,7 +4,8 @@
 import { z } from 'zod';
 import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
 import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
-import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
+import { contactReadSchema } from './contacts';
+import { imageSchema } from './image';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -219,10 +220,7 @@ export const VISION_COMPARE_MAX_PHOTOS = 50;
 export const VISION_IMAGE_MAX_BASE64_LENGTH = 1_500_000;
 
 // One photo as the app sends it.
-const visionImageSchema = z.object({
-  base64: z.string().min(1).max(VISION_IMAGE_MAX_BASE64_LENGTH),
-  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
-});
+const visionImageSchema = imageSchema.extend({ base64: z.string().min(1).max(VISION_IMAGE_MAX_BASE64_LENGTH) });
 export type VisionImage = z.infer<typeof visionImageSchema>;
 
 // Each model once: every id is a paid call. The app asks each model on its own, so its card fills
@@ -308,17 +306,26 @@ export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 export const contactFromScreenshotRequestSchema = z.object({ image: visionImageSchema });
 export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotRequestSchema>;
 
-export const contactFromScreenshotResponseSchema = z.object({
-  name: z.string(),
-  ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, z.string()])) as Record<
-    ContactHandleField,
-    z.ZodString
-  >),
-  city: z.string(),
-  state: z.string(),
-  country: z.string(),
+// Its answer is a ContactRead (contactReadSchema).
+
+// POST /ai/contact-from-x-profile — From link's assistant pass, after POST /contacts/x-profile: the
+// user's writing model reads the profile's fields, as instructions.contactXProfile says, for the
+// Bluesky, OnlyFans and JFF handles they name and the location split into its city, state and
+// country. Each field of the answer is empty when the profile doesn't show it; the handles come
+// normalized. Nothing is stored.
+export const X_PROFILE_FIELD_MAX_LENGTH = 2000;
+const profileFieldSchema = z.string().max(X_PROFILE_FIELD_MAX_LENGTH);
+export const contactFromXProfileAiRequestSchema = z.object({
+  handle: z.string().max(X_PROFILE_FIELD_MAX_LENGTH),
+  name: profileFieldSchema,
+  bio: profileFieldSchema,
+  location: profileFieldSchema,
+  website: profileFieldSchema,
 });
-export type ContactFromScreenshotResponse = z.infer<typeof contactFromScreenshotResponseSchema>;
+export type ContactFromXProfileAiRequest = z.infer<typeof contactFromXProfileAiRequestSchema>;
+
+export const contactFromXProfileAiResponseSchema = contactReadSchema.omit({ name: true, xHandle: true });
+export type ContactFromXProfileAiResponse = z.infer<typeof contactFromXProfileAiResponseSchema>;
 
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
 // collaborator, with post options only when asked, briefed by instructions.writing filled with

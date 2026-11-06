@@ -1,11 +1,11 @@
 // Reading a profile screenshot for the New contact sheet (POST /ai/contact-from-screenshot): the
 // user's From screenshot instructions, their chosen vision model or the default one.
-import type { ContactFromScreenshotResponse } from '@squidbox/shared';
+import { imageDataUrl, type ContactRead } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
-import { imageDataUrl, visionMessages } from './prompts.js';
-import { contactFromScreenshotTask, runChosenModelTask } from './tasks.js';
+import { visionMessages } from './prompts.js';
+import { contactReadTask, runChosenModelTask } from './tasks.js';
 
 /**
  * The name, handles and place the user's vision model reads in the screenshot, each empty when it
@@ -23,7 +23,7 @@ export async function readContactScreenshotAsync({
   user: Pick<User, 'id' | 'features'>;
   image: { base64: string; mimeType: string };
   signal?: AbortSignal;
-}): Promise<ContactFromScreenshotResponse> {
+}): Promise<ContactRead> {
   async function messagesAsync() {
     const instructions = await readInstructions(db, user);
     return visionMessages({
@@ -35,7 +35,7 @@ export async function readContactScreenshotAsync({
     db,
     user,
     kind: 'vision',
-    task: contactFromScreenshotTask,
+    task: contactReadTask,
     messagesAsync: messagesAsync(),
     signal,
   });

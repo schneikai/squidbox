@@ -6,6 +6,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   DEFAULT_INSTRUCTIONS,
+  INSTRUCTION_KINDS,
   instructionKindSchema,
   resolveInstructions,
   type InstructionKind,
@@ -13,6 +14,12 @@ import {
 } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { appInstructions, instructions, type User } from '../db/schema.js';
+
+// The text column of each kind: the table's columns are named after the kinds, so a kind without
+// one fails the build.
+const INSTRUCTION_COLUMNS = Object.fromEntries(INSTRUCTION_KINDS.map((kind) => [kind, instructions[kind]])) as {
+  [K in InstructionKind]: (typeof instructions)[K];
+};
 
 /**
  * The app's default of every kind: the published text, else the built-in one. A row of a kind the
@@ -36,13 +43,7 @@ export async function readInstructions(db: Db, user: Pick<User, 'id' | 'features
   const [appDefaults, [row]] = await Promise.all([
     readAppInstructions(db),
     db
-      .select({
-        writing: instructions.writing,
-        visionTagging: instructions.visionTagging,
-        moreLikeThis: instructions.moreLikeThis,
-        modelCheckJudge: instructions.modelCheckJudge,
-        contactScreenshot: instructions.contactScreenshot,
-      })
+      .select(INSTRUCTION_COLUMNS)
       .from(instructions)
       .where(and(eq(instructions.userId, userId), eq(instructions.id, userId), isNull(instructions.deletedAt))),
   ]);

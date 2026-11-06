@@ -1,10 +1,11 @@
 // Tagging one photo for the app to store on its asset (POST /ai/tags): the user's Photo tags
 // instructions and content themes, their chosen vision model or the default one.
+import { imageDataUrl } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
 import { readPersona } from './persona.js';
-import { imageDataUrl, visionMessages } from './prompts.js';
+import { visionMessages } from './prompts.js';
 import { photoTagsTask, runChosenModelTask } from './tasks.js';
 
 /**

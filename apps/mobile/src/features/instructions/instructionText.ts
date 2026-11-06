@@ -24,6 +24,10 @@ const instructionText: Record<InstructionKind, InstructionText> = {
     title: 'From screenshot',
     description: 'What the assistant is asked when you use From screenshot on a new contact.',
   },
+  contactXProfile: {
+    title: 'From link',
+    description: 'What the assistant is asked about an X profile when you use From link on a new contact.',
+  },
 };
 
 export default instructionText;

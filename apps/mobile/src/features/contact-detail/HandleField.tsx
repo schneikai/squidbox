@@ -1,16 +1,15 @@
 import { CONTACT_HANDLES, CONTACT_LIMITS } from '@squidbox/shared';
 
 import DuplicateDot from './DuplicateDot';
+import FillMark from './FillMark';
 import LabelledInputRow from './LabelledInputRow';
-import type { HandleFormField } from './contactFields';
+import type { FillSource, HandleFormField } from './contactFields';
 import openContactLinkAsync from './openContactLinkAsync';
 
 import Button from '@/components/Button';
-import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
 import RowMark from '@/components/RowMark';
 import type { TextInputProps } from '@/components/TextInput';
-import { colors, scale } from '@/styles/designTokens';
 
 const OPEN_LABELS = {
   ...(Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])) as Record<
@@ -32,7 +31,7 @@ export type HandleFieldProps = {
   onChangeText: (text: string) => void;
   onBlur?: TextInputProps['onBlur'];
   placeholder?: string;
-  isFilled?: boolean;
+  filledBy?: FillSource;
   isDuplicate?: boolean;
   isOpenable?: boolean;
 };
@@ -42,8 +41,8 @@ export type HandleFieldProps = {
  * text on the right, and while it holds one a 44 pt button that opens it where it lives
  * (openContactLinkAsync). `field` is the contact field it edits (xHandle, …, phoneNumber, or the
  * name in the New contact sheet): a handle takes no capitals or corrections, the phone number the
- * phone pad. `isFilled` marks a value the
- * assistant filled in (a sparkle), `isDuplicate` one another contact has too (an amber dot).
+ * phone pad. `filledBy` marks a value filled in for the user: by the assistant (a sparkle) or from a
+ * link (the link icon); `isDuplicate` one another contact has too (an amber dot).
  */
 export default function HandleField({
   field,
@@ -52,7 +51,7 @@ export default function HandleField({
   onChangeText,
   onBlur,
   placeholder,
-  isFilled = false,
+  filledBy,
   isDuplicate = false,
   isOpenable = true,
 }: HandleFieldProps) {
@@ -72,10 +71,10 @@ export default function HandleField({
       keyboardType={isPhone ? 'phone-pad' : 'default'}
       textContentType={isPhone ? 'telephoneNumber' : isName ? 'name' : 'none'}
     >
-      {(isDuplicate || isFilled) && (
+      {(isDuplicate || !!filledBy) && (
         <RowMark>
           {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
-          {isFilled && <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />}
+          {filledBy && <FillMark source={filledBy} />}
         </RowMark>
       )}
       {isOpenable && field !== 'name' && !!value.trim() && (

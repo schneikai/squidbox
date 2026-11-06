@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiBalanceResponseSchema,
@@ -11,7 +11,10 @@ import {
   compareWritingRequestSchema,
   compareWritingResponseSchema,
   contactFromScreenshotRequestSchema,
-  contactFromScreenshotResponseSchema,
+  contactFromXProfileAiRequestSchema,
+  contactFromXProfileAiResponseSchema,
+  contactReadSchema,
+  imageDataUrl,
   modelDefaultRequestSchema,
   publishInstructionRequestSchema,
   publishInstructionResponseSchema,
@@ -36,8 +39,9 @@ import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalo
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readContactScreenshotAsync } from './contactFromScreenshot.js';
+import { readXProfileWithAssistantAsync } from './xProfileAssistant.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
-import { compareVisionMessages, imageDataUrl, writingMessages } from './prompts.js';
+import { compareVisionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
@@ -46,15 +50,7 @@ import { readVerification, setModelDefaults, setUncensored, setVerification } fr
 import { VERIFY } from './verify.js';
 import { readLatestRun, runVerify, startRun } from './verifyRuns.js';
 import { loadConfig } from '../config.js';
-
-// Aborted once the app stops waiting (a closed compare), so the Venice calls stop too.
-function untilClientLeaves(reply: FastifyReply): AbortSignal {
-  const controller = new AbortController();
-  reply.raw.on('close', () => {
-    if (!reply.raw.writableFinished) controller.abort();
-  });
-  return controller.signal;
-}
+import { untilClientLeaves } from '../untilClientLeaves.js';
 
 // A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and, for a compare, the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
@@ -165,12 +161,29 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       url: '/ai/contact-from-screenshot',
       bodyLimit: VISION_REQUEST_BODY_LIMIT,
       config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
-      schema: { body: contactFromScreenshotRequestSchema, response: { 200: contactFromScreenshotResponseSchema } },
+      schema: { body: contactFromScreenshotRequestSchema, response: { 200: contactReadSchema } },
       handler: async (request, reply) =>
         readContactScreenshotAsync({
           db: getDb(),
           user: requireUser(request),
           image: request.body.image,
+          signal: untilClientLeaves(reply),
+        }),
+    });
+
+    // POST /ai/contact-from-x-profile — From link's assistant pass (after POST /contacts/x-profile):
+    // the user's writing model reads the profile's fields for the handles they name and the place
+    // split. Nothing is stored.
+    r.route({
+      method: 'POST',
+      url: '/ai/contact-from-x-profile',
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: { body: contactFromXProfileAiRequestSchema, response: { 200: contactFromXProfileAiResponseSchema } },
+      handler: async (request, reply) =>
+        readXProfileWithAssistantAsync({
+          db: getDb(),
+          user: requireUser(request),
+          profile: request.body,
           signal: untilClientLeaves(reply),
         }),
     });
