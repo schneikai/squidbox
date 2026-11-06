@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 
 import assetHref from '../src/features/asset-list/assetHref';
 import assetQueryFromParams from '../src/features/asset-list/assetQueryFromParams';
-import { assetScopeFromParam, assetScopeToParam } from '../src/features/asset-list/assetScopeParam';
+import assetScopeFromParam from '../src/features/asset-list/assetScopeFromParam';
+import assetScopeToParam from '../src/features/asset-list/assetScopeToParam';
 import type { AssetQueryScope } from '../src/sync/assetSql';
 
 describe('the asset screen URL', () => {

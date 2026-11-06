@@ -96,14 +96,13 @@ export default function postQuery({
   const scopeCondition = (() => {
     if (scope === 'repostCandidates') return and(eq(p.isIgnoredForRepost, false), eq(p.hasBeenReposted, false));
     if (scope === 'ignored') return eq(p.isIgnoredForRepost, true);
-    if (typeof scope === 'string') return undefined;
-    if ('postId' in scope) return eq(p.id, scope.postId);
-    if ('contactId' in scope) return sql`${p.id} in ${contactTargetIds(scope.contactId, 'post')}`;
-    if ('assetId' in scope) return sql`${p.id} in ${postsHoldingAssets(sql`asset_id = ${scope.assetId}`)}`;
-    if ('albumId' in scope) {
+    if (isIdScope(scope, 'postId')) return eq(p.id, scope.postId);
+    if (isIdScope(scope, 'contactId')) return sql`${p.id} in ${contactTargetIds(scope.contactId, 'post')}`;
+    if (isIdScope(scope, 'assetId')) return sql`${p.id} in ${postsHoldingAssets(sql`asset_id = ${scope.assetId}`)}`;
+    if (isIdScope(scope, 'albumId')) {
       return sql`${p.id} in ${postsHoldingAssets(sql`asset_id in ${liveAlbumAssetIds(scope.albumId)}`)}`;
     }
-    if ('sharesAlbumWithPostId' in scope) {
+    if (isIdScope(scope, 'sharesAlbumWithPostId')) {
       const postId = scope.sharesAlbumWithPostId;
       return sql`${p.id} != ${postId} and ${p.id} in ${postsHoldingAssets(sql`asset_id in ${postAlbumAssetIds(postId)}`)}`;
     }

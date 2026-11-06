@@ -94,35 +94,38 @@ export default function createThumbnailQueue<Item>({ load, onError, keyOf }: Thu
     }
     if (signal.aborted) return; // disposed meanwhile
     activeBatches -= 1;
-    const retries = keys
-      .filter((key) => settle(key, available))
-      .map((key): [string, Entry<Item>] => [key, entryOf(key)]);
+    const retries: [string, Entry<Item>][] = [];
+    for (const key of keys) {
+      const entry = settle(key, available);
+      if (entry) retries.push([key, entry]);
+    }
     if (retries.length > 0) later(() => retry(retries), RETRY_DELAY);
     pump();
   }
 
-  // Resolves whether the key is to be tried again.
-  function settle(key: string, available: Set<string> | null): boolean {
+  // Resolves the key's entry when it is to be tried again, else null. Read here, in the one pass: a
+  // listener told of an earlier key may withdraw a later one.
+  function settle(key: string, available: Set<string> | null): Entry<Item> | null {
     const entry = entryOf(key);
     if (entry.listeners.size === 0) {
       requests.delete(key);
-      return false;
+      return null;
     }
     if (available?.has(key)) {
       requests.delete(key);
       tell(entry, 'done');
-      return false;
+      return null;
     }
     if (available) entry.failures += 1;
     if (entry.failures <= MAX_RETRIES) {
       entry.state = 'waiting';
-      return true;
+      return entry;
     }
     entry.state = 'failed';
     onError(new Error(`Thumbnail ${key} failed to load`));
     recoveryTimer ??= setInterval(retryFailed, RECOVERY_INTERVAL);
     tell(entry, 'failed');
-    return false;
+    return null;
   }
 
   function tell(entry: Entry<Item>, result: LoadResult) {

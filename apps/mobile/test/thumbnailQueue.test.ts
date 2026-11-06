@@ -157,6 +157,21 @@ describe('createThumbnailQueue', () => {
     expect(batches).toHaveLength(4);
   });
 
+  it('keeps loading when a listener of a landed key withdraws a key of the same batch waiting for its retry', async () => {
+    const { queue, batches, request, settle } = setup();
+    let withdrawBad = () => {};
+    queue.request({ thumbnailFilename: 'a' }, () => withdrawBad()); // its cell takes the other's place
+    withdrawBad = request('bad');
+    queue.setEnabled(true);
+    expect(batches[0]!.keys).toEqual(['bad', 'a']);
+    request('x');
+    request('z'); // queued behind the two in flight
+    await settle(0, ['a']);
+    expect(batches[2]!.keys).toEqual(['z']);
+    await vi.advanceTimersByTimeAsync(5000); // the withdrawn one isn't retried
+    expect(batches).toHaveLength(3);
+  });
+
   it('loads a key waiting for its retry first when it’s asked for again', async () => {
     const { queue, batches, request, settle } = setup();
     queue.setEnabled(true);

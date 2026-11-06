@@ -90,7 +90,11 @@ export default function assetQuery({
     const noted = await (isPost
       ? fromScope(select, scope, sort).where(and(isNotNull(a.notes), assetScopeWhere(scope, sort)))
       : select.from(a).where(and(isNotNull(a.notes), assetDeletionWhere(scope))));
-    return matchingIds(noted, searchText);
+    // isNotNull keeps the noted rows only, which drizzle's types don't know.
+    return matchingIds(
+      noted.map((row) => ({ id: row.id, text: row.text ?? '' })),
+      searchText,
+    );
   }
 
   function where(ids: string[] | null) {

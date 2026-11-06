@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Platform, type StyleProp, View, type ViewStyle } from 'react-native';
 import Animated, {
   type EntryAnimationsValues,
-  type EntryExitAnimationFunction,
   type ExitAnimationsValues,
   FadeIn,
   FadeOut,
@@ -100,10 +99,10 @@ export default function ThreadFollowingPosts({
           post={part}
           entering={
             isUnfoldAnimated && hasCustomAnimations && unfoldPartIds?.has(part.id)
-              ? stackMove(index, edgeCount)
+              ? stackOut(index, edgeCount)
               : undefined
           }
-          exiting={hasCustomAnimations ? stackMove(index, edgeCount) : undefined}
+          exiting={hasCustomAnimations ? stackIn(index, edgeCount) : undefined}
           // The front one over the ones behind it, as the edges they come from.
           style={{ zIndex: count - index }}
           contentStyle={contentStyle}
@@ -114,43 +113,61 @@ export default function ThreadFollowingPosts({
   );
 }
 
-// Following post `index` (of `edgeCount` edges) out of its stack edge to its place when entering, or
-// from its place back into the edge when exiting: entering, Reanimated passes the target values;
-// exiting, the current ones.
-function stackMove(index: number, edgeCount: number): EntryExitAnimationFunction {
-  return (values: EntryAnimationsValues | ExitAnimationsValues) => {
+// Where a card sits and how big it is, as Reanimated's layout values name it.
+type Frame = { originX: number; originY: number; width: number; height: number };
+
+// Following post `index` (of `edgeCount` edges) out of its stack edge to its place, entering:
+// Reanimated passes the target values.
+function stackOut(index: number, edgeCount: number) {
+  return (values: EntryAnimationsValues) => {
     'worklet';
-    const edge = stackEdge(index, edgeCount);
-    const isOut = 'targetOriginX' in values;
-    const place = isOut
-      ? {
-          originX: values.targetOriginX,
-          originY: values.targetOriginY,
-          width: values.targetWidth,
-          height: values.targetHeight,
-        }
-      : {
-          originX: values.currentOriginX,
-          originY: values.currentOriginY,
-          width: values.currentWidth,
-          height: values.currentHeight,
-        };
-    const inStack = {
-      originX: place.originX + edge.inset,
-      originY: edge.top,
-      width: place.width - 2 * edge.inset,
-      height: edge.height,
+    const place = {
+      originX: values.targetOriginX,
+      originY: values.targetOriginY,
+      width: values.targetWidth,
+      height: values.targetHeight,
     };
-    const from = isOut ? inStack : place;
-    const to = isOut ? place : inStack;
-    return {
-      initialValues: from,
-      animations: {
-        originX: withTiming(to.originX, motion.move),
-        originY: withTiming(to.originY, motion.move),
-        width: withTiming(to.width, motion.move),
-        height: withTiming(to.height, motion.move),
-      },
+    return move(inStack(place, index, edgeCount), place);
+  };
+}
+
+// Following post `index` (of `edgeCount` edges) from its place back into its stack edge, exiting:
+// Reanimated passes the current values.
+function stackIn(index: number, edgeCount: number) {
+  return (values: ExitAnimationsValues) => {
+    'worklet';
+    const place = {
+      originX: values.currentOriginX,
+      originY: values.currentOriginY,
+      width: values.currentWidth,
+      height: values.currentHeight,
     };
+    return move(place, inStack(place, index, edgeCount));
+  };
+}
+
+// The frame of following post `index`'s stack edge, for a card at `place`.
+function inStack(place: Frame, index: number, edgeCount: number): Frame {
+  'worklet';
+  const edge = stackEdge(index, edgeCount);
+  return {
+    originX: place.originX + edge.inset,
+    originY: edge.top,
+    width: place.width - 2 * edge.inset,
+    height: edge.height,
+  };
+}
+
+// A layout animation from one frame to the other.
+function move(from: Frame, to: Frame) {
+  'worklet';
+  return {
+    initialValues: from,
+    animations: {
+      originX: withTiming(to.originX, motion.move),
+      originY: withTiming(to.originY, motion.move),
+      width: withTiming(to.width, motion.move),
+      height: withTiming(to.height, motion.move),
+    },
   };
 }

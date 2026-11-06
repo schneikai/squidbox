@@ -88,7 +88,9 @@ function CornerGlow({ corner, size, isHidden = false }: CornerGlowProps) {
   );
 }
 
-function VideoDuration({ duration }: Pick<AssetRow, 'duration'>) {
+type VideoDurationProps = Pick<AssetRow, 'duration'>;
+
+function VideoDuration({ duration }: VideoDurationProps) {
   if (!duration) return null;
 
   return (
@@ -100,19 +102,25 @@ function VideoDuration({ duration }: Pick<AssetRow, 'duration'>) {
   );
 }
 
-function FavoriteAssetIndicator({ isFavorite }: Pick<AssetRow, 'isFavorite'>) {
+type FavoriteAssetIndicatorProps = Pick<AssetRow, 'isFavorite'>;
+
+function FavoriteAssetIndicator({ isFavorite }: FavoriteAssetIndicatorProps) {
   if (!isFavorite) return;
 
   return <Icon name="heart" filled size={sizes.icon} color={colors.text.inverse} />;
 }
 
-function CloudIndicator({ isSynced }: Pick<AssetRow, 'isSynced'>) {
+type CloudIndicatorProps = Pick<AssetRow, 'isSynced'>;
+
+function CloudIndicator({ isSynced }: CloudIndicatorProps) {
   const iconName = isSynced ? 'cloud-check' : 'cloud-offline';
 
   return <Icon name={iconName} size={sizes.icon} color={colors.text.inverse} />;
 }
 
-function NoteIndicator({ hasNote }: { hasNote: boolean }) {
+type NoteIndicatorProps = { hasNote: boolean };
+
+function NoteIndicator({ hasNote }: NoteIndicatorProps) {
   if (!hasNote) return null;
 
   return <Icon name="document" size={scale(16)} color={colors.text.inverse} />;

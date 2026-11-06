@@ -1,5 +1,5 @@
 import type { AssetQueryDescriptor } from './assetQuery';
-import { assetScopeToParam } from './assetScopeParam';
+import assetScopeToParam from './assetScopeToParam';
 
 /**
  * The asset screen's href for `assetId` in the grid's query (assetQuery's descriptor), as URL

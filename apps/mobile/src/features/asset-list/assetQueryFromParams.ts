@@ -1,5 +1,5 @@
 import { type AssetQueryDescriptor, isAssetFilter } from './assetQuery';
-import { assetScopeFromParam } from './assetScopeParam';
+import assetScopeFromParam from './assetScopeFromParam';
 
 import listParam from '@/lib/listParam';
 import { isAssetSort } from '@/sync/assetSql';
