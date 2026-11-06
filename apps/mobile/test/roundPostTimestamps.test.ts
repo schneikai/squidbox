@@ -49,9 +49,10 @@ describe('migration 0008_round_post_timestamps', () => {
       { id: posted.id, updatedAt: 3000, postedAt: 2501, suggestRepostAt: 2500 },
       { id: untouched.id, updatedAt: 4000, postedAt: null, suggestRepostAt: 4000 },
     ]);
-    const outbox = (sqlite.prepare('SELECT payload, updated_at AS updatedAt FROM outbox').all() as any[]).map(
-      (row) => ({ ...JSON.parse(row.payload), outboxUpdatedAt: row.updatedAt }),
-    );
+    const outbox = sqlite
+      .prepare<[], { payload: string; updatedAt: number }>('SELECT payload, updated_at AS updatedAt FROM outbox')
+      .all()
+      .map((row) => ({ ...JSON.parse(row.payload), outboxUpdatedAt: row.updatedAt }));
     expect(outbox).toEqual([
       { ...postponed, suggestRepostAt: 1734567890124, outboxUpdatedAt: 2000 },
       { ...posted, updatedAt: 3000, postedAt: 2501, outboxUpdatedAt: 3000 },

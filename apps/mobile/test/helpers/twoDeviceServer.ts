@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from 'vitest';
 import { makeAlbumRecord, makeAssetRecord } from './factory';
 import { pushViolations } from './pushViolations';
 import { makeTestDb } from './testDb';
+import type { Db } from '../../../server/src/db/client.js';
 import * as serverSchema from '../../../server/src/db/schema.js';
 import { serverCollections } from '../../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../../server/src/sync/pull.js';
@@ -38,7 +39,7 @@ export const HOUR = 3_600_000;
 
 // Bound by useTwoDeviceServer's hooks: read them inside a test or hook, never in a describe body.
 export let USER: string;
-export let pgDb: ReturnType<typeof pgDrizzle>;
+export let pgDb: Db;
 export let A: SyncDb;
 export let B: SyncDb;
 export let C: SyncDb;
@@ -67,8 +68,9 @@ export const synced = (collection: string, row: Record<string, unknown> | undefi
 /** The server's rows with these ids, by id: as the wire carries them, or with `raw` every column. */
 export async function serverRows(collection: string, ids: string[], { raw = false } = {}) {
   const { table, wireColumns } = serverCollections[collection]!;
-  const rows: Record<string, any>[] = await (raw ? pgDb.select() : pgDb.select(wireColumns))
+  const rows: Record<string, unknown>[] = await (raw ? pgDb.select() : pgDb.select(wireColumns))
     .from(table)
+    // drizzle: a table picked by name has no typed columns (as the server's push and pull cast it)
     .where(and(eq((table as any).userId, USER), inArray((table as any).id, ids)));
   return new Map(rows.map((row) => [row.id as string, row]));
 }
@@ -76,9 +78,9 @@ export async function serverRow(collection: string, id: string, options: { raw?:
   return (await serverRows(collection, [id], options)).get(id);
 }
 export async function localRow(device: SyncDb, collection: string, id: string) {
-  const table = clientCollectionTables[collection] as any;
+  const table = clientCollectionTables[collection]!;
   const [row] = await device.select().from(table).where(eq(table.id, id));
-  return row as Record<string, any> | undefined;
+  return row as Record<string, unknown> | undefined;
 }
 
 export function transportOf(device: SyncDb): SyncTransport {
@@ -87,12 +89,12 @@ export function transportOf(device: SyncDb): SyncTransport {
       const mutations = wholeRecordApps.has(device)
         ? req.mutations.map(({ fields: _fields, ...m }) => m)
         : req.mutations;
-      const results = await serverPush(pgDb as any, USER, mutations);
+      const results = await serverPush(pgDb, USER, mutations);
       violations.push(...(await pushViolations(mutations, results, serverRows)));
       pushLog.push({ device, mutations, results });
       return { results };
     },
-    pull: (req) => serverPull(pgDb as any, USER, { cursor: req.cursor, limit: req.limit }),
+    pull: (req) => serverPull(pgDb, USER, { cursor: req.cursor, limit: req.limit }),
   };
 }
 export async function sync(
@@ -165,7 +167,7 @@ export async function expectConverged(collection: string, id: string, devices = 
     expect(synced(collection, await localRow(device, collection, id))).toEqual(server);
     expect(await device.select().from(clientSchema.outbox)).toEqual([]);
   }
-  return server as Record<string, any>;
+  return server as Record<string, unknown>;
 }
 
 export async function seedAsset(over: Partial<AssetRecord> = {}) {
@@ -183,6 +185,7 @@ export async function seedAlbum(over: Record<string, unknown> = {}) {
 
 export async function clearServer() {
   for (const { table } of Object.values(serverCollections))
+    // drizzle: a table picked by name has no typed columns (as in serverRows)
     await pgDb.delete(table).where(eq((table as any).userId, USER));
 }
 

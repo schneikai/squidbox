@@ -16,7 +16,7 @@ describe('createAutoSaver', () => {
   it('saves once changes pause, and not what is stored already', async () => {
     vi.useFakeTimers();
     try {
-      const save = vi.fn(async () => {});
+      const save = vi.fn<Save>(async () => {});
       const { saver } = makeSaver({ text: 'a' }, save);
       saver.change({ text: 'ab' });
       saver.change({ text: 'abc' });

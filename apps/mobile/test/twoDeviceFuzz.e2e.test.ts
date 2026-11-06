@@ -82,7 +82,7 @@ describe('random interleavings (seeded, the real client and server)', () => {
       new Map(
         (await pgDb.select().from(serverSchema.assets).where(eq(serverSchema.assets.userId, USER))).map((row) => [
           row.id,
-          row as Record<string, any>,
+          row,
         ]),
       );
     let before = await rawRows();

@@ -1,3 +1,4 @@
+import type { VisionImage } from '@squidbox/shared';
 import { deferred } from '@squidbox/shared/testing/deferred';
 import { gate } from '@squidbox/shared/testing/gate';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -5,12 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import tagAssetAsync from '../src/features/photo-tags/tagAssetAsync';
+import { libraryPaths } from '../src/library/libraryPaths';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { readByIds } from '../src/sync/readByIds';
 import { requestSync } from '../src/sync/worker';
-import readVisionImageAsync from '../src/utils/assets/readVisionImageAsync';
+import readVisionImageAsync, { type VisionImageReadDeps } from '../src/utils/assets/readVisionImageAsync';
 import tagPhotoAsync from '../src/utils/cloud-api/ai/tagPhotoAsync';
 
 // The library's database is a test one; reading the thumbnail, the server's tagging and the sync
@@ -21,8 +23,12 @@ vi.mock('../src/sync/worker', () => ({ requestSync: vi.fn() }));
 vi.mock('../src/utils/assets/readVisionImageAsync', () => ({ default: vi.fn() }));
 vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }));
 
-const deps = { library: {}, isAuthenticated: true, preloadAssetThumbnailsAsync: vi.fn() };
-const image = { base64: 'AAAA', mimeType: 'image/jpeg' };
+const deps: VisionImageReadDeps = {
+  library: libraryPaths('abc'),
+  isAuthenticated: true,
+  preloadAssetThumbnailsAsync: vi.fn(),
+};
+const image: VisionImage = { base64: 'AAAA', mimeType: 'image/jpeg' };
 
 async function tagsOf(id: string) {
   const [row] = await readByIds(current.db!, schema.assets, [id]);

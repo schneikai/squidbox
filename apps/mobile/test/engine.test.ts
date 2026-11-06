@@ -259,7 +259,7 @@ describe('worker push', () => {
       fakeTransport({
         push: async (req) => ({
           results: req.mutations.map((m) => ({
-            id: String((m.record as any).id),
+            id: String(m.record.id),
             collection: m.collection,
             status: 'skipped-lww' as const,
             current: serverWins as unknown as Record<string, unknown>,
@@ -280,7 +280,7 @@ describe('worker push', () => {
       fakeTransport({
         push: async (req) => ({
           results: req.mutations.map((m) => ({
-            id: String((m.record as any).id),
+            id: String(m.record.id),
             collection: m.collection,
             status: 'rejected' as const,
             reason: 'schema:boom',
@@ -342,7 +342,7 @@ describe('worker pull', () => {
         // push rejected → outbox row stays pending for rec.id
         push: async (req) => ({
           results: req.mutations.map((m) => ({
-            id: String((m.record as any).id),
+            id: String(m.record.id),
             collection: m.collection,
             status: 'rejected' as const,
             reason: 'x',

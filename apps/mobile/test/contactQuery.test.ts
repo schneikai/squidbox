@@ -4,6 +4,7 @@ import { makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/f
 import { makeTestDb } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
+import { EMPTY_PLACE } from '../src/features/contact-detail/contactFields';
 import contactListQuery from '../src/features/contact-list/contactListQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
 import * as assets from '../src/sync/assetsRepository';
@@ -94,7 +95,10 @@ describe('contactQuery', () => {
   });
 
   it('search ignores accents both ways', async () => {
-    await contacts.create(db, makeContactRecord({ id: 'joao', name: 'João', places: [{ city: 'São Paulo' }] }));
+    await contacts.create(
+      db,
+      makeContactRecord({ id: 'joao', name: 'João', places: [{ ...EMPTY_PLACE, city: 'São Paulo' }] }),
+    );
     await contacts.create(db, makeContactRecord({ id: 'rene', name: 'Rene' }));
     expect(await ids(contactQuery({ search: 'sao' }))).toEqual(['joao']);
     expect(await ids(contactQuery({ search: 'JOAO' }))).toEqual(['joao']);
@@ -102,7 +106,10 @@ describe('contactQuery', () => {
   });
 
   it('search matches umlauts and ß by either spelling', async () => {
-    await contacts.create(db, makeContactRecord({ id: 'mueller', name: 'Jörg Müller', places: [{ city: 'Gießen' }] }));
+    await contacts.create(
+      db,
+      makeContactRecord({ id: 'mueller', name: 'Jörg Müller', places: [{ ...EMPTY_PLACE, city: 'Gießen' }] }),
+    );
     await contacts.create(db, makeContactRecord({ id: 'schroeder', name: 'Schroeder' }));
     expect(await ids(contactQuery({ search: 'muller' }))).toEqual(['mueller']);
     expect(await ids(contactQuery({ search: 'Mueller' }))).toEqual(['mueller']);
@@ -161,8 +168,7 @@ describe('contactListQuery', () => {
       { id: 'twin', createdAt: 2, updatedAt: 2, deletedAt: null, listId: list.id, contactId: 'ana' },
     ]);
     const [row] = await contactListQuery().read(db);
-    expect(row!.memberCount).toBe(3);
-    expect(row!.firstMembers.map((m: { id: string }) => m.id)).toEqual(['ana', 'ben', 'maya']);
+    expect(row).toMatchObject({ memberCount: 3, firstMembers: [{ id: 'ana' }, { id: 'ben' }, { id: 'maya' }] });
     const [counted] = await contactListQuery({ withMembers: false }).read(db);
     expect(counted).toMatchObject({ id: 'l1', memberCount: 3 });
     expect(counted).not.toHaveProperty('firstMembers');

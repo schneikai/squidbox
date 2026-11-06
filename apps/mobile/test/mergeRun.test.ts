@@ -38,6 +38,7 @@ import {
   getMergeTarget,
   markFirstSyncDone,
   setMergeTarget,
+  type MergeCommit,
 } from '../src/sync/status';
 import { getAssetFileUri } from '../src/utils/assets/assetStorage';
 
@@ -889,7 +890,7 @@ describe('a camera-roll match an earlier library never pushed', () => {
     const accountPhoto = makeAssetRecord({ mediaLibraryAssetId: 'm-x', isFavorite: false, notes: null });
     await devicePhoto({ mediaLibraryAssetId: 'm-x', filename: 'd.jpg', isFavorite: true, notes: 'from the beach' });
     await passIntoAccThenLost(accountPhoto);
-    const committing = gate(); // never released: the app is stopped, the transaction never commits
+    const committing = gate<MergeCommit>(); // never released: the app is stopped, the transaction never commits
     vi.mocked(applyMerge).mockImplementationOnce(committing.hold);
     mergeLibrary('dev', 'acc2'); // never settles: the app stops inside it
     await committing.entered;

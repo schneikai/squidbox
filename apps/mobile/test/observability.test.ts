@@ -33,7 +33,7 @@ describe('sync_log observability', () => {
     await runSyncOnce(db, {
       push: async (req) => ({
         results: req.mutations.map((m) => ({
-          id: String((m.record as any).id),
+          id: String(m.record.id),
           collection: m.collection,
           status: 'skipped-lww' as const,
           current: serverWins as unknown as Record<string, unknown>,
@@ -74,7 +74,7 @@ describe('dev operations', () => {
     await fullResync(db, {
       push: async (req) => ({
         results: req.mutations.map((m) => ({
-          id: String((m.record as any).id),
+          id: String(m.record.id),
           collection: m.collection,
           status: 'applied' as const,
         })),
@@ -94,7 +94,7 @@ describe('dev operations', () => {
     await fullResync(db, {
       push: async (req) => ({
         results: req.mutations.map((m) => ({
-          id: String((m.record as any).id),
+          id: String(m.record.id),
           collection: m.collection,
           status: 'rejected' as const,
           reason: 'schema:boom',

@@ -39,6 +39,7 @@ import * as contacts from '../src/sync/contactsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { readByIds } from '../src/sync/readByIds';
 import { runSyncOnce } from '../src/sync/worker';
 import changedValues from '../src/utils/changedValues';
 import noteText from '../src/utils/noteText';
@@ -47,6 +48,8 @@ import postAssetsToAssetRefs from '../src/utils/posts/postAssetsToAssetRefs';
 // Two devices and a whole-record app editing the same records: per-field merge, field groups,
 // editors, album edges, idempotency and many records. Devices A, B and the whole-record app C run
 // against the real server engine on Postgres (helpers/twoDeviceServer).
+
+const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
 
 describe('two devices and a whole-record app on one server', () => {
   useTwoDeviceServer();
@@ -91,7 +94,7 @@ describe('two devices and a whole-record app on one server', () => {
         await sync(order[1]!);
         await settle();
         expect((await expectConverged('assets', id)).notes).toBe('newer, B');
-        expect((await serverRow('assets', id, { raw: true }))!.fieldClock.notes).toBe(S + 200);
+        expect(await serverRow('assets', id, { raw: true })).toMatchObject({ fieldClock: { notes: S + 200 } });
       }
     });
 
@@ -109,7 +112,7 @@ describe('two devices and a whole-record app on one server', () => {
       const id = await seedAsset();
       await edit(A, S + 1000 + HOUR, () => repo.update(A, id, { notes: 'A, clock ahead' }));
       await sync(A, { now: S + 1000 }); // clamped to the server's clock
-      expect((await serverRow('assets', id, { raw: true }))!.fieldClock.notes).toBe(S + 1000);
+      expect(await serverRow('assets', id, { raw: true })).toMatchObject({ fieldClock: { notes: S + 1000 } });
       await edit(B, S + 2000, () => repo.update(B, id, { notes: 'B, later' }));
       await sync(B, { now: S + 3000 });
       await settle([A, B, C], S + 4000);
@@ -119,9 +122,8 @@ describe('two devices and a whole-record app on one server', () => {
       await edit(A, S + 5000 + HOUR, () => repo.update(A, id, { notes: 'A again', isFavorite: true }));
       await settle([A, B, C], S + 6000);
       expect(await expectConverged('assets', id)).toMatchObject({ notes: 'A again', isFavorite: true });
-      expect((await serverRow('assets', id, { raw: true }))!.fieldClock).toMatchObject({
-        notes: S + 6000,
-        isFavorite: S + 6000,
+      expect(await serverRow('assets', id, { raw: true })).toMatchObject({
+        fieldClock: { notes: S + 6000, isFavorite: S + 6000 },
       });
     });
 
@@ -280,19 +282,14 @@ describe('two devices and a whole-record app on one server', () => {
 
   describe('editors', () => {
     it('EditPostScreen saves only what the user changed: another device’s newer text survives a stale form', async () => {
+      const [asset1, asset2] = [await seedAsset(), await seedAsset()];
       at(S);
       const postId = randomUUID();
-      const [asset1, asset2] = [randomUUID(), randomUUID()];
       await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'draft' }, [asset1]);
       await settle();
-      // A opens the editor: its seed is the post as it is now.
-      const seedRow = (await localRow(A, 'posts', postId))!;
-      const seedEdges = await A.select().from(clientSchema.postAssets);
-      const original = {
-        text: seedRow.text,
-        assetRefs: seedEdges.map((e) => ({ id: e.id, assetId: e.assetId })),
-        postedAt: seedRow.postedAt,
-      };
+      // A opens the editor: its seed is the post as it is now, with asset1's edge, which the save keeps.
+      const original = await openEditor(A, postId);
+      expect(original.assetRefs).toMatchObject([{ assetId: asset1 }]);
       await edit(B, S + 100, () => posts.update(B, postId, { text: 'B rewrote it' }));
       await sync(B);
       await sync(A); // the edit arrives while A's editor is open
@@ -303,14 +300,8 @@ describe('two devices and a whole-record app on one server', () => {
         assetRefs: [...original.assetRefs, { id: randomUUID(), assetId: asset2 }],
       };
       await edit(A, S + 200, async () => {
-        const changes = changedValues(original, data);
+        const changes = await savePost(A, postId, original, data);
         expect(Object.keys(changes).sort()).toEqual(['assetRefs', 'postedAt']);
-        const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
-        await A.transaction(async (tx) => {
-          const { assetRefs, ...fields } = changes;
-          await postEdges.setRefs(tx, postId, assetRefs, original.assetRefs);
-          await posts.update(tx, postId, fields);
-        });
       });
       await settle();
       expect(await expectConverged('posts', postId)).toMatchObject({ text: 'B rewrote it', postedAt: 12345 });
@@ -320,27 +311,23 @@ describe('two devices and a whole-record app on one server', () => {
 
     // The seed as EditPostScreen really builds it (readPost → PostEditor's postData), and
     // the save as PostsProvider.updatePost writes it.
-    const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
     async function openEditor(device: SyncDb, postId: string) {
       const post = await readPost(device, postId);
+      if (!post) throw new Error(`no post ${postId}`);
       return { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
     }
-    async function savePost(
-      device: SyncDb,
-      postId: string,
-      seed: Record<string, unknown>,
-      data: Record<string, unknown>,
-    ) {
+    type EditorData = Awaited<ReturnType<typeof openEditor>>;
+    async function savePost(device: SyncDb, postId: string, seed: EditorData, data: EditorData) {
       const updates = changedValues(seed, data);
       const { assetRefs, ...fields } = updates;
       await device.transaction(async (tx) => {
-        if (assetRefs) await postEdges.setRefs(tx, postId, assetRefs as never, seed.assetRefs as never);
+        if (assetRefs !== undefined) await postEdges.setRefs(tx, postId, assetRefs, seed.assetRefs);
         await posts.update(tx, postId, fields);
       });
       return updates;
     }
     const postAssetIds = async (device: SyncDb, postId: string) =>
-      ((await readPost(device, postId))?.postAssets ?? []).map((ref: { asset: { id: string } }) => ref.asset.id);
+      ((await readPost(device, postId))?.postAssets ?? []).map((ref) => ref.asset.id);
 
     it('EditPostScreen’s real seed: another device’s text and added photo, arriving while the editor is open, survive a date change', async () => {
       const [x, y] = [await seedAsset(), await seedAsset()];
@@ -378,7 +365,7 @@ describe('two devices and a whole-record app on one server', () => {
       await sync(B);
       await edit(A, S + 200, () => repo.purgeAssets(A, [x])); // A, not having pulled the restore
       const seed = await openEditor(A, postId);
-      expect(seed.assetRefs.map((ref: { assetId: string }) => ref.assetId)).toEqual([y]); // x is hidden
+      expect(seed.assetRefs.map((ref) => ref.assetId)).toEqual([y]); // x is hidden
       await edit(A, S + 300, () =>
         savePost(A, postId, seed, { ...seed, assetRefs: [...seed.assetRefs, { id: randomUUID(), assetId: z }] }),
       );
@@ -428,7 +415,7 @@ describe('two devices and a whole-record app on one server', () => {
       expect(await postAssetIds(A, postId)).toEqual([x, y]); // one per asset
 
       const seed = await openEditor(A, postId);
-      const kept = seed.assetRefs.filter((ref: { assetId: string }) => ref.assetId !== y);
+      const kept = seed.assetRefs.filter((ref) => ref.assetId !== y);
       await edit(A, S + 300, () => savePost(A, postId, seed, { ...seed, assetRefs: kept }));
       await settle();
       for (const device of [A, B]) expect(await postAssetIds(device, postId)).toEqual([x]);
@@ -455,7 +442,8 @@ describe('two devices and a whole-record app on one server', () => {
 
     it('a rename and an album notes edit from their seeds keep the other device’s fields', async () => {
       const id = await seedAlbum({ name: 'Trip', notes: null });
-      const seed = (await localRow(A, 'albums', id))!;
+      const [seed] = await readByIds(A, clientSchema.albums, [id]);
+      if (!seed) throw new Error(`no album ${id}`);
       await edit(B, S + 100, () => albumRepo.update(B, id, { notes: 'B notes', isFavorite: true }));
       await sync(B);
       await sync(A);
@@ -533,7 +521,6 @@ describe('two devices and a whole-record app on one server', () => {
     });
 
     it('a post edge removed on A and put back on B later: the newer re-add wins', async () => {
-      const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
       at(S);
       const postId = randomUUID();
       const asset = randomUUID();

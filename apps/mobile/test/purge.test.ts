@@ -18,6 +18,7 @@ import journal from '../src/sync/db/migrations/meta/_journal.json';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { readByIds } from '../src/sync/readByIds';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeTarget, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles, type RemoveFiles } from '../src/sync/sweepPurgedFiles';
@@ -29,7 +30,12 @@ beforeEach(() => {
   db = makeTestDb();
 });
 
-const assetRow = (id: string) => db.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
+// The asset's row, which every caller expects to be there.
+async function assetRow(id: string) {
+  const [row] = await readByIds(db, schema.assets, [id]);
+  if (!row) throw new Error(`no asset ${id}`);
+  return row;
+}
 
 // A removeFiles that records the names it was given.
 function recording() {
@@ -52,15 +58,15 @@ describe('Delete permanently', () => {
     await albums.create(db, album);
     await albumEdges.add(db, album.id, [asset.id], () => 'edge-1');
     await repo.remove(db, [asset.id]);
-    const trashedAt = (await assetRow(asset.id))!.deletedAt;
+    const trashedAt = (await assetRow(asset.id)).deletedAt;
     expect(await assetQuery({ scope: 'deleted' }).ids(db)).toEqual([asset.id]);
 
     const purged = await repo.purgeAssets(db, [asset.id]);
 
     expect(purged.map((row) => row.id)).toEqual([asset.id]);
     const row = await assetRow(asset.id);
-    expect(row?.purgedAt).not.toBeNull();
-    expect(row?.deletedAt).toBe(trashedAt); // still deleted when it was trashed
+    expect(row.purgedAt).not.toBeNull();
+    expect(row.deletedAt).toBe(trashedAt); // still deleted when it was trashed
     expect(await assetQuery({ scope: 'deleted' }).ids(db)).toEqual([]);
     expect(await assetQuery({ scope: { albumId: album.id } }).ids(db)).toEqual([]);
     const pending = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'assets'));
@@ -89,12 +95,12 @@ describe('Delete permanently', () => {
     await runSyncOnce(db, fakeTransport(), { removeFiles: async () => Promise.reject(failure) }); // not a failed run
     const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);
     expect(log).toMatchObject({ error: null, notes: expect.stringContaining('disk full') });
-    expect((await assetRow(mine!.id))?.filesRemovedFor).toBeNull(); // still to remove: the next sweep does
+    expect((await assetRow(mine!.id)).filesRemovedFor).toBeNull(); // still to remove: the next sweep does
     const { removed, removeFiles } = recording();
     await runSyncOnce(db, fakeTransport(), { removeFiles });
-    expect((await assetRow(mine!.id))?.filesRemovedFor).toBe((await assetRow(mine!.id))?.purgedAt);
+    expect((await assetRow(mine!.id)).filesRemovedFor).toBe((await assetRow(mine!.id)).purgedAt);
     expect(removed.sort()).toEqual(['both-t.jpg', 'both.jpg', 'mine-t.jpg']);
-    expect((await assetRow(other!.id))?.purgedAt).toBeNull();
+    expect((await assetRow(other!.id)).purgedAt).toBeNull();
   });
 
   it('a purge that loses to a restore elsewhere keeps the files, and the asset comes back', async () => {
@@ -152,7 +158,7 @@ describe('local files of a purge that arrives through sync', () => {
     await runSyncOnce(db, transport, { removeFiles });
 
     expect(removed).toEqual(['purged.jpg']); // the thumbnail's name is the trashed asset's too
-    expect((await assetRow(purged.id))?.purgedAt).toBe(3000);
+    expect((await assetRow(purged.id)).purgedAt).toBe(3000);
   });
 
   it('cost nothing for an echo of a purge made here; an asset this device never had is swept once', async () => {
@@ -174,7 +180,7 @@ describe('local files of a purge that arrives through sync', () => {
     await runSyncOnce(db, pulling([echo, unknown]), { removeFiles });
 
     expect(removed).toEqual(['u.jpg', 'u-t.jpg']);
-    expect((await assetRow(asset.id))?.notes).toBe('echo');
+    expect((await assetRow(asset.id)).notes).toBe('echo');
   });
 
   it('a full resync still removes the files of an asset purged elsewhere meanwhile', async () => {
@@ -184,7 +190,7 @@ describe('local files of a purge that arrives through sync', () => {
 
     await fullResync(db, pulling([{ ...asset, deletedAt: 2000, purgedAt: 3000, updatedAt: 3000 }]), { removeFiles });
 
-    expect((await assetRow(asset.id))?.purgedAt).toBe(3000);
+    expect((await assetRow(asset.id)).purgedAt).toBe(3000);
     expect(removed).toEqual(['r.jpg', 'r-t.jpg']);
   });
 
@@ -194,7 +200,7 @@ describe('local files of a purge that arrives through sync', () => {
     await runSyncOnce(db, fakeTransport());
     await repo.purgeAssets(db, [asset.id]);
     const { removed, removeFiles } = recording();
-    const elsewhere = { ...(await assetRow(asset.id))!, purgedAt: 1, updatedAt: 3000 };
+    const elsewhere = { ...(await assetRow(asset.id)), purgedAt: 1, updatedAt: 3000 };
     const refused = fakeTransport({
       push: async (req) => ({
         results: req.mutations.map((m) => ({
@@ -279,12 +285,12 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
         throw new Error('killed');
       },
     });
-    expect((await assetRow(asset.id))?.filesRemovedFor).toBeNull();
+    expect((await assetRow(asset.id)).filesRemovedFor).toBeNull();
     const before = removed.length;
     await sweepPurgedFiles(db, removeFiles); // the next launch
     await sweepPurgedFiles(db, removeFiles);
     expect(removed.slice(before)).toEqual(['c.jpg', 'c-t.jpg']); // a removal that finds nothing, once
-    expect((await assetRow(asset.id))?.filesRemovedFor).not.toBeNull();
+    expect((await assetRow(asset.id)).filesRemovedFor).not.toBeNull();
   });
 
   it('an asset whose files can’t be removed holds up no other, and waits for the next sweep', async () => {
@@ -380,7 +386,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
   it('nothing is swept until the library is fully pulled again (a full resync clears the first-sync flag)', async () => {
     const asset = await trashed({ filename: 'n.jpg', thumbnailFilename: 'n-t.jpg' });
     await runSyncOnce(db, applied);
-    await upsertRows(db, 'assets', schema.assets, [{ ...(await assetRow(asset.id))!, purgedAt: 3000 }]); // pulled
+    await upsertRows(db, 'assets', schema.assets, [{ ...(await assetRow(asset.id)), purgedAt: 3000 }]); // pulled
     await clearFirstSyncDone(db);
     const { removed, removeFiles } = recording();
     await sweepPurgedFiles(db, removeFiles);
@@ -393,7 +399,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
     const asset = await trashed({ filename: 'r.jpg', thumbnailFilename: 'r-t.jpg' });
     await repo.purgeAssets(db, [asset.id]);
     await runSyncOnce(db, applied);
-    expect((await assetRow(asset.id))?.filesRemovedFor).toBeNull();
+    expect((await assetRow(asset.id)).filesRemovedFor).toBeNull();
     const { removed, removeFiles } = recording();
     await runSyncOnce(db, applied, { removeFiles });
     expect(removed).toEqual(['r.jpg', 'r-t.jpg']);
@@ -431,7 +437,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
       makeAssetRecord({ filename: 'shared.jpg', thumbnailFilename: 'l-t.jpg', isFileSynced: false, isSynced: false }),
     );
     await runSyncOnce(db, applied);
-    const firstPage = { ...(await assetRow(purged.id))!, purgedAt: 3000, updatedAt: 3000 };
+    const firstPage = { ...(await assetRow(purged.id)), purgedAt: 3000, updatedAt: 3000 };
     const { syncError: _e, filesRemovedFor: _f, ...wire } = firstPage;
     const secondPage = await assetRow(live.id);
     const stop = new AbortController();
@@ -585,7 +591,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
       filesRemovedFor: _f,
       ...laterPurged
     } = {
-      ...(await assetRow(later.id))!,
+      ...(await assetRow(later.id)),
       purgedAt: 3000,
       updatedAt: 3000,
     };

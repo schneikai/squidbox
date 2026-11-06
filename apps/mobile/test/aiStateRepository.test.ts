@@ -63,7 +63,7 @@ describe('aiStateRepository', () => {
 
     // An add counts as the list's start: the seed no longer applies.
     await seedYourModels(db, 'vision', [{ id: 'gemma', name: 'Gemma' }]);
-    expect((await readModelList(db, 'vision')).map(({ id }) => id)).toEqual([grok.id, kimi.id]);
+    expect(await readModelList(db, 'vision')).toMatchObject([{ id: grok.id }, { id: kimi.id }]);
   });
 
   it('keeps a removed model with its note, shows it as removed, and brings it back as it was', async () => {
@@ -82,7 +82,7 @@ describe('aiStateRepository', () => {
     expect(await readRemovedModels(db, 'writing')).toEqual(new Map());
 
     await setModelNote(db, 'writing', kimi.id, null);
-    expect((await readModelList(db, 'writing'))[1].note).toBeNull();
+    expect(await readModelList(db, 'writing')).toMatchObject([{ id: grok.id }, { id: kimi.id, note: null }]);
   });
 
   it('adds scores up across rounds, per kind, never below 0', async () => {

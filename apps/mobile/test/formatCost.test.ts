@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { makeApiModel } from './helpers/makeApiModel';
 import formatCost from '../src/utils/ai/formatCost';
 
-const writing = (usd: number) => formatCost({ costPerReplyUsd: usd, costPer100PhotosUsd: null }, 'writing');
+const writing = (usd: number) => formatCost(makeApiModel({ costPerReplyUsd: usd }), 'writing');
 
 describe('formatCost', () => {
   it('shows cents: whole from 10, one decimal from 1, else two, without trailing zeros', () => {
@@ -14,6 +15,8 @@ describe('formatCost', () => {
   });
 
   it('shows the cost of a photo for vision', () => {
-    expect(formatCost({ costPerReplyUsd: 0.0004, costPer100PhotosUsd: 0.02 }, 'vision')).toBe('0.02¢ a photo');
+    expect(formatCost(makeApiModel({ costPerReplyUsd: 0.0004, costPer100PhotosUsd: 0.02 }), 'vision')).toBe(
+      '0.02¢ a photo',
+    );
   });
 });

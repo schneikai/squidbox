@@ -53,7 +53,14 @@ describe('asset zoom: pan bounds (getPanBounds)', () => {
 
   it('takes an image without a usable aspect ratio to fill the view', () => {
     for (const aspectRatio of [NaN, 0, Infinity, -1, undefined]) {
-      expect(getPanBounds({ scale: 2, ...view, aspectRatio })).toEqual({ x: 200, y: 400 });
+      expect(
+        getPanBounds({
+          scale: 2,
+          ...view,
+          // @ts-expect-error -- the rule under test: an aspect ratio that isn't a number
+          aspectRatio,
+        }),
+      ).toEqual({ x: 200, y: 400 });
     }
   });
 
