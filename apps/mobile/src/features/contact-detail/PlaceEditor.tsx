@@ -22,13 +22,15 @@ const PARTS: { part: keyof ContactPlace; label: string; placeholder: string }[] 
  * One place of a contact as a draft sheet: New place (Add) without a `place`, else Edit place (Save),
  * both on once the place has a part set and, for Save, changed. Its City, State and Country offer
  * what the user's contacts have (usePlaceSuggestions), and a known city or state fills the empty
- * parts it implies (autofillPlace). `onSave(place)` gets it trimmed; Remove place, for one being
- * edited, asks first and calls `onRemove()`. Both write what the screen around it holds.
+ * parts it implies (autofillPlace). `onSave(place, from)` gets it trimmed, with the place as the sheet
+ * opened with it (null for a new one); Remove place, for one being edited, asks first and calls
+ * `onRemove(from)`. Both write what the screen around it holds and ask for a sync if that needs one:
+ * the sheet asks for none.
  */
 type PlaceEditorProps = {
   place: ContactPlace | string | null | undefined;
-  onSave: (place: ContactPlace) => Promise<unknown> | void;
-  onRemove: () => Promise<unknown> | void;
+  onSave: (place: ContactPlace, from: ContactPlace | null) => Promise<unknown> | void;
+  onRemove: (from: ContactPlace) => Promise<unknown> | void;
 };
 
 export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEditorProps) {
@@ -41,7 +43,7 @@ export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEdit
     isValid: !!place,
     isDirty: JSON.stringify(place) !== JSON.stringify(initial),
     save: async () => {
-      if (place) await onSave(place);
+      if (place) await onSave(place, initial);
     },
     syncsItself: true,
   });
@@ -57,7 +59,7 @@ export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEdit
       action: 'Remove',
       destructive: true,
     });
-    if (isConfirmed) await finish(async () => onRemove(), "Couldn't remove the place");
+    if (isConfirmed) await finish(async () => onRemove(initial), "Couldn't remove the place");
   }
 
   return (

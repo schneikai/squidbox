@@ -10,6 +10,7 @@ import { type ReactNode, useMemo } from 'react';
 import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 
 import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
+import { placesChanged } from '@/features/contact-detail/contactFields';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
@@ -109,6 +110,13 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
         const replaced = await swapAvatar(id, null);
         if (replaced) deleteAvatar(replaced, library);
       },
+      // Takes the place a sheet opened with (`from`, null for a new one) to `to` (null removes it) in
+      // the contact's places as stored now, read in the same write (placesChanged).
+      changePlace: (id, from, to) =>
+        written(async (tx) => {
+          const [contact] = await readByIds(tx, schema.contacts, [id]);
+          if (contact) await contacts.update(tx, id, { places: placesChanged(contact.places, from, to) });
+        }),
       // The contact leaves its lists and the photos, albums and posts it is on with it.
       setContactDeleted: (id) =>
         written(async (tx) => {

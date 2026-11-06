@@ -1,4 +1,4 @@
-import type { ContactLinkRecord, ContactListRecord, ContactRecord } from '@squidbox/shared';
+import type { ContactLinkRecord, ContactListRecord, ContactPlace, ContactRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
 // The contacts on one photo, album or post (contact_links' parent).
@@ -15,6 +15,7 @@ export type ContactsContextValue = {
   toggleFavoriteContact: (id: string) => Promise<void>;
   setAvatarAsync: (id: string, sourceUri: string) => Promise<void>;
   removeAvatar: (id: string) => Promise<void>;
+  changePlace: (id: string, from: ContactPlace | null, to: ContactPlace | null) => Promise<void>;
   setContactDeleted: (id: string) => Promise<void>;
   addList: (name: string) => Promise<ContactListRecord>;
   updateList: (id: string, fields: Partial<ContactListRecord>) => Promise<void>;

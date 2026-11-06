@@ -1,40 +1,32 @@
-import { CONTACT_LIMITS, type ContactPlace } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 
 import PlaceEditor from './PlaceEditor';
-import { placeIndex, placesWith, storedPlace } from './contactFields';
+import { placeIndex } from './contactFields';
 
+import useContacts from '@/features/contacts-context/useContacts';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
-import * as contacts from '@/sync/contactsRepository';
-import { getDb, schema } from '@/sync/db/client';
+import { schema } from '@/sync/db/client';
 import { useLiveRecord } from '@/sync/useLiveRecord';
 
 // A contact's place as a draft sheet (`?index=`, or none for a new one at the end), from the contact
-// screen's Places. Save writes the contact's places as they are stored now, with this one changed.
+// screen's Places. Save and Remove place change the place the sheet opened with in the contact's
+// places as they are stored then (changePlace), so a change to them meanwhile is kept.
 export default function ContactPlaceScreen() {
   const { contactId, index: indexParam } = useLocalSearchParams<{ contactId: string; index?: string }>();
   const contact = useLiveRecord<schema.ContactRow>(schema.contacts, contactId);
+  const { changePlace } = useContacts();
   useCloseWhenGone(contact, 'This contact was deleted');
   const index = placeIndex(indexParam);
 
   if (!contact) return null;
 
-  const { id, places: storedPlaces } = contact;
-
-  function write(places: (ContactPlace | string)[]) {
-    return contacts.update(getDb(), id, {
-      places: places
-        .map(storedPlace)
-        .filter((place): place is ContactPlace => place !== null)
-        .slice(0, CONTACT_LIMITS.places),
-    });
-  }
+  const { id, places } = contact;
 
   return (
     <PlaceEditor
-      place={index === null ? null : storedPlaces[index]}
-      onSave={(place) => write(placesWith<ContactPlace | string>(storedPlaces, index, place))}
-      onRemove={() => write(placesWith(storedPlaces, index, null))}
+      place={index === null ? null : places[index]}
+      onSave={(place, from) => changePlace(id, from, place)}
+      onRemove={(from) => changePlace(id, from, null)}
     />
   );
 }
