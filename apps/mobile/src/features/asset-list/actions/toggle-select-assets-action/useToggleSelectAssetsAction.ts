@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
+import toggleItem from '@/utils/toggleItem';
+
 /** An asset grid's select mode and selection, and what changes them. */
 export type AssetSelection = {
   isSelectMode: boolean;
@@ -29,7 +31,7 @@ export default function useToggleSelectAssetsAction(): AssetSelection {
   }, []);
 
   const toggleSelectAsset = useCallback((assetId: string) => {
-    setSelectedAssetIds((ids) => (ids.includes(assetId) ? ids.filter((id) => id !== assetId) : [...ids, assetId]));
+    setSelectedAssetIds((ids) => toggleItem(ids, assetId));
   }, []);
 
   const selectAssets = useCallback((assetIds: string[]) => setSelectedAssetIds(assetIds), []);

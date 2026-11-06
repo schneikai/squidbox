@@ -7,10 +7,11 @@ import {
   assetScopeWhere,
   contactTargetIds,
   fromScope,
+  isIdScope,
   liveAlbumAssetIds,
   placeInPost,
   postAlbumAssetIds,
-  scopeEdges,
+  postScopeEdges,
 } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { AssetRow, PostRow } from '@/sync/db/schema';
@@ -35,8 +36,7 @@ export type PostQueryScope =
   | { sharesAlbumWithPostId: string }
   | { contactId: string };
 
-export const POST_SORTS = ['postedAt:asc', 'postedAt:desc', 'suggestRepostAt:asc', 'updatedAt:desc'] as const;
-export type PostSort = (typeof POST_SORTS)[number];
+export type PostSort = 'postedAt:asc' | 'postedAt:desc' | 'suggestRepostAt:asc' | 'updatedAt:desc';
 
 /** `search` is a text substring, matched as the list did: Unicode-aware, literal, case-insensitive. */
 export type PostQueryDescriptor = { scope?: PostQueryScope; sort?: PostSort; search?: string };
@@ -50,18 +50,13 @@ export type PostListRow = PostWithAssets & { threadCount: number };
 /** A post as the `{ postId }` scope reads it: with its following posts in order, each with its assets. */
 export type PostDetailRow = PostListRow & { threadPosts: PostWithAssets[] };
 
-type ReadOptions = { limit?: number; withCount?: boolean; firstAssetOnly?: boolean };
+type ReadOptions = { limit?: number; firstAssetOnly?: boolean };
 
-/** `withCount: false` skips the count (`count` undefined), for a read of one post. */
-type PostRead<Row> = {
-  (db: SyncDb, options: ReadOptions & { withCount: false }): Promise<{ rows: Row[]; count: undefined }>;
-  (db: SyncDb, options?: ReadOptions): Promise<{ rows: Row[]; count: number }>;
-};
-
-/** A paged query of post rows whose `read` also takes `withCount` and `firstAssetOnly`. */
-export type PostQuery<Row> = Omit<PagedQuery<Row>, 'read'> & {
+/** A paged query of post rows whose reads also take `firstAssetOnly`; `readRows` skips the count. */
+export type PostQuery<Row> = PagedQuery<Row> & {
   descriptor: Required<PostQueryDescriptor>;
-  read: PostRead<Row>;
+  read(db: SyncDb, options?: ReadOptions): Promise<{ rows: Row[]; count: number }>;
+  readRows(db: SyncDb, options?: ReadOptions): Promise<Row[]>;
 };
 
 // An edge of a post scope with its asset.
@@ -69,7 +64,7 @@ type PostEdge = PostAsset<AssetRow> & { postId: string };
 
 /**
  * What a post list shows, as SQL: `read(db, { limit })` → `{ rows, count }` from one transaction
- * (no `limit` reads them all; `withCount: false` skips the count, for a read of one post),
+ * (no `limit` reads them all), `readRows(db, { limit })` → the rows alone (a read of one post),
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
  * deleted asset included; `firstAssetOnly` reads just the first, e.g. for a thumbnail) and
  * `threadCount` (its live following posts); `tables` → what a live read watches.
@@ -93,10 +88,10 @@ export default function postQuery({
   const direction = sort.endsWith(':asc') ? asc : desc;
 
   const tables: SQLiteTable[] = [schema.posts, schema.postAssets, schema.assets];
-  if (typeof scope === 'object' && 'albumId' in scope) tables.push(schema.albumAssets);
-  if (typeof scope === 'object' && 'sharesAlbumWithPostId' in scope) tables.push(schema.albumAssets, schema.albums);
-  if (typeof scope === 'object' && 'contactId' in scope) tables.push(schema.contactLinks);
-  const isDetail = typeof scope === 'object' && 'postId' in scope;
+  if (isIdScope(scope, 'albumId')) tables.push(schema.albumAssets);
+  if (isIdScope(scope, 'sharesAlbumWithPostId')) tables.push(schema.albumAssets, schema.albums);
+  if (isIdScope(scope, 'contactId')) tables.push(schema.contactLinks);
+  const isDetail = isIdScope(scope, 'postId');
 
   const scopeCondition = (() => {
     if (scope === 'repostCandidates') return and(eq(p.isIgnoredForRepost, false), eq(p.hasBeenReposted, false));
@@ -140,50 +135,59 @@ export default function postQuery({
     return row?.count ?? 0;
   }
 
-  async function read(
-    db: SyncDb,
-    options: ReadOptions & { withCount: false },
-  ): Promise<{ rows: PostListRow[]; count: undefined }>;
-  async function read(db: SyncDb, options?: ReadOptions): Promise<{ rows: PostListRow[]; count: number }>;
-  async function read(db: SyncDb, { limit, withCount = true, firstAssetOnly = false }: ReadOptions = {}) {
-    return db.transaction(async (tx) => {
-      const ids = await matchedIds(tx);
-      const total = withCount ? await readCount(tx, ids) : undefined;
-      const select = tx
-        .select({ ...getTableColumns(p), threadCount })
-        .from(p)
-        .where(where(ids))
-        .orderBy(...order);
-      // No `limit` reads them all (drizzle's `limit` takes a number).
-      const posts = await (limit === undefined ? select : select.limit(limit));
-      if (!isDetail) {
-        const byPost = await readPostAssets(
-          tx,
-          posts.map((post) => post.id),
-          firstAssetOnly,
-        );
-        return { rows: withPostAssets(posts, byPost), count: total };
-      }
-      // The post screen and the editor's seed: the post's following posts too, one edge read for all.
-      const following = await readThreadPosts(
-        tx,
-        posts.map((post) => post.id),
-      );
+  // The rows of the posts matching `ids` (all without a search), in `tx`.
+  async function rowsIn(
+    tx: SyncDb,
+    ids: string[] | null,
+    { limit, firstAssetOnly = false }: ReadOptions,
+  ): Promise<PostListRow[]> {
+    const select = tx
+      .select({ ...getTableColumns(p), threadCount })
+      .from(p)
+      .where(where(ids))
+      .orderBy(...order);
+    // No `limit` reads them all (drizzle's `limit` takes a number).
+    const posts = await (limit === undefined ? select : select.limit(limit));
+    if (!isDetail) {
       const byPost = await readPostAssets(
         tx,
-        [...posts, ...following].map((post) => post.id),
+        posts.map((post) => post.id),
         firstAssetOnly,
       );
-      const threadPosts = withPostAssets(following, byPost);
-      const rows: PostDetailRow[] = withPostAssets(posts, byPost).map((post) => ({
-        ...post,
-        threadPosts: threadPosts.filter((part) => part.threadRootId === post.id),
-      }));
-      return { rows, count: total };
-    });
+      return withPostAssets(posts, byPost);
+    }
+    // The post screen and the editor's seed: the post's following posts too, one edge read for all.
+    const following = await readThreadPosts(
+      tx,
+      posts.map((post) => post.id),
+    );
+    const byPost = await readPostAssets(
+      tx,
+      [...posts, ...following].map((post) => post.id),
+      firstAssetOnly,
+    );
+    const threadPosts = withPostAssets(following, byPost);
+    const rows: PostDetailRow[] = withPostAssets(posts, byPost).map((post) => ({
+      ...post,
+      threadPosts: threadPosts.filter((part) => part.threadRootId === post.id),
+    }));
+    return rows;
   }
 
-  return { descriptor, tables, read };
+  return {
+    descriptor,
+    tables,
+    read(db, options = {}) {
+      return db.transaction(async (tx) => {
+        const ids = await matchedIds(tx);
+        const total = await readCount(tx, ids);
+        return { rows: await rowsIn(tx, ids, options), count: total };
+      });
+    },
+    readRows(db, options = {}) {
+      return db.transaction(async (tx) => rowsIn(tx, await matchedIds(tx), options));
+    },
+  };
 }
 
 // The posts' assets in order, by post, read as the asset screen reads a post's (assetQuery's post
@@ -195,8 +199,8 @@ async function readPostAssets(
   firstAssetOnly: boolean,
 ): Promise<Map<string, PostAsset<AssetRow>[]>> {
   const postScope = { postId: postIds };
-  const { e } = scopeEdges(postScope);
-  const edges: PostEdge[] = firstAssetOnly
+  const { e } = postScopeEdges(postScope);
+  const edges = firstAssetOnly
     ? await readFirstEdges(tx, postScope)
     : await fromScope(tx.select({ id: e.id, postId: e.postId, asset: a }), postScope)
         .where(assetScopeWhere(postScope))
@@ -230,7 +234,7 @@ const threadCount = sql`(select count(*) from posts c where c.thread_root_id = p
 // Each post's first edge of its scope (placeInPost), with its asset: one windowed pass over the
 // scope's edges, then the asset rows of the first ones only.
 function readFirstEdges(tx: SyncDb, postScope: { postId: string[] }): Promise<PostEdge[]> {
-  const { e } = scopeEdges(postScope);
+  const { e } = postScopeEdges(postScope);
   const ranked = fromScope(
     tx.select({ id: e.id, postId: e.postId, assetId: e.assetId, place: placeInPost(postScope).as('place') }),
     postScope,

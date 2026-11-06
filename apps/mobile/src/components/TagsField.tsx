@@ -5,6 +5,7 @@ import { StyleSheet, Text } from 'react-native';
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import TagInput from '@/components/TagInput';
+import unguarded, { type GuardPress } from '@/lib/unguarded';
 import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 export type TagsFieldProps = {
@@ -15,7 +16,7 @@ export type TagsFieldProps = {
   maxTagLength?: number;
   itemName?: string;
   disabled?: boolean;
-  guardPress?: (onPress: () => void) => () => void;
+  guardPress?: GuardPress;
 };
 
 /**
@@ -85,10 +86,6 @@ function TagsField({
 }
 
 export default memo(TagsField);
-
-function unguarded(onPress: () => void) {
-  return onPress;
-}
 
 const styles = StyleSheet.create({
   card: {

@@ -1,11 +1,12 @@
-import { type ReactNode, type RefObject, useCallback, useState } from 'react';
-import type { FlatList, ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
+import { type RefObject, useCallback, useState } from 'react';
+import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
 import PostListItem, { type PostListItemProps } from './PostListItem';
-import type { PostListRow } from './postQuery';
+import type { PostDetailRow, PostListRow } from './postQuery';
 
 import type { ScrollableList } from '@/hooks/useListControls';
+import useListRefCallback from '@/hooks/useListRefCallback';
 import { reflow } from '@/styles/designTokens';
 import toggleItem from '@/utils/toggleItem';
 
@@ -14,7 +15,7 @@ const keyExtractor = (post: PostListRow) => post.id;
 type PostListProps = {
   rows: PostListRow[] | undefined;
   loadMore: () => void;
-  renderPostActions?: (post: PostListRow) => ReactNode;
+  renderPostActions?: PostListItemProps['renderPostActions'];
   listRef?: RefObject<ScrollableList | null>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   onScroll?: ScrollHandlerProcessed;
@@ -45,15 +46,9 @@ export default function PostList({
 
   // The following posts of the unfolded threads as last read, so a cell that scrolls back on screen
   // unfolded shows them at once at its full height; a toggle drops the thread's (a new unfold reads).
-  const [unfoldedPosts] = useState((): PostListItemProps['unfoldedPosts'] => new Map());
+  const [unfoldedPosts] = useState((): Map<string, PostDetailRow> => new Map());
 
-  // The list as `listRef`'s: a callback ref, since an object ref of ScrollableList isn't a FlatList's.
-  const attachList = useCallback(
-    (list: FlatList<PostListRow> | null) => {
-      if (listRef) listRef.current = list;
-    },
-    [listRef],
-  );
+  const attachList = useListRefCallback(listRef);
 
   const toggleThread = useCallback(
     (postId: string) => {

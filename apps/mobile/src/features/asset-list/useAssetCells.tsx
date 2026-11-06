@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import AssetGridCell from './AssetGridCell';
+import type { AssetSelection } from './actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import createSelectionStore from './createSelectionStore';
 
 import quickViewStore from '@/components/quick-view/quickViewStore';
@@ -9,10 +10,8 @@ import useHaptics from '@/hooks/useHaptics';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import type { AssetRow } from '@/sync/db/schema';
 
-export type UseAssetCellsOptions = {
+export type UseAssetCellsOptions = Partial<Pick<AssetSelection, 'isSelectMode' | 'isAssetSelected'>> & {
   onPress?: (asset: AssetRow) => void;
-  isSelectMode?: boolean;
-  isAssetSelected?: (assetId: string) => boolean;
   canPeek?: boolean;
 };
 
@@ -47,10 +46,7 @@ export default function useAssetCells({
     }
     return {
       // Only passed to the cells while there is an `onPress` (hasPress).
-      onPress: (asset: AssetRow) => {
-        const { onPress: press } = handlersRef.current;
-        if (press) press(asset);
-      },
+      onPress: (asset: AssetRow) => handlersRef.current.onPress?.(asset),
       onDoublePress: (asset: AssetRow) => handlersRef.current.onDoublePress(asset),
       onLongPress: (asset: AssetRow) => !handlersRef.current.isSelectMode && peek(asset),
       peek,

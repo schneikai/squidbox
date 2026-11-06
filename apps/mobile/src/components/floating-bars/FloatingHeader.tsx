@@ -11,7 +11,7 @@ import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
 import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
-import type useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
+import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
 
 export type FloatingHeaderProps = {
@@ -19,7 +19,7 @@ export type FloatingHeaderProps = {
   onAdd: () => void;
 } & (
   | {
-      selection: ReturnType<typeof useToggleSelectAssetsAction>;
+      selection: AssetSelection;
       selectionActions: SelectionActionsProps['actions'];
       onDelete?: SelectionActionsProps['onDelete'];
     }

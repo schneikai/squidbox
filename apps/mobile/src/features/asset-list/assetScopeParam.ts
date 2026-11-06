@@ -1,5 +1,19 @@
 import type { AssetQueryScope } from '@/sync/assetSql';
 
+type IdScope = Exclude<AssetQueryScope, string>;
+type KeyOf<Scope> = Scope extends IdScope ? keyof Scope : never;
+
+// Each id scope's kind in the param, by its key (`satisfies` keeps it whole): the one map both
+// directions read, through string-keyed views.
+const KIND_OF_KEY = {
+  albumId: 'album',
+  postId: 'post',
+  assetId: 'asset',
+  contactId: 'contact',
+} as const satisfies Record<KeyOf<IdScope>, string>;
+const kindOfKey: Record<string, string> = KIND_OF_KEY;
+const keyOfKind = new Map<string, string>(Object.entries(KIND_OF_KEY).map(([key, kind]) => [kind, key]));
+
 /**
  * An asset query's scope as the asset screen's `scope` URL param: a named one as it is (`library`,
  * `favorites`, `deleted`), an id scope as `<kind>:<id>` (`album:<id>`, `post:<id>`, `asset:<id>`,
@@ -7,10 +21,8 @@ import type { AssetQueryScope } from '@/sync/assetSql';
  */
 export function assetScopeToParam(scope: AssetQueryScope): string {
   if (typeof scope === 'string') return scope;
-  if ('albumId' in scope) return `album:${scope.albumId}`;
-  if ('postId' in scope) return `post:${scope.postId}`;
-  if ('assetId' in scope) return `asset:${scope.assetId}`;
-  return `contact:${scope.contactId}`;
+  const [[key, id]] = Object.entries(scope);
+  return `${kindOfKey[key]}:${id}`;
 }
 
 /**
@@ -20,11 +32,9 @@ export function assetScopeToParam(scope: AssetQueryScope): string {
 export function assetScopeFromParam(param: string): AssetQueryScope {
   const [kind, id] = param.split(':');
   if (id) {
-    if (kind === 'album') return { albumId: id };
-    if (kind === 'post') return { postId: id };
-    if (kind === 'asset') return { assetId: id };
-    if (kind === 'contact') return { contactId: id };
-    return 'library';
+    const key = keyOfKind.get(kind);
+    // The key is one of KIND_OF_KEY's, so this is that key's id scope.
+    return key ? ({ [key]: id } as IdScope) : 'library';
   }
   return kind === 'favorites' || kind === 'deleted' ? kind : 'library';
 }

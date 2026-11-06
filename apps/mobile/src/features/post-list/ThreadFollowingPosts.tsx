@@ -12,7 +12,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import type { PostListItemProps } from './PostListItem';
+import type { PostDetailRow } from './postQuery';
 import stackEdge from './stackEdge';
 import usePost from './usePost';
 
@@ -35,7 +35,7 @@ type ThreadFollowingPostsProps = {
   postId: string;
   edgeCount: number;
   isUnfoldAnimated: boolean;
-  unfoldedPosts: PostListItemProps['unfoldedPosts'];
+  unfoldedPosts: Map<string, PostDetailRow>;
   roomStyle: StyleProp<ViewStyle>;
 };
 
@@ -100,10 +100,10 @@ export default function ThreadFollowingPosts({
           post={part}
           entering={
             isUnfoldAnimated && hasCustomAnimations && unfoldPartIds?.has(part.id)
-              ? stackMove(index, edgeCount, true)
+              ? stackMove(index, edgeCount)
               : undefined
           }
-          exiting={hasCustomAnimations ? stackMove(index, edgeCount, false) : undefined}
+          exiting={hasCustomAnimations ? stackMove(index, edgeCount) : undefined}
           // The front one over the ones behind it, as the edges they come from.
           style={{ zIndex: count - index }}
           contentStyle={contentStyle}
@@ -114,27 +114,27 @@ export default function ThreadFollowingPosts({
   );
 }
 
-// Following post `index` (of `edgeCount` edges) out of its stack edge to its place (`isOut`), or
-// from its place back into the edge. Entering, Reanimated passes the target values; exiting, the
-// current ones.
-function stackMove(index: number, edgeCount: number, isOut: boolean): EntryExitAnimationFunction {
+// Following post `index` (of `edgeCount` edges) out of its stack edge to its place when entering, or
+// from its place back into the edge when exiting: entering, Reanimated passes the target values;
+// exiting, the current ones.
+function stackMove(index: number, edgeCount: number): EntryExitAnimationFunction {
   return (values: EntryAnimationsValues | ExitAnimationsValues) => {
     'worklet';
     const edge = stackEdge(index, edgeCount);
-    const place =
-      'targetOriginX' in values
-        ? {
-            originX: values.targetOriginX,
-            originY: values.targetOriginY,
-            width: values.targetWidth,
-            height: values.targetHeight,
-          }
-        : {
-            originX: values.currentOriginX,
-            originY: values.currentOriginY,
-            width: values.currentWidth,
-            height: values.currentHeight,
-          };
+    const isOut = 'targetOriginX' in values;
+    const place = isOut
+      ? {
+          originX: values.targetOriginX,
+          originY: values.targetOriginY,
+          width: values.targetWidth,
+          height: values.targetHeight,
+        }
+      : {
+          originX: values.currentOriginX,
+          originY: values.currentOriginY,
+          width: values.currentWidth,
+          height: values.currentHeight,
+        };
     const inStack = {
       originX: place.originX + edge.inset,
       originY: edge.top,

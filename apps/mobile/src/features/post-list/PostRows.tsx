@@ -4,17 +4,16 @@ import { Text } from 'react-native';
 import ThumbnailRow from '@/components/ThumbnailRow';
 import { MIN_REREAD_INTERVAL } from '@/constants';
 import postQuery, { type PostListRow, type PostQueryScope } from '@/features/post-list/postQuery';
+import unguarded, { type GuardPress } from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
-
-const identity = (onPress: () => void) => onPress;
 
 type PostRowsProps = {
   scope: PostQueryScope;
   emptyText: string;
   limit?: number;
-  guardPress?: (onPress: () => void) => () => void;
+  guardPress?: GuardPress;
   isLive?: boolean;
 };
 
@@ -25,7 +24,7 @@ type PostRowsProps = {
  * only the newest `limit` (no `limit` reads them all). `guardPress` may wrap the rows' presses
  * (useDetailsPanelDrag's); `isLive: false` reads them once (useLiveQuery's).
  */
-export default function PostRows({ scope, emptyText, limit, guardPress = identity, isLive }: PostRowsProps) {
+export default function PostRows({ scope, emptyText, limit, guardPress = unguarded, isLive }: PostRowsProps) {
   const posts = useScopePosts(scope, limit, isLive);
 
   if (!posts) return null;
@@ -52,7 +51,7 @@ function postRowText(post: PostListRow) {
 function useScopePosts(scope: PostQueryScope, limit: number | undefined, isLive: boolean | undefined) {
   const query = postQuery({ scope });
   return useLiveQuery(
-    async (db) => (await query.read(db, { limit, withCount: false, firstAssetOnly: true })).rows,
+    (db) => query.readRows(db, { limit, firstAssetOnly: true }),
     query.tables,
     [query.descriptor, limit],
     { minInterval: MIN_REREAD_INTERVAL, isLive },

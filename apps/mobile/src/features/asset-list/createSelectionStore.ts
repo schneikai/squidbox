@@ -1,7 +1,9 @@
+import type { AssetSelection } from './actions/toggle-select-assets-action/useToggleSelectAssetsAction';
+
 // A cell's state in the selection.
 type SelectionState = 'off' | 'selected' | 'unselected';
 
-type SelectionChange = { isSelectMode: boolean; isAssetSelected?: (assetId: string) => boolean };
+type SelectionChange = Pick<AssetSelection, 'isSelectMode'> & Partial<Pick<AssetSelection, 'isAssetSelected'>>;
 
 export type SelectionStore = ReturnType<typeof createSelectionStore>;
 

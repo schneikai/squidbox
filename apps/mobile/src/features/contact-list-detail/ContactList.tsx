@@ -1,6 +1,6 @@
 import { router, useNavigation } from 'expo-router';
 import { useCallback } from 'react';
-import { type FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
+import { type ListRenderItemInfo, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ContactListMenu from './ContactListMenu';
@@ -16,6 +16,7 @@ import contactQuery, { type ContactSummary } from '@/features/contact-list/conta
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
 import useListControls from '@/hooks/useListControls';
+import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout, space } from '@/styles/designTokens';
 import type * as schema from '@/sync/db/schema';
@@ -45,13 +46,7 @@ export default function ContactList({ list }: ContactListProps) {
     ),
     [lastIndex],
   );
-  // The list as `listRef`'s: a callback ref, since an object ref of ScrollableList isn't a FlatList's.
-  const attachList = useCallback(
-    (contactList: FlatList<ContactSummary> | null) => {
-      listRef.current = contactList;
-    },
-    [listRef],
-  );
+  const attachList = useListRefCallback(listRef);
 
   const header = list.notes ? (
     <Text variant="status" style={styles.description}>

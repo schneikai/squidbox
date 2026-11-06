@@ -6,7 +6,7 @@ import { FILE_FOLDERS, fileFieldsOf, type FileFolder } from './fileFields';
 import { copyFile, fileExists, listFiles, moveFile } from './fs';
 import type { LibraryPaths } from './libraryPaths';
 
-import { type CollectionTable, type RowOf, clientCollectionTables } from '@/sync/clientCollections';
+import { type CollectionTable, type EdgeTable, type RowOf, clientCollectionTables } from '@/sync/clientCollections';
 import { nextVersion } from '@/sync/clock';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
@@ -35,8 +35,6 @@ import {
 
 type AssetRow = schema.AssetRow;
 type Row = Pick<BaseRecord, 'id' | 'updatedAt' | 'deletedAt'>;
-type EdgeTable =
-  typeof schema.albumAssets | typeof schema.postAssets | typeof schema.contactListMembers | typeof schema.contactLinks;
 type Sent = Pick<schema.OutboxRow, 'payload' | 'fields'>;
 type Replay = Pick<schema.OutboxRow, 'collection' | 'recordId' | 'payload' | 'fields'> & { sent: Sent };
 // What a device photo merged into a target asset at the commit brings to it.
@@ -172,11 +170,7 @@ export async function planMerge(
 
   // Replays consider every source record the target has by id, tombstones included (a deletion
   // made on the device after the copy is an edit too).
-  async function planRecords<T extends CollectionTable, R extends RowOf<T>>(
-    collection: string,
-    table: T,
-    sourceRows: R[],
-  ) {
+  async function planRecords<T extends CollectionTable>(collection: string, table: T, sourceRows: RowOf<T>[]) {
     const targetRows = await readByIdMap(
       target,
       table,
@@ -187,11 +181,11 @@ export async function planMerge(
   }
   // The live records the target has no row of: copied, unless a pass skipped them (a copy whose row
   // is gone is copied again), a file field naming no file the source doesn't hold.
-  async function freshRecords<T extends CollectionTable, R extends RowOf<T>>(
+  async function freshRecords<T extends CollectionTable>(
     collection: string,
     table: T,
-    sourceRows: R[],
-  ): Promise<R[]> {
+    sourceRows: RowOf<T>[],
+  ): Promise<RowOf<T>[]> {
     const { targetRows } = await planRecords(collection, table, sourceRows);
     const fresh = live(sourceRows)
       .filter((row) => !targetRows.has(row.id) && decided[`${collection}:${row.id}`]?.as !== 'skip')
@@ -339,14 +333,14 @@ export async function planMerge(
   // has it (re-pointed at a matched asset; null for one that isn't copied), unless the target has
   // that edge (`keyOf`) live once this plan's replays apply (a replay may tombstone the one that has
   // it). The target's edges are read by `lookup`.
-  async function planEdges<T extends EdgeTable, E extends RowOf<T>>(
+  async function planEdges<T extends EdgeTable>(
     collection: string,
     table: T,
-    edges: E[],
-    copiedAs: (edge: E) => E | null,
-    lookup: { column: SQLiteColumn; of: (edge: E) => string },
-    keyOf: (edge: E) => string,
-  ): Promise<E[]> {
+    edges: RowOf<T>[],
+    copiedAs: (edge: RowOf<T>) => RowOf<T> | null,
+    lookup: { column: SQLiteColumn; of: (edge: RowOf<T>) => string },
+    keyOf: (edge: RowOf<T>) => string,
+  ): Promise<RowOf<T>[]> {
     const copied = (await freshRecords(collection, table, edges)).flatMap((edge) => {
       const planned = copiedAs(edge);
       return planned ? [planned] : [];
@@ -359,11 +353,11 @@ export async function planMerge(
           .from(table)
           .where(and(inJson(lookup.column, [...new Set(copied.map(lookup.of))]), isNull(table.deletedAt)))
       )
-        .map((edge) => afterReplays(collection, edge as unknown as E))
+        .map((edge) => afterReplays(collection, edge as unknown as RowOf<T>))
         .filter((edge) => edge.deletedAt === null)
         .map(keyOf),
     );
-    const planned: E[] = [];
+    const planned: RowOf<T>[] = [];
     for (const edge of copied) {
       if (existing.has(keyOf(edge))) {
         mark(collection, edge, { as: 'skip' }); // the target has the edge: never copied later

@@ -1,10 +1,11 @@
-import { type ReactNode, type RefObject, useCallback, useMemo, useRef } from 'react';
-import { type FlatList, type ListRenderItemInfo, View, useWindowDimensions } from 'react-native';
+import { type ReactNode, useCallback, useMemo, useRef } from 'react';
+import { type ListRenderItemInfo, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, { type ScrollHandlerProcessed, type SharedValue } from 'react-native-reanimated';
+import Animated, { type SharedValue } from 'react-native-reanimated';
 
+import type { SortableGridProps } from '@/components/sortable-grid/SortableGrid';
 import useDragSelect from '@/components/sortable-grid/useDragSelect';
-import type { ScrollableList } from '@/hooks/useListControls';
+import useListRefCallback from '@/hooks/useListRefCallback';
 import useScrollY from '@/hooks/useScrollY';
 import { layout as layoutTokens } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
@@ -12,21 +13,25 @@ import type { AssetRow } from '@/sync/db/schema';
 // Constant props, so FlatList's own memo isn't defeated on every render of the screen.
 const keyExtractor = (asset: AssetRow) => asset.id;
 
-export type AssetListProps = {
+// The props it shares with the sortable grid (SortableAssetGrid) as that types them; the selection
+// by its asset names.
+export type AssetListProps = Pick<
+  SortableGridProps<AssetRow>,
+  | 'listRef'
+  | 'paddingTop'
+  | 'paddingBottom'
+  | 'onScroll'
+  | 'dragSelectEnabled'
+  | 'dragSelectLocksSwipeBack'
+  | 'onPeek'
+  | 'onPeekEnd'
+> & {
   rows: AssetRow[] | undefined;
   loadMore: () => void;
   renderListItem: (asset: AssetRow) => ReactNode;
-  listRef?: RefObject<ScrollableList | null>;
-  paddingTop?: number;
-  paddingBottom?: number;
-  onScroll?: ScrollHandlerProcessed;
   scrollY?: SharedValue<number>;
-  dragSelectEnabled?: boolean;
-  dragSelectLocksSwipeBack?: boolean;
   selectedAssetIds?: string[];
   selectAssets?: (assetIds: string[]) => void;
-  onPeek?: (asset: AssetRow) => void;
-  onPeekEnd?: () => void;
 };
 
 // The virtualized asset grid: `rows` are the loaded assets of a paged query, `loadMore` reads the
@@ -65,13 +70,7 @@ export default function AssetList({
   const selectedIdsRef = useRef(selectedAssetIds);
   selectedIdsRef.current = selectedAssetIds;
 
-  // The list as `listRef`'s: a callback ref, since an object ref of ScrollableList isn't a FlatList's.
-  const attachList = useCallback(
-    (list: FlatList<AssetRow> | null) => {
-      if (listRef) listRef.current = list;
-    },
-    [listRef],
-  );
+  const attachList = useListRefCallback(listRef);
 
   const { gesture, onContainerLayout } = useDragSelect({
     enabled: dragSelectEnabled,

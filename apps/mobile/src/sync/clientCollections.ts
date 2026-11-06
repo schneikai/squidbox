@@ -20,6 +20,13 @@ const tables = {
 /** A collection's table: one of the registry's. */
 export type CollectionTable = (typeof tables)[keyof typeof tables];
 
+/** An edge collection's table: a junction between a parent and what it holds. */
+export type EdgeTable =
+  | typeof tables.album_assets
+  | typeof tables.post_assets
+  | typeof tables.contact_list_members
+  | typeof tables.contact_links;
+
 /** The row a collection table holds: drizzle's select model of it. */
 export type RowOf<T extends CollectionTable> = T['$inferSelect'];
 

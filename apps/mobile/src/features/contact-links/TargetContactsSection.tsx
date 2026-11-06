@@ -7,15 +7,12 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useSheetRoute from '@/hooks/useSheetRoute';
-
-type PressHandler = () => void;
-
-const identity = (onPress: PressHandler) => onPress;
+import unguarded, { type GuardPress } from '@/lib/unguarded';
 
 type TargetContactsSectionProps = {
   targetType: ContactLinkRecord['targetType'];
   targetId: string;
-  guardPress?: (onPress: PressHandler) => PressHandler;
+  guardPress?: GuardPress;
   isLive?: boolean;
   isFlush?: boolean;
 };
@@ -30,7 +27,7 @@ type TargetContactsSectionProps = {
 export default function TargetContactsSection({
   targetType,
   targetId,
-  guardPress = identity,
+  guardPress = unguarded,
   isLive,
   isFlush,
 }: TargetContactsSectionProps) {

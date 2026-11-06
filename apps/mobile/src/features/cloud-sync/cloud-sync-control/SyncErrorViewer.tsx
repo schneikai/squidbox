@@ -11,10 +11,8 @@ import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import { layout, press, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import type { SyncFailureRow } from '@/sync/readPushFailures';
 import { type PagedQuery, usePagedQuery } from '@/sync/usePagedQuery';
-
-/** A failure the viewer lists: what failed (`title`), why (`error`), and where the way out is (`href`). */
-type SyncFailureRow = { id: string | number; title: string; error: string | null; href?: string };
 
 type SyncErrorViewerProps = {
   query: PagedQuery<SyncFailureRow>;

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 
-import AssetListItem, { type AssetListItemProps } from './AssetListItem';
+import AssetListItem from './AssetListItem';
+import type { SelectionStore } from './createSelectionStore';
 
 import SuperPressable from '@/components/SuperPressable';
 import type { AssetRow } from '@/sync/db/schema';
@@ -11,7 +12,7 @@ export default memo(AssetGridCell);
 
 type AssetGridCellProps = {
   asset: AssetRow;
-  selection: AssetListItemProps['selection'];
+  selection?: SelectionStore;
   onPress?: (asset: AssetRow) => void;
   onDoublePress?: (asset: AssetRow) => void;
   onLongPress?: (asset: AssetRow) => void;

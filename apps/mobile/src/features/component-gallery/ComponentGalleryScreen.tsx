@@ -42,6 +42,7 @@ import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtons
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
+import toggleItem from '@/utils/toggleItem';
 
 type GalleryTab = 'library' | 'albums' | 'posts' | 'contacts';
 
@@ -78,7 +79,7 @@ export default function ComponentGalleryScreen() {
   const [text, setText] = useState('');
 
   function toggleTag(tag: string) {
-    setSelectedTags((tags) => (tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]));
+    setSelectedTags((tags) => toggleItem(tags, tag));
   }
 
   function renderToolbars() {

@@ -6,12 +6,15 @@ import { describeAsset } from './describeAsset';
 import { failedOutboxRows } from './outbox';
 import { readByIdMap } from './readByIds';
 
-export interface PushFailure {
-  id: number; // the outbox row's
-  title: string; // what failed, in words: `Album "Trips"`, `Photo in post "Sunset…"`
-  error: string;
-  href?: string; // the record's screen, where the way out is (a contact whose photo needs choosing again)
-}
+/** A failure the sync error viewer lists: what failed (`title`), why (`error`), and where the way out is (`href`). */
+export type SyncFailureRow = { id: string | number; title: string; error: string | null; href?: string };
+
+/**
+ * A pending change the server rejected: `id` is its outbox row's, `title` names what failed in words
+ * (`Album "Trips"`, `Photo in post "Sunset…"`), `href` is its record's screen, where the way out is
+ * (a contact whose photo needs choosing again).
+ */
+export type PushFailure = SyncFailureRow & { id: number; error: string };
 
 const SNIPPET_LENGTH = 40;
 
