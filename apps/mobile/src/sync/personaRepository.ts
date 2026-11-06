@@ -52,7 +52,7 @@ export async function addRule(
 }
 
 /** A stored rule as the editor opened it: where it was and what it said. */
-type SeededRule = { index: number; text: string };
+export type SeededRule = { index: number; text: string };
 
 /**
  * Where `seeded` is in `rules` now, after a sync may have moved or changed the list: its index if
