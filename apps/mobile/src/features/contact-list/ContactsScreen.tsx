@@ -7,7 +7,6 @@ import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
 import ContactRow from './ContactRow';
 import ContactRowMenu from './ContactRowMenu';
-import PinnedContactsMenu from './PinnedContactsMenu';
 import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
 import pinnedList from './pinnedList';
@@ -16,6 +15,7 @@ import useContactListRows from './useContactListRows';
 import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
 
+import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
 import IntroText from '@/components/IntroText';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -57,7 +57,7 @@ export default function ContactsScreen() {
   // Each stays live only while it shows.
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
   const lists = useContactListRows({ isLive: segment === 'lists' });
-  // The lists the pen picks from, and the one pinned in place of Favorites.
+  // The lists (the pen shows once there are some), and the one pinned in place of Favorites.
   const pinOptions = useContactListRows({ withMembers: false, isLive: isContacts && !isSearching });
   const pinned = pinnedList(pinOptions);
   const pinnedContacts = useContactRows(pinned ? { scope: { listId: pinned.id } } : { scope: 'favorites' }, {
@@ -97,7 +97,14 @@ export default function ContactsScreen() {
                 size="small"
                 isFirst
                 trailing={
-                  !!pinOptions?.length && <PinnedContactsMenu lists={pinOptions} pinnedId={pinned?.id ?? null} />
+                  !!pinOptions?.length && (
+                    <Button
+                      icon="edit"
+                      size="small"
+                      accessibilityLabel="Choose what to pin"
+                      onPress={() => router.navigate('/pin-contact-list')}
+                    />
+                  )
                 }
               />
               {pinnedContacts?.length ? (
