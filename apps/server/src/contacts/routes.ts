@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { contactFromXProfileRequestSchema, contactFromXProfileResponseSchema } from '@squidbox/shared';
 import { authenticate } from '../auth/authenticate.js';
-import { untilClientLeaves } from '../requestSignal.js';
+import { untilClientLeaves } from '../untilClientLeaves.js';
 import { readContactFromXProfileAsync } from './contactFromXProfile.js';
 
 // The contacts' routes: for every signed-in account, not behind the assistant's gate.

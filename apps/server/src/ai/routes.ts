@@ -50,7 +50,7 @@ import { readVerification, setModelDefaults, setUncensored, setVerification } fr
 import { VERIFY } from './verify.js';
 import { readLatestRun, runVerify, startRun } from './verifyRuns.js';
 import { loadConfig } from '../config.js';
-import { untilClientLeaves } from '../requestSignal.js';
+import { untilClientLeaves } from '../untilClientLeaves.js';
 
 // A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and, for a compare, the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;

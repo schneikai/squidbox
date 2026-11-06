@@ -1,4 +1,3 @@
-// The signals a route's outbound requests stop on.
 import type { FastifyReply } from 'fastify';
 
 /** Aborted once the app stops waiting (a closed compare, a sheet closed), so the calls it started stop too. */
@@ -8,9 +7,4 @@ export function untilClientLeaves(reply: FastifyReply): AbortSignal {
     if (!reply.raw.writableFinished) controller.abort();
   });
   return controller.signal;
-}
-
-/** Aborted after `ms`, or sooner with `signal`. */
-export function withTimeout(ms: number, signal?: AbortSignal): AbortSignal {
-  return signal ? AbortSignal.any([AbortSignal.timeout(ms), signal]) : AbortSignal.timeout(ms);
 }

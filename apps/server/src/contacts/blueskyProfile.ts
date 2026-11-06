@@ -2,7 +2,7 @@
 // fills what X didn't show from the Bluesky profile the X bio names.
 import type { FastifyBaseLogger } from 'fastify';
 import { z } from 'zod';
-import { withTimeout } from '../requestSignal.js';
+import { withTimeout } from '../withTimeout.js';
 import { USER_AGENT } from './userAgent.js';
 
 const BLUESKY_TIMEOUT_MS = 5_000;

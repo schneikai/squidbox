@@ -30,4 +30,18 @@ describe('handlesInText', () => {
       jffHandle: 'maya',
     });
   });
+
+  it('skips a host inside another word', () => {
+    expect(handlesInText(['notonlyfans.com/maya and myjustfor.fans/maya'])).toEqual({});
+  });
+
+  it('reads a link with a subdomain', () => {
+    expect(handlesInText(['https://www.onlyfans.com/mayal'])).toEqual({ onlyFansHandle: 'mayal' });
+  });
+
+  it('skips a Bluesky profile link by DID, and keeps looking', () => {
+    expect(handlesInText(['bsky.app/profile/did:plc:abc123 and maya.bsky.social'])).toEqual({
+      blueskyHandle: 'maya.bsky.social',
+    });
+  });
 });

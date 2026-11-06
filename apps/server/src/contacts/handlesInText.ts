@@ -5,15 +5,23 @@ import { escapeRegExp } from '../escapeRegExp.js';
 
 // Each network's patterns with the host its match is a handle of: a profile link of each of its
 // hosts (`onlyfans.com/mayal/c17`), and for Bluesky the bare form bios write (`Maya.bsky.social`).
+// Each starts a word or follows a subdomain's dot (not `notonlyfans.com`), and a handle runs to its
+// end: one followed by `:` is a DID (`bsky.app/profile/did:plc:…`), not a handle, and is skipped.
+const START = String.raw`(?<![A-Za-z0-9_-])`;
+const HANDLE = String.raw`([A-Za-z0-9_.-]+)(?![A-Za-z0-9_.:-])`;
 const PATTERNS: { field: OtherHandleField; host: string; pattern: RegExp }[] = [
   ...OTHER_HANDLE_FIELDS.flatMap((field) =>
     CONTACT_HANDLE_BY_FIELD[field].hosts.map((host) => ({
       field,
       host,
-      pattern: new RegExp(String.raw`(?:https?:\/\/)?(?:www\.)?${escapeRegExp(host)}([A-Za-z0-9_.-]+)`, 'i'),
+      pattern: new RegExp(String.raw`${START}(?:https?:\/\/)?(?:www\.)?${escapeRegExp(host)}${HANDLE}`, 'i'),
     })),
   ),
-  { field: 'blueskyHandle', host: '', pattern: /@?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.bsky\.social)/i },
+  {
+    field: 'blueskyHandle',
+    host: '',
+    pattern: new RegExp(String.raw`${START}@?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.bsky\.social)(?![A-Za-z0-9_-])`, 'i'),
+  },
 ];
 
 /**

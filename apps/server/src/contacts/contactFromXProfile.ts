@@ -9,12 +9,17 @@ import {
   type ContactFromXProfileResponse,
   type XProfileStatus,
 } from '@squidbox/shared';
+import { withTimeout } from '../withTimeout.js';
 import { fetchAvatarAsync } from './avatarImage.js';
 import { fetchBlueskyProfileAsync } from './blueskyProfile.js';
 import { handlesInText } from './handlesInText.js';
-import { fetchXProfileAsync } from './xProfile.js';
+import { fetchXProfileAsync } from './fetchXProfileAsync.js';
 
 type Log = Pick<FastifyBaseLogger, 'info' | 'warn'>;
+
+// The most the whole read may take, its steps together (each has its own timeout too); the app waits
+// longer (readXProfileAsync). What a step past it didn't bring stays empty.
+const X_PROFILE_READ_BUDGET_MS = 12_000;
 
 // The answer with nothing but the handle: a profile X hides, a missing one, a page not read.
 function emptyResponse(status: XProfileStatus, xHandle: string): ContactFromXProfileResponse {
@@ -26,8 +31,8 @@ function emptyResponse(status: XProfileStatus, xHandle: string): ContactFromXPro
  * city, as X shows it) and photo X shows, and the Bluesky, OnlyFans and JFF handles the bio and
  * website name (handlesInText). When a Bluesky handle is named, its public profile fills the
  * handles, name and bio still empty, and the photo when X's doesn't download; it is read while X's
- * photo downloads. `xHandle` is always the request's. Never throws for what X gave: the status
- * says it.
+ * photo downloads. All of it within X_PROFILE_READ_BUDGET_MS. `xHandle` is always the request's.
+ * Never throws for what X gave: the status says it.
  */
 export async function readContactFromXProfileAsync({
   handle,
@@ -38,20 +43,21 @@ export async function readContactFromXProfileAsync({
   signal?: AbortSignal;
   log: Log;
 }): Promise<ContactFromXProfileResponse> {
+  const budget = withTimeout(X_PROFILE_READ_BUDGET_MS, signal);
   const xHandle = normalizeHandle(handle);
-  const page = await fetchXProfileAsync(handle, { signal, log });
+  const page = await fetchXProfileAsync(handle, { signal: budget, log });
   if (page.status !== 'found') return emptyResponse(page.status, xHandle);
 
   const handles = handlesInText([page.bio, page.website]);
   const [bluesky, xAvatar] = await Promise.all([
-    handles.blueskyHandle ? fetchBlueskyProfileAsync(handles.blueskyHandle, { signal, log }) : null,
-    page.avatarUrl ? fetchAvatarAsync(page.avatarUrl, { signal, log }) : null,
+    handles.blueskyHandle ? fetchBlueskyProfileAsync(handles.blueskyHandle, { signal: budget, log }) : null,
+    page.avatarUrl ? fetchAvatarAsync(page.avatarUrl, { signal: budget, log }) : null,
   ]);
   const read = { ...emptyContactRead(), xHandle, name: page.name, city: page.location };
   const more = bluesky ? handlesInText([bluesky.description]) : {};
   for (const field of OTHER_HANDLE_FIELDS) read[field] = handles[field] || more[field] || '';
   if (bluesky) read.name ||= bluesky.displayName;
-  const avatar = xAvatar ?? (bluesky?.avatar ? await fetchAvatarAsync(bluesky.avatar, { signal, log }) : null);
+  const avatar = xAvatar ?? (bluesky?.avatar ? await fetchAvatarAsync(bluesky.avatar, { signal: budget, log }) : null);
   return {
     ...read,
     status: 'found',

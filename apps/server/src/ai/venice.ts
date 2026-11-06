@@ -2,7 +2,7 @@
 // reads Venice's JSON endpoints, and runs chat completions, plain or as JSON that matches a schema.
 import type { z } from 'zod';
 import { loadConfig } from '../config.js';
-import { withTimeout } from '../requestSignal.js';
+import { withTimeout } from '../withTimeout.js';
 import { AppError } from '../errors.js';
 
 // Models reason at their defaults, which can take a minute or two (Qwen 3.6 Plus: 35–69 s).
