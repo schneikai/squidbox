@@ -4,6 +4,7 @@ import {
   type ChatContext,
   type ChatReply,
   type ChatRequest,
+  type ChatResponse,
   type ChatSubjectKind,
   type ChatTurn,
 } from '@squidbox/shared';
@@ -40,7 +41,7 @@ export type AssistantChatMessage = ChatReply & {
   id: string;
   role: 'assistant';
   status: 'loading' | 'done' | 'error';
-  systemMessage: string | null;
+  systemMessage: Exclude<ChatResponse['systemMessage'], undefined> | null;
   error: string | null;
   errorStatus: number | null;
 };
@@ -100,7 +101,7 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
   const turns = messages.flatMap((message, index): ChatTurn[] => {
     if (message.role === 'user') {
       const reply = messages[index + 1];
-      if (reply?.role === 'assistant' && reply.status === 'error' && reply.errorStatus === 400) return [];
+      if (isReply(reply) && reply.status === 'error' && reply.errorStatus === 400) return [];
       return [{ role: 'user', content: message.content, ...(message.moreLikeThis && { moreLikeThis: true }) }];
     }
     return message.status === 'done'
@@ -145,7 +146,7 @@ function createSession(kind: ChatSubjectKind) {
       const next = { ...state, ...changes };
       return {
         ...next,
-        isSending: next.messages.some((message) => message.role === 'assistant' && message.status === 'loading'),
+        isSending: next.messages.some((message) => isReply(message) && message.status === 'loading'),
       };
     });
   }
@@ -154,9 +155,7 @@ function createSession(kind: ChatSubjectKind) {
     update({
       messages: store
         .get()
-        .messages.map((message) =>
-          message.id === id && message.role === 'assistant' ? { ...message, ...changes } : message,
-        ),
+        .messages.map((message) => (message.id === id && isReply(message) ? { ...message, ...changes } : message)),
     });
   }
 
@@ -230,7 +229,7 @@ function createSession(kind: ChatSubjectKind) {
     retry(context: ChatContext, request: ChatRequester) {
       const { messages, isSending } = store.get();
       const last = messages[messages.length - 1];
-      if (isSending || isClosed || last?.role !== 'assistant' || last.status !== 'error') return null;
+      if (isSending || isClosed || !isReply(last) || last.status !== 'error') return null;
       replaceMessage(last.id, { status: 'loading', error: null, errorStatus: null });
       return requestReply(last.id, context, request);
     },
@@ -259,6 +258,11 @@ function createSession(kind: ChatSubjectKind) {
       isClosed = true;
     },
   };
+}
+
+// A reply, not one of the user's turns (or no message at all): only a reply has a status.
+function isReply(message: ChatMessage | undefined): message is AssistantChatMessage {
+  return message?.role === 'assistant';
 }
 
 /**

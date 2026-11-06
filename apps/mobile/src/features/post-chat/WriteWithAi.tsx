@@ -1,6 +1,7 @@
 import type { NewPromptButton } from '@squidbox/shared';
 import { router } from 'expo-router';
 
+import type { ChatParams } from './PostChatScreen';
 import useChatSession from './useChatSession';
 
 import AssistantTray, { type AssistantTrayProps } from '@/components/AssistantTray';
@@ -12,6 +13,10 @@ import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 
 type WriteWithAiProps = { sessionId: string | null; style?: AssistantTrayProps['style'] };
+
+// The chat route's params, with the id as this tray has it (null only before the chat opens, when
+// there is no tray to tap).
+type OpenChatParams = Omit<ChatParams, 'sessionId'> & Pick<WriteWithAiProps, 'sessionId'>;
 
 /**
  * "Write with AI" under a post (a posted post and its thread, the editor's card being edited), for
@@ -39,7 +44,7 @@ function WriteWithAiSection({ sessionId, style }: WriteWithAiProps) {
 
   // A prompt button's turn goes as the chat's `label` and `prompt` params.
   function openChat(button?: NewPromptButton) {
-    const params = button ? { sessionId, label: button.name, prompt: button.prompt } : { sessionId };
+    const params: OpenChatParams = button ? { sessionId, label: button.name, prompt: button.prompt } : { sessionId };
     router.navigate({ pathname: '/chat/[sessionId]', params });
   }
 

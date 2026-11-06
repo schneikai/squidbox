@@ -35,7 +35,7 @@ import confirmAsync from '@/utils/confirmAsync';
 const ASK_ANYTHING = 'Ask anything';
 const WRITING_AS_YOU = 'Writing as you';
 
-type ChatParams = { sessionId: string; label?: string; prompt?: string };
+export type ChatParams = { sessionId: string; label?: string; prompt?: string };
 
 /**
  * The assistant chat about the post being written (`sessionId`, the editor's chat; `label` and
@@ -49,8 +49,9 @@ export default function PostChatScreen() {
   const { sessionId, label, prompt } = useLocalSearchParams<ChatParams>();
   const userId = useAvailableUserId();
   const postChat = usePostChat(sessionId);
+  useCloseWhen(postChat.chat === null);
+
   const { chat } = postChat;
-  useCloseWhen(chat === null);
 
   if (userId === null || !chat) return null;
 
@@ -226,8 +227,10 @@ function ChatHeader({ isAiAdmin, ...headerProps }: ChatHeaderProps) {
   return <ModalHeader {...headerProps} title="Assistant" subtitle={WRITING_AS_YOU} />;
 }
 
+type ModelNameHeaderProps = HeaderSlots;
+
 // An ai_admin's header: the writing model's name under the title, once it loaded.
-function ModelNameHeader(headerProps: HeaderSlots) {
+function ModelNameHeader(headerProps: ModelNameHeaderProps) {
   const modelName = useWritingModelName();
   return <ModalHeader {...headerProps} title="Assistant" subtitle={modelName ?? WRITING_AS_YOU} />;
 }
