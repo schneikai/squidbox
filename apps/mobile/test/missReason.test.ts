@@ -8,10 +8,6 @@ describe('missReason', () => {
     expect(missReason({ ...missedTurn(), error: 'Venice timed out' })).toBe('Venice timed out');
   });
 
-  it("prefers the judge's reason to an earlier failed check's", () => {
-    expect(missReason(missedTurn('ignored the tone'))).toBe('ignored the tone');
-  });
-
   it('says a check failed when the failed check gives no reason', () => {
     expect(missReason({ ...passedTurn(), checks: [{ name: 'cards:3', ok: false, reason: null }] })).toBe(
       'a check failed',

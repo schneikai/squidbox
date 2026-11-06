@@ -59,8 +59,8 @@ type CompareJob = {
 type EarlierByKey = Partial<Record<string, Record<string, string[][]>>>;
 
 /**
- * One blind compare round at a time for `kind` over `modelIds`. `startRound({ prompt })` (writing)
- * or `startRound({ prompt, photos })` (vision, the assets) reshuffles the letters, clears the taps and asks
+ * One blind compare round at a time for `kind` over `modelIds`. `startRound({ prompt, photos })`
+ * (`photos` the vision round's assets; a writing round reads none) reshuffles the letters, clears the taps and asks
  * every model again; `number` counts the rounds, and `promptRound` the rounds with the same prompt,
  * whose earlier posts (or a photo's tags) each model gets to give different ones (`resetRounds()`
  * forgets them). `results[key][modelId]` is a ModelResult, keyed by TEXT_KEY or the photo's asset

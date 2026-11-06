@@ -23,7 +23,6 @@ import { layout, space } from '@/styles/designTokens';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
 
@@ -80,7 +79,7 @@ export default function ComparePickScreen() {
         );
       } catch (error) {
         console.error('Saving the photos failed', error);
-        Alert.alert("Couldn't save the photos", apiErrorMessage(error));
+        Alert.alert("Couldn't save the photos", error instanceof Error ? error.message : String(error));
         return;
       }
     }

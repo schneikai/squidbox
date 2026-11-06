@@ -1,4 +1,4 @@
-import { MODEL_LABEL_NAMES } from '@squidbox/shared';
+import { type ApiAiModel, MODEL_LABEL_NAMES } from '@squidbox/shared';
 import { useSyncExternalStore } from 'react';
 
 import uncensoredMarks from './uncensoredMarks';
@@ -16,23 +16,30 @@ type UncensoredToggleProps = { modelId: string; label: string };
  * tap whether its name is shown or not. It turns at once, on every card of the model.
  */
 export default function UncensoredToggle({ modelId, label }: UncensoredToggleProps) {
-  const haptics = useHaptics();
   const { models } = useAiCatalog();
   const wanted = useSyncExternalStore(uncensoredMarks.wanted.subscribe, uncensoredMarks.wanted.get);
 
   const model = findCatalogModel(models, modelId);
   const isOn = wanted[modelId] ?? model?.isUncensored ?? false;
 
+  if (!model) return null;
+
+  return <UncensoredButton model={model} label={label} isOn={isOn} />;
+}
+
+type UncensoredButtonProps = { model: ApiAiModel; label: string; isOn: boolean };
+
+// The button for a model the catalog has.
+function UncensoredButton({ model, label, isOn }: UncensoredButtonProps) {
+  const haptics = useHaptics();
+
   function handlePress() {
-    if (!model) return;
     haptics.selection();
     uncensoredMarks.set(model, !isOn, (error) => {
       haptics.error();
       uncensoredMarks.alertFailed(error);
     });
   }
-
-  if (!model) return null;
 
   return (
     <Button

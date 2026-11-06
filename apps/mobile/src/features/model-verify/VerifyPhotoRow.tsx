@@ -26,8 +26,6 @@ export type VerifyPhotoRowProps = { uri: string | null; turn: VerifyTurn | null;
  */
 function VerifyPhotoRow({ uri, turn, isRunning }: VerifyPhotoRowProps) {
   const status = turnStatus(turn, isRunning);
-  // Null for a turn that passed or isn't in yet.
-  const reason = turn ? missReason(turn) : null;
 
   return (
     <Row
@@ -41,7 +39,7 @@ function VerifyPhotoRow({ uri, turn, isRunning }: VerifyPhotoRowProps) {
         <View style={styles.tags}>
           {!turn && <IntroText>{isRunning ? 'Tagging…' : 'Waiting'}</IntroText>}
           {!!turn && turn.items.length > 0 && <TagChips tags={turn.items} />}
-          {reason !== null && <Text variant="error">Missed: {reason}</Text>}
+          {!!turn && status === 'missed' && <Text variant="error">Missed: {missReason(turn)}</Text>}
         </View>
       }
       size="small"

@@ -19,8 +19,8 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { SCREEN_PADDING } from '@/constants';
 import assetHref from '@/features/asset-list/assetHref';
+import useRequiredSheetRoute from '@/hooks/useRequiredSheetRoute';
 import useScrollY from '@/hooks/useScrollY';
-import { useRequiredSheetRoute } from '@/hooks/useSheetRoute';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
 import { layout, scale, space } from '@/styles/designTokens';
 import { type ModelRef, setPrompt } from '@/sync/aiStateRepository';
