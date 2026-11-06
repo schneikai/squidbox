@@ -234,10 +234,10 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
-model-compare and model-verify, those features' routes, and the layouts: `app/_layout.jsx` and the
-groups' (`(editor)`, `(new-post)`, `(compare)`, `(main)/(chat)`, `(main)/(tabs)`,
-`(main)/(tabs)/settings`). Convert them feature by feature, then add `test/` to the check and turn
+`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the layouts,
+`app/_layout.jsx` and the groups' (`(editor)`, `(new-post)`, `(compare)`, `(main)/(chat)`,
+`(main)/(tabs)`, `(main)/(tabs)/settings`), and `sync/db/migrations/migrations.js` (drizzle-kit's
+output, the last file `allowJs` carries). Convert them, then add `test/` to the check and turn
 `allowJs` off.
 
 ### [ ] Add UI tests
