@@ -14,7 +14,6 @@ import {
   isIdScope,
 } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
-import type { AlbumRow, AssetRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { readByIdMap } from '@/sync/readByIds';
@@ -32,19 +31,11 @@ export type AlbumQueryScope = 'all' | AlbumSubsetScope;
  */
 type AlbumQueryDescriptor = { scope?: AlbumQueryScope; oldestFirstIds?: string[] };
 
-/** A row of the album list: the album with its stats and its cover; `heldCount` under an `{ assetIds }` scope, else null. */
-export type AlbumListRow = AlbumRow & {
-  assetCount: number;
-  lastPostedAt: number | null;
-  cover: AssetRow | undefined;
-  heldCount: number | null;
-};
-
-type AlbumQuery = {
-  descriptor: Required<AlbumQueryDescriptor>;
-  tables: SQLiteTable[];
-  read(db: SyncDb): Promise<AlbumListRow[]>;
-};
+/**
+ * A row of the album list, as `read` builds it: the album with its stats (`assetCount`,
+ * `lastPostedAt`), its `cover`, and `heldCount` under an `{ assetIds }` scope, else null.
+ */
+export type AlbumListRow = Awaited<ReturnType<ReturnType<typeof albumQuery>['read']>>[number];
 
 // The stats are correlated subqueries over the asset scopes of assetQuery, so a cover is the first
 // cell its album shows and a count its header's. Each CASE branch is a whole subquery with its own
@@ -69,7 +60,7 @@ function firstOf(scope: AssetScope, sort?: AssetSort) {
  * a live read watches.
  * Sort, filter and search stay in JS (prepareAlbums), albums being hundreds.
  */
-export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: AlbumQueryDescriptor): AlbumQuery {
+export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: AlbumQueryDescriptor) {
   const assetCount = sql<number>`case al.smart_album_type
     when 'FAVORITES' then ${countOf('favorites')}
     when 'DELETED' then ${countOf('deleted')}
@@ -100,17 +91,19 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: Album
     ? sql<number>`(select count(distinct asset_id) from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`
     : sql<null>`null`;
 
+  const tables: SQLiteTable[] = [
+    schema.albums,
+    schema.albumAssets,
+    schema.assets,
+    schema.posts,
+    schema.postAssets,
+    ...(isIdScope(scope, 'contactId') ? [schema.contactLinks] : []),
+  ];
+
   return {
     descriptor: { scope, oldestFirstIds },
-    tables: [
-      schema.albums,
-      schema.albumAssets,
-      schema.assets,
-      schema.posts,
-      schema.postAssets,
-      ...(isIdScope(scope, 'contactId') ? [schema.contactLinks] : []),
-    ],
-    read(db) {
+    tables,
+    read(db: SyncDb) {
       return db.transaction(async (tx) => {
         const rows = await tx
           .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt, heldCount })

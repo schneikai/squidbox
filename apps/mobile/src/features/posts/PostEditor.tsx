@@ -33,7 +33,7 @@ type PostEditorProps = {
   onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
 };
 
-type Draft = { cards: PostCardData[]; postedAt: number | null; pickedPostedAt: PickedPostedAt };
+type Draft = { cards: PostCardData[]; postedAt: EditedPost['postedAt']; pickedPostedAt: PickedPostedAt };
 
 // Edits a post and its thread, seeded from `post` ({ text, postAssets, postedAt, threadPosts }), as a
 // draft sheet: one card per post, the first post's on top, each following post's below it, joined by

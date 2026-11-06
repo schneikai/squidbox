@@ -41,10 +41,10 @@ export default function PostCardToolbar({
     onChangePostedAt(timestamp);
   }
 
-  // Takes the ⊕'s handler from the branch that renders it, where it is known to be there.
-  function handleAddToThread(addToThread: () => void) {
+  // Only the ⊕ calls it, and it shows only with `onAddToThread`.
+  function handleAddToThread() {
     onActivate();
-    addToThread();
+    onAddToThread?.();
   }
 
   return (
@@ -67,7 +67,7 @@ export default function PostCardToolbar({
           icon="add-circle"
           colorPalette="accent"
           accessibilityLabel="Add to thread"
-          onPress={() => handleAddToThread(onAddToThread)}
+          onPress={handleAddToThread}
           style={styles.trailing}
         />
       )}

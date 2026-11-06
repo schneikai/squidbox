@@ -6,8 +6,8 @@ import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar'
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
-import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
+import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';

@@ -9,12 +9,13 @@ import BottomSheet from '@/components/BottomSheet';
 import Button from '@/components/Button';
 import PostedAtCalendar from '@/features/posts/PostedAtCalendar';
 import { layout, space } from '@/styles/designTokens';
+import type { PostRow } from '@/sync/db/schema';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 export type PostedAtPickerProps = {
-  timestamp: number | null;
+  timestamp: PostRow['postedAt'];
   isShown: boolean;
-  onChange: (timestamp: number | null) => void;
+  onChange: (timestamp: PostRow['postedAt']) => void;
 };
 export default function PostedAtPicker({ timestamp, isShown, onChange }: PostedAtPickerProps) {
   const [isOpen, setIsOpen] = useState(false);

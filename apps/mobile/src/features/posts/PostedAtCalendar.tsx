@@ -5,12 +5,13 @@ import DateTimePicker, { type DateTimePickerChangeEvent } from '@expo/ui/communi
 import { Platform, StyleSheet } from 'react-native';
 
 import { colors, scale } from '@/styles/designTokens';
+import type { PostRow } from '@/sync/db/schema';
 
 // What SwiftUI's graphical calendar leaves between its edges and its month and weekdays.
 // eslint-disable-next-line no-restricted-syntax -- SwiftUI's own inset, matched, not ours
 const IOS_CALENDAR_INSET = scale(16);
 
-export type PostedAtCalendarProps = { timestamp: number | null; onChange: (time: number) => void };
+export type PostedAtCalendarProps = { timestamp: PostRow['postedAt']; onChange: (time: number) => void };
 export default function PostedAtCalendar({ timestamp, onChange }: PostedAtCalendarProps) {
   function handleChange(_: DateTimePickerChangeEvent, date: Date) {
     // The type says always a date; the deprecated `onChange` passed none on a dismiss.

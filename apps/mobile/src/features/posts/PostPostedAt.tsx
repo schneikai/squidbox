@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Text, Pressable } from 'react-native';
 
 import listTextStyles from '@/styles/listTextStyles';
+import type { PostRow } from '@/sync/db/schema';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 import formatDateTime from '@/utils/date-time/formatDateTime';
 
 type PostedAtFormat = 'inWords' | 'dateTime';
 
-type PostPostedAtProps = { postedAt: number | null };
+type PostPostedAtProps = { postedAt: PostRow['postedAt'] };
 
 /**
  * Tap toggles between "3 days ago" and the exact date and time. Nothing for a post never posted.

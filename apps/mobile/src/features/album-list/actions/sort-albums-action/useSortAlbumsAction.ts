@@ -1,4 +1,4 @@
-import { type AlbumSort, isAlbumSort } from './albumSortFunctions';
+import isAlbumSort, { type AlbumSort } from './isAlbumSort';
 
 import useAppSettings from '@/features/app-settings/useAppSettings';
 

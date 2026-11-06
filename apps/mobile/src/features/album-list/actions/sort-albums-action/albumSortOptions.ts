@@ -1,4 +1,4 @@
-import type { AlbumSort } from './albumSortFunctions';
+import type { AlbumSort } from './isAlbumSort';
 
 import type { SortOption } from '@/components/floating-bars/SortFilterMenu';
 

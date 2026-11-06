@@ -34,7 +34,7 @@ describe('leaveWithNewPostSheet', () => {
     }
   });
 
-  it('throws when the editor was not opened in a sheet', () => {
-    expect(() => leaveWithNewPostSheet({ getParent: () => undefined })).toThrow('The post editor opens inside a sheet');
+  it('goes back without throwing when the editor has no sheets around it (the post is already added)', () => {
+    expect(leaveWithNewPostSheet({ getParent: () => undefined })).toBeUndefined();
   });
 });

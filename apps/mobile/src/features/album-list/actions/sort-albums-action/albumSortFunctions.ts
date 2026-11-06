@@ -1,13 +1,6 @@
+import type { AlbumSort } from './isAlbumSort';
 import sortAlbumsByCustomOrder, { type OrderedAlbum } from './sortAlbumsByCustomOrder';
 import sortAlbumsByLastPostedDesc, { type PostedAlbum } from './sortAlbumsByLastPostedDesc';
-
-import isOneOf from '@/lib/isOneOf';
-
-const ALBUM_SORTS = ['custom', 'createdAt:asc', 'createdAt:desc', 'lastPostedAt:asc', 'lastPostedAt:desc'] as const;
-
-export type AlbumSort = (typeof ALBUM_SORTS)[number];
-
-export const isAlbumSort = isOneOf(ALBUM_SORTS);
 
 type SortableAlbum = OrderedAlbum & PostedAlbum;
 type AlbumCompare = (a: SortableAlbum, b: SortableAlbum) => number;

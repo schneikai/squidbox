@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, getTableColumns, isNull, sql } from 'drizzle-orm';
 import { alias, type SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import threadCount from './threadCount';
 import withPostAssets from './withPostAssets';
 
 import { contactTargetIds, isIdScope, liveAlbumAssetIds, postAlbumAssetIds } from '@/sync/assetSql';
@@ -39,15 +40,11 @@ export type PostListRow = PostWithAssets & { threadCount: number };
 
 type ReadOptions = { limit?: number; firstAssetOnly?: boolean };
 
-/**
- * A paged query of post rows whose reads also take `firstAssetOnly`; `readRows` skips the count;
- * `postsIn` is the matching posts without their assets, read inside a caller's transaction (readPost).
- */
+/** A paged query of post rows whose reads also take `firstAssetOnly`; `readRows` skips the count. */
 export type PostQuery = PagedQuery<PostListRow> & {
   descriptor: Required<PostQueryDescriptor>;
   read(db: SyncDb, options?: ReadOptions): Promise<{ rows: PostListRow[]; count: number }>;
   readRows(db: SyncDb, options?: ReadOptions): Promise<PostListRow[]>;
-  postsIn(tx: SyncDb, options?: Pick<ReadOptions, 'limit'>): Promise<Omit<PostListRow, 'postAssets'>[]>;
 };
 
 /**
@@ -58,7 +55,7 @@ export type PostQuery = PagedQuery<PostListRow> & {
  * `threadCount` (its live following posts); `tables` → what a live read watches.
  * A thread is its first post: lists, counts and searches leave its following posts out (a search or
  * a photo found in one finds the thread), but a following post whose first post is deleted is a post
- * of its own. `postsIn(tx, { limit })` → the matching posts without their assets, inside `tx`.
+ * of its own.
  * Every order ends with an id tie-break, so refreshes and pages see one stable order.
  */
 export default function postQuery({
@@ -127,10 +124,6 @@ export default function postQuery({
     return limit === undefined ? select : select.limit(limit);
   }
 
-  async function postsIn(tx: SyncDb, { limit }: Pick<ReadOptions, 'limit'> = {}) {
-    return postsMatching(tx, await matchedIds(tx), limit);
-  }
-
   return {
     descriptor,
     tables,
@@ -143,14 +136,9 @@ export default function postQuery({
       });
     },
     readRows(db, options: ReadOptions = {}) {
-      return db.transaction(async (tx) => withPostAssets(tx, await postsIn(tx, options), options.firstAssetOnly));
+      return db.transaction(async (tx) =>
+        withPostAssets(tx, await postsMatching(tx, await matchedIds(tx), options.limit), options.firstAssetOnly),
+      );
     },
-    postsIn,
   };
 }
-
-// A post's live following posts, counted over posts_thread_idx. `p.id` is spelled out: drizzle
-// leaves a selected field's columns unqualified, which inside the subquery would name `c.id`.
-const threadCount = sql`(select count(*) from posts c where c.thread_root_id = p.id and c.deleted_at is null)`
-  .mapWith(Number)
-  .as('thread_count');
