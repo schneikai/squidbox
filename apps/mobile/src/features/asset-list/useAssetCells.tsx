@@ -7,6 +7,14 @@ import quickViewStore from '@/components/quick-view/quickViewStore';
 import useAssets from '@/features/assets-context/useAssets';
 import useHaptics from '@/hooks/useHaptics';
 import useSheetRoute from '@/hooks/useSheetRoute';
+import type { AssetRow } from '@/sync/db/schema';
+
+export type UseAssetCellsOptions = {
+  onPress?: (asset: AssetRow) => void;
+  isSelectMode?: boolean;
+  isAssetSelected?: (assetId: string) => boolean;
+  canPeek?: boolean;
+};
 
 /**
  * Everything an asset grid needs for its cells: `renderCell` (its `renderListItem`), and `peek(asset)`
@@ -17,24 +25,34 @@ import useSheetRoute from '@/hooks/useSheetRoute';
  * their identity across renders and the memoized cells skip re-rendering unless their own asset,
  * selection or display props change.
  */
-export default function useAssetCells({ onPress, isSelectMode = false, isAssetSelected, canPeek = true }) {
+export default function useAssetCells({
+  onPress,
+  isSelectMode = false,
+  isAssetSelected,
+  canPeek = true,
+}: UseAssetCellsOptions) {
   const { toggleFavoriteAsset } = useAssets();
   const haptics = useHaptics();
   const routeKey = useSheetRoute()?.routeKey ?? null;
 
-  const handlersRef = useRef();
-  handlersRef.current = { onPress, onDoublePress: toggleFavoriteAsset, isSelectMode, haptics, routeKey };
+  const handlers = { onPress, onDoublePress: toggleFavoriteAsset, isSelectMode, haptics, routeKey };
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
   // This grid's mark on the peeks it opens, so only it closes them.
   const [peekOwner] = useState(() => ({}));
   const [stable] = useState(() => {
-    function peek(asset) {
+    function peek(asset: AssetRow) {
       handlersRef.current.haptics.peek();
       quickViewStore.open(asset, { routeKey: handlersRef.current.routeKey, owner: peekOwner });
     }
     return {
-      onPress: (asset) => handlersRef.current.onPress(asset),
-      onDoublePress: (asset) => handlersRef.current.onDoublePress(asset),
-      onLongPress: (asset) => !handlersRef.current.isSelectMode && peek(asset),
+      // Only passed to the cells while there is an `onPress` (hasPress).
+      onPress: (asset: AssetRow) => {
+        const { onPress: press } = handlersRef.current;
+        if (press) press(asset);
+      },
+      onDoublePress: (asset: AssetRow) => handlersRef.current.onDoublePress(asset),
+      onLongPress: (asset: AssetRow) => !handlersRef.current.isSelectMode && peek(asset),
       peek,
       endPeek: () => quickViewStore.close(peekOwner),
     };
@@ -51,7 +69,7 @@ export default function useAssetCells({ onPress, isSelectMode = false, isAssetSe
   useLayoutEffect(() => selection.set({ isSelectMode, isAssetSelected }), [selection, isSelectMode, isAssetSelected]);
 
   const renderCell = useCallback(
-    (asset) => (
+    (asset: AssetRow) => (
       <AssetGridCell
         asset={asset}
         selection={selection}

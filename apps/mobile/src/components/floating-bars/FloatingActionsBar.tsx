@@ -8,7 +8,9 @@ import SearchSortFilterBar, { type SearchSortFilterBarProps } from './SearchSort
  * The search + sort / filter bar of a main tab screen: a SearchSortFilterBar that also tells the
  * navigation bar, while the screen is visible, whether its search field is open.
  */
-export default function FloatingActionsBar<Sort extends string>(props: SearchSortFilterBarProps<Sort>) {
+export default function FloatingActionsBar<Sort extends string, Filter extends string = string>(
+  props: SearchSortFilterBarProps<Sort, Filter>,
+) {
   const { setIsSearchActive } = useFloatingBars();
   const { isSearchActive } = props.search;
 

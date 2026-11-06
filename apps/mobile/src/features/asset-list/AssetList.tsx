@@ -1,22 +1,39 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { type ReactNode, type RefObject, useCallback, useMemo, useRef } from 'react';
+import { type FlatList, type ListRenderItemInfo, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
+import Animated, { type ScrollHandlerProcessed, type SharedValue } from 'react-native-reanimated';
 
 import useDragSelect from '@/components/sortable-grid/useDragSelect';
+import type { ScrollableList } from '@/hooks/useListControls';
 import useScrollY from '@/hooks/useScrollY';
 import { layout as layoutTokens } from '@/styles/designTokens';
+import type { AssetRow } from '@/sync/db/schema';
 
 // Constant props, so FlatList's own memo isn't defeated on every render of the screen.
-const keyExtractor = (asset) => asset.id;
-const STICKY_HEADER = [0];
+const keyExtractor = (asset: AssetRow) => asset.id;
+
+export type AssetListProps = {
+  rows: AssetRow[] | undefined;
+  loadMore: () => void;
+  renderListItem: (asset: AssetRow) => ReactNode;
+  listRef?: RefObject<ScrollableList | null>;
+  paddingTop?: number;
+  paddingBottom?: number;
+  onScroll?: ScrollHandlerProcessed;
+  scrollY?: SharedValue<number>;
+  dragSelectEnabled?: boolean;
+  dragSelectLocksSwipeBack?: boolean;
+  selectedAssetIds?: string[];
+  selectAssets?: (assetIds: string[]) => void;
+  onPeek?: (asset: AssetRow) => void;
+  onPeekEnd?: () => void;
+};
 
 // The virtualized asset grid: `rows` are the loaded assets of a paged query, `loadMore` reads the
 // next page when the end comes near.
 export default function AssetList({
   rows,
   loadMore,
-  ListHeaderComponent,
   renderListItem,
   listRef,
   paddingTop = 0,
@@ -29,7 +46,7 @@ export default function AssetList({
   selectAssets,
   onPeek,
   onPeekEnd,
-}) {
+}: AssetListProps) {
   const numColumns = 3;
   const window = useWindowDimensions();
   const listItemWidth = window.width / numColumns;
@@ -48,6 +65,14 @@ export default function AssetList({
   const selectedIdsRef = useRef(selectedAssetIds);
   selectedIdsRef.current = selectedAssetIds;
 
+  // The list as `listRef`'s: a callback ref, since an object ref of ScrollableList isn't a FlatList's.
+  const attachList = useCallback(
+    (list: FlatList<AssetRow> | null) => {
+      if (listRef) listRef.current = list;
+    },
+    [listRef],
+  );
+
   const { gesture, onContainerLayout } = useDragSelect({
     enabled: dragSelectEnabled,
     rows,
@@ -63,7 +88,7 @@ export default function AssetList({
   });
 
   const renderItem = useCallback(
-    ({ item: asset }) => (
+    ({ item: asset }: ListRenderItemInfo<AssetRow>) => (
       <View style={{ width: listItemWidth, height: listItemWidth, padding: layoutTokens.gridGutter }}>
         {renderListItem(asset)}
       </View>
@@ -82,14 +107,12 @@ export default function AssetList({
       numColumns={numColumns}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      ListHeaderComponent={ListHeaderComponent}
-      stickyHeaderIndices={ListHeaderComponent ? STICKY_HEADER : undefined}
       contentContainerStyle={contentContainerStyle}
       // Grid rows, not cells: about a screen's worth. FlatList keeps these mounted at the top.
       initialNumToRender={10}
       onEndReached={loadMore}
       onEndReachedThreshold={2}
-      ref={listRef}
+      ref={attachList}
       onScroll={effectiveOnScroll}
       scrollEventThrottle={16}
     />

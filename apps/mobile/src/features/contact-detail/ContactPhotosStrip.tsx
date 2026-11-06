@@ -3,13 +3,14 @@ import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import CoverImage from '@/components/CoverImage';
 import type { CoverImageProps } from '@/components/CoverImage';
-import assetHref, { type AssetHrefScope } from '@/features/asset-list/assetHref';
+import assetHref from '@/features/asset-list/assetHref';
 import { press, scale, space } from '@/styles/designTokens';
+import type { AssetQueryScope } from '@/sync/assetSql';
 
 const SIZE = scale(84);
 
 /** The first photos a contact is on, side by side; each opens in the contact's photos (`scope`). */
-type ContactPhotosStripProps = { assets: (CoverImageProps['asset'] & { id: string })[]; scope: AssetHrefScope };
+type ContactPhotosStripProps = { assets: (CoverImageProps['asset'] & { id: string })[]; scope: AssetQueryScope };
 
 export default function ContactPhotosStrip({ assets, scope }: ContactPhotosStripProps) {
   return (

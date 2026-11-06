@@ -1,5 +1,14 @@
-import SortableGrid from '@/components/sortable-grid/SortableGrid';
+import type { AssetListProps } from './AssetList';
+
+import SortableGrid, { type SortableGridProps } from '@/components/sortable-grid/SortableGrid';
 import { layout } from '@/styles/designTokens';
+import type { AssetRow } from '@/sync/db/schema';
+
+export type SortableAssetGridProps = AssetListProps & {
+  rowsReadAt?: number;
+  reorderEnabled?: boolean;
+  onReorder?: SortableGridProps<AssetRow>['onReorder'];
+};
 
 // The album Assets tab's grid: a SortableGrid of square cells, so photos can be dragged into a new
 // order, with the props of the virtualized AssetList (library / all-assets view). It tracks its own
@@ -21,7 +30,7 @@ export default function SortableAssetGrid({
   onReorder,
   onPeek,
   onPeekEnd,
-}) {
+}: SortableAssetGridProps) {
   return (
     <SortableGrid
       rows={rows}

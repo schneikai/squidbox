@@ -1,32 +1,35 @@
 import AssetList from '@/features/asset-list/AssetList';
-import SortableAssetGrid from '@/features/asset-list/SortableAssetGrid';
-import useAssetCells from '@/features/asset-list/useAssetCells';
+import SortableAssetGrid, { type SortableAssetGridProps } from '@/features/asset-list/SortableAssetGrid';
+import useAssetCells, { type UseAssetCellsOptions } from '@/features/asset-list/useAssetCells';
+import type { AssetRow } from '@/sync/db/schema';
+
+type AssetGridProps = Pick<
+  SortableAssetGridProps,
+  | 'rows'
+  | 'rowsReadAt'
+  | 'loadMore'
+  | 'listRef'
+  | 'paddingTop'
+  | 'paddingBottom'
+  | 'onScroll'
+  | 'scrollY'
+  | 'selectedAssetIds'
+  | 'selectAssets'
+  | 'reorderEnabled'
+  | 'onReorder'
+> & {
+  isSelectMode?: boolean;
+  isAssetSelected?: UseAssetCellsOptions['isAssetSelected'];
+  onPressAsset: (asset: AssetRow) => void;
+  isSheet?: boolean;
+  isSortable?: boolean;
+};
 
 // An asset grid with its cells (which peek in the surface's QuickViewHost): the library, an album
 // and the asset picker. In select mode a tap goes to `onPressAsset` and a drag selects (with
 // `selectAssets`). `onScroll` gets the grid's scroll events and `scrollY` is the offset it writes,
 // which the drag-select then reads. A grid that is a sheet's own screen passes `isSheet`, so a
 // drag-select leaves the sheet's swipe down on.
-/**
- * @param {object} props
- * @param {object[] | undefined} props.rows
- * @param {number} [props.rowsReadAt]
- * @param {() => void} props.loadMore
- * @param {boolean} [props.isSelectMode]
- * @param {Set<string>} [props.selectedAssetIds]
- * @param {(asset: object) => boolean} [props.isAssetSelected]
- * @param {(asset: { id: string }) => void} props.onPressAsset
- * @param {object} [props.listRef]
- * @param {number} [props.paddingTop]
- * @param {number} [props.paddingBottom]
- * @param {Function} [props.onScroll]
- * @param {object} [props.scrollY]
- * @param {Function} [props.selectAssets]
- * @param {boolean} [props.isSheet]
- * @param {boolean} [props.isSortable]
- * @param {boolean} [props.reorderEnabled]
- * @param {Function} [props.onReorder]
- */
 export default function AssetGrid({
   rows,
   rowsReadAt,
@@ -45,7 +48,7 @@ export default function AssetGrid({
   isSortable = false,
   reorderEnabled = false,
   onReorder,
-}) {
+}: AssetGridProps) {
   // Regular albums can be reordered by dragging; every other grid uses the virtualized list.
   const Grid = isSortable ? SortableAssetGrid : AssetList;
   const { renderCell, peek, endPeek } = useAssetCells({

@@ -12,25 +12,39 @@ import { inJson } from './inJson';
 // a single-table selection, `a.id` included.
 export const a = alias(schema.assets, 'a');
 
-/**
- * An asset scope: the library, a smart album (Deleted: not the purged), an album by id (a value, or
- * SQL naming a column), a post's assets as the post screen shows them, in its order, a trashed
- * one included (one post, or several for postQuery, which reads its posts' assets at once), or one
- * live asset alone (a post suggestion's), or the live assets a contact is on.
- */
 // How a grid orders its assets (assetQuery's `sort`): `custom` is an album's own order.
-export type AssetSort = 'createdAt:asc' | 'createdAt:desc' | 'custom' | 'random';
+export const ASSET_SORTS = ['createdAt:asc', 'createdAt:desc', 'custom', 'random'] as const;
+export type AssetSort = (typeof ASSET_SORTS)[number];
 
-export type AssetScope =
+export function isAssetSort(value: unknown): value is AssetSort {
+  return ASSET_SORTS.some((sort) => sort === value);
+}
+
+/**
+ * An asset scope as a grid shows it (assetQuery's `scope`): the library, a smart album (Deleted: not
+ * the purged), an album by id, a post's assets as the post screen shows them, in its order, a
+ * trashed one included, or one live asset alone (a post suggestion's), or the live assets a contact
+ * is on.
+ */
+export type AssetQueryScope =
   | 'library'
   | 'favorites'
   | 'deleted'
-  | { albumId: string | SQL }
-  | { postId: string | string[] }
+  | { albumId: string }
+  | { postId: string }
   | { assetId: string }
   | { contactId: string };
 
-function isPostScope(scope: AssetScope): scope is { postId: string | string[] } {
+/**
+ * An asset scope as the SQL reads it: a grid's, or an album by SQL naming a column, or several
+ * posts' assets (postQuery reads its posts' assets at once).
+ */
+export type AssetScope = AssetQueryScope | { albumId: SQL } | { postId: string[] };
+
+// A post scope: one post's assets or several posts'.
+type PostScope = Extract<AssetScope, { postId: unknown }>;
+
+function isPostScope(scope: AssetScope): scope is PostScope {
   return typeof scope === 'object' && 'postId' in scope;
 }
 
@@ -42,7 +56,7 @@ const postEdge = alias(schema.postAssets, 'e');
  * order. `e` joins `a` (fromScope), and `where` keeps the parents' live edges, one canonical edge
  * per asset.
  */
-export function scopeEdges(scope: { postId: string | string[] }, sort?: AssetSort): { e: typeof postEdge; where: SQL };
+export function scopeEdges(scope: PostScope, sort?: AssetSort): { e: typeof postEdge; where: SQL };
 export function scopeEdges(
   scope: AssetScope,
   sort?: AssetSort,
@@ -67,7 +81,7 @@ export function scopeEdges(scope: AssetScope, sort: AssetSort = 'createdAt:desc'
  * In a post scope over several posts, an asset's place in its post (1 for the first), in the post's
  * order (assetOrder), over the edges the scope keeps: select it in a subquery and keep 1.
  */
-export function placeInPost(scope: { postId: string | string[] }): SQL<number> {
+export function placeInPost(scope: PostScope): SQL<number> {
   return sql<number>`row_number() over (partition by ${postEdge.postId} order by ${assetOrder(scope)})`;
 }
 

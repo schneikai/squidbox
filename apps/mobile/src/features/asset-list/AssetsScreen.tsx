@@ -12,13 +12,15 @@ import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import assetQuery from '@/features/asset-list/assetQuery';
+import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import type { AssetSort } from '@/sync/assetSql';
 import { usePagedQuery } from '@/sync/usePagedQuery';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -27,7 +29,7 @@ export default function AssetsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
   const { librarySortOrder: sortOrder, setLibrarySortOrder } = useAppSettings();
-  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls({
+  const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AssetSort, AssetFilter>({
     onSort: setLibrarySortOrder,
   });
 
@@ -56,7 +58,7 @@ export default function AssetsScreen() {
     try {
       await addAssetsFromCameraRollAsync();
     } catch (error) {
-      Alert.alert('Failed to add assets!', error.message);
+      Alert.alert('Failed to add assets!', apiErrorMessage(error));
     }
   }
 

@@ -1,10 +1,8 @@
 import { router } from 'expo-router';
 import { type ReactNode, useCallback, useMemo, useRef } from 'react';
 
-import AssetPickerContext, {
-  type AssetExclude,
-  type AssetPickerValue,
-} from '@/features/asset-picker/AssetPickerContext';
+import type { AssetExclude } from '@/features/asset-list/assetQuery';
+import AssetPickerContext, { type AssetPickerValue } from '@/features/asset-picker/AssetPickerContext';
 import type { AssetRow } from '@/sync/db/schema';
 
 export type AssetPickerProviderProps = { children: ReactNode };

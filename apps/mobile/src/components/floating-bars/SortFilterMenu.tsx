@@ -7,17 +7,18 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import { colors, sizes, space } from '@/styles/designTokens';
 
-// `Sort` is the screen's sort orders, so a sort option's key is checked against them.
+// `Sort` is the screen's sort orders and `Filter` its filters, so an option's key is checked against
+// them; a filter menu's 'all' clears the filters.
 export type SortOption<Sort extends string = string> = { key: Sort; label: string };
-export type FilterOption = SortOption & { icon?: IconName };
+export type FilterOption<Filter extends string = string> = SortOption<Filter | 'all'> & { icon?: IconName };
 
-export type SortFilterMenuProps<Sort extends string> = {
+export type SortFilterMenuProps<Sort extends string, Filter extends string = string> = {
   sortOrder?: Sort;
   sortOptions: SortOption<Sort>[];
-  activeFilter?: string[];
-  filterOptions?: FilterOption[];
+  activeFilter?: Filter[];
+  filterOptions?: FilterOption<Filter>[];
   onSort?: (key: Sort) => void;
-  onFilter?: (key: string) => void;
+  onFilter?: (key: Filter | 'all') => void;
   showViewOptions?: boolean;
 };
 
@@ -34,7 +35,7 @@ export type SortFilterMenuProps<Sort extends string> = {
  *   onFilter        – (filterKey: string) => void
  *   showViewOptions – boolean
  */
-export default function SortFilterMenu<Sort extends string>({
+export default function SortFilterMenu<Sort extends string, Filter extends string = string>({
   sortOrder,
   sortOptions,
   activeFilter = [],
@@ -42,7 +43,7 @@ export default function SortFilterMenu<Sort extends string>({
   onSort,
   onFilter,
   showViewOptions = false,
-}: SortFilterMenuProps<Sort>) {
+}: SortFilterMenuProps<Sort, Filter>) {
   const { thumbnailStyle, setThumbnailStyle } = useAppSettings();
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const hasFilter = filterOptions.length > 0;

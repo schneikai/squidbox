@@ -1,22 +1,29 @@
 import { router } from 'expo-router';
 
+import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetHref from '@/features/asset-list/assetHref';
+import type { AssetQuery } from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
+import type { AssetRow } from '@/sync/db/schema';
 import { readByIds } from '@/sync/readByIds';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 
 // What an asset grid with select mode does with a tap and with the selection. `selection` comes from
 // useToggleSelectAssetsAction; `query` is the grid's assetQuery and `count` how many assets it shows.
-export default function useAssetSelectionActions(selection, query, count) {
+export default function useAssetSelectionActions(
+  selection: AssetSelection,
+  query: AssetQuery,
+  count: number | undefined,
+) {
   const { isSelectMode, selectedAssetIds, toggleSelectAsset, selectAssets, exitSelectMode } = selection;
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 
-  const allSelected = count > 0 && selectedAssetIds.length === count;
+  const allSelected = count !== undefined && count > 0 && selectedAssetIds.length === count;
 
   return {
     hasSelection: selectedAssetIds.length > 0,
     allSelected,
-    openAsset(asset) {
+    openAsset(asset: Pick<AssetRow, 'id'>) {
       if (isSelectMode) toggleSelectAsset(asset.id);
       else router.navigate(assetHref(asset.id, query.descriptor));
     },

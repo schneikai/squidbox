@@ -1,5 +1,5 @@
 import { router, useNavigation } from 'expo-router';
-import { type RefObject, useCallback } from 'react';
+import { useCallback } from 'react';
 import { type FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -45,6 +45,13 @@ export default function ContactList({ list }: ContactListProps) {
     ),
     [lastIndex],
   );
+  // The list as `listRef`'s: a callback ref, since an object ref of ScrollableList isn't a FlatList's.
+  const attachList = useCallback(
+    (contactList: FlatList<ContactSummary> | null) => {
+      listRef.current = contactList;
+    },
+    [listRef],
+  );
 
   const header = list.notes ? (
     <Text variant="status" style={styles.description}>
@@ -71,8 +78,7 @@ export default function ContactList({ list }: ContactListProps) {
         }
       />
       <Animated.FlatList
-        // The list fills the ref; useListControls only calls its scrollToOffset.
-        ref={listRef as RefObject<FlatList<ContactSummary> | null>}
+        ref={attachList}
         data={rows}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

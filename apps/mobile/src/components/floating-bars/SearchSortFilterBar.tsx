@@ -7,11 +7,11 @@ import SortFilterMenu, { type SortFilterMenuProps } from './SortFilterMenu';
 
 import { layout } from '@/styles/designTokens';
 
-export type SearchSortFilterBarProps<Sort extends string> = {
+export type SearchSortFilterBarProps<Sort extends string, Filter extends string = string> = {
   search: SearchBarState;
   placeholder?: string;
   expandProgress?: SharedValue<number>;
-} & SortFilterMenuProps<Sort>;
+} & SortFilterMenuProps<Sort, Filter>;
 
 /**
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
@@ -20,7 +20,7 @@ export type SearchSortFilterBarProps<Sort extends string> = {
  * SortFilterMenu; the options button lights up while `activeFilter` holds a filter. Without sort,
  * filter or view options the bar is search only.
  */
-export default function SearchSortFilterBar<Sort extends string>({
+export default function SearchSortFilterBar<Sort extends string, Filter extends string = string>({
   search,
   placeholder,
   expandProgress,
@@ -31,7 +31,7 @@ export default function SearchSortFilterBar<Sort extends string>({
   onSort,
   onFilter,
   showViewOptions,
-}: SearchSortFilterBarProps<Sort>) {
+}: SearchSortFilterBarProps<Sort, Filter>) {
   const { bottom } = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const ownExpandProgress = useSharedValue(0);
