@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-flatlist';
 
-import PostAsset, { type PostAssetProps } from './PostAsset';
+import PostAsset, { type EditorPostAsset } from './PostAsset';
 
 import useHaptics from '@/hooks/useHaptics';
 import { scale, space } from '@/styles/designTokens';
@@ -10,8 +10,8 @@ import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 export type PostAssetsEditorProps = {
-  postAssets: PostAssetProps['postAsset'][];
-  onChange: (postAssets: PostAssetProps['postAsset'][]) => void;
+  postAssets: EditorPostAsset[];
+  onChange: (postAssets: EditorPostAsset[]) => void;
   style: StyleProp<ViewStyle>;
 };
 
@@ -23,11 +23,11 @@ export default function PostAssetsEditor({ postAssets, onChange, style }: PostAs
   const countInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
 
-  function deletePostAsset(postAsset: PostAssetProps['postAsset']) {
+  function deletePostAsset(postAsset: EditorPostAsset) {
     onChange(postAssets.filter((x) => x.id !== postAsset.id));
   }
 
-  function handleDragEnd({ data, from, to }: DragEndParams<PostAssetProps['postAsset']>) {
+  function handleDragEnd({ data, from, to }: DragEndParams<EditorPostAsset>) {
     if (from !== to) haptics.drop();
     onChange(data);
   }

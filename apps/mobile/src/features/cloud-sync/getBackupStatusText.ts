@@ -1,10 +1,12 @@
 import type { CloudSyncValue } from './CloudSyncContext';
 
-import type { readBackupCounts } from '@/sync/assetsRepository';
+import type { CloudContextValue } from '@/features/cloud/CloudContext';
+import type { BackupCounts } from '@/sync/assetsRepository';
 import formatErrorCount from '@/utils/formatErrorCount';
 
 type BackupStatus = Pick<CloudSyncValue, 'isSyncing' | 'syncMessage' | 'backupError'> &
-  Awaited<ReturnType<typeof readBackupCounts>> & { needsReauth?: boolean };
+  BackupCounts &
+  Partial<Pick<CloudContextValue, 'needsReauth'>>;
 
 /**
  * The backup's state in a few words, from the cloud-sync context and useBackupCounts: running,

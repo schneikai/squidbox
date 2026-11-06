@@ -53,16 +53,11 @@ export default function IgnoredPostsScreen() {
           style={{ flex: 1, paddingTop: layout.sheetContentTop }}
         />
       ) : (
-        // JS component: its destructured props read as required until post-list converts.
         <PostList
           rows={rows}
           loadMore={loadMore}
           contentContainerStyle={padding}
           renderPostActions={renderPostActions}
-          ListHeaderComponent={undefined}
-          FirstListEntryComponent={undefined}
-          listRef={undefined}
-          onScroll={undefined}
         />
       )}
     </ModalSheet>

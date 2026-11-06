@@ -12,7 +12,7 @@ import type { PostAsset as BuiltPostAsset } from '@/utils/posts/buildPostAsset';
 
 // What PostCard builds the strip's items with (buildPostAssets): a row, or a record just added from
 // the camera roll.
-type EditorPostAsset = BuiltPostAsset<AssetRecord>;
+export type EditorPostAsset = BuiltPostAsset<AssetRecord>;
 
 export type PostAssetProps = {
   postAsset: EditorPostAsset;

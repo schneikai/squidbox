@@ -3,20 +3,16 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import Post from '@/features/post-detail/Post';
-import MoreAction, { type MoreActionProps } from '@/features/post-detail/actions/MoreAction';
+import MoreAction from '@/features/post-detail/actions/MoreAction';
 import usePost from '@/features/post-list/usePost';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import type { PostRow } from '@/sync/db/schema';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
-
-type PostScreenPost = MoreActionProps['post'] & Pick<PostRow, 'postedAt'>;
 
 export default function PostScreen() {
   const navigation = useNavigation();
   const { postId } = useLocalSearchParams<{ postId: string }>();
-  // usePost is JS: the row typed by what this screen and its actions read.
-  const post: PostScreenPost | null | undefined = usePost(postId);
+  const post = usePost(postId);
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   useCloseWhenGone(post, 'This post was deleted');
 

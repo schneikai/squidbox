@@ -6,11 +6,10 @@ import { Alert } from 'react-native';
 import voiceFields from './voiceFields';
 
 import TextEditSheet from '@/components/TextEditSheet';
+import useAvailableUserId from '@/hooks/useAvailableUserId';
 import useEditSheet from '@/hooks/useEditSheet';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import ruleResultText from '@/lib/ruleResultText';
-import useOpenLibrary from '@/library/useOpenLibrary';
 import { getDb } from '@/sync/db/client';
 import { addRule, readPersona, removeRule, type SeededRule, updateRule } from '@/sync/personaRepository';
 
@@ -20,11 +19,9 @@ export default function RuleScreen() {
   // `rules/[index]` gives the index, `rules/new` doesn't.
   const params = useLocalSearchParams<{ index?: string }>();
   const index = params.index === undefined ? undefined : Number(params.index);
-  const isAvailable = useLeaveWhenUnavailable();
-  const { userId } = useOpenLibrary();
+  const userId = useAvailableUserId();
 
-  // Available already means an account (useIsAssistantAvailable); the userId check only narrows.
-  if (!isAvailable || userId === null) return null;
+  if (userId === null) return null;
   return <SeededRuleEditor userId={userId} index={index} />;
 }
 
@@ -55,12 +52,13 @@ type RuleEditorProps = { userId: string; rule: SeededRule | null };
 // The draft of the rule: Add for a new one, Save or Delete rule for a stored one.
 function RuleEditor({ userId, rule }: RuleEditorProps) {
   const navigation = useNavigation();
-  const [text, setText] = useState(rule?.text ?? '');
+  const storedText = rule?.text ?? '';
+  const [text, setText] = useState(storedText);
   const isNew = rule === null;
   const { sheetProps, notice, finish } = useEditSheet({
     isNew,
     isValid: Boolean(text.trim()),
-    isDirty: text.trim() !== (rule?.text ?? ''),
+    isDirty: text.trim() !== storedText,
     save,
     text,
   });

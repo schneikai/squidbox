@@ -10,13 +10,12 @@ import CatalogStatus from '@/components/CatalogStatus';
 import EditSheet from '@/components/EditSheet';
 import TextEditSheet from '@/components/TextEditSheet';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
+import useAvailableUserId from '@/hooks/useAvailableUserId';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useEditSheet from '@/hooks/useEditSheet';
 import useInstructions from '@/hooks/useInstructions';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import applyAppInstructions from '@/lib/applyAppInstructions';
-import useOpenLibrary from '@/library/useOpenLibrary';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
@@ -31,13 +30,11 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 export default function InstructionScreen() {
   const params = useLocalSearchParams<{ kind: string }>();
   const kind = instructionKindSchema.safeParse(params.kind);
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
-  const { userId } = useOpenLibrary();
-  // Only while available: useLeaveWhenUnavailable closes it otherwise.
-  useCloseWhen(isAvailable && !kind.success);
+  const userId = useAvailableUserId('ai_admin');
+  // Only while available: useAvailableUserId closes it otherwise.
+  useCloseWhen(userId !== null && !kind.success);
 
-  // Available already means an account (useIsAssistantAvailable); the userId check only narrows.
-  if (!isAvailable || !kind.success || userId === null) return null;
+  if (!kind.success || userId === null) return null;
   return <InstructionSheet kind={kind.data} userId={userId} />;
 }
 

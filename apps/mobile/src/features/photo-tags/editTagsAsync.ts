@@ -1,8 +1,9 @@
-import editedTags, { type TagsEdit } from './editedTags';
+import editedTags from './editedTags';
 
 import { setTags } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { requestSync } from '@/sync/worker';
+import type { TagsEdit } from '@/utils/tagsDifference';
 
 /**
  * Edits the tags of the asset with this id (`{ add, remove }`, editedTags'), made on its stored tags

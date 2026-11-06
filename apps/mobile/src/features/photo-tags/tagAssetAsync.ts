@@ -1,7 +1,7 @@
-import tagAssetFileAsync, { type TagDeps } from './tagAssetFileAsync';
+import tagAssetFileAsync from './tagAssetFileAsync';
 import tagAttempts from './tagAttempts';
 
-import type { VisionAsset } from '@/utils/assets/readVisionImageAsync';
+import type { VisionAsset, VisionImageReadDeps } from '@/utils/assets/readVisionImageAsync';
 
 /**
  * Tags the asset (POST /ai/tags on its thumbnail; a video's is its frame) and stores the tags on it,
@@ -13,7 +13,7 @@ import type { VisionAsset } from '@/utils/assets/readVisionImageAsync';
  */
 export default function tagAssetAsync(
   asset: VisionAsset,
-  deps: TagDeps,
+  deps: VisionImageReadDeps,
   { before }: { before?: () => Promise<unknown> } = {},
 ): Promise<string[]> {
   return tagAttempts.run(asset.id, async () => {

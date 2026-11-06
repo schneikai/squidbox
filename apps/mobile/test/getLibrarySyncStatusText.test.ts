@@ -11,11 +11,20 @@ const idle: Parameters<typeof getLibrarySyncStatusText>[0] = {
 };
 
 describe('getLibrarySyncStatusText', () => {
-  it('describes the everyday states', () => {
+  it('says Up to date when nothing waits', () => {
     expect(getLibrarySyncStatusText(idle)).toBe('Up to date');
-    expect(getLibrarySyncStatusText({ ...idle, phase: 'error', lastError: 'boom' })).toBe('Error');
-    expect(getLibrarySyncStatusText({ ...idle, phase: 'pushing' })).toBe('Syncing…');
+  });
+
+  it('shows a sync error before syncing and rejected changes', () => {
+    expect(getLibrarySyncStatusText({ ...idle, phase: 'pushing', lastError: 'boom', failedCount: 1 })).toBe('Error');
+  });
+
+  it('says Syncing… while it pushes or pulls', () => {
+    expect(getLibrarySyncStatusText({ ...idle, phase: 'pushing', pendingCount: 3 })).toBe('Syncing…');
     expect(getLibrarySyncStatusText({ ...idle, phase: 'pulling' })).toBe('Syncing…');
+  });
+
+  it('shows rejected changes before pending ones', () => {
     expect(getLibrarySyncStatusText({ ...idle, failedCount: 2, pendingCount: 2 })).toBe('2 errors');
     expect(getLibrarySyncStatusText({ ...idle, pendingCount: 3 })).toBe('3 pending');
   });

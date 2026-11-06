@@ -119,7 +119,9 @@ export function isUnsynced(asset: Pick<schema.AssetRow, 'isSynced' | 'deletedAt'
  * How many assets wait for their upload and how many failed (together: the photos not in the cloud,
  * deleted ones not), in one statement.
  */
-export async function readBackupCounts(db: SyncDb): Promise<{ unsyncedCount: number; syncErrorCount: number }> {
+export type BackupCounts = { unsyncedCount: number; syncErrorCount: number };
+
+export async function readBackupCounts(db: SyncDb): Promise<BackupCounts> {
   const [row] = await db
     .select({
       unsyncedCount: count(),

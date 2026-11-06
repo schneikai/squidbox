@@ -1,9 +1,9 @@
+import type { CloudContextValue } from '@/features/cloud/CloudContext';
 import type { LiveSyncStatus } from '@/sync/useSyncStatus';
 import formatErrorCount from '@/utils/formatErrorCount';
 
-type LibrarySyncStatus = Pick<LiveSyncStatus, 'phase' | 'lastError' | 'pendingCount' | 'failedCount'> & {
-  needsReauth: boolean;
-};
+type LibrarySyncStatus = Pick<LiveSyncStatus, 'phase' | 'lastError' | 'pendingCount' | 'failedCount'> &
+  Pick<CloudContextValue, 'needsReauth'>;
 
 /**
  * The Library sync row's state in a few words: waiting for a sign-in, failing, syncing, rejected

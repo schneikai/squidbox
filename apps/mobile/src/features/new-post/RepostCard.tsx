@@ -9,9 +9,10 @@ import PostRowCard from '@/features/posts/PostRowCard';
 import { press, space } from '@/styles/designTokens';
 import type { AssetRow, PostRow } from '@/sync/db/schema';
 import isPresent from '@/utils/isPresent';
+import type { PostAsset } from '@/utils/posts/buildPostAsset';
 
 export type RepostCardProps = {
-  post: Pick<PostRow, 'text' | 'postedAt'> & { postAssets: { asset: AssetRow }[] };
+  post: Pick<PostRow, 'text' | 'postedAt'> & { postAssets: PostAsset<AssetRow>[] };
   onOpen: () => void;
   onRepost: () => void;
   onLater: () => void;
@@ -30,8 +31,7 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
     <Pressable onPress={onOpen} style={({ pressed }) => pressed && press.flat}>
       <PostRowCard asset={first}>
         {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
-        {/* JS component: its destructured props read as required until posts converts. */}
-        <PostPostedAt postedAt={post.postedAt} style={undefined} />
+        <PostPostedAt postedAt={post.postedAt} />
         <View style={styles.actions}>
           <Button variant="primary" size="small" label="Repost" icon="repeat" onPress={onRepost} />
           <Button variant="secondary" size="small" label="Later" onPress={onLater} />

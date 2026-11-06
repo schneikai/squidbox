@@ -40,7 +40,6 @@ export default function AssetPickerScreen() {
   const selection = useToggleSelectAssetsAction();
   const [activeTab, setActiveTab] = useState<PickerTab>('Library');
   const [pickedAlbum, setPickedAlbum] = useState<AlbumRow | null>(null);
-  // useAlbum is JS: its JSDoc promises AlbumRow | null | undefined.
   const liveAlbum = useAlbum(pickedAlbum?.id);
   const [isAdding, setIsAdding] = useState(false);
   const expandProgress = useSharedValue(0);
@@ -75,7 +74,7 @@ export default function AssetPickerScreen() {
     setIsAdding(true);
     let assets: AssetRow[];
     try {
-      assets = await readByIds<AssetRow>(getDb(), schema.assets, selection.selectedAssetIds);
+      assets = await readByIds(getDb(), schema.assets, selection.selectedAssetIds);
     } catch {
       setIsAdding(false);
       Alert.alert("Couldn't add the photos", 'Please try again.');

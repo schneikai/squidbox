@@ -7,7 +7,7 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import NewPostCard from '@/features/new-post/NewPostCard';
-import RepostCard, { type RepostCardProps } from '@/features/new-post/RepostCard';
+import RepostCard from '@/features/new-post/RepostCard';
 import laterSuggestRepostAt from '@/features/new-post/laterSuggestRepostAt';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
@@ -17,8 +17,6 @@ import { getDb } from '@/sync/db/client';
 import type { PostRow } from '@/sync/db/schema';
 import { readNewestRepostDate } from '@/sync/postsRepository';
 import { usePagedQuery } from '@/sync/usePagedQuery';
-
-type RepostCandidate = RepostCardProps['post'] & Pick<PostRow, 'id' | 'suggestRepostAt'>;
 
 const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' });
 
@@ -32,8 +30,7 @@ export default function NewPostScreen() {
   const { updatePost } = usePosts();
   const padding = useScreenPadding('sheet');
 
-  // postQuery is JS: its rows typed by what this sheet reads.
-  const { rows, count, loadMore } = usePagedQuery<RepostCandidate>(candidates, 20);
+  const { rows, count, loadMore } = usePagedQuery(candidates, 20);
 
   // If there's nothing to repost, skip this screen entirely
   useEffect(() => {
@@ -50,7 +47,7 @@ export default function NewPostScreen() {
     router.navigate({ pathname: '/post-editor', params: { rePostId: post.id } });
   }
 
-  async function handleLater(post: RepostCandidate) {
+  async function handleLater(post: Pick<PostRow, 'id' | 'suggestRepostAt'>) {
     await updatePost(post.id, { suggestRepostAt: laterSuggestRepostAt(post, await readNewestRepostDate(getDb())) });
   }
 

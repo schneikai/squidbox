@@ -17,6 +17,9 @@ export type VisionAsset = Pick<
 export type VisionImageDeps = AssetFileLocation &
   Pick<CloudContextValue, 'preloadAssetThumbnailsAsync'> & { signal?: AbortSignal };
 
+// The deps without a signal: what useVisionImageDeps gives a screen (a tagging, the vision compare).
+export type VisionImageReadDeps = Omit<VisionImageDeps, 'signal'>;
+
 /**
  * A photo for the assistant to look at (the vision compare, the photo tags), `{ base64, mimeType }`:
  * the asset's thumbnail (a video's is its frame) as the JPEG `visionImage` describes. It works for

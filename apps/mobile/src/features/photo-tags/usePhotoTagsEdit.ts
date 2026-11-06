@@ -5,6 +5,7 @@ import editTagsAsync from './editTagsAsync';
 
 import useHaptics from '@/hooks/useHaptics';
 import type { AssetRow } from '@/sync/db/schema';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import tagsDifference from '@/utils/tagsDifference';
 
 /**
@@ -45,7 +46,7 @@ export default function usePhotoTagsEdit(asset: Pick<AssetRow, 'id' | 'tags'>) {
         (error) => {
           console.error('Saving the tags failed', error);
           haptics.error();
-          Alert.alert("Couldn't save your changes", error.message);
+          Alert.alert("Couldn't save your changes", apiErrorMessage(error));
           setPending(null);
         },
       )

@@ -14,16 +14,16 @@ import TagsField from '@/components/TagsField';
 import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useAvailableUserId from '@/hooks/useAvailableUserId';
 import usePersona from '@/hooks/usePersona';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import useOpenLibrary from '@/library/useOpenLibrary';
 import { scale, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The fields this screen edits in place (Rules have their own screen, from Assistant).
 type VoiceDraft = Pick<PersonaFields, 'aboutYou' | 'tone' | 'contentTags'>;
@@ -34,11 +34,9 @@ type VoiceSetters = { [K in keyof VoiceDraft]: (value: VoiceDraft[K]) => void };
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
 // you type, and the Adult content switch under Your content, saved as it flips.
 export default function VoiceScreen() {
-  const isAvailable = useLeaveWhenUnavailable();
-  const { userId } = useOpenLibrary();
+  const userId = useAvailableUserId();
 
-  // Available already means an account (useIsAssistantAvailable); the userId check only narrows.
-  if (!isAvailable || userId === null) return null;
+  if (userId === null) return null;
   return <SeededVoiceEditor userId={userId} />;
 }
 
@@ -68,12 +66,16 @@ function VoiceEditor({ userId, seed }: VoiceEditorProps) {
   // One setter per field that keeps its identity, so typing in one field leaves the others' lists
   // (memo) alone.
   const [setters] = useState<VoiceSetters>(() => ({
-    aboutYou: (value) => setDraft((current) => ({ ...current, aboutYou: value })),
-    tone: (value) => setDraft((current) => ({ ...current, tone: value })),
-    contentTags: (value) => setDraft((current) => ({ ...current, contentTags: value })),
+    aboutYou: setterOf('aboutYou'),
+    tone: setterOf('tone'),
+    contentTags: setterOf('contentTags'),
   }));
   const persona = usePersona();
   const { flush } = useSaveAsYouType(normalized(draft), saveFields);
+
+  function setterOf<K extends keyof VoiceDraft>(field: K) {
+    return (value: VoiceDraft[K]) => setDraft((current) => ({ ...current, [field]: value }));
+  }
 
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
   async function saveFields(next: VoiceDraft, stored: VoiceDraft) {
@@ -83,7 +85,7 @@ function VoiceEditor({ userId, seed }: VoiceEditorProps) {
   function handleAdultContentChange(isOn: boolean) {
     savePersona(getDb(), userId, { adultContent: isOn }).then(requestSync, (error) => {
       console.error('Saving Adult content failed', error);
-      Alert.alert("Couldn't save your changes", error.message);
+      Alert.alert("Couldn't save your changes", apiErrorMessage(error));
     });
   }
 
