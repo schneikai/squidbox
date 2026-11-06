@@ -12,10 +12,6 @@
  *   await page.getByText('Albums').click();
  *   await settleAsync(page);
  */
-// The shared login contract, as TypeScript Node strips. eslint-plugin-import would parse it as
-// JavaScript: universe sets its TypeScript parser for .js and .ts files, not .mjs.
-// eslint-disable-next-line import/namespace
-import { loginResponseSchema } from '@squidbox/shared/contracts/auth.ts';
 import { chromium, devices } from 'playwright';
 
 import { METRO_URL, readServerEnv, SERVER_URL } from '../../../scripts/localBackend.mjs';
@@ -125,7 +121,8 @@ export function readSeedCredentials() {
   return { email, password };
 }
 
-// The mock account's session, as the server's login contract has it (a different answer fails here).
+// The mock account's session: the server's answer, unchecked (the UI flow tests parse it).
+/** @returns {Promise<unknown>} */
 export async function loginAsync() {
   const { email, password } = readSeedCredentials();
   const res = await fetch(`${API_URL}/auth/login`, {
@@ -134,7 +131,7 @@ export async function loginAsync() {
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) throw new Error(`Login failed: ${res.status} (is \`npm run dev:local\` running?)`);
-  return loginResponseSchema.parse(await res.json());
+  return res.json();
 }
 
 // Runs in the page before every navigation: seeds the session record the web session store
