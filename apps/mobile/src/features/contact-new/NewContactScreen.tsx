@@ -1,6 +1,6 @@
 import type { ContactRecord } from '@squidbox/shared';
 import { router } from 'expo-router';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import DuplicatesCard from './DuplicatesCard';
 import QuickAddBar from './QuickAddBar';
@@ -70,6 +70,7 @@ export default function NewContactScreen() {
         hasPhoto={!!avatarUri}
         variant="form"
         onPick={setAvatarUri}
+        style={styles.photo}
       />
 
       <HandleFieldsCard
@@ -107,3 +108,10 @@ export default function NewContactScreen() {
     </EditSheet>
   );
 }
+
+const styles = StyleSheet.create({
+  // More room above the photo than the sheet's gap, so the quick adds read as their own group.
+  photo: {
+    marginTop: 8,
+  },
+});

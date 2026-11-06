@@ -102,14 +102,13 @@ export default function QuickAddBar() {
 }
 
 const styles = StyleSheet.create({
-  // A little more room before the photo under it than between its own parts.
+  // The sheet's own gap between its parts, so the cards, the note and the cards under it sit evenly.
   bar: {
     gap: 12,
-    marginBottom: 8,
   },
   cards: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
   note: {
     flexDirection: 'row',
