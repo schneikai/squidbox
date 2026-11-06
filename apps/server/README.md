@@ -26,6 +26,16 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
   Fly it is a secret (`fly secrets set VENICE_API_KEY=…`). Node's built-in `fetch` ignores
   `HTTPS_PROXY`: behind a proxy run Node ≥ 22.21 with `NODE_USE_ENV_PROXY=1`.
+- **Contacts:** `POST /contacts/x-profile` (a New contact's From link, every signed-in account):
+  the name, bio, website, place, photo and the Bluesky, OnlyFans and JFF handles of a public X
+  profile (`src/contacts/`). An anonymous GET of `x.com/<handle>` with the app's own User-Agent, no
+  X API or keys, read from the page without running it; the HTML is never stored. When the bio
+  names a Bluesky handle, its public profile fills what X didn't show. Accounts with the `ai`
+  feature also get the writing model's pass (the `contactXProfile` instructions: the handles the
+  regexes miss and the place split), when the server has a Venice key. A profile X hides from
+  signed-out readers answers `unavailable`, a missing one `notFound`, and a page it can't read
+  `failed` (logged as `From link: …`). Its fetches use Node's `fetch` too: behind a proxy they need
+  `NODE_USE_ENV_PROXY=1`, as for Venice.
 
 Everything is scoped per user.
 
