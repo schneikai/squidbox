@@ -35,7 +35,7 @@ export default function QuickAddCard({
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityState={{ busy: loading }}
-      style={({ pressed }) => [styles.card, pressed && press.filled, loading && styles.busy]}
+      style={({ pressed }) => [styles.card, shadows.card, pressed && press.filled, loading && styles.busy]}
     >
       <View style={[styles.disc, isAssistant && styles.assistantDisc]}>
         {loading ? (
@@ -59,7 +59,6 @@ const styles = StyleSheet.create({
     padding: layout.cardInset,
     borderRadius: radii.card,
     backgroundColor: colors.background.surface,
-    ...shadows.card,
   },
   busy: {
     opacity: disabledOpacity + 0.3,

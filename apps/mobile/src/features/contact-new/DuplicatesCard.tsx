@@ -37,7 +37,7 @@ export default function DuplicatesCard({ matches, onOpen }: DuplicatesCardProps)
               <Text variant="title" size="small" numberOfLines={1}>
                 {contact.name}
               </Text>
-              <RNText style={styles.reason}>{reason}</RNText>
+              <RNText style={[textStyles.footnote, styles.reason]}>{reason}</RNText>
             </View>
             <Button label="Open" size="small" onPress={() => onOpen(contact)} />
           </View>
@@ -78,7 +78,6 @@ const styles = StyleSheet.create({
   // `muted`, not a Text tone: secondary would fade on the note's yellow.
   reason: {
     marginTop: space.hair,
-    ...textStyles.footnote,
     color: colors.text.muted,
   },
 });

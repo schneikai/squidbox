@@ -51,7 +51,7 @@ export default function ContactListRows({ lists }: ContactListRowsProps) {
 function MoreDisc({ count }: { count: number }) {
   return (
     <View style={[styles.more, styles.overlapped]}>
-      <Text style={styles.moreText}>+{count}</Text>
+      <Text style={[textStyles.footnoteBold, styles.moreText]}>+{count}</Text>
     </View>
   );
 }
@@ -77,7 +77,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   moreText: {
-    ...textStyles.footnoteBold,
     color: colors.text.muted,
   },
 });

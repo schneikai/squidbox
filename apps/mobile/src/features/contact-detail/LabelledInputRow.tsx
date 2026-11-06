@@ -31,7 +31,7 @@ export default function LabelledInputRow({
 }: LabelledInputRowProps) {
   return (
     <View style={[styles.row, endsWithButton && styles.endsWithButton]}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[textStyles.body, styles.label]}>{label}</Text>
       <TextInput accessibilityLabel={label} autoCorrect={false} {...inputProps} style={styles.input} />
       {children}
     </View>
@@ -52,7 +52,6 @@ const styles = StyleSheet.create({
   },
   label: {
     minWidth: LABEL_WIDTH,
-    ...textStyles.body,
     color: colors.text.primary,
   },
   input: {

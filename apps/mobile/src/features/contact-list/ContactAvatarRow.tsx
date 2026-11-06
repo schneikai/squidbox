@@ -25,7 +25,7 @@ export default function ContactAvatarRow({ contacts }: ContactAvatarRowProps) {
           accessibilityLabel={contact.name}
         >
           <ContactAvatar contact={contact} size="medium" />
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[textStyles.footnote, styles.name]} numberOfLines={1}>
             {contact.name.trim().split(/\s+/)[0]}
           </Text>
         </Pressable>
@@ -50,7 +50,6 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   name: {
-    ...textStyles.footnote,
     color: colors.text.primary,
   },
 });

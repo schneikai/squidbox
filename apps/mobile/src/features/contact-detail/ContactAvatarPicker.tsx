@@ -68,7 +68,7 @@ export default function ContactAvatarPicker({
 
   return (
     <View style={[styles.hero, style]}>
-      <View style={styles.raised}>
+      <View style={[styles.raised, shadows.avatar]}>
         <SuperPressable onDoublePress={onDoublePress} accessibilityHint="Double tap to favorite">
           <ContactAvatar contact={contact} uri={uri} size="hero" />
         </SuperPressable>
@@ -78,7 +78,7 @@ export default function ContactAvatarPicker({
         accessibilityRole="button"
         accessibilityLabel={hasPhoto ? 'Change photo' : 'Add photo'}
         hitSlop={(sizes.iconButton - CAMERA_DISC) / 2}
-        style={({ pressed }) => [styles.camera, pressed && press.filled]}
+        style={({ pressed }) => [styles.camera, shadows.floating, pressed && press.filled]}
       >
         <Icon name="camera" size={scale(19)} color={colors.accent.base} />
       </Pressable>
@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
   },
   raised: {
     borderRadius: sizes.avatar.hero / 2,
-    ...shadows.avatar,
   },
   camera: {
     position: 'absolute',
@@ -119,6 +118,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.floating,
   },
 });
