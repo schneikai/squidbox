@@ -1,9 +1,13 @@
 /**
- * The body of `response`, or null once it passes `maxBytes` (the rest isn't read: the request is
- * cancelled).
+ * The body of `response`, or null when it is larger than `maxBytes`: refused by its content-length
+ * when it says so, else once that much was read (the rest isn't: the request is cancelled).
  */
 export async function readCappedBody(response: Response, maxBytes: number): Promise<Buffer | null> {
   if (!response.body) return Buffer.alloc(0);
+  if (Number(response.headers.get('content-length') ?? 0) > maxBytes) {
+    await response.body.cancel().catch(() => {});
+    return null;
+  }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;

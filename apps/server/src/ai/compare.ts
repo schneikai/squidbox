@@ -3,6 +3,7 @@
 import type { CatalogEntry } from './catalog.js';
 import { runTask, type AiTask } from './tasks.js';
 import { VeniceError, type ChatMessage } from './venice.js';
+import { escapeRegExp } from '../escapeRegExp.js';
 
 type Logger = { error: (object: unknown, message: string) => void };
 
@@ -39,7 +40,7 @@ export async function compareModels<T>({
 // Venice's own error texts can name the model ("kimi-k3 is at capacity"), which would unblind it.
 function withoutModelName(message: string, model: CatalogEntry): string {
   return [model.id, model.model_spec.name].reduce(
-    (text, name) => text.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), 'the model'),
+    (text, name) => text.replace(new RegExp(escapeRegExp(name), 'gi'), 'the model'),
     message,
   );
 }

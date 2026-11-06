@@ -1,4 +1,4 @@
-import type { ContactFromScreenshotResponse } from '@squidbox/shared';
+import type { ContactRead } from '@squidbox/shared';
 
 import visionImage from '@/utils/assets/visionImage';
 import readContactScreenshotAsync from '@/utils/cloud-api/ai/readContactScreenshotAsync';
@@ -13,7 +13,7 @@ const SCREENSHOT = { ...visionImage, longSide: 1536 };
  * Picks a profile screenshot and has the assistant read it: resolves to the fields it read
  * (readContactScreenshotAsync), or null when nothing was picked. Throws what the server said.
  */
-export default async function contactFromScreenshotAsync(): Promise<ContactFromScreenshotResponse | null> {
+export default async function contactFromScreenshotAsync(): Promise<ContactRead | null> {
   const [picked] = (await pickImageFromMediaLibrary({ mediaTypes: ['images'], allowsMultipleSelection: false })) ?? [];
   if (!picked) return null;
   const { base64 } = await resizeToJpegAsync(picked.uri, {

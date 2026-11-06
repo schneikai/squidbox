@@ -172,11 +172,11 @@ Write handles exactly as given.`,
     '',
     'Return only a JSON object with the keys "name", "xHandle", "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the screenshot doesn\'t show. Handles without @ and without a URL. The location as its "city", "state" (the state or province, only in the US) and "country", with official English names; always try to name the country, even when only the city is shown. No commentary or Markdown.',
   ].join('\n'),
-  // From link (New contact): what to read from the X profile the server fetched, as the same JSON.
+  // From link (New contact): what to read from the X profile the server fetched.
   contactXProfile: [
-    "A content creator is adding this X profile as a contact. Below are the profile's fields as X shows them (the handle is known; the bio and the website may name their other profiles). Find their Bluesky handle, OnlyFans handle and JFF handle in the bio, the website and the links, and split the location into its city, state (the state or province, only in the US) and country, with official English names; always try to name the country, even when only a city is given. Leave the X handle and the name empty: they are known.",
+    "A content creator is adding this X profile as a contact. Below are the profile's fields as X shows them (the handle is known; the bio and the website may name their other profiles). Find their Bluesky handle, OnlyFans handle and JFF handle in the bio and the website, and split the location into its city, state (the state or province, only in the US) and country, with official English names; always try to name the country, even when only a city is given.",
     '',
-    'Return only a JSON object with the keys "name", "xHandle", "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the profile doesn\'t show. Handles without @ and without a URL. No commentary or Markdown.',
+    'Return only a JSON object with the keys "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the profile doesn\'t show. Handles without @ and without a URL. No commentary or Markdown.',
     '',
     '# The profile',
     '{profile}',

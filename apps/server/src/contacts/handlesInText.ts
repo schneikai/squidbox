@@ -1,22 +1,16 @@
-// The deterministic handle pass of From link: the other networks' handles a profile's bio, website
-// and links name as a profile link (or, for Bluesky, as a bare *.bsky.social handle).
-import { CONTACT_HANDLES, normalizeHandle, type ContactHandleField } from '@squidbox/shared';
-
-type OtherHandleField = Exclude<ContactHandleField, 'xHandle'>;
-
-const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// The deterministic handle pass of From link: the other networks' handles a profile's bio and
+// website name as a profile link (or, for Bluesky, as a bare *.bsky.social handle).
+import { CONTACT_HANDLE_BY_FIELD, OTHER_HANDLE_FIELDS, normalizeHandle, type OtherHandleField } from '@squidbox/shared';
+import { escapeRegExp } from '../escapeRegExp.js';
 
 // Each network's patterns with the host its match is a handle of: a profile link of each of its
 // hosts (`onlyfans.com/mayal/c17`), and for Bluesky the bare form bios write (`Maya.bsky.social`).
 const PATTERNS: { field: OtherHandleField; host: string; pattern: RegExp }[] = [
-  ...CONTACT_HANDLES.filter(
-    (handle): handle is Extract<(typeof CONTACT_HANDLES)[number], { field: OtherHandleField }> =>
-      handle.field !== 'xHandle',
-  ).flatMap(({ field, hosts }) =>
-    hosts.map((host) => ({
+  ...OTHER_HANDLE_FIELDS.flatMap((field) =>
+    CONTACT_HANDLE_BY_FIELD[field].hosts.map((host) => ({
       field,
       host,
-      pattern: new RegExp(String.raw`(?:https?:\/\/)?(?:www\.)?${escape(host)}([A-Za-z0-9_.-]+)`, 'i'),
+      pattern: new RegExp(String.raw`(?:https?:\/\/)?(?:www\.)?${escapeRegExp(host)}([A-Za-z0-9_.-]+)`, 'i'),
     })),
   ),
   { field: 'blueskyHandle', host: '', pattern: /@?([a-z0-9-]+(?:\.[a-z0-9-]+)*\.bsky\.social)/i },

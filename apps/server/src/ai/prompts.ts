@@ -1,11 +1,14 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
+  contactFromXProfileAiResponseSchema,
   contactReadSchema,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
   type ChatTurn,
+  type ContactFromXProfileAiRequest,
+  type ContactFromXProfileAiResponse,
   type ContactRead,
   type Instructions,
   type PersonaFields,
@@ -227,42 +230,26 @@ export function writingBriefingText(
   });
 }
 
-/** An X profile as the server read it, for From link's question (xProfileMessages). */
-export type XProfileFields = {
-  handle: string;
-  name: string;
-  bio: string;
-  location: string;
-  website: string;
-  links: string[];
-};
-
 /**
  * From link's question about an X profile: `template` (instructions.contactXProfile) with
  * `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
- * "Location: …", "Website: …", "Links: …"; an empty field's line left out), as the one user message
- * (a model behind Venice refuses a request with only a system message). The model gets these lines,
- * never the page.
+ * "Location: …", "Website: …"; an empty field's line left out), as the one user message (a model
+ * behind Venice refuses a request with only a system message). The model gets these lines, never
+ * the page.
  */
-export function xProfileMessages(template: string, profile: XProfileFields): ChatMessage[] {
+export function xProfileMessages(template: string, profile: ContactFromXProfileAiRequest): ChatMessage[] {
   const lines: [string, string][] = [
     ['Handle', profile.handle && `@${profile.handle}`],
     ['Name', profile.name],
     ['Bio', profile.bio],
     ['Location', profile.location],
     ['Website', profile.website],
-    ['Links', profile.links.join(', ')],
   ];
   const text = lines
     .filter(([, value]) => value.trim())
     .map(([label, value]) => `${label}: ${value.trim()}`)
     .join('\n');
   return [{ role: 'user', content: fillTemplate(template, { profile: text }) }];
-}
-
-/** A photo sent in a request body (`{ base64, mimeType }`) as the data URL a vision message carries. */
-export function imageDataUrl({ base64, mimeType }: { base64: string; mimeType: string }): string {
-  return `data:${mimeType};base64,${base64}`;
 }
 
 /**
@@ -371,22 +358,29 @@ export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: strin
   zod: z.object({ pass: z.boolean(), reason: z.string() }),
 };
 
-const CONTACT_FIELDS = contactReadSchema.keyof().options;
 // A field the model left out or set to null reads as not shown.
 const contactField = z
   .string()
   .nullish()
   .transform((value) => value ?? '');
 
-// A contact read from a profile (its screenshot or its X profile): each field a string, empty when
-// not shown.
-export const contactSchema: JsonSchemaSpec<ContactRead> = {
-  name: 'contact',
-  jsonSchema: objectSchema(Object.fromEntries(CONTACT_FIELDS.map((field) => [field, { type: 'string' }]))),
-  zod: z.object(
-    Object.fromEntries(CONTACT_FIELDS.map((field) => [field, contactField])) as Record<
-      (typeof CONTACT_FIELDS)[number],
-      typeof contactField
-    >,
-  ),
-};
+// A contact's fields read from a profile, each a string, empty when not shown.
+function contactFieldsSpec<K extends string>(name: string, fields: readonly K[]): JsonSchemaSpec<Record<K, string>> {
+  return {
+    name,
+    jsonSchema: objectSchema(Object.fromEntries(fields.map((field) => [field, { type: 'string' }]))),
+    zod: z.object(Object.fromEntries(fields.map((field) => [field, contactField])) as Record<K, typeof contactField>),
+  };
+}
+
+// A contact read from a profile screenshot.
+export const contactSchema: JsonSchemaSpec<ContactRead> = contactFieldsSpec(
+  'contact',
+  contactReadSchema.keyof().options,
+);
+
+// What From link's assistant pass reads from an X profile: the other handles and the place.
+export const xProfileContactSchema: JsonSchemaSpec<ContactFromXProfileAiResponse> = contactFieldsSpec(
+  'x_profile_contact',
+  contactFromXProfileAiResponseSchema.keyof().options,
+);

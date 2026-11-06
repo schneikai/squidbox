@@ -41,11 +41,6 @@ export class VeniceUnavailableError extends VeniceError {
   }
 }
 
-/** Whether the server has a Venice key, so the assistant can be asked at all. */
-export function isAiConfigured(): boolean {
-  return !!loadConfig().VENICE_API_KEY;
-}
-
 /** A request to Venice's API at `path`, with the key and a timeout; `signal` stops it sooner. */
 function veniceFetch(
   path: string,

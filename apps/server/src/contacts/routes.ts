@@ -1,13 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { contactFromXProfileRequestSchema, contactFromXProfileResponseSchema } from '@squidbox/shared';
-import { authenticate, requireUser } from '../auth/authenticate.js';
-import { getDb } from '../db/client.js';
+import { authenticate } from '../auth/authenticate.js';
 import { untilClientLeaves } from '../requestSignal.js';
 import { readContactFromXProfileAsync } from './contactFromXProfile.js';
 
-// The contacts' routes: for every signed-in account, not behind the assistant's gate (the
-// assistant's part of a route checks the `ai` feature itself).
+// The contacts' routes: for every signed-in account, not behind the assistant's gate.
 export async function contactRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
@@ -22,8 +20,6 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     schema: { body: contactFromXProfileRequestSchema, response: { 200: contactFromXProfileResponseSchema } },
     handler: async (request, reply) =>
       readContactFromXProfileAsync({
-        db: getDb(),
-        user: requireUser(request),
         handle: request.body.handle,
         signal: untilClientLeaves(reply),
         log: request.log,

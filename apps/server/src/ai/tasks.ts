@@ -7,6 +7,7 @@ import {
   CONTACT_HANDLE_FIELDS,
   normalizeHandle,
   uniqueTags,
+  type ContactFromXProfileAiResponse,
   type ContactRead,
   type AiModelKind,
   type ChatReply,
@@ -16,7 +17,14 @@ import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import { chatReplyJsonSpec, contactSchema, judgeVerdictJsonSpec, postsSchema, tagsSchema } from './prompts.js';
+import {
+  chatReplyJsonSpec,
+  contactSchema,
+  judgeVerdictJsonSpec,
+  postsSchema,
+  tagsSchema,
+  xProfileContactSchema,
+} from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /**
@@ -116,19 +124,24 @@ export const photoTagsTask: AiTask<{ tags: string[] }> = {
   check: ({ tags }) => ({ tags: fitTags(tags) }),
 };
 
-// A contact read from a profile, from its screenshot (POST /ai/contact-from-screenshot) or from the
-// X profile the server read (POST /contacts/x-profile): the handles as contacts store them, the name
-// and the place's parts trimmed.
-export const contactReadTask: AiTask<ContactRead> = {
-  schema: contactSchema,
-  check: (read) => ({
-    ...read,
-    ...Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, normalizeHandle(read[field])])),
-    name: read.name.trim(),
-    city: read.city.trim(),
-    state: read.state.trim(),
-    country: read.country.trim(),
-  }),
+// A contact's read fields as contacts store them: the handles normalized, the name and the place's
+// parts trimmed.
+function checkContactFields<T extends Partial<Record<keyof ContactRead, string>>>(read: T): T {
+  const checked: Partial<Record<keyof ContactRead, string>> = { ...read };
+  for (const field of CONTACT_HANDLE_FIELDS) if (field in read) checked[field] = normalizeHandle(read[field] ?? '');
+  for (const field of ['name', 'city', 'state', 'country'] as const)
+    if (field in read) checked[field] = (read[field] ?? '').trim();
+  return checked as T;
+}
+
+// A contact read from a profile screenshot (POST /ai/contact-from-screenshot).
+export const contactReadTask: AiTask<ContactRead> = { schema: contactSchema, check: checkContactFields };
+
+// From link's assistant pass on an X profile (POST /ai/contact-from-x-profile): the other handles and
+// the place.
+export const xProfileContactTask: AiTask<ContactFromXProfileAiResponse> = {
+  schema: xProfileContactSchema,
+  check: checkContactFields,
 };
 
 // The model check's judge: whether a chat turn's reply answered the request, and why in one line.
