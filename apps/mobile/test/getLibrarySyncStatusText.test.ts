@@ -26,11 +26,17 @@ describe('getLibrarySyncStatusText', () => {
 
   it('shows rejected changes before pending ones', () => {
     expect(getLibrarySyncStatusText({ ...idle, failedCount: 2, pendingCount: 2 })).toBe('2 errors');
+  });
+
+  it('counts the changes waiting to go up', () => {
     expect(getLibrarySyncStatusText({ ...idle, pendingCount: 3 })).toBe('3 pending');
   });
 
-  it('says what waits for a sign-in once the session ended', () => {
+  it('counts what waits for a sign-in once the session ended', () => {
     expect(getLibrarySyncStatusText({ ...idle, needsReauth: true, pendingCount: 12 })).toBe('12 waiting for sign-in');
+  });
+
+  it('says Up to date once the session ended with nothing waiting, even after an error', () => {
     expect(getLibrarySyncStatusText({ ...idle, needsReauth: true, lastError: 'Session expired' })).toBe('Up to date');
   });
 });

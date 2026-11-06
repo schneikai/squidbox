@@ -3,17 +3,13 @@ import { router } from 'expo-router';
 import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import type { PostListRow, PostWithAssets } from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
-import type { AssetRow, PostRow } from '@/sync/db/schema';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import confirmAsync from '@/utils/confirmAsync';
-import type { PostAsset } from '@/utils/posts/buildPostAsset';
 
 export type MoreActionProps = {
-  post: Pick<PostRow, 'id'> & {
-    postAssets: PostAsset<AssetRow>[];
-    threadPosts: { postAssets: PostAsset<AssetRow>[] }[];
-  };
+  post: Pick<PostListRow, 'id' | 'postAssets'> & { threadPosts: Pick<PostWithAssets, 'postAssets'>[] };
   afterDelete?: () => void;
 };
 

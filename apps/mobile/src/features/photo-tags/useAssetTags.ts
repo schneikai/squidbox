@@ -41,7 +41,6 @@ export default function useAssetTags(assets: readonly Pick<AssetRecord, 'id'>[])
 
   return useMemo(() => {
     const attempts = Object.fromEntries(ids.flatMap((id) => (allAttempts[id] ? [[id, allAttempts[id]]] : [])));
-    // A photo never tagged and not tried counts as tagging while available: the effect above tags it.
     const { isTagging, untagged } = taggingState(rows, attempts, isAvailable, tagAttempts.hasRun);
 
     // Read when called, so a tagging that started since the last render is waited for too.

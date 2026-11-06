@@ -4,15 +4,13 @@ import type { CloudContextValue } from '@/features/cloud/CloudContext';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import type { AssetFileLocation } from '@/utils/assets/files/getAssetFileStatusAsync';
+import type { ThumbnailAsset } from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
 import getAssetThumbnailStatusAsync from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 import visionImage from '@/utils/assets/visionImage';
 import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
 
 // What a tagging (or the vision compare) reads of an asset.
-export type VisionAsset = Pick<
-  AssetRecord,
-  'id' | 'filename' | 'thumbnailFilename' | 'mediaType' | 'isThumbnailSynced' | 'width' | 'height'
->;
+export type VisionAsset = ThumbnailAsset & Pick<AssetRecord, 'isThumbnailSynced' | 'width' | 'height'>;
 
 export type VisionImageDeps = AssetFileLocation &
   Pick<CloudContextValue, 'preloadAssetThumbnailsAsync'> & { signal?: AbortSignal };

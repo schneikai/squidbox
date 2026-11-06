@@ -233,19 +233,12 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`src/sync`, `src/library`, `src/utils`, `src/hooks`, `src/lib`, `src/components`, `src/styles`, the
-data contexts (assets, posts, albums), app settings, the cloud, the thumbnail loader's context,
-`SelectionActions`, the small features (instructions, assistant, boot, account features, dev
-accounts) with their routes, Contacts, Settings, the first sync and the backup, Writing as you and
-the Rules, the asset picker, the New post sheet, the post screen and its actions, the editor's media
-strip, and the photo tags, with their routes, and the polyfills are strict TypeScript, and
-`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the other
-features (asset-list, album-list, album-detail, asset-detail, posts, post-list, post-chat,
-prompt-buttons, model-compare, model-verify, the thumbnail loader's provider and queue),
-`app/_layout.jsx` with the routes of those features, and five files held back: `SyncErrorViewer`,
-`SyncScreen`, `Post` and `ComponentGalleryScreen` (Contacts changed them; the next batch), and
-`AssetPickerGrid` (with asset-list). Convert them feature by feature, then add `test/` to the check
-and turn `allowJs` off.
+`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
+asset-list, album-list, album-detail, asset-detail, posts, post-list, post-chat, prompt-buttons,
+model-compare, model-verify and the thumbnail loader's provider and queue, `app/_layout.jsx` and
+those features' routes, and five held files (`SyncErrorViewer`, `SyncScreen`, `Post`,
+`ComponentGalleryScreen`; `AssetPickerGrid` with asset-list). Convert them feature by feature, then
+add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 

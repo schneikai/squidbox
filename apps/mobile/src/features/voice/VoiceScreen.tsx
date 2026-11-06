@@ -93,7 +93,7 @@ function VoiceEditor({ userId, seed }: VoiceEditorProps) {
     setInfo({ field, isVisible: true });
   }
 
-  function textField(field: 'aboutYou' | 'tone', maxLength: number) {
+  function textField(field: Exclude<keyof VoiceDraft, 'contentTags'>, maxLength: number) {
     const { label, placeholder } = voiceFields[field];
     return (
       <Field label={label} onInfo={() => showInfo(field)}>

@@ -4,15 +4,14 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import type { PostListRow } from '@/features/post-list/postQuery';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import PostRowCard from '@/features/posts/PostRowCard';
 import { press, space } from '@/styles/designTokens';
-import type { AssetRow, PostRow } from '@/sync/db/schema';
 import isPresent from '@/utils/isPresent';
-import type { PostAsset } from '@/utils/posts/buildPostAsset';
 
 export type RepostCardProps = {
-  post: Pick<PostRow, 'text' | 'postedAt'> & { postAssets: PostAsset<AssetRow>[] };
+  post: Pick<PostListRow, 'text' | 'postedAt' | 'postAssets'>;
   onOpen: () => void;
   onRepost: () => void;
   onLater: () => void;
