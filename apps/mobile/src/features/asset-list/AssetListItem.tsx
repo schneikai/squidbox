@@ -17,7 +17,6 @@ import formatVideoDuration from '@/utils/formatVideoDuration';
 export default memo(AssetListItem);
 
 export type AssetListItemProps = { asset: AssetRow; selection?: SelectionStore };
-
 function AssetListItem({ asset, selection }: AssetListItemProps) {
   const { duration, isFavorite, isSynced, notes } = asset;
   // The glows darken the corners behind the indicators, so they only show over a loaded picture, as
