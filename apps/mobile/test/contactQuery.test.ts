@@ -93,6 +93,23 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ search: 'BENCLIMBS' }))).toEqual(['ben']);
   });
 
+  it('search ignores accents both ways', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'joao', name: 'João', places: [{ city: 'São Paulo' }] }));
+    await contacts.create(db, makeContactRecord({ id: 'rene', name: 'Rene' }));
+    expect(await ids(contactQuery({ search: 'sao' }))).toEqual(['joao']);
+    expect(await ids(contactQuery({ search: 'JOAO' }))).toEqual(['joao']);
+    expect(await ids(contactQuery({ search: 'René' }))).toEqual(['rene']);
+  });
+
+  it('search matches umlauts and ß by either spelling', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'mueller', name: 'Jörg Müller', places: [{ city: 'Gießen' }] }));
+    await contacts.create(db, makeContactRecord({ id: 'schroeder', name: 'Schroeder' }));
+    expect(await ids(contactQuery({ search: 'muller' }))).toEqual(['mueller']);
+    expect(await ids(contactQuery({ search: 'Mueller' }))).toEqual(['mueller']);
+    expect(await ids(contactQuery({ search: 'giessen' }))).toEqual(['mueller']);
+    expect(await ids(contactQuery({ search: 'schröder' }))).toEqual(['schroeder']);
+  });
+
   it("a list's scope is its live members", async () => {
     await contactListMembers.add(db, { listId: 'l1' }, ['maya', 'ben'], newId);
     await contactListMembers.remove(db, { listId: 'l1' }, ['ben']);
