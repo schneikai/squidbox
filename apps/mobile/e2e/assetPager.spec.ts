@@ -1,6 +1,5 @@
-/* eslint-env node, browser */
-import { expect, test } from './fixtures.mjs';
-import { assetCells, button, swipeLeft } from './helpers.mjs';
+import { expect, test } from './fixtures';
+import { assetCells, button, swipeLeft } from './helpers';
 
 test('a swipe in the pager shows the next photo', async ({ page }) => {
   await assetCells(page.getByTestId('library-screen')).first().click();
@@ -8,6 +7,7 @@ test('a swipe in the pager shows the next photo', async ({ page }) => {
   const title = screen.getByTestId('toolbar-title');
   // The mock library's photos are a day apart, so the next one has another date.
   const firstTitle = await title.textContent();
+  if (firstTitle === null) throw new Error('The pager title has no text');
 
   await swipeLeft(page, screen);
 

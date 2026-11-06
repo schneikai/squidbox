@@ -1,16 +1,17 @@
-/* eslint-env node, browser */
-import { expect, test } from './fixtures.mjs';
-import { assetCells, button } from './helpers.mjs';
+import type { Locator, Page } from 'playwright/test';
+
+import { expect, test } from './fixtures';
+import { assetCells, button } from './helpers';
 import { readSeedCredentials } from '../scripts/webPreview.mjs';
 
 // Opens Settings from the library's account button.
-async function openSettings(page) {
+async function openSettings(page: Page) {
   await button(page.getByTestId('library-screen'), 'Settings').click();
   return page.getByTestId('settings-screen');
 }
 
 // Back from Settings to the library, which shows its photos.
-async function expectLibraryAfterBack(page, settings) {
+async function expectLibraryAfterBack(page: Page, settings: Locator) {
   await button(settings, 'Back').click();
   await expect(assetCells(page.getByTestId('library-screen')).first()).toBeVisible();
 }

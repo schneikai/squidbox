@@ -11,7 +11,7 @@
  * prettier on the code in FORMAT_ROOTS. Either runs over the whole repo when its config or the
  * packages changed. typecheck: `npm run typecheck`, whole projects, incremental: the server, and
  * every TypeScript file in the mobile app's src (tsconfig.typecheck.json) and, in a program of its
- * own, test (tsconfig.test.json). tests: per app, the test files whose imports reach a changed
+ * own, test and e2e (tsconfig.test.json). tests: per app, the test files whose imports reach a changed
  * file, in any app (`vitest related`), or the app's whole suite when its config, package, test
  * helpers or setup, or the files its tests read from disk changed, or a file was deleted or moved.
  * A packages/shared change counts for both apps. No DB suites: README says when to run those. new

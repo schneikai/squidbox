@@ -1,10 +1,11 @@
-/* eslint-env node, browser */
-import { expect, test } from './fixtures.mjs';
-import { button, openTab, pickFromSquidbox, postCards, uniqueName } from './helpers.mjs';
+import type { Page } from 'playwright/test';
+
+import { expect, test } from './fixtures';
+import { button, openTab, pickFromSquidbox, postCards, uniqueName } from './helpers';
 
 // Writes a new post with two photos from the library and adds it. The editor opens from the New
 // post sheet (the mock data has posts to repost, so the sheet shows), and Add closes both sheets.
-async function addPost(page, text) {
+async function addPost(page: Page, text: string) {
   await openTab(page, 'Posts');
   await button(page.getByTestId('posts-screen'), 'Add').click();
   const newPost = page.getByTestId('new-post-sheet');
