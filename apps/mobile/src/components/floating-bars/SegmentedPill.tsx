@@ -4,7 +4,7 @@ import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
 import type { IconName } from '@/components/Icon';
-import { colors, press, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, press, radii, shadows, sizes, space, textStyles } from '@/styles/designTokens';
 
 // `icon` makes an icon segment; without one the segment is its `label`.
 export type SegmentedPillItem<Key extends string = string> = { key: Key; icon?: IconName; label: string };
@@ -86,8 +86,8 @@ function TextSegment({ label, size, isActive, onPress }: TextSegmentProps) {
 
 const styles = StyleSheet.create({
   segment: {
-    paddingVertical: 9,
-    paddingHorizontal: 18,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.lg,
     borderRadius: radii.pill,
   },
   active: {
@@ -96,8 +96,7 @@ const styles = StyleSheet.create({
   },
   // One weight on and off, so a segment keeps its width when it's picked; only the color changes.
   label: {
-    fontSize: typography.subheadline,
-    fontWeight: '600',
+    ...textStyles.subheadlineBold,
     color: colors.text.secondary,
   },
   // One button tall, so the pill is as tall as the toolbars and the + beside it.
@@ -105,11 +104,9 @@ const styles = StyleSheet.create({
     height: sizes.iconButton,
     justifyContent: 'center',
     paddingVertical: 0,
-    paddingHorizontal: scale(16),
+    paddingHorizontal: space.lg,
   },
-  titleLabel: {
-    fontSize: typography.body,
-  },
+  titleLabel: textStyles.bodyBold,
   activeLabel: {
     color: colors.text.primary,
   },

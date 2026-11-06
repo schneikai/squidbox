@@ -48,8 +48,8 @@ const styles = StyleSheet.create({
     marginLeft: layout.menuIconGap,
   },
   headerIcon: {
-    marginLeft: -4,
-    marginRight: 8,
+    marginLeft: -space.xs,
+    marginRight: layout.iconGap,
   },
   // Grows to push the trailing node right, but keeps its natural width as the basis: with `flex: 1`
   // (basis 0) the auto-sized menu ignores label widths, so long labels wrap after the menu's height

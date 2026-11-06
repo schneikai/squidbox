@@ -13,7 +13,6 @@ import {
   sizes,
   space,
   textStyles,
-  typography,
 } from '@/styles/designTokens';
 
 export type ChipVariant = 'tag' | 'action' | 'raised' | 'lead' | 'add';
@@ -131,22 +130,19 @@ const styles = StyleSheet.create({
   },
   // The node sits close to the frame's start, as an avatar in a pill does.
   withLeading: {
-    paddingLeft: 2,
-    paddingRight: 14,
+    paddingLeft: space.hair,
+    paddingRight: space.md + space.hair,
   },
+  // The label space.lg from the pill's edge, as the frame's is space.md.
   large: {
     height: scale(40),
-    gap: 8,
-    paddingHorizontal: 15,
+    paddingHorizontal: space.lg - chipFrame.borderWidth,
   },
   largeWithLeading: {
-    paddingLeft: 3,
-    paddingRight: 13,
+    paddingLeft: space.xs - chipFrame.borderWidth,
+    paddingRight: space.md,
   },
-  largeLabel: {
-    fontSize: typography.callout,
-    fontWeight: '500',
-  },
+  largeLabel: textStyles.body,
   // A selected tag and the `lead` chip.
   accentFill: {
     backgroundColor: colors.accent.light,

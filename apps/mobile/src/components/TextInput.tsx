@@ -2,7 +2,7 @@ import { type ComponentProps, useState } from 'react';
 import { TextInput as RNTextInput, StyleSheet } from 'react-native';
 
 import Card from '@/components/Card';
-import { colors, layout, scale, space, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, textStyles, typography } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 
 // A multiline field grows with its text up to this, then scrolls inside, so a long text never
@@ -87,10 +87,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.rowInset,
     paddingVertical: space.md,
   },
+  // title1's size and weight, without its line height (as `line`).
   title: {
     fontSize: typography.title1,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    fontWeight: textStyles.title1.fontWeight,
     textAlign: 'center',
     color: colors.text.primary,
     paddingVertical: 0,

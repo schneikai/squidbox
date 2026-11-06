@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { sizes } from '@/styles/designTokens';
+import { layout, sizes } from '@/styles/designTokens';
 
 /**
  * The marks at the end of a card's row that aren't buttons (the assistant's sparkle on a field it
@@ -21,6 +21,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: layout.iconGap,
   },
 });

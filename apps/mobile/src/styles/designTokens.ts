@@ -286,11 +286,8 @@ export const radii = {
 export const typography = {
   caption2: scale(11),
   footnote: scale(13),
-  detail: scale(14), // the line under a contact or a list in a list of them
   subheadline: scale(15),
-  callout: scale(16),
   body: scale(17),
-  title3: scale(20),
   title2: scale(22),
   title1: scale(28),
 };
