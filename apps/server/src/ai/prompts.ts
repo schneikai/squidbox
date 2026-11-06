@@ -1,12 +1,12 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
-  contactFromScreenshotResponseSchema,
+  contactReadSchema,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
   type ChatTurn,
-  type ContactFromScreenshotResponse,
+  type ContactRead,
   type Instructions,
   type PersonaFields,
 } from '@squidbox/shared';
@@ -227,6 +227,39 @@ export function writingBriefingText(
   });
 }
 
+/** An X profile as the server read it, for From link's question (xProfileMessages). */
+export type XProfileFields = {
+  handle: string;
+  name: string;
+  bio: string;
+  location: string;
+  website: string;
+  links: string[];
+};
+
+/**
+ * From link's question about an X profile: `template` (instructions.contactXProfile) with
+ * `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
+ * "Location: …", "Website: …", "Links: …"; an empty field's line left out), as the one user message
+ * (a model behind Venice refuses a request with only a system message). The model gets these lines,
+ * never the page.
+ */
+export function xProfileMessages(template: string, profile: XProfileFields): ChatMessage[] {
+  const lines: [string, string][] = [
+    ['Handle', profile.handle && `@${profile.handle}`],
+    ['Name', profile.name],
+    ['Bio', profile.bio],
+    ['Location', profile.location],
+    ['Website', profile.website],
+    ['Links', profile.links.join(', ')],
+  ];
+  const text = lines
+    .filter(([, value]) => value.trim())
+    .map(([label, value]) => `${label}: ${value.trim()}`)
+    .join('\n');
+  return [{ role: 'user', content: fillTemplate(template, { profile: text }) }];
+}
+
 /** A photo sent in a request body (`{ base64, mimeType }`) as the data URL a vision message carries. */
 export function imageDataUrl({ base64, mimeType }: { base64: string; mimeType: string }): string {
   return `data:${mimeType};base64,${base64}`;
@@ -338,15 +371,16 @@ export const judgeVerdictJsonSpec: JsonSchemaSpec<{ pass: boolean; reason: strin
   zod: z.object({ pass: z.boolean(), reason: z.string() }),
 };
 
-const CONTACT_FIELDS = contactFromScreenshotResponseSchema.keyof().options;
+const CONTACT_FIELDS = contactReadSchema.keyof().options;
 // A field the model left out or set to null reads as not shown.
 const contactField = z
   .string()
   .nullish()
   .transform((value) => value ?? '');
 
-// A contact read from a profile screenshot: each field a string, empty when not shown.
-export const contactSchema: JsonSchemaSpec<ContactFromScreenshotResponse> = {
+// A contact read from a profile (its screenshot or its X profile): each field a string, empty when
+// not shown.
+export const contactSchema: JsonSchemaSpec<ContactRead> = {
   name: 'contact',
   jsonSchema: objectSchema(Object.fromEntries(CONTACT_FIELDS.map((field) => [field, { type: 'string' }]))),
   zod: z.object(

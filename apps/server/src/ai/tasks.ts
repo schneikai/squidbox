@@ -7,7 +7,7 @@ import {
   CONTACT_HANDLE_FIELDS,
   normalizeHandle,
   uniqueTags,
-  type ContactFromScreenshotResponse,
+  type ContactRead,
   type AiModelKind,
   type ChatReply,
 } from '@squidbox/shared';
@@ -116,9 +116,10 @@ export const photoTagsTask: AiTask<{ tags: string[] }> = {
   check: ({ tags }) => ({ tags: fitTags(tags) }),
 };
 
-// A contact read from a profile screenshot (POST /ai/contact-from-screenshot): the handles as
-// contacts store them, the name and the place's parts trimmed.
-export const contactFromScreenshotTask: AiTask<ContactFromScreenshotResponse> = {
+// A contact read from a profile, from its screenshot (POST /ai/contact-from-screenshot) or from the
+// X profile the server read (POST /contacts/x-profile): the handles as contacts store them, the name
+// and the place's parts trimmed.
+export const contactReadTask: AiTask<ContactRead> = {
   schema: contactSchema,
   check: (read) => ({
     ...read,

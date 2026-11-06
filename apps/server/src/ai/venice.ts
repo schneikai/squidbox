@@ -2,6 +2,7 @@
 // reads Venice's JSON endpoints, and runs chat completions, plain or as JSON that matches a schema.
 import type { z } from 'zod';
 import { loadConfig } from '../config.js';
+import { withTimeout } from '../requestSignal.js';
 import { AppError } from '../errors.js';
 
 // Models reason at their defaults, which can take a minute or two (Qwen 3.6 Plus: 35–69 s).
@@ -40,6 +41,11 @@ export class VeniceUnavailableError extends VeniceError {
   }
 }
 
+/** Whether the server has a Venice key, so the assistant can be asked at all. */
+export function isAiConfigured(): boolean {
+  return !!loadConfig().VENICE_API_KEY;
+}
+
 /** A request to Venice's API at `path`, with the key and a timeout; `signal` stops it sooner. */
 function veniceFetch(
   path: string,
@@ -55,7 +61,7 @@ function veniceFetch(
   return fetch(`${baseUrl}${path}`, {
     ...init,
     headers: { ...headers, authorization: `Bearer ${apiKey}` },
-    signal: signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]) : AbortSignal.timeout(timeoutMs),
+    signal: withTimeout(timeoutMs, signal),
   });
 }
 

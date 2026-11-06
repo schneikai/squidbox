@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   aiBalanceResponseSchema,
@@ -40,28 +40,19 @@ import { publishInstruction, readAppInstructions, readInstructions } from './ins
 import { compareVisionMessages, imageDataUrl, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
-import { orAiUnavailable, VeniceError } from './venice.js';
+import { isAiConfigured, orAiUnavailable, VeniceError } from './venice.js';
 import { verifyPhotos } from './tagVerify.js';
 import { readVerification, setModelDefaults, setUncensored, setVerification } from './verification.js';
 import { VERIFY } from './verify.js';
 import { readLatestRun, runVerify, startRun } from './verifyRuns.js';
-import { loadConfig } from '../config.js';
-
-// Aborted once the app stops waiting (a closed compare), so the Venice calls stop too.
-function untilClientLeaves(reply: FastifyReply): AbortSignal {
-  const controller = new AbortController();
-  reply.raw.on('close', () => {
-    if (!reply.raw.writableFinished) controller.abort();
-  });
-  return controller.signal;
-}
+import { untilClientLeaves } from '../requestSignal.js';
 
 // A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and, for a compare, the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
 
 // Before any Venice call: 503 ai_not_configured when the server has no Venice key.
 async function aiConfigured(): Promise<void> {
-  if (!loadConfig().VENICE_API_KEY) throw AppError.aiNotConfigured();
+  if (!isAiConfigured()) throw AppError.aiNotConfigured();
 }
 
 type CompareResult<T> = (T & { modelId: string }) | { modelId: string; error: string };

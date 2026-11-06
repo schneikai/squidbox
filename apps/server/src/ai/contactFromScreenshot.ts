@@ -5,7 +5,7 @@ import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
 import { imageDataUrl, visionMessages } from './prompts.js';
-import { contactFromScreenshotTask, runChosenModelTask } from './tasks.js';
+import { contactReadTask, runChosenModelTask } from './tasks.js';
 
 /**
  * The name, handles and place the user's vision model reads in the screenshot, each empty when it
@@ -35,7 +35,7 @@ export async function readContactScreenshotAsync({
     db,
     user,
     kind: 'vision',
-    task: contactFromScreenshotTask,
+    task: contactReadTask,
     messagesAsync: messagesAsync(),
     signal,
   });
