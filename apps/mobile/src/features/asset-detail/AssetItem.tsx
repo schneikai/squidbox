@@ -6,13 +6,14 @@ import Animated from 'react-native-reanimated';
 import AssetMessage, { type AssetMessageText } from './AssetMessage';
 import AssetVideo from './AssetVideo';
 import aspectRatioOf from './aspectRatioOf';
-import unavailableMessage from './unavailableMessage';
 import type { AssetVideo as AssetVideoValue } from './useAssetVideo';
 import useZoomGesture, { type UseZoomGestureOptions } from './useZoomGesture';
 
 import AssetImage, { type ThumbnailStatus } from '@/components/AssetImage';
 import type { AssetRow } from '@/sync/db/schema';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
+import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
+import isUnavailableStatus from '@/utils/assets/files/isUnavailableStatus';
 
 // Memoized: the pager re-renders on every swipe, its pages shouldn't.
 export default memo(AssetItem);
@@ -80,12 +81,16 @@ function AssetItem({
   );
 }
 
-const FAILED_MESSAGE: AssetMessageText = { icon: 'alert', text: "Couldn't load this photo." };
+const FAILED_MESSAGE: AssetMessageText = { icon: 'alert', message: "Couldn't load this photo." };
 
 // A photo its device hasn't backed up yet, one only in the cloud while signed out, or one whose
 // download gave up.
 function renderUnavailable(hasPicture: boolean, status: ThumbnailStatus | undefined) {
-  const message = unavailableMessage(status) ?? (status === 'failed' ? FAILED_MESSAGE : undefined);
+  const message = isUnavailableStatus(status)
+    ? assetFileUnavailableMessages[status]
+    : status === 'failed'
+      ? FAILED_MESSAGE
+      : undefined;
   if (hasPicture || !message) return null;
   return (
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>

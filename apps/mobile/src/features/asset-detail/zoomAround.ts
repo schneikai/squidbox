@@ -8,7 +8,12 @@ export default function zoomAround({
   from,
   to,
   ratio,
-}: Record<'translation' | 'from' | 'to' | 'ratio', number>): number {
+}: {
+  translation: number;
+  from: number;
+  to: number;
+  ratio: number;
+}): number {
   'worklet';
   return to - ratio * (from - translation);
 }

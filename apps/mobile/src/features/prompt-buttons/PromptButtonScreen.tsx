@@ -1,4 +1,4 @@
-import { promptButtonCollection, type NewPromptButton } from '@squidbox/shared';
+import { PROMPT_BUTTON_LIMITS, type PromptButtonFields } from '@squidbox/shared';
 import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -24,14 +24,8 @@ import confirmAsync from '@/utils/confirmAsync';
 import getNewItemId from '@/utils/getNewItemId';
 import isPresent from '@/utils/isPresent';
 
-const { shape } = promptButtonCollection.schema;
-// zod's maxLength is null for a string without a max; both have one.
-const NAME_MAX_LENGTH = shape.name.maxLength ?? undefined;
-const PROMPT_MAX_LENGTH = shape.prompt.maxLength ?? undefined;
 // A button can't be without these.
 const REQUIRED_FIELDS = ['name', 'prompt'] as const;
-
-type PromptButtonSeed = Omit<NewPromptButton, 'id'>;
 
 // One prompt button as a draft sheet: `…/prompt-buttons/[id]` edits it (Save, Duplicate, Delete),
 // `…/prompt-buttons/new` adds one at the end (Add, once it has a name and a prompt). Opened from the
@@ -39,7 +33,7 @@ type PromptButtonSeed = Omit<NewPromptButton, 'id'>;
 export default function PromptButtonScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isAvailable = useLeaveWhenUnavailable();
-  const seed = useSeedOrClose<PromptButtonSeed>(
+  const seed = useSeedOrClose<PromptButtonFields>(
     (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', icon: null })),
     id ?? 'new',
     'This prompt button was deleted.',
@@ -50,16 +44,16 @@ export default function PromptButtonScreen() {
 
 type PromptButtonEditorProps = {
   id: string | undefined;
-  seed: PromptButtonSeed;
+  seed: PromptButtonFields;
 };
 function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
   const pathname = usePathname();
-  const [draft, setDraft] = useState<PromptButtonSeed>({
+  const [draft, setDraft] = useState<PromptButtonFields>({
     name: seed.name,
     prompt: seed.prompt,
     icon: seed.icon,
   });
-  const values: PromptButtonSeed = { name: draft.name.trim(), prompt: draft.prompt.trim(), icon: draft.icon };
+  const values: PromptButtonFields = { name: draft.name.trim(), prompt: draft.prompt.trim(), icon: draft.icon };
   const changes = changedValues(seed, values);
   const { sheetProps, finish, confirmDiscard } = useEditSheet({
     isNew: !id,
@@ -68,7 +62,7 @@ function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
     save,
   });
 
-  function setField<K extends keyof PromptButtonSeed>(field: K, value: PromptButtonSeed[K]) {
+  function setField<K extends keyof PromptButtonFields>(field: K, value: PromptButtonFields[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
@@ -90,7 +84,7 @@ function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
       if (!button) throw new Error('This prompt button was deleted.');
       const copy = await createPromptButton(db, {
         id: getNewItemId(),
-        name: `${button.name} copy`.slice(0, NAME_MAX_LENGTH),
+        name: `${button.name} copy`.slice(0, PROMPT_BUTTON_LIMITS.name),
         prompt: button.prompt,
         icon: button.icon,
       });
@@ -129,7 +123,7 @@ function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
             value={draft.name}
             onChangeText={(text) => setField('name', text)}
             placeholder="e.g. Shorter"
-            maxLength={NAME_MAX_LENGTH}
+            maxLength={PROMPT_BUTTON_LIMITS.name}
             autoFocus={!id}
           />
         </Field>
@@ -140,7 +134,7 @@ function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
             value={draft.prompt}
             onChangeText={(text) => setField('prompt', text)}
             placeholder="e.g. Make it shorter. Keep the hook, cut the rest."
-            maxLength={PROMPT_MAX_LENGTH}
+            maxLength={PROMPT_BUTTON_LIMITS.prompt}
             minHeight={scale(140)}
           />
         </Field>

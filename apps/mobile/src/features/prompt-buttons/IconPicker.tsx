@@ -2,12 +2,12 @@ import type { PromptButtonRecord } from '@squidbox/shared';
 import { useRef, useState, type ComponentRef } from 'react';
 import { ScrollView, StyleSheet, type LayoutChangeEvent } from 'react-native';
 
-import isIconName from './isIconName';
 import PROMPT_BUTTON_ICONS from './promptButtonIcons';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import IconSlotContext from '@/components/IconSlotContext';
+import iconOrNone from '@/components/iconOrNone';
 import useHaptics from '@/hooks/useHaptics';
 import { sizes, space } from '@/styles/designTokens';
 
@@ -71,7 +71,7 @@ export default function IconPicker({ value, onChange }: IconPickerProps) {
             <Button
               key={name}
               // A stored name Icon doesn't know is a cell without an icon.
-              icon={isIconName(name) ? name : undefined}
+              icon={iconOrNone(name)}
               variant={name === value ? 'primary' : 'tertiary'}
               colorPalette="accent"
               accessibilityLabel={name.replace(/-/g, ' ')}
@@ -86,7 +86,7 @@ export default function IconPicker({ value, onChange }: IconPickerProps) {
 
 // The icons to offer: the list, and a stored name it doesn't have at the end.
 function cellsFor(value: PromptButtonRecord['icon']): readonly string[] {
-  return value && !(isIconName(value) && PROMPT_BUTTON_ICONS.includes(value))
+  return value && !PROMPT_BUTTON_ICONS.some((name) => name === value)
     ? [...PROMPT_BUTTON_ICONS, value]
     : PROMPT_BUTTON_ICONS;
 }

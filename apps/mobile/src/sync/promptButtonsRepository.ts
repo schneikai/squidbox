@@ -4,6 +4,7 @@ import {
   movePositions,
   promptButtonCollection,
   type NewPromptButton,
+  type PromptButtonFields,
   type PromptButtonRecord,
 } from '@squidbox/shared';
 import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
@@ -22,7 +23,7 @@ import newRecord from '@/utils/newRecord';
 // the prompt_buttons table. One list, in the order `(position, id)`; every record it writes takes the
 // retired placement's default (ONE_LIST_PLACEMENT).
 
-type PromptButtonChanges = Partial<Pick<PromptButtonRecord, 'name' | 'prompt' | 'icon'>>;
+type PromptButtonChanges = Partial<PromptButtonFields>;
 
 const t = schema.promptButtons;
 // A seeded default's clock: older than any real write, so every edit of the default wins over it.

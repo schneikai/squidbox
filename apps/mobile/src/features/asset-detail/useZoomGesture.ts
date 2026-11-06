@@ -9,7 +9,6 @@ import {
   useSimultaneousGestures,
   useTapGesture,
   type GestureTouchEvent,
-  type NativeGesture,
   type PanGestureConfig,
   type PinchGestureConfig,
   type TapGestureConfig,
@@ -25,15 +24,15 @@ import {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import type { VerticalDrag } from './details/useDetailsPanel';
+import type { DetailsPanel, VerticalDrag } from './details/useDetailsPanel';
 import dragWithin from './dragWithin';
 import getPanBounds from './getPanBounds';
 import settleWithin from './settleWithin';
 import type { EdgeSwipe } from './usePagerEdgeSwipe';
 import zoomAround from './zoomAround';
 
-import type { Point } from '@/components/sortable-grid/useGridLongPressPan';
 import { TAP_SLOP } from '@/constants';
+import type { Point } from '@/lib/Point';
 import { motion } from '@/styles/designTokens';
 
 // The viewer shows the 1000 px thumbnail, so zooming further than this only enlarges its pixels.
@@ -56,8 +55,8 @@ export type UseZoomGestureOptions = {
   isZoomable?: boolean;
   onTap?: () => void;
   onZoomChange: (isZoomed: boolean) => void;
-  verticalDrag?: Pick<VerticalDrag, 'canStart' | 'onStart' | 'onChange' | 'onEnd' | 'isOpen'>;
-  pagerGesture?: NativeGesture;
+  verticalDrag?: VerticalDrag;
+  pagerGesture?: DetailsPanel['pagerGesture'];
   edgeSwipe?: EdgeSwipe | null;
 };
 

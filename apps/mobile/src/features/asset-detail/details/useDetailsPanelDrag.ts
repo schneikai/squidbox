@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { usePanGesture, type NativeGesture, type PanGestureConfig } from 'react-native-gesture-handler';
+import { usePanGesture, type PanGestureConfig } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import type { VerticalDrag } from './useDetailsPanel';
+import type { DetailsPanel, VerticalDrag } from './useDetailsPanel';
 
 import { TAP_SLOP } from '@/constants';
 import type { GuardPress } from '@/lib/unguarded';
@@ -15,10 +15,7 @@ import type { GuardPress } from '@/lib/unguarded';
  * cancels the row's touch itself, the web doesn't). The pager (`pagerGesture`) waits for it: a
  * sideways swipe fails it at once, a vertical drag holds the pager until it ends.
  */
-export default function useDetailsPanelDrag(
-  verticalDrag: Pick<VerticalDrag, 'grab' | 'letGo' | 'onStart' | 'onChange' | 'onEnd'>,
-  pagerGesture: NativeGesture,
-) {
+export default function useDetailsPanelDrag(verticalDrag: VerticalDrag, pagerGesture: DetailsPanel['pagerGesture']) {
   const isPressBlocked = useRef(false);
   const blockPress = useCallback((isBlocked: boolean) => {
     isPressBlocked.current = isBlocked;

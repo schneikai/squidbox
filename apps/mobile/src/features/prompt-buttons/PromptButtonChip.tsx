@@ -1,8 +1,7 @@
 import type { NewPromptButton } from '@squidbox/shared';
 
-import isIconName from './isIconName';
-
 import Chip, { type ChipProps, type ChipVariant } from '@/components/Chip';
+import iconOrNone from '@/components/iconOrNone';
 
 type PromptButtonChipProps = {
   button: NewPromptButton;
@@ -26,7 +25,7 @@ export default function PromptButtonChip({
     <Chip
       label={button.name}
       // A stored name Icon doesn't know shows no icon.
-      icon={isIconName(button.icon) ? button.icon : undefined}
+      icon={iconOrNone(button.icon)}
       variant={variant}
       onPress={() => onPress(button)}
       accessibilityHint={accessibilityHint}

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { clamp, useAnimatedStyle } from 'react-native-reanimated';
 
 import AssetItem, { type AssetItemProps } from './AssetItem';
@@ -7,25 +7,16 @@ import aspectRatioOf from './aspectRatioOf';
 import AssetDetailsPanel from './details/AssetDetailsPanel';
 import getDetailsMediaCover from './details/getDetailsMediaCover';
 import type { DetailsPanel } from './details/useDetailsPanel';
-import type { AssetVideo } from './useAssetVideo';
-import type { EdgeSwipe } from './usePagerEdgeSwipe';
-
-import type { AssetRow } from '@/sync/db/schema';
 
 // Memoized: the pager re-renders on every swipe, its pages shouldn't.
 export default memo(AssetPage);
 
-type AssetPageProps = {
-  asset?: AssetRow;
-  style: StyleProp<ViewStyle>;
-  isCurrent: boolean;
-  showsDetails: boolean;
-  panel: DetailsPanel;
-  video: AssetVideo | null;
-  edgeSwipe: EdgeSwipe | null;
-  onTap: () => void;
-  onZoomChange: NonNullable<AssetItemProps['onZoomChange']>;
-};
+type AssetPageProps = Pick<AssetItemProps, 'asset'> &
+  Required<Pick<AssetItemProps, 'style' | 'video' | 'edgeSwipe' | 'onTap' | 'onZoomChange'>> & {
+    isCurrent: boolean;
+    showsDetails: boolean;
+    panel: DetailsPanel;
+  };
 
 /**
  * One page of the asset pager: the asset (AssetItem) and, with `showsDetails`, its details panel

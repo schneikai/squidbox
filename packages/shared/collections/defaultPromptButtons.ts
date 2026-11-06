@@ -1,7 +1,10 @@
 import type { PromptButtonRecord } from './promptButton';
 
+/** What a prompt button says and shows: what the editor drafts and an edit changes. */
+export type PromptButtonFields = Pick<PromptButtonRecord, 'name' | 'prompt' | 'icon'>;
+
 /** A prompt button's own fields, before it has a position. */
-export type NewPromptButton = Pick<PromptButtonRecord, 'id' | 'name' | 'prompt' | 'icon'>;
+export type NewPromptButton = Pick<PromptButtonRecord, 'id'> & PromptButtonFields;
 
 /**
  * The prompt buttons a library starts with, in their order: the app seeds them once

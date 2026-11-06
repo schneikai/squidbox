@@ -1,3 +1,5 @@
+export type PagerNeighbours = { pageWidth: number; hasPrevious: boolean; hasNext: boolean };
+
 /**
  * Moves the pager by a finger's horizontal change `delta` (points, positive = moving right) while a
  * zoomed photo hands its swipe over at its edge. `shift` is the pager's offset from the current
@@ -6,8 +8,6 @@
  * page width, or at 0 on a side without a neighbour. What it can't take comes back as `leftover`,
  * in the finger's units, for the image to pan or rubber-band with.
  */
-export type PagerNeighbours = { pageWidth: number; hasPrevious: boolean; hasNext: boolean };
-
 export default function shiftPager({
   shift,
   delta,

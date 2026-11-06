@@ -5,7 +5,7 @@ import Text from '@/components/Text';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import { colors, layout, sizes } from '@/styles/designTokens';
 
-export type AssetMessageText = { icon: IconName; text: string };
+export type AssetMessageText = { icon: IconName; message: string };
 
 type AssetMessageProps = {
   message?: AssetMessageText;
@@ -19,7 +19,7 @@ export default function AssetMessage({ message }: AssetMessageProps) {
     <FloatingPill style={styles.message}>
       <Icon name={message.icon} color={colors.text.secondary} style={styles.messageIcon} />
       <Text variant="hint" tone="primary" style={styles.messageText}>
-        {message.text}
+        {message.message}
       </Text>
     </FloatingPill>
   );

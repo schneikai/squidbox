@@ -5,16 +5,17 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import AssetMessage, { type AssetMessageText } from './AssetMessage';
-import unavailableMessage from './unavailableMessage';
 import type { AssetVideo as AssetVideoValue, VideoStatus } from './useAssetVideo';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import { colors, motion, sizes } from '@/styles/designTokens';
+import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
+import isUnavailableStatus from '@/utils/assets/files/isUnavailableStatus';
 
 const MESSAGES = {
-  error: { icon: 'alert', text: "Couldn't load this video." },
-  playerError: { icon: 'alert', text: "This video can't be played." },
+  error: { icon: 'alert', message: "Couldn't load this video." },
+  playerError: { icon: 'alert', message: "This video can't be played." },
 } satisfies Record<string, AssetMessageText>;
 
 type AssetVideoProps = {
@@ -78,9 +79,8 @@ function Playback({ player, isRemote }: PlaybackProps) {
 }
 
 function messageFor(status: VideoStatus): AssetMessageText | undefined {
-  if (status === 'loading') return undefined;
-  if (status === 'error') return MESSAGES.error;
-  return unavailableMessage(status);
+  if (isUnavailableStatus(status)) return assetFileUnavailableMessages[status];
+  return status === 'error' ? MESSAGES.error : undefined;
 }
 
 const styles = StyleSheet.create({

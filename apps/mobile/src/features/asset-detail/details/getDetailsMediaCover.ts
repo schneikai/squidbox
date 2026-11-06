@@ -10,7 +10,12 @@ export default function getDetailsMediaCover({
   height,
   aspectRatio,
   bandHeight,
-}: Record<'width' | 'height' | 'aspectRatio' | 'bandHeight', number>): { scale: number; translateY: number } {
+}: {
+  width: number;
+  height: number;
+  aspectRatio: number;
+  bandHeight: number;
+}): { scale: number; translateY: number } {
   'worklet';
   const isKnown = aspectRatio > 0;
   const photoWidth = isKnown ? Math.min(width, height * aspectRatio) : width;

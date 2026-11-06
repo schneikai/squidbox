@@ -2,6 +2,7 @@ import type { NewPromptButton } from '@squidbox/shared';
 import { router, useNavigation, usePathname } from 'expo-router';
 
 import PromptButtonGroup from './PromptButtonGroup';
+import type { ChipReorderOptions } from './useChipReorder';
 import usePromptButtons from './usePromptButtons';
 
 import DetailScrollView from '@/components/DetailScrollView';
@@ -34,12 +35,12 @@ export default function PromptButtonsScreen() {
     router.navigate(`${pathname}/new`);
   }
 
-  function handleMove(id: string, afterId: string | null) {
+  const handleMove: ChipReorderOptions['onMove'] = (id, afterId) => {
     movePromptButton(getDb(), id, afterId).then(requestSync, (error) => {
       console.error('Moving the prompt button failed', error);
       haptics.error();
     });
-  }
+  };
 
   if (!isAvailable) return null;
 

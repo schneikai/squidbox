@@ -7,9 +7,10 @@ import isPastMiddle from './isPastMiddle';
 
 import mergeRowIds from '@/components/sortable-grid/mergeRowIds';
 import sameOrder from '@/components/sortable-grid/sameOrder';
-import useGridLongPressPan, { type Point } from '@/components/sortable-grid/useGridLongPressPan';
+import useGridLongPressPan from '@/components/sortable-grid/useGridLongPressPan';
 import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
+import type { Point } from '@/lib/Point';
 import { motion } from '@/styles/designTokens';
 
 // The press that ends a drag (a click on web) mustn't open the chip it lands on.
@@ -129,7 +130,7 @@ export default function useChipReorder({ ids, onMove }: ChipReorderOptions) {
       return;
     }
     liftedX.value = withSpring(frame.x, motion.spring);
-    liftedY.value = withSpring(frame.y, motion.spring, (finished?: boolean) => {
+    liftedY.value = withSpring(frame.y, motion.spring, (finished) => {
       'worklet';
       if (finished) scheduleOnRN(setLiftedId, null);
     });

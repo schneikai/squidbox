@@ -22,7 +22,9 @@ describe('playVideo', () => {
     playVideo(ended);
     expect(ended.replay).toHaveBeenCalledTimes(1);
     expect(ended.play).not.toHaveBeenCalled();
-    // A length not known yet is never an end.
+  });
+
+  it('never treats an unknown length as the end', () => {
     const unknown = fakePlayer({ duration: 0, currentTime: 0 });
     playVideo(unknown);
     expect(unknown.play).toHaveBeenCalledTimes(1);

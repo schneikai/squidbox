@@ -22,7 +22,6 @@ export default function MoreAction({ asset }: MoreActionProps) {
   async function handleCopyFileUrl() {
     try {
       const url = await getAssetFileDownloadUrlAsync(asset.filename, { expiresIn: 7 * 24 * 60 * 60 });
-      if (url === null) throw new Error(`No download URL for ${asset.filename}`);
       await Clipboard.setStringAsync(url);
       Alert.alert('Copied', 'File URL copied to clipboard.');
     } catch {

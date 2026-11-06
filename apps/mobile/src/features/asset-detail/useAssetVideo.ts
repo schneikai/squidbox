@@ -7,18 +7,22 @@ import useOpenLibrary from '@/library/useOpenLibrary';
 import type { AssetRow } from '@/sync/db/schema';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 import getAssetFileSourceAsync, { type AssetFileSource } from '@/utils/assets/files/getAssetFileSourceAsync';
-import type { AssetFileAsset, AssetFileLocation } from '@/utils/assets/files/getAssetFileStatusAsync';
+import type {
+  AssetFileAsset,
+  AssetFileLocation,
+  UnavailableStatus,
+} from '@/utils/assets/files/getAssetFileStatusAsync';
 
 const TIME_UPDATE_INTERVAL = 0.25;
 // Presigned URLs last an hour (the server's default): a revisited cloud video reuses its URL for
 // half that instead of waiting for a new one.
 const URL_REUSE_MS = 30 * 60 * 1000;
 
-// The player's own failure, in AssetFileSource's shape (the members it doesn't get are undefined).
-type FailedSource = { uri?: undefined; isRemote?: undefined; status: 'error' };
+// The player's own failure, as AssetFileSource's unavailable member with its own status.
+type FailedSource = Omit<Extract<AssetFileSource, { uri?: undefined }>, 'status'> & { status: 'error' };
 type ResolvedSource = { assetId: string; resolvedAt: number } & (AssetFileSource | FailedSource);
 
-export type VideoStatus = NonNullable<ResolvedSource['status']> | 'loading';
+export type VideoStatus = UnavailableStatus | 'error' | 'loading';
 export type AssetVideo =
   | { key: string; player: VideoPlayer; status: 'ready'; isRemote: boolean }
   | { key: string; player: null; status: VideoStatus; isRemote: false };
@@ -89,7 +93,7 @@ export default function useAssetVideo(
     };
   }, [uri]);
 
-  return useMemo((): AssetVideo | null => {
+  return useMemo(() => {
     if (!assetId) return null;
     // A player exists only for a found uri; `source.uri` narrows the source to it.
     if (player && source?.uri) return { key: source.uri, player, status: 'ready', isRemote: source.isRemote };
