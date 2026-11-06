@@ -19,7 +19,7 @@ import usePersona from '@/hooks/usePersona';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useLibrary from '@/library/useLibrary';
-import { scale } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
 import { requestSync } from '@/sync/worker';
@@ -144,6 +144,6 @@ function normalized(draft) {
 
 const styles = StyleSheet.create({
   content: {
-    gap: 20,
+    gap: space.xl,
   },
 });

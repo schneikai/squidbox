@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 export type ScreenSectionHeaderProps = { title: string; trailing?: ReactNode; isFlush?: boolean };
 
@@ -28,19 +28,17 @@ export default function ScreenSectionHeader({ title, trailing, isFlush = false }
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     color: colors.text.secondary,
-    marginBottom: 8,
-    marginLeft: 4,
-    marginTop: 20,
+    marginBottom: space.sm,
+    marginLeft: layout.rowInset, // over the rows' text
+    marginTop: layout.sectionGap,
   },
   labelInRow: {
     flex: 1,
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     color: colors.text.secondary,
-    marginLeft: 4,
+    marginLeft: layout.rowInset,
   },
   flush: {
     marginLeft: 0,
@@ -48,7 +46,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    marginTop: 20,
+    marginBottom: space.sm,
+    marginTop: layout.sectionGap,
   },
 });

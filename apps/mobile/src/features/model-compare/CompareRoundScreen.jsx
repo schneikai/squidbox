@@ -5,13 +5,14 @@ import CompareRound from './CompareRound';
 
 import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import listParam from '@/lib/listParam';
+import { layout } from '@/styles/designTokens';
 import { readModelList, readPrompt, readVisionPhotos } from '@/sync/aiStateRepository';
 
 // The writing compare's sample request before the first compare; after it, the last one used. The
@@ -70,6 +71,6 @@ async function readSeed(db, kind, modelIds) {
 
 const styles = StyleSheet.create({
   status: {
-    paddingTop: MODAL_HEADER_HEIGHT,
+    paddingTop: layout.sheetContentTop,
   },
 });

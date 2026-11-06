@@ -24,5 +24,6 @@ export default {
     alignItems: 'center',
     paddingHorizontal: layout.menuRowPaddingX,
     paddingVertical: layout.menuRowPaddingY,
+    minHeight: sizes.iconButton, // Apple's 44 pt target; a larger text size grows the row
   } satisfies ViewStyle,
 };

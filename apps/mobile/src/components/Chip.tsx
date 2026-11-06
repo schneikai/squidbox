@@ -2,7 +2,7 @@ import { Pressable, type PressableProps, type StyleProp, StyleSheet, Text, View,
 
 import Icon, { type IconName } from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, lineHeights, press, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, shadows, sizes, space, textStyles } from '@/styles/designTokens';
 
 export type ChipVariant = 'tag' | 'action' | 'raised' | 'lead' | 'add';
 
@@ -74,6 +74,8 @@ export default function Chip({
   return (
     <Pressable
       onPress={onPress}
+      // With the frame's height and a row's gaps, a 44 pt pitch.
+      hitSlop={space.xs}
       disabled={disabled}
       accessibilityRole={accessibilityRole}
       accessibilityState={
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: layout.iconGap,
   },
   tag: {
     backgroundColor: colors.background.muted,
@@ -120,8 +122,7 @@ const styles = StyleSheet.create({
     opacity: disabledOpacity,
   },
   label: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.primary,
   },
   accentLabel: {

@@ -131,6 +131,7 @@ const POSTS: {
     thread: [
       { text: 'Day two: the coast road, one stop at every pull-out 🌊', media: [6, 25] },
       { text: 'Last walk before heading home. Part 2 soon.', media: [16] },
+      { text: 'Thanks for following along. Back on the trail next weekend 🥾', media: [] },
     ],
   },
   { text: 'Quiet roads, loud thoughts.', media: [19], postedDaysAgo: 5, isFavorite: true },

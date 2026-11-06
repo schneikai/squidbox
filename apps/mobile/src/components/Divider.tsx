@@ -1,6 +1,6 @@
 import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { colors, layout } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 
 export type DividerProps = { variant?: 'list' | 'menu'; style?: StyleProp<ViewStyle> };
 
@@ -17,10 +17,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border.divider,
   },
   list: {
-    marginLeft: layout.sideGutter,
+    marginLeft: layout.rowInset,
   },
   menu: {
-    marginVertical: 4,
-    marginHorizontal: 10,
+    marginVertical: space.xs,
+    marginHorizontal: layout.menuRowPaddingX, // under the rows' icons
   },
 });

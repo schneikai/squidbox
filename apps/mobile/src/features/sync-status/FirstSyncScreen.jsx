@@ -1,12 +1,13 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import Button from '@/components/Button';
 import StatusScreen from '@/components/StatusScreen';
+import Text from '@/components/Text';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import { typography } from '@/styles/designTokens';
+import {} from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -64,14 +65,26 @@ export default function FirstSyncScreen() {
 
   return (
     <StatusScreen busy={!hasError} title={hasError ? "Can't reach the server" : 'Setting up your library'}>
-      <Text style={styles.subtitle}>{subtitle()}</Text>
-      {started && <Text style={styles.count}>{hasError ? `${counts} so far` : counts}</Text>}
+      <Text variant="status" style={styles.centred}>
+        {subtitle()}
+      </Text>
+      {started && (
+        <Text variant="title" style={styles.count}>
+          {hasError ? `${counts} so far` : counts}
+        </Text>
+      )}
       {hasError ? (
         <Button label="Try again" onPress={() => requestSync()} />
       ) : (
-        <Text style={styles.hint}>Please keep the app open — it'll finish shortly.</Text>
+        <Text variant="hint" style={styles.hint}>
+          Please keep the app open — it'll finish shortly.
+        </Text>
       )}
-      {addsDevicePhotos && <Text style={styles.hint}>This iPhone’s photos are added once this is done.</Text>}
+      {addsDevicePhotos && (
+        <Text variant="hint" style={styles.hint}>
+          This iPhone’s photos are added once this is done.
+        </Text>
+      )}
       {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
       <Button label="Sign out" onPress={handleSignOut} colorPalette="muted" />
     </StatusScreen>
@@ -79,7 +92,8 @@ export default function FirstSyncScreen() {
 }
 
 const styles = StyleSheet.create({
-  subtitle: { fontSize: typography.subheadline, opacity: 0.7, textAlign: 'center' },
-  count: { fontSize: typography.callout, fontWeight: '600', marginTop: 8, textAlign: 'center' },
-  hint: { fontSize: typography.footnote, opacity: 0.5, textAlign: 'center', marginTop: 4 },
+  centred: { textAlign: 'center' },
+  // StatusScreen's gap spaces the column.
+  count: { textAlign: 'center' },
+  hint: { textAlign: 'center' },
 });

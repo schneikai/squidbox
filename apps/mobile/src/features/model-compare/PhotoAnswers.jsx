@@ -6,11 +6,11 @@ import ModelAnswers from './ModelAnswers';
 
 import CoverImage from '@/components/CoverImage';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 
 const PHOTO_SIZE = scale(96);
 // Room between the sticky photo and whatever covers the top of the list.
-const STICKY_GAP = 8;
+const STICKY_GAP = space.sm;
 
 // Memoized: it gets only its photo's results and taps, so the other photos settling leave it be.
 export default memo(PhotoAnswers);
@@ -52,7 +52,7 @@ function PhotoAnswers({
       <Animated.View style={stickyStyle}>
         <Pressable onPress={() => onOpenPhoto(asset)} accessibilityRole="imagebutton" accessibilityLabel="Open photo">
           <CoverImage asset={asset} style={styles.photo}>
-            <ThumbnailBadge icon="expand" style={styles.expand} />
+            <ThumbnailBadge icon="expand" corner="bottomRight" />
           </CoverImage>
         </Pressable>
       </Animated.View>
@@ -76,19 +76,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: layout.rowLeadingGap,
   },
   photo: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
   },
-  expand: {
-    position: 'absolute',
-    right: 6,
-    bottom: 6,
-  },
   cards: {
     flex: 1,
-    gap: 12,
+    gap: space.md,
   },
 });

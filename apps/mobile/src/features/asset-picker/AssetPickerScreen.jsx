@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import Button from '@/components/Button';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
 import useAlbum from '@/features/album-detail/useAlbum';
@@ -14,6 +14,7 @@ import AssetPickerGrid from '@/features/asset-picker/AssetPickerGrid';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useScrollY from '@/hooks/useScrollY';
 import listParam from '@/lib/listParam';
+import { layout } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
 import { readByIds } from '@/sync/readByIds';
 import getAlbumAssetScope from '@/utils/albums/getAlbumAssetScope';
@@ -103,7 +104,7 @@ export default function AssetPickerScreen() {
         <AlbumPicker
           onPick={(nextAlbum) => showView('Albums', nextAlbum)}
           showSmartAlbums
-          paddingTop={MODAL_HEADER_HEIGHT}
+          paddingTop={layout.sheetContentTop}
           onScroll={onScroll}
           expandProgress={expandProgress}
         />

@@ -4,12 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Menu, MenuProvider } from 'react-native-popup-menu';
 import { enableFreeze } from 'react-native-screens';
 
+import StatusScreen from '@/components/StatusScreen';
+import Text from '@/components/Text';
 import FloatingBarsProvider from '@/components/floating-bars/FloatingBarsProvider';
 import BlurPopoverRenderer from '@/components/popup-menu-options/BlurPopoverRenderer';
 import ProgressOverlayProvider from '@/components/progress-overlay/ProgressOverlayProvider';
@@ -72,10 +74,11 @@ class BootErrorBoundary extends Component {
   render() {
     if (this.state.error) {
       return (
-        <View style={styles.bootError}>
-          <Text style={styles.bootErrorTitle}>Something went wrong</Text>
-          <Text style={styles.bootErrorText}>Please close and reopen the app. If it keeps happening, reinstall.</Text>
-        </View>
+        <StatusScreen title="Something went wrong">
+          <Text variant="status" style={styles.bootErrorText}>
+            Please close and reopen the app. If it keeps happening, reinstall.
+          </Text>
+        </StatusScreen>
       );
     }
     return this.props.children;
@@ -263,13 +266,5 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  bootError: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 10,
-  },
-  bootErrorTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  bootErrorText: { fontSize: 15, opacity: 0.7, textAlign: 'center', lineHeight: 20 },
+  bootErrorText: { textAlign: 'center' },
 });

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 
+import { space } from '@/styles/designTokens';
+
 // The least room between a header's centred title and a side pill.
-const SIDE_GAP = 12;
+const SIDE_GAP = space.md;
 
 /**
  * The widest a header's title may be (FloatingDetailHeader, ModalHeader): centred on the row and

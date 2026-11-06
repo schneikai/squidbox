@@ -1,6 +1,6 @@
 import { type StyleProp, StyleSheet, Text, type TextStyle } from 'react-native';
 
-import { colors, radii, typography } from '@/styles/designTokens';
+import { colors, layout, radii, textStyles } from '@/styles/designTokens';
 
 const TONES = {
   danger: { backgroundColor: colors.status.dangerLight, color: colors.status.danger },
@@ -21,10 +21,9 @@ const styles = StyleSheet.create({
   badge: {
     overflow: 'hidden',
     borderRadius: radii.badge,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    fontSize: typography.caption2,
-    fontWeight: '700',
+    paddingHorizontal: layout.capsulePaddingX,
+    paddingVertical: layout.capsulePaddingY,
+    ...textStyles.caption2Bold,
     textTransform: 'uppercase',
   },
 });

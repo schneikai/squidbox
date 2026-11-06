@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
-import { SCREEN_PADDING } from '@/constants';
+import { layout } from '@/styles/designTokens';
 
 export type AddRowProps = { label: string; onPress: () => void };
 
@@ -21,6 +21,6 @@ const styles = StyleSheet.create({
   // The button's own inset is wider than the rows', so its icon lines up with their text.
   add: {
     alignItems: 'flex-start',
-    marginLeft: SCREEN_PADDING - 24,
+    marginLeft: layout.rowInset - layout.linkPaddingX,
   },
 });

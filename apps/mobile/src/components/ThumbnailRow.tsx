@@ -3,10 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import CoverImage, { type CoverImageProps } from '@/components/CoverImage';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
-import { colors, press, scale, sizes } from '@/styles/designTokens';
+import { colors, layout, press, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-
-const THUMBNAIL_SIZE = scale(72);
 
 export type ThumbnailRowProps = {
   asset?: CoverImageProps['asset'];
@@ -59,18 +57,19 @@ export default function ThumbnailRow({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: layout.rowLeadingGap,
   },
+  // The row's vertical room is on the thumbnail, not the row, so the divider stays at its bottom.
   thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    marginVertical: 6,
+    width: sizes.thumbnail,
+    height: sizes.thumbnail,
+    marginVertical: layout.rowPaddingYCompact,
   },
   text: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
   },
   // The lists' divider, inset to the text.
   divider: {

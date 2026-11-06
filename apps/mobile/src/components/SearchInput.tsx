@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
 import TextInput, { type TextInputProps } from '@/components/TextInput';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, layout, sizes, space } from '@/styles/designTokens';
 
 export type SearchInputProps = TextInputProps;
 
@@ -32,9 +32,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    gap: 8,
+    // A row's: the magnifier is its leading icon, the text starts where a row's with an icon does.
+    paddingHorizontal: layout.rowInset,
+    paddingVertical: space.md,
+    gap: layout.rowLeadingGap,
   },
   input: {
     flex: 1,

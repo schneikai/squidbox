@@ -1,9 +1,9 @@
-import { scale } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 
 // How far each of a thread's stacked edges shows below the card above it, how far in each sits, and
 // how tall each edge is (its top hides under the card).
 const STACK_STEP = scale(7);
-const STACK_INSET = scale(12);
+const STACK_INSET = space.md;
 const EDGE_HEIGHT = scale(40);
 
 /**

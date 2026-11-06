@@ -57,7 +57,7 @@ export default function FloatingNavigationBar({ state }: BottomTabBarProps) {
       style={[
         styles.container,
         {
-          bottom: insets.bottom + layout.barBottom,
+          bottom: insets.bottom + layout.barMargin,
           right: layout.sideGutter,
         },
         navBarStyle,

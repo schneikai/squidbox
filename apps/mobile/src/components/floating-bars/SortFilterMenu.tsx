@@ -5,7 +5,7 @@ import Divider from '@/components/Divider';
 import Icon, { type IconName } from '@/components/Icon';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, sizes, space } from '@/styles/designTokens';
 
 // `Sort` is the screen's sort orders, so a sort option's key is checked against them.
 export type SortOption<Sort extends string = string> = { key: Sort; label: string };
@@ -124,6 +124,6 @@ export default function SortFilterMenu<Sort extends string>({
 
 const styles = StyleSheet.create({
   chevron: {
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
 });

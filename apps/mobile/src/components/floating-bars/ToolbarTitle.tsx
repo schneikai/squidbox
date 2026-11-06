@@ -2,7 +2,7 @@ import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-na
 
 import FloatingPill from './FloatingPill';
 
-import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, sizes, textStyles } from '@/styles/designTokens';
 
 export type ToolbarTitleProps = { title?: string; subtitle?: string; style?: StyleProp<ViewStyle> };
 
@@ -39,22 +39,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexGrow: 1, // fills a pill held at its minWidth, so a short title stays centred in it
     flexShrink: 1,
+    // eslint-disable-next-line no-restricted-syntax -- optical: a title's ends want more room than a button's
     paddingHorizontal: layout.barPaddingX * 1.25,
   },
   twoLines: {
+    // eslint-disable-next-line no-restricted-syntax -- as above, more for two lines
     paddingHorizontal: layout.barPaddingX * 2,
   },
   title: {
-    fontSize: typography.subheadline,
-    lineHeight: scale(17),
-    fontWeight: '600',
+    ...textStyles.subheadlineBold,
     color: colors.text.primary,
     textAlign: 'center',
     flexShrink: 1,
   },
   subtitle: {
-    fontSize: typography.caption2,
-    lineHeight: lineHeights.caption2,
+    ...textStyles.caption2,
     color: colors.text.secondary,
     textAlign: 'center',
     flexShrink: 1,

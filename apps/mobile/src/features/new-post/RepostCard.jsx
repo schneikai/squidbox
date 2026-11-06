@@ -1,13 +1,12 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
-import Card from '@/components/Card';
-import CoverImage from '@/components/CoverImage';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { press, scale } from '@/styles/designTokens';
+import PostRowCard from '@/features/posts/PostRowCard';
+import { press, space } from '@/styles/designTokens';
 import isPresent from '@/utils/isPresent';
 
 /**
@@ -20,44 +19,27 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
 
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => pressed && press.flat}>
-      <Card style={styles.row}>
-        <CoverImage asset={first} style={styles.photo} />
-        <View style={styles.body}>
-          {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
-          <PostPostedAt postedAt={post.postedAt} />
-          <View style={styles.actions}>
-            <Button variant="primary" size="small" label="Repost" icon="repeat" onPress={onRepost} />
-            <Button variant="secondary" size="small" label="Later" onPress={onLater} />
-            <MenuButton size="small" accessibilityLabel="More for this post" style={styles.more}>
-              <MenuOption label="Ignore" icon="eye-off" onPress={onIgnore} />
-            </MenuButton>
-          </View>
+      <PostRowCard asset={first}>
+        {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
+        <PostPostedAt postedAt={post.postedAt} />
+        <View style={styles.actions}>
+          <Button variant="primary" size="small" label="Repost" icon="repeat" onPress={onRepost} />
+          <Button variant="secondary" size="small" label="Later" onPress={onLater} />
+          <MenuButton size="small" accessibilityLabel="More for this post" style={styles.more}>
+            <MenuOption label="Ignore" icon="eye-off" onPress={onIgnore} />
+          </MenuButton>
         </View>
-      </Card>
+      </PostRowCard>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: scale(12),
-    padding: scale(12),
-  },
-  photo: {
-    width: scale(72),
-    height: scale(96),
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-    gap: scale(6),
-  },
   // The actions sit at the card's bottom, however many lines the text above them takes.
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(6),
+    gap: space.sm,
     marginTop: 'auto',
   },
   more: {

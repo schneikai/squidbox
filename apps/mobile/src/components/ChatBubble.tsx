@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
-import { colors, glass, lineHeights, typography } from '@/styles/designTokens';
+import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 
 export type ChatBubbleProps = { side: 'user' | 'assistant'; label?: string; text: string; children?: ReactNode };
 
@@ -35,41 +35,39 @@ export default function ChatBubble({ side, label, text, children }: ChatBubblePr
 }
 
 // The bubble's text inset, which its ⋯ lines up with.
-const BUBBLE_PADDING_X = 14;
+const BUBBLE_PADDING_X = space.md;
+// The room a bubble leaves on the other side: a width, not a step.
+const OTHER_SIDE_WIDTH = 48;
 
 const styles = StyleSheet.create({
   userRow: {
     alignItems: 'flex-end',
-    paddingLeft: 48,
+    paddingLeft: OTHER_SIDE_WIDTH,
   },
   assistantRow: {
     alignItems: 'flex-start',
-    paddingRight: 48,
+    paddingRight: OTHER_SIDE_WIDTH,
   },
   bubble: {
-    borderRadius: 18,
-    paddingVertical: 9,
+    borderRadius: radii.bubble,
+    paddingVertical: space.sm,
     paddingHorizontal: BUBBLE_PADDING_X,
-    gap: 4,
+    gap: space.xs,
   },
   // The corner that points at the speaker's side.
   userCorner: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: radii.bubbleTail,
   },
   assistantCorner: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: radii.bubbleTail,
   },
   label: {
-    fontSize: typography.caption,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
     color: colors.text.inverse,
     opacity: 0.8,
   },
   // The chat's message size, the same as the options' cards and the composer.
-  text: {
-    fontSize: typography.body,
-    lineHeight: lineHeights.reading,
-  },
+  text: textStyles.reading,
   userText: {
     color: colors.text.inverse,
   },
@@ -78,8 +76,8 @@ const styles = StyleSheet.create({
   },
   // Close under the bubble, its ⋯ in line with the bubble's text.
   menu: {
-    marginTop: 2,
-    marginBottom: -2,
+    marginTop: space.hair,
+    marginBottom: -space.hair,
     marginHorizontal: BUBBLE_PADDING_X,
   },
 });

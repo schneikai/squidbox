@@ -38,6 +38,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     borderWidth: 1.5,
     borderColor: colors.accent.base,
-    fontSize: typography.subheadline,
+    fontSize: typography.subheadline, // no line height in a one-line input (TextInput)
   },
 });

@@ -17,7 +17,7 @@ export default function NewPostCard({ onPress }) {
       accessibilityLabel="New post"
       style={({ pressed }) => pressed && press.flat}
     >
-      <Card style={styles.card}>
+      <Card padded hasControlRow>
         <Text style={[textareaTextStyle, styles.placeholder]}>What's new?</Text>
         <View style={styles.toolbar}>
           <Icon name="image" size={sizes.icon} color={colors.accent.base} />
@@ -29,12 +29,6 @@ export default function NewPostCard({ onPress }) {
 
 // The editor's first card (PostCard, PostCardToolbar) without its text field and buttons.
 const styles = StyleSheet.create({
-  card: {
-    paddingTop: scale(14),
-    paddingHorizontal: scale(15),
-    paddingBottom: scale(8),
-    gap: scale(10),
-  },
   placeholder: {
     minHeight: scale(84),
     color: colors.text.tertiary,

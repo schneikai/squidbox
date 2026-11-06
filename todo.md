@@ -177,9 +177,10 @@ so a better wording can be tried and published.
 - **Dark mode.** The tokens are ready for it (`colors` are semantic roles over a private `palette`
   in `styles/designTokens.ts`), but there is no dark set yet: add one and pick it with
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
-- **Tokens left to do.** Paddings and gaps are still literals (a 4 pt `spacing` scale would cover
-  most), and `typography` and `lineHeights` are paired by hand at each call site; composite text
-  styles (`{ fontSize, lineHeight }`) would keep them in step.
+- **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.js`, an
+  alias of `layout.sideGutter`) still stands in 19 files, to become `layout.sideGutter` once the TS
+  migration is done with them; and `QuickViewHost`'s `paddingVertical: 50`
+  (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.
 
 ## Code quality
 

@@ -7,6 +7,7 @@ import quickViewStore from './quickViewStore';
 import AssetImage from '@/components/AssetImage';
 import FadeView from '@/components/FadeView';
 import SheetRouteContext from '@/components/sheet-route/SheetRouteContext';
+import { space } from '@/styles/designTokens';
 import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
 /**
@@ -60,7 +61,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    // eslint-disable-next-line no-restricted-syntax -- clears the status bar and home indicator, a safe-area inset in disguise
     paddingVertical: 50,
-    paddingHorizontal: 20,
+    paddingHorizontal: space.xl,
   },
 });

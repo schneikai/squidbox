@@ -1,7 +1,7 @@
-import { Text as RNText, StyleSheet, View, type ViewProps } from 'react-native';
+import type { ViewProps } from 'react-native';
 
-import Icon from '@/components/Icon';
-import { colors, lineHeights, radii, typography } from '@/styles/designTokens';
+import Note from '@/components/Note';
+import Text from '@/components/Text';
 
 export type WarningNoteProps = Pick<ViewProps, 'children' | 'style'>;
 
@@ -12,30 +12,8 @@ export type WarningNoteProps = Pick<ViewProps, 'children' | 'style'>;
  */
 export default function WarningNote({ children, style }: WarningNoteProps) {
   return (
-    <View style={[styles.note, style]} accessibilityRole="alert">
-      <Icon name="alert" size={18} color={colors.text.primary} style={styles.icon} />
-      <RNText style={styles.text}>{children}</RNText>
-    </View>
+    <Note tone="warning" icon="alert" accessibilityRole="alert" style={style}>
+      <Text size="small">{children}</Text>
+    </Note>
   );
 }
-
-const styles = StyleSheet.create({
-  note: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: radii.card,
-    backgroundColor: colors.background.note,
-  },
-  icon: {
-    marginTop: 1,
-  },
-  text: {
-    flex: 1,
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
-    color: colors.text.primary,
-  },
-});

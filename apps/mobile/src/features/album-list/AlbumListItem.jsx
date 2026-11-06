@@ -1,9 +1,12 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text as RNText } from 'react-native';
 
 import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
 import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
+import Text from '@/components/Text';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
+import cornerStyles from '@/styles/cornerStyles';
+import { layout, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
@@ -12,19 +15,19 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
   return (
     <View testID="album-tile" style={{ width: elementWidth }}>
       <CoverImage asset={album.cover} style={{ height: elementWidth }}>
-        <View style={styles.indicators}>
+        <View style={[cornerStyles.topLeft, styles.indicators]}>
           <FavoriteAlbumIndicator isFavorite={album.isFavorite} />
         </View>
       </CoverImage>
 
       {Boolean(album.archivedAt) && <Badge label="Archived" tone="danger" style={styles.archived} />}
-      <Text style={styles.albumTitle} numberOfLines={1} ellipsizeMode="tail">
+      <Text variant="label" tone="primary" numberOfLines={1} style={styles.albumTitle}>
         {album.name}
       </Text>
       <View style={styles.metaRow}>
-        <Text style={[listTextStyles.caption, styles.metaCount]} numberOfLines={1}>
+        <RNText style={[listTextStyles.caption, styles.metaCount]} numberOfLines={1}>
           {pluralizeText('1 Asset', '%{count} Assets', album.assetCount)}
-        </Text>
+        </RNText>
         {showLastPostedAt && <AlbumLastPostedAt album={album} style={styles.metaPosted} numberOfLines={1} />}
       </View>
     </View>
@@ -33,14 +36,13 @@ export default function AlbumListItem({ album, elementWidth, showLastPostedAt })
 
 const styles = StyleSheet.create({
   albumTitle: {
-    marginTop: 4,
-    fontWeight: '600',
+    marginTop: space.xs,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    gap: 6,
+    gap: space.sm,
   },
   metaCount: {
     flexShrink: 0,
@@ -50,15 +52,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   indicators: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: layout.iconGapSmall,
   },
   archived: {
     alignSelf: 'flex-start',
-    marginTop: 4,
+    marginTop: space.xs,
   },
 });

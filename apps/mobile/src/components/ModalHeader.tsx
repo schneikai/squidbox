@@ -4,14 +4,14 @@ import { StyleSheet, View } from 'react-native';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import useTitleMaxWidth from '@/components/floating-bars/useTitleMaxWidth';
-import { layout, sizes } from '@/styles/designTokens';
+import { layout } from '@/styles/designTokens';
 
 /**
  * Unified floating header for modal screens — matches the floating-bar visual language.
  *
  * The header is absolutely positioned so list/scroll content starts from y=0 and
- * scrolls underneath it. Content should set paddingTop: MODAL_HEADER_HEIGHT so the
- * first item is not hidden behind the header.
+ * scrolls underneath it. Content should set paddingTop: layout.sheetContentTop (useScreenPadding('sheet'))
+ * so the first item is not hidden behind the header.
  *
  * Layout:
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
@@ -27,14 +27,13 @@ import { layout, sizes } from '@/styles/designTokens';
  *   subtitle    string (optional) — a smaller grey line under a string title
  */
 
-export const MODAL_HEADER_HEIGHT = sizes.iconButton + layout.barBottom * 2 + 8;
-
 export type ModalHeaderProps = {
   leading?: ReactElement;
   trailing?: ReactNode;
   title?: string | ReactElement;
   subtitle?: string;
 };
+
 export default function ModalHeader({ leading, trailing, title, subtitle }: ModalHeaderProps) {
   const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 
@@ -74,7 +73,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: layout.sideGutter,
-    paddingVertical: layout.barBottom,
+    paddingVertical: layout.barMargin,
     zIndex: 100,
   },
   row: {

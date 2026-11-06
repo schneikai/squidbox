@@ -3,8 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Section } from './SettingsList';
 
-import { SCREEN_PADDING } from '@/constants';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 export type LogBlockProps = { children?: ReactNode; maxHeight?: number };
 
@@ -38,10 +37,10 @@ export function LogEmpty({ text }: LogEmptyProps) {
 }
 
 const styles = StyleSheet.create({
-  inner: { gap: 8, paddingHorizontal: SCREEN_PADDING, paddingVertical: 12 },
-  entry: { gap: 1 },
-  primary: { fontSize: typography.footnote, color: colors.text.primary, fontVariant: ['tabular-nums'] },
-  secondary: { fontSize: typography.caption2, color: colors.text.secondary },
-  error: { fontSize: typography.caption2, color: colors.status.danger },
-  empty: { fontSize: typography.footnote, color: colors.text.secondary },
+  inner: { gap: space.sm, paddingHorizontal: layout.rowInset, paddingVertical: layout.rowPaddingYCompact },
+  entry: { gap: space.hair },
+  primary: { ...textStyles.footnote, color: colors.text.primary, fontVariant: ['tabular-nums'] },
+  secondary: { ...textStyles.caption2, color: colors.text.secondary },
+  error: { ...textStyles.caption2, color: colors.status.danger },
+  empty: { ...textStyles.footnote, color: colors.text.secondary },
 });

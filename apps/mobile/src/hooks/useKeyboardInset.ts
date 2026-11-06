@@ -2,13 +2,14 @@ import { useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import useKeyboardHeight from '@/hooks/useKeyboardHeight';
+import { layout } from '@/styles/designTokens';
 
 /**
  * How far above the screen's bottom edge content stays clear, live (a Reanimated derived value, for
  * an animated style): the keyboard's height while it's up, the bottom safe area otherwise, plus
- * `gap`. The keyboard's height on iOS includes the bottom safe area, so the two never add up.
+ * `gap` (the keyboard gap unless given). The keyboard's height on iOS includes the bottom safe area, so the two never add up.
  */
-export default function useKeyboardInset(gap = 0) {
+export default function useKeyboardInset(gap = layout.keyboardGap) {
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   return useDerivedValue(() => Math.max(bottom, keyboardHeight.value) + gap, [bottom, gap]);

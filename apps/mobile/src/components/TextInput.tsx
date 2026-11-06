@@ -2,8 +2,7 @@ import { type ComponentProps, useState } from 'react';
 import { TextInput as RNTextInput, StyleSheet } from 'react-native';
 
 import Card from '@/components/Card';
-import { SCREEN_PADDING } from '@/constants';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, layout, scale, space, typography } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 
 // A multiline field grows with its text up to this, then scrolls inside, so a long text never
@@ -73,13 +72,14 @@ export default function TextInput({
 }
 
 const styles = StyleSheet.create({
+  // A one-line input takes no line height: iOS would shift its text in the box.
   line: {
     fontSize: typography.body,
     color: colors.text.primary,
   },
   field: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingHorizontal: layout.rowInset,
+    paddingVertical: space.md,
   },
   capped: {
     maxHeight: MAX_FIELD_HEIGHT,

@@ -16,6 +16,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useYourModels from '@/hooks/useYourModels';
+import { layout } from '@/styles/designTokens';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import modelDetailText from '@/utils/ai/modelDetailText';
@@ -93,6 +94,6 @@ export default function ModelScreen() {
 const styles = StyleSheet.create({
   // As far from the intro as a headerless section.
   note: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
 });

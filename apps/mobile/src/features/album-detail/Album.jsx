@@ -27,7 +27,7 @@ import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionAct
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { press } from '@/styles/designTokens';
+import { press, space } from '@/styles/designTokens';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -244,9 +244,9 @@ function withAlbumSortOrder(albumSortOrders, albumId, order) {
 const styles = StyleSheet.create({
   subHeader: {
     alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 4,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.sm,
+    gap: space.xs,
   },
   content: {
     flex: 1,

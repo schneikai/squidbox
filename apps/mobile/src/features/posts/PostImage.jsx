@@ -3,10 +3,10 @@ import { StyleSheet, View } from 'react-native';
 import AssetImage from '@/components/AssetImage';
 import SuperPressable from '@/components/SuperPressable';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { radii, scale } from '@/styles/designTokens';
+import { radii, scale, space } from '@/styles/designTokens';
 
 const IMAGE_ELEMENT_HEIGHT = scale(240);
-const GAP = scale(4);
+const GAP = space.xs;
 
 // A post's pictures as rounded tiles: one or two side by side, three as one and a column of two,
 // four or more as a 2×2 grid with "+N" for the rest. With `onPressAsset(asset)` each tile opens its
@@ -32,7 +32,7 @@ export default function PostImage({ assets, onPressAsset }) {
         <View style={[styles.frame, styles.column]}>
           <View style={[styles.half, styles.row]}>{assets.slice(0, 2).map(tile)}</View>
           <View style={[styles.half, styles.row]}>{assets.slice(2, 4).map(tile)}</View>
-          {assets.length > 4 && <ThumbnailBadge label={`+${assets.length - 4}`} style={styles.moreImages} />}
+          {assets.length > 4 && <ThumbnailBadge label={`+${assets.length - 4}`} corner="bottomRight" />}
         </View>
       );
   }
@@ -70,12 +70,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    borderRadius: radii.cover,
+    borderRadius: radii.postPicture,
     overflow: 'hidden',
-  },
-  moreImages: {
-    position: 'absolute',
-    bottom: scale(10),
-    right: scale(10),
   },
 });

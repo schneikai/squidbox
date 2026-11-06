@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
+import {} from '@/styles/designTokens';
 
 export type OptionCardProps = { text: string; children?: ReactNode };
 
@@ -15,7 +16,7 @@ export default function OptionCard({ text, children }: OptionCardProps) {
   const hasActions = children != null;
 
   return (
-    <Card style={[styles.card, !hasActions && styles.textOnly]}>
+    <Card padded hasControlRow={hasActions}>
       <Text selectable>{text}</Text>
       {hasActions && <View style={styles.actions}>{children}</View>}
     </Card>
@@ -23,18 +24,10 @@ export default function OptionCard({ text, children }: OptionCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    paddingTop: 14,
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-    gap: 4,
-  },
-  textOnly: {
-    paddingBottom: 14,
-  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
+    // eslint-disable-next-line no-restricted-syntax -- pulls the first icon button's glyph to the text's edge
     marginLeft: -10,
   },
 });

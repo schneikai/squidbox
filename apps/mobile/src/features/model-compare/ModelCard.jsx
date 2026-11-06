@@ -5,7 +5,7 @@ import UncensoredToggle from './UncensoredToggle';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import { colors } from '@/styles/designTokens';
+import { colors, layout, space } from '@/styles/designTokens';
 
 /**
  * One model's answer in a blind compare: its letter with the eye for its name, its Uncensored
@@ -14,7 +14,7 @@ import { colors } from '@/styles/designTokens';
  */
 export default function ModelCard({ modelId, label, name, result, children }) {
   return (
-    <Card style={styles.card}>
+    <Card padded>
       <View style={styles.header}>
         <BlindModelName label={label} name={name} />
         <UncensoredToggle modelId={modelId} label={label} />
@@ -27,17 +27,13 @@ export default function ModelCard({ modelId, label, name, result, children }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 14,
-    gap: 10,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: layout.rowLeadingGap,
   },
   loading: {
-    paddingVertical: 16,
+    paddingVertical: space.lg,
   },
 });

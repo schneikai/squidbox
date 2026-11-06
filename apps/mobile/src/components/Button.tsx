@@ -15,7 +15,7 @@ import FadedGroupContext from '@/components/FadedGroupContext';
 import GradientFill from '@/components/GradientFill';
 import Icon, { type IconName } from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
-import { colors, disabledOpacity, press, radii, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, radii, scale, sizes, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 const PALETTE = {
@@ -133,7 +133,7 @@ export default function Button({
   const box = boxFor(shape, size, iconSize, hasIconSlot);
   const fill = fillFor({ shape, variant, palette, isSelected, isInverse });
   const pillFill = shape === 'pill' && [styles.pillFill, PILL_FILL_SIZE_STYLES[size]];
-  const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }} />;
+  const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size }} />;
 
   return (
     <Pressable
@@ -205,9 +205,8 @@ type ContentProps = Pick<ButtonProps, 'icon' | 'label' | 'filled'> & {
   iconCount: 1 | 2;
   shape: Shape;
   size: ButtonSize;
-  palette: Palette;
 };
-function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size, palette }: ContentProps) {
+function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size }: ContentProps) {
   // A link keeps its label and swaps its icon for the spinner; every other button shows only the spinner.
   const spinner = <ActivityIndicator size="small" color={color} />;
   if (loading && shape !== 'link') return spinner;
@@ -229,15 +228,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
   return (
     <>
       {loading ? spinner : icon && <Icon name={icon} size={iconSize} color={color} />}
-      <Text
-        style={[
-          LABEL_STYLES[shape],
-          LABEL_SIZE_STYLES[shape]?.[size],
-          size === 'caption' && listTextStyles.caption,
-          shape === 'link' && palette === 'muted' && size !== 'caption' && styles.linkLabelMuted,
-          { color },
-        ]}
-      >
+      <Text style={[LABEL_SIZE_STYLES[shape]?.[size], size === 'caption' && listTextStyles.caption, { color }]}>
         {label}
       </Text>
     </>
@@ -335,13 +326,10 @@ const styles = StyleSheet.create({
   dangerFill: {
     backgroundColor: colors.status.danger,
   },
-  discLabel: {
-    fontSize: typography.footnote,
-    fontWeight: '700',
-  },
+  discLabel: textStyles.footnoteBold,
   pair: {
     flexDirection: 'row',
-    gap: 2,
+    gap: space.hair,
   },
   pill: {
     borderRadius: radii.pill,
@@ -354,48 +342,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillFill_regular: {
-    gap: scale(6),
-    paddingHorizontal: scale(16),
+    gap: layout.iconGap,
+    paddingHorizontal: space.lg,
   },
   pillFill_small: {
-    gap: scale(4),
-    paddingHorizontal: scale(10),
+    gap: layout.iconGapSmall,
+    paddingHorizontal: space.md,
   },
-  pillLabel: {
-    fontWeight: '600',
-  },
-  pillLabel_regular: {
-    fontSize: typography.subheadline,
-  },
-  pillLabel_small: {
-    fontSize: typography.footnote,
-  },
+  pillLabel_regular: textStyles.subheadlineBold,
+  pillLabel_small: textStyles.footnoteBold,
   link: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: scale(4),
+    gap: layout.iconGapSmall,
   },
   link_regular: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: space.md,
+    paddingHorizontal: layout.linkPaddingX,
   },
   link_small: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+    padding: space.xs,
   },
-  linkLabel: {
-    fontWeight: '500',
-  },
-  linkLabel_regular: {
-    fontSize: typography.subheadline,
-  },
-  linkLabel_small: {
-    fontSize: typography.footnote,
-  },
-  linkLabelMuted: {
-    fontWeight: '400',
-  },
+  linkLabel_regular: textStyles.subheadline,
+  linkLabel_small: textStyles.footnote,
   disabled: {
     opacity: disabledOpacity,
   },
@@ -411,7 +381,6 @@ const LINK_SIZE_STYLES: Partial<Record<ButtonSize, ViewStyle>> = {
   regular: styles.link_regular,
   small: styles.link_small,
 };
-const LABEL_STYLES: Partial<Record<Shape, TextStyle>> = { pill: styles.pillLabel, link: styles.linkLabel };
 const LABEL_SIZE_STYLES: Partial<Record<Shape, Partial<Record<ButtonSize, TextStyle>>>> = {
   pill: { regular: styles.pillLabel_regular, small: styles.pillLabel_small },
   link: { regular: styles.linkLabel_regular, small: styles.linkLabel_small },

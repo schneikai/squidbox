@@ -11,7 +11,7 @@ import FloatingPill from './FloatingPill';
 import Button from '@/components/Button';
 import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
 import type useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import { colors, layout, motion, typography } from '@/styles/designTokens';
+import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
 
 export type FloatingHeaderProps = {
   title: string;
@@ -97,19 +97,18 @@ const styles = StyleSheet.create({
     right: layout.sideGutter,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: space.sm,
     zIndex: 100,
   },
   title: {
-    fontSize: typography.title1,
-    fontWeight: '700',
+    ...textStyles.title1,
     color: colors.text.primary,
     flex: 1,
   },
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
   },
   pillWrapper: {
     position: 'absolute',

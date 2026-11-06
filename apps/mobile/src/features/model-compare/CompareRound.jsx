@@ -13,7 +13,7 @@ import Card from '@/components/Card';
 import Field from '@/components/Field';
 import FoldingTextInput from '@/components/FoldingTextInput';
 import IntroText from '@/components/IntroText';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
@@ -22,7 +22,7 @@ import assetHref from '@/features/asset-list/assetHref';
 import useScrollY from '@/hooks/useScrollY';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import useVeniceBalance from '@/hooks/useVeniceBalance';
-import { scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import { setPrompt } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 
@@ -85,7 +85,7 @@ export default function CompareRound({ kind, models, savedPrompt, defaultPrompt,
         keyboardDismissMode="interactive"
         contentContainerStyle={[styles.content, { paddingBottom }]}
       >
-        <Card style={styles.promptCard}>
+        <Card padded>
           <Field label="Prompt" description="Remembered for next time.">
             <FoldingTextInput
               foldedLines={PROMPT_FOLDED_LINES}
@@ -121,7 +121,7 @@ export default function CompareRound({ kind, models, savedPrompt, defaultPrompt,
               toggle={round.toggle}
               onOpenPhoto={handleOpenPhoto}
               scrollY={scrollY}
-              stickyTop={MODAL_HEADER_HEIGHT}
+              stickyTop={layout.sheetContentTop}
             />
           ))
         ) : (
@@ -153,25 +153,22 @@ export default function CompareRound({ kind, models, savedPrompt, defaultPrompt,
 
 const styles = StyleSheet.create({
   content: {
-    paddingTop: MODAL_HEADER_HEIGHT,
+    paddingTop: layout.sheetContentTop,
     paddingHorizontal: SCREEN_PADDING,
-    gap: 12,
-  },
-  promptCard: {
-    padding: 14,
+    gap: space.md,
   },
   // As the folded text, so the prompt doesn't move when the editing starts.
   promptInput: {
     padding: 0,
   },
   hint: {
-    paddingHorizontal: 4,
+    paddingHorizontal: layout.rowInset,
   },
   // The balance, and the round with this prompt with its Reset.
   status: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 4,
+    gap: space.sm,
+    paddingHorizontal: layout.rowInset,
   },
 });

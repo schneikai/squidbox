@@ -5,10 +5,10 @@ import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import AssistantTrayContext from '@/components/AssistantTrayContext';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
-import { colors, radii, raisedShadowRoom, scale, shadows, sizes } from '@/styles/designTokens';
+import { colors, layout, radii, raisedShadowRoom, shadows, sizes, space } from '@/styles/designTokens';
 
 // The inset the row's chips keep from the tray's edges.
-const TRAY_INSET = scale(12);
+const TRAY_INSET = layout.objectInset;
 
 // What the tray gives what it holds (AssistantTrayContext).
 const TRAY = { inset: TRAY_INSET };
@@ -72,16 +72,16 @@ const styles = StyleSheet.create({
   },
   // The gap is here, not on the tray, as iOS counts the absolute rim in a gap too.
   content: {
-    gap: scale(8),
+    gap: space.sm,
   },
-  // The title sits 2 pt further in than the chips, as the sparkle's glyph is narrower than its box.
+  // The title sits a hair further in than the chips, as the sparkle's glyph is narrower than its box.
   // Over the row, so the room it leaves for its chips' shadow doesn't take the pen's taps.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(8),
+    gap: layout.iconGap,
     minHeight: sizes.smallButton,
-    paddingHorizontal: TRAY_INSET + 2,
+    paddingHorizontal: TRAY_INSET + space.hair,
     zIndex: 1,
   },
   title: {

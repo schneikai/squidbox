@@ -5,6 +5,7 @@ import useRetag from './useRetag';
 
 import Button from '@/components/Button';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
+import { space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 /**
@@ -48,12 +49,12 @@ export default function PhotoTagsSection({ asset, guardPress }) {
 
 const styles = StyleSheet.create({
   section: {
-    gap: 8,
+    gap: space.sm,
   },
   line: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: space.sm,
   },
 });

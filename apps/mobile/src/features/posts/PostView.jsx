@@ -22,7 +22,7 @@ export default function PostView({ post, onPressAsset, isTextSelectable = false,
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}
-      <View style={styles.body}>
+      <View style={[styles.body, !isPresent(postAssets) && styles.bodyTextOnly]}>
         {isPresent(text) && <Text selectable={isTextSelectable}>{text}</Text>}
         <View style={styles.meta}>
           <PostPostedAt postedAt={postedAt} />
@@ -42,12 +42,16 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: layout.postTextInset,
     paddingBottom: layout.postTextBottom,
-    gap: scale(10),
+    gap: layout.cardGap,
+  },
+  // Without pictures the text starts as far from the card's top as from its sides.
+  bodyTextOnly: {
+    paddingTop: layout.postTextInset,
   },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: layout.cardGap,
     minHeight: scale(20),
   },
 });

@@ -9,7 +9,7 @@ import useTitleMaxWidth from './useTitleMaxWidth';
 
 import Button from '@/components/Button';
 import useSheetRoute from '@/hooks/useSheetRoute';
-import { layout, motion } from '@/styles/designTokens';
+import { layout, motion, space } from '@/styles/designTokens';
 
 export type FloatingDetailHeaderProps = {
   title?: string;
@@ -54,10 +54,10 @@ export default function FloatingDetailHeader({
 
   return (
     <View
-      // Inside a modal sheet the top safe-area inset is ~0, so insets.top + 8 would leave the pills
-      // hugging the sheet's top edge. Floor the offset at layout.barBottom so it matches ModalHeader's
-      // top gap in sheets, while full screens (large insets.top) keep insets.top + 8 unchanged.
-      style={[styles.container, { top: Math.max(insets.top + 8, layout.barBottom) }]}
+      // Inside a modal sheet the top safe-area inset is ~0, so insets.top + space.sm would leave the
+      // pills hugging the sheet's top edge. Floor the offset at layout.barMargin so it matches
+      // ModalHeader's top gap in sheets, while full screens (large insets.top) keep insets.top + space.sm.
+      style={[styles.container, { top: Math.max(insets.top + space.sm, layout.barMargin) }]}
       pointerEvents="box-none"
     >
       <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: layout.sideGutter,
     right: layout.sideGutter,
-    gap: layout.barBottom,
+    gap: layout.barGap,
     zIndex: 100,
   },
   row: {
