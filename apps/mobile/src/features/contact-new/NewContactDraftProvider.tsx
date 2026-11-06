@@ -1,7 +1,8 @@
 import { type ReactNode, useMemo, useReducer, useRef, useState } from 'react';
 
 import NewContactDraftContext, { type NewContactDraftValue } from './NewContactDraftContext';
-import newContactDraftReducer, { initialNewContactDraftState } from './newContactDraftReducer';
+import initialNewContactDraftState from './initialNewContactDraftState';
+import newContactDraftReducer from './newContactDraftReducer';
 
 type NewContactDraftProviderProps = { children: ReactNode };
 
@@ -23,13 +24,13 @@ export default function NewContactDraftProvider({ children }: NewContactDraftPro
     () =>
       ({
         setField: (field, value) => dispatch({ type: 'set', field, value }),
-        setFieldIfEmpty: (field, value) => dispatch({ type: 'setIfEmpty', field, value }),
         fillFields: (source, fieldsFor, photoUri) => {
           const id = ++lastFillId.current;
           dispatch({ type: 'fill', id, source, fieldsFor, photoUri });
           return id;
         },
-        extendFill: (id, fieldsFor) => dispatch({ type: 'extendFill', id, fieldsFor }),
+        extendFill: (id, source, fieldsFor, options) =>
+          dispatch({ type: 'extendFill', id, source, fieldsFor, ...options }),
         undoFill: () => dispatch({ type: 'undoFill' }),
         setAvatarUri: (uri) => dispatch({ type: 'avatar', uri }),
       }) satisfies Partial<NewContactDraftValue>,

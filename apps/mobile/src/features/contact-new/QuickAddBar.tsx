@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import type { NewContactDraftValue } from './NewContactDraftContext';
 import QuickAddCard from './QuickAddCard';
 import contactFromScreenshotAsync from './contactFromScreenshotAsync';
 import filledFrom from './filledFrom';
@@ -11,15 +12,22 @@ import Button from '@/components/Button';
 import Note from '@/components/Note';
 import Text from '@/components/Text';
 import FillMark from '@/features/contact-detail/FillMark';
-import { contactDraft } from '@/features/contact-detail/contactFields';
+import { type ContactDraft, HANDLE_FIELDS, contactDraft } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
 import { layout } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-const NOTES = {
-  assistant: 'Filled from your screenshot. Check the marked fields.',
-  link: 'Filled from the X profile. Check the marked fields.',
-};
+// What a fill's note says: by whom it was filled, and to check the marked fields when it marked any
+// (the name and the handles carry marks; the photo, notes and places don't).
+const MARKED_FIELDS = new Set<keyof ContactDraft>(['name', ...HANDLE_FIELDS.map(({ field }) => field)]);
+function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
+  const isAssisted = Object.values(fill.fieldSources).includes('assistant');
+  const from =
+    fill.source === 'assistant'
+      ? 'Filled from your screenshot.'
+      : `Filled from the X profile${isAssisted ? ' and by the assistant' : ''}.`;
+  return fill.fields.some((field) => MARKED_FIELDS.has(field)) ? `${from} Check the marked fields.` : from;
+}
 
 /**
  * The New contact sheet's quick adds, side by side as cards: From link, which fills what the public
@@ -64,13 +72,13 @@ export default function QuickAddBar() {
           />
         )}
       </View>
-      {fill && (
+      {fill && (fill.fields.length > 0 || fill.photoUri) && (
         <Note
           tone="card"
           leading={<FillMark source={fill.source} />}
           trailing={<Button label="Undo" size="small" onPress={undoFill} />}
         >
-          <Text size="small">{NOTES[fill.source]}</Text>
+          <Text size="small">{noteText(fill)}</Text>
         </Note>
       )}
     </View>
