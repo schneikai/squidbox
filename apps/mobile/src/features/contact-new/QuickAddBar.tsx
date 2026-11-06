@@ -4,18 +4,17 @@ import { Alert, StyleSheet, View } from 'react-native';
 import QuickAddCard from './QuickAddCard';
 import contactFromScreenshotAsync from './contactFromScreenshotAsync';
 import filledFrom from './filledFrom';
-import useClipboardXLink from './useClipboardXLink';
+import useFillFromLink from './useFillFromLink';
 import useNewContactDraft from './useNewContactDraft';
 
 import Button from '@/components/Button';
-import Card from '@/components/Card';
-import Icon from '@/components/Icon';
+import Note from '@/components/Note';
 import Text from '@/components/Text';
-import { contactDraft, handleText } from '@/features/contact-detail/contactFields';
+import FillMark from '@/features/contact-detail/FillMark';
+import { contactDraft } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
-import { colors, layout, sizes } from '@/styles/designTokens';
+import { layout } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import readXProfileAsync from '@/utils/cloud-api/contacts/readXProfileAsync';
 
 const NOTES = {
   assistant: 'Filled from your screenshot. Check the marked fields.',
@@ -23,72 +22,16 @@ const NOTES = {
 };
 
 /**
- * The New contact sheet's quick adds, side by side as cards: From link, which fills the X handle from
- * the X profile link on the clipboard at once, then what the public profile shows (the name, photo,
- * place, bio and website as the notes, and the handles it names) as the server reads it; and with
- * the `ai` feature From screenshot, which fills what the assistant read. A fill says so in a card
- * with Undo, and marks the fields: the link icon for From link, the sparkle for From screenshot.
+ * The New contact sheet's quick adds, side by side as cards: From link, which fills what the public
+ * X profile on the clipboard shows (useFillFromLink); and with the `ai` feature From screenshot,
+ * which fills what the assistant read. A fill says so in a note with Undo, and marks the fields: the
+ * link icon for From link, the sparkle for From screenshot (FillMark).
  */
 export default function QuickAddBar() {
-  const { draft, setField, fillFields, fill, undoFill } = useNewContactDraft();
-  const { readAsync } = useClipboardXLink();
+  const { fillFields, fill, undoFill } = useNewContactDraft();
   const canReadScreenshots = useHasFeature('ai');
-  const [isReadingLink, setIsReadingLink] = useState(false);
   const [isReading, setIsReading] = useState(false);
-
-  async function handleLink() {
-    let pasted: Awaited<ReturnType<typeof readAsync>> = null;
-    try {
-      pasted = await readAsync();
-    } catch (error) {
-      console.warn('Could not read the clipboard', error);
-    }
-    if (!pasted) {
-      Alert.alert('No X link on the clipboard', 'Copy the link of a profile on X, then tap From link.');
-      return;
-    }
-    const { handle } = pasted;
-    setField('xHandle', handleText('xHandle', handle));
-    // Without more from the profile, the contact is named after the handle, unless it has a name.
-    const nameAfterHandle = () => {
-      if (!draft.name.trim()) setField('name', handle);
-    };
-    setIsReadingLink(true);
-    try {
-      const read = await readXProfileAsync(handle);
-      if (read.status === 'found') {
-        const photoUri = read.avatar ? `data:${read.avatar.mimeType};base64,${read.avatar.base64}` : undefined;
-        fillFields('link', (current) => filledFrom({ ...read, name: read.name || handle }, current), photoUri);
-      } else if (read.status === 'notFound') {
-        nameAfterHandle();
-        Alert.alert(
-          `No profile @${handle} on X`,
-          "The link points at a profile that doesn't exist. The handle is filled in anyway.",
-        );
-      } else if (read.status === 'unavailable') {
-        nameAfterHandle();
-        Alert.alert(
-          'X hides this profile',
-          'X shows this profile only to signed-in readers, so there is nothing more to fill.',
-          canReadScreenshots
-            ? [
-                { text: 'OK', style: 'cancel' },
-                { text: 'From screenshot', onPress: handleScreenshot },
-              ]
-            : undefined,
-        );
-      } else {
-        // The server logged why; the handle is what From link always fills.
-        console.warn('From link: the X profile could not be read');
-        nameAfterHandle();
-      }
-    } catch (error) {
-      console.warn('From link: the X profile could not be read', error);
-      nameAfterHandle();
-    } finally {
-      setIsReadingLink(false);
-    }
-  }
+  const { isReading: isReadingLink, fillFromLinkAsync } = useFillFromLink(handleScreenshot);
 
   async function handleScreenshot() {
     setIsReading(true);
@@ -110,7 +53,7 @@ export default function QuickAddBar() {
   return (
     <View style={styles.bar}>
       <View style={styles.cards}>
-        <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={handleLink} />
+        <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={fillFromLinkAsync} />
         {canReadScreenshots && (
           <QuickAddCard
             icon="sparkle"
@@ -122,18 +65,13 @@ export default function QuickAddBar() {
         )}
       </View>
       {fill && (
-        <Card style={styles.note}>
-          {/* The same mark as on the fields it filled, so the note points at them. */}
-          {fill.source === 'assistant' ? (
-            <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} filled />
-          ) : (
-            <Icon name="link" size={sizes.menuIcon} color={colors.text.secondary} />
-          )}
-          <Text variant="reading" size="small" style={styles.noteText}>
-            {NOTES[fill.source]}
-          </Text>
-          <Button label="Undo" size="small" onPress={undoFill} />
-        </Card>
+        <Note
+          tone="card"
+          leading={<FillMark source={fill.source} />}
+          trailing={<Button label="Undo" size="small" onPress={undoFill} />}
+        >
+          <Text size="small">{NOTES[fill.source]}</Text>
+        </Note>
       )}
     </View>
   );
@@ -147,16 +85,5 @@ const styles = StyleSheet.create({
   cards: {
     flexDirection: 'row',
     gap: layout.cardGap,
-  },
-  // A Note's row on the white card: its mark, its text and Undo.
-  note: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.rowLeadingGap,
-    paddingVertical: layout.rowPaddingYCompact,
-    paddingHorizontal: layout.cardInset,
-  },
-  noteText: {
-    flex: 1,
   },
 });

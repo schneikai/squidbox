@@ -1,15 +1,11 @@
-import { CONTACT_HANDLE_FIELDS, type ContactHandleField, type ContactRead } from '@squidbox/shared';
+import { type ContactRead, emptyContactRead } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
 import { contactDraft } from '../src/features/contact-detail/contactFields';
 import filledFrom from '../src/features/contact-new/filledFrom';
 
 const read = (fields: Partial<ContactRead> & { bio?: string; website?: string }) => ({
-  name: '',
-  ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, ''])) as Record<ContactHandleField, string>),
-  city: '',
-  state: '',
-  country: '',
+  ...emptyContactRead(),
   ...fields,
 });
 const draft = (fields: Parameters<typeof contactDraft>[0] = {}) => contactDraft(fields);

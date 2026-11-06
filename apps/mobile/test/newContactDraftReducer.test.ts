@@ -1,4 +1,4 @@
-import { CONTACT_HANDLE_FIELDS, type ContactHandleField, type ContactRead } from '@squidbox/shared';
+import { type ContactRead, emptyContactRead } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
 import filledFrom from '../src/features/contact-new/filledFrom';
@@ -9,18 +9,15 @@ import newContactDraftReducer, {
 } from '../src/features/contact-new/newContactDraftReducer';
 
 const read = (fields: Partial<ContactRead>): ContactRead => ({
-  name: '',
-  ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, ''])) as Record<ContactHandleField, string>),
-  city: '',
-  state: '',
-  country: '',
+  ...emptyContactRead(),
   ...fields,
 });
 const run = (actions: NewContactDraftAction[], state = initialNewContactDraftState()): NewContactDraftState =>
   actions.reduce(newContactDraftReducer, state);
 const PHOTO = 'data:image/jpeg;base64,AAAA';
-const linkFill = (fields: Partial<ContactRead>, photoUri?: string): NewContactDraftAction => ({
+const linkFill = (fields: Partial<ContactRead>, photoUri?: string, id = 1): NewContactDraftAction => ({
   type: 'fill',
+  id,
   source: 'link',
   fieldsFor: (draft) => filledFrom(read(fields), draft),
   photoUri,
@@ -33,7 +30,7 @@ describe('newContactDraftReducer', () => {
     const filled = run([
       { type: 'set', field: 'name', value: 'Maya' },
       { type: 'set', field: 'places', value: [{ city: 'Lisbon', state: '', country: 'Portugal' }] },
-      { type: 'fill', source: 'assistant', fieldsFor: (draft) => filledFrom(reading, draft) },
+      { type: 'fill', id: 1, source: 'assistant', fieldsFor: (draft) => filledFrom(reading, draft) },
     ]);
     expect(filled.draft.name).toBe('Maya Lund');
     expect(filled.draft.places).toEqual([
@@ -95,9 +92,69 @@ describe('newContactDraftReducer', () => {
   it('replaces the first fill’s record with a second one', () => {
     const filled = run([
       linkFill({ name: 'Maya' }),
-      { type: 'fill', source: 'assistant', fieldsFor: (draft) => filledFrom(read({ jffHandle: 'mayal' }), draft) },
+      {
+        type: 'fill',
+        id: 2,
+        source: 'assistant',
+        fieldsFor: (draft) => filledFrom(read({ jffHandle: 'mayal' }), draft),
+      },
     ]);
     expect(filled.fill).toMatchObject({ source: 'assistant', fields: ['jffHandle'] });
     expect(newContactDraftReducer(filled, { type: 'undoFill' }).draft).toMatchObject({ name: 'Maya', jffHandle: '' });
+  });
+
+  it('sets the name after the handle only while the name is still empty when it lands', () => {
+    const typed = run([
+      { type: 'set', field: 'name', value: 'Maya' },
+      { type: 'setIfEmpty', field: 'name', value: 'mayal' },
+    ]);
+    expect(typed.draft.name).toBe('Maya');
+    expect(run([{ type: 'setIfEmpty', field: 'name', value: 'mayal' }]).draft.name).toBe('mayal');
+  });
+
+  it("extends the fill with the assistant's place in place of the profile's own, under one Undo", () => {
+    const lisbon = { city: 'Lisbon', state: '', country: 'Portugal' };
+    const extended = run([
+      { type: 'set', field: 'places', value: [lisbon] },
+      linkFill({ name: 'Maya', city: 'Squamish, BC' }),
+      {
+        type: 'extendFill',
+        id: 1,
+        fieldsFor: (draft) =>
+          filledFrom(read({ city: 'Squamish', state: '', country: 'Canada', jffHandle: 'mayal' }), draft),
+      },
+    ]);
+    expect(extended.draft.places).toEqual([{ city: 'Squamish', state: '', country: 'Canada' }, lisbon]);
+    expect(extended.draft.jffHandle).toBe('mayal');
+    expect(extended.fill?.fields).toEqual(['name', 'places', 'jffHandle']);
+    const undone = newContactDraftReducer(extended, { type: 'undoFill' });
+    expect(undone.draft).toMatchObject({ name: '', places: [lisbon], jffHandle: '' });
+  });
+
+  it('extends the fill only where the user changed nothing since', () => {
+    const extended = run([
+      linkFill({ name: 'Maya', city: 'Squamish, BC' }),
+      { type: 'set', field: 'places', value: [{ city: 'Whistler', state: '', country: 'Canada' }] },
+      { type: 'set', field: 'onlyFansHandle', value: 'typed' },
+      {
+        type: 'extendFill',
+        id: 1,
+        fieldsFor: (draft) => filledFrom(read({ city: 'Squamish', country: 'Canada', onlyFansHandle: 'mayal' }), draft),
+      },
+    ]);
+    expect(extended.draft.places).toEqual([{ city: 'Whistler', state: '', country: 'Canada' }]);
+    expect(extended.draft.onlyFansHandle).toBe('typed');
+  });
+
+  it('does not extend a fill that was undone or replaced', () => {
+    const extendJff: NewContactDraftAction = {
+      type: 'extendFill',
+      id: 1,
+      fieldsFor: (draft) => filledFrom(read({ jffHandle: 'mayal' }), draft),
+    };
+    expect(run([linkFill({ name: 'Maya' }), { type: 'undoFill' }, extendJff]).draft.jffHandle).toBe('');
+    expect(
+      run([linkFill({ name: 'Maya' }), linkFill({ onlyFansHandle: 'mayal' }, undefined, 2), extendJff]).draft.jffHandle,
+    ).toBe('');
   });
 });

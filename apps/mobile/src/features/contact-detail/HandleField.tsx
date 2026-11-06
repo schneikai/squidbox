@@ -1,16 +1,15 @@
 import { CONTACT_HANDLES, CONTACT_LIMITS } from '@squidbox/shared';
 
 import DuplicateDot from './DuplicateDot';
+import FillMark from './FillMark';
 import LabelledInputRow from './LabelledInputRow';
 import type { FillSource, HandleFormField } from './contactFields';
 import openContactLinkAsync from './openContactLinkAsync';
 
 import Button from '@/components/Button';
-import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
 import RowMark from '@/components/RowMark';
 import type { TextInputProps } from '@/components/TextInput';
-import { colors, sizes } from '@/styles/designTokens';
 
 const OPEN_LABELS = {
   ...(Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])) as Record<
@@ -75,8 +74,7 @@ export default function HandleField({
       {(isDuplicate || !!filledBy) && (
         <RowMark>
           {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
-          {filledBy === 'assistant' && <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} filled />}
-          {filledBy === 'link' && <Icon name="link" size={sizes.menuIcon} color={colors.text.secondary} />}
+          {filledBy && <FillMark source={filledBy} />}
         </RowMark>
       )}
       {isOpenable && field !== 'name' && !!value.trim() && (
