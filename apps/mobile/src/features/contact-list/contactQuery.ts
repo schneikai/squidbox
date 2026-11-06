@@ -75,9 +75,11 @@ export default function contactQuery({ scope = 'all', search = '', sort = 'name:
   const order = (() => {
     if (scope === 'favorites') return [desc(c.favoritedAt), asc(c.id)];
     if (sort !== 'createdAt:desc') return [asc(sql`${c.name} collate nocase`), asc(c.id)];
-    // In a list, when the contact joined it (its latest live edge, should two devices have added it).
+    // In a list, when the contact joined it: its live edge's last write, which is its creation or,
+    // for a contact added again, the restore of its edge (createdAt keeps the first add, and doesn't
+    // sync a change); the latest, should two devices have added it.
     const added = listId
-      ? sql`(select max(created_at) from contact_list_members where list_id = ${listId} and contact_id = ${c.id} and deleted_at is null)`
+      ? sql`(select max(updated_at) from contact_list_members where list_id = ${listId} and contact_id = ${c.id} and deleted_at is null)`
       : c.createdAt;
     return [desc(added), asc(c.id)];
   })();

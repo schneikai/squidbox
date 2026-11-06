@@ -67,6 +67,21 @@ describe('contactQuery', () => {
     ]);
   });
 
+  it('in a list, a contact added again sorts by when it was added again', async () => {
+    await upsertRows(db, 'contact_list_members', schema.contactListMembers, [
+      { id: 'e1', createdAt: 5, updatedAt: 5, deletedAt: null, listId: 'l1', contactId: 'maya' },
+      { id: 'e2', createdAt: 6, updatedAt: 6, deletedAt: null, listId: 'l1', contactId: 'ana' },
+    ]);
+    await contactListMembers.add(db, { listId: 'l1' }, ['ben'], newId);
+    await contactListMembers.remove(db, { listId: 'l1' }, ['maya']);
+    await contactListMembers.add(db, { listId: 'l1' }, ['maya'], newId);
+    expect(await ids(contactQuery({ scope: { listId: 'l1' }, sort: 'createdAt:desc' }))).toEqual([
+      'maya',
+      'ben',
+      'ana',
+    ]);
+  });
+
   it('lists the favorites by when they were favorited, newest first', async () => {
     await contacts.update(db, 'maya', { isFavorite: true, favoritedAt: 9 });
     expect(await ids(contactQuery({ scope: 'favorites' }))).toEqual(['maya', 'ana']);
