@@ -46,7 +46,7 @@ export default function PlacesField({ places, onEdit, onAdd }: PlacesFieldProps)
               </View>
               <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
             </Pressable>
-            <Divider style={index === places.length - 1 ? undefined : styles.divider} />
+            <Divider style={styles.divider} />
           </View>
         );
       })}
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     color: colors.text.primary,
   },
-  // Between places, the line starts at the text.
+  // Under every place, the line starts at the text, the one above Add place too.
   divider: {
     marginLeft: layout.sideGutter + sizes.icon + ICON_GAP,
   },

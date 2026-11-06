@@ -27,7 +27,7 @@ type ListsFieldProps = {
 export default function ListsField({ lists, onRemove, onAdd, onOpen }: ListsFieldProps) {
   return (
     <Card>
-      {lists.map((list, index) => (
+      {lists.map((list) => (
         <View key={list.id}>
           <Pressable
             onPress={onOpen && (() => onOpen(list.id))}
@@ -44,7 +44,7 @@ export default function ListsField({ lists, onRemove, onAdd, onOpen }: ListsFiel
               <Button icon="close" onPress={() => onRemove(list.id)} accessibilityLabel={`Remove from ${list.name}`} />
             </IconSlotContext.Provider>
           </Pressable>
-          <Divider style={index === lists.length - 1 ? undefined : styles.divider} />
+          <Divider style={styles.divider} />
         </View>
       ))}
       <AddRow label="Add to list" onPress={onAdd} />
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     fontSize: typography.body,
     color: colors.text.primary,
   },
-  // Between lists, the line starts at the text.
+  // Under every list, the line starts at the text, the one above Add to list too.
   divider: {
     marginLeft: layout.sideGutter + sizes.icon + ICON_GAP,
   },

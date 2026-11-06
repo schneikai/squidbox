@@ -18,9 +18,11 @@ export default function AddRow({ label, onPress }: AddRowProps) {
 }
 
 const styles = StyleSheet.create({
-  // The button's own inset is wider than the rows', so its icon lines up with their text.
+  // The button's own inset is wider than the rows', so its icon lines up with their text. A little
+  // more room above and below than the button's own, so the add doesn't sit tighter than the rows.
   add: {
     alignItems: 'flex-start',
     marginLeft: SCREEN_PADDING - 24,
+    paddingVertical: 4,
   },
 });
