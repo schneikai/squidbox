@@ -66,9 +66,14 @@ export function pageAfterResult<R>(page: Page, result: PagedResult<R> | undefine
  * `loadMore` is never lost: asked while a read is in flight or with nothing left, it waits and grows
  * the limit once the current result shows more rows (a new descriptor forgets it). With `withReadAt`,
  * `readAt` says how fresh the rows are, updated on every read (see useLiveQueryState); without it the
- * screen renders nothing for a re-read that returns the same rows.
+ * screen renders nothing for a re-read that returns the same rows. `isLive` (default true): false reads
+ * once and then only notes writes until it turns true (useLiveQuery), for a list that is hidden for now.
  */
-export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number, { withReadAt = false } = {}) {
+export function usePagedQuery<R>(
+  query: PagedQuery<R>,
+  pageSize: number,
+  { withReadAt = false, isLive = true }: { withReadAt?: boolean; isLive?: boolean } = {},
+) {
   const key = JSON.stringify(query.descriptor);
   const [page, setPage] = useState<Page>({ key, limit: pageSize, keepFor: null, wantsMore: false });
   const current = pageForKey(page, key, pageSize);
@@ -77,7 +82,7 @@ export function usePagedQuery<R>(query: PagedQuery<R>, pageSize: number, { withR
     async (db) => ({ ...(await query.read(db, { limit })), limit, key }),
     query.tables,
     [key, limit],
-    { everyRead: withReadAt },
+    { everyRead: withReadAt, isLive },
   );
   const next = pageAfterResult(current, result);
   if (next !== page) setPage(next);

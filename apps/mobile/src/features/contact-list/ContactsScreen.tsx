@@ -49,8 +49,8 @@ export default function ContactsScreen() {
   const isSearching = !!searchText.trim();
   // Trimmed, so a trailing space doesn't read the list again.
   const query = contactQuery({ scope: 'all', search: searchText.trim(), sort: sortOrder });
-  const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
   // Each stays live only while it shows.
+  const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
   const favorites = useContactRows({ scope: 'favorites' }, { isLive: isContacts && !isSearching });
   const lists = useContactListRows({ isLive: segment === 'lists' });
 
