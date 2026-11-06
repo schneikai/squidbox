@@ -11,7 +11,7 @@ type ContactListName = { id: string; name: string };
  */
 type ListsFieldProps = {
   lists: readonly ContactListName[];
-  onRemove: (listId: string) => void;
+  onRemove: (list: ContactListName) => void;
   onAdd: () => void;
   onOpen?: (listId: string) => void;
 };
@@ -26,7 +26,7 @@ export default function ListsField({ lists, onRemove, onAdd, onOpen }: ListsFiel
         onPress: onOpen && (() => onOpen(list.id)),
         accessibilityHint: onOpen ? 'Opens the list' : undefined,
         trailing: (
-          <Button icon="close" onPress={() => onRemove(list.id)} accessibilityLabel={`Remove from ${list.name}`} />
+          <Button icon="close" onPress={() => onRemove(list)} accessibilityLabel={`Remove from ${list.name}`} />
         ),
       }))}
       addLabel="Add to list"
