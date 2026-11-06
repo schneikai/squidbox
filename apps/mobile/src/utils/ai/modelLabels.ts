@@ -9,6 +9,8 @@ import {
 
 import isVerifiedModel from '@/utils/ai/isVerifiedModel';
 
+export type ModelLabels = Record<ModelLabel | 'changed', boolean>;
+
 /**
  * The labels the model `modelId` has for `kind` (`model` its catalog model, null once Venice
  * dropped it; `yourDefaults` the defaults this account uses, useYourModels'), by
@@ -24,7 +26,7 @@ export default function modelLabels(
   model: ApiAiModel | null,
   yourDefaults: ModelDefaults | null | undefined,
   defaults?: ModelDefaults | null,
-): Record<ModelLabel | 'changed', boolean> {
+): ModelLabels {
   if (!yourDefaults) {
     return { verified: false, uncensored: false, default: false, uncensoredDefault: false, changed: false };
   }
@@ -36,8 +38,7 @@ export default function modelLabels(
       ),
     verified: model ? isVerifiedModel(kind, model) : false,
     uncensored: model ? model.isUncensored : false,
-    ...(Object.fromEntries(
-      Object.entries(MODEL_DEFAULT_LABELS).map(([label, variant]) => [label, yourDefaults[kind][variant] === modelId]),
-    ) as Record<keyof typeof MODEL_DEFAULT_LABELS, boolean>),
+    default: yourDefaults[kind][MODEL_DEFAULT_LABELS.default] === modelId,
+    uncensoredDefault: yourDefaults[kind][MODEL_DEFAULT_LABELS.uncensoredDefault] === modelId,
   };
 }
