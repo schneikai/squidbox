@@ -8,7 +8,7 @@ import usedModelId from '@/utils/ai/usedModelId';
  * The name of the writing model the chat uses (an ai_admin's own default, Uncensored when the
  * persona has adult content), for an ai_admin's chat header; null while it loads.
  */
-export default function useWritingModelName() {
+export default function useWritingModelName(): string | null {
   const { models } = useAiCatalog();
   const persona = usePersona();
   const { yourDefaults } = useYourDefaults();

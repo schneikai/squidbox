@@ -1,6 +1,7 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
+import type { LiveChat } from './useChatSession';
 import useMentionedHandles from './useMentionedHandles';
 import withEdits from './withEdits';
 
@@ -12,12 +13,19 @@ import TagsField from '@/components/TagsField';
 import { space } from '@/styles/designTokens';
 import tagsDifference from '@/utils/tagsDifference';
 
+type ChatMentionsSheetProps = {
+  isVisible: boolean;
+  onClose: () => void;
+  handles: string[];
+  onEditMentions: LiveChat['editMentions'];
+};
+
 /**
  * The handles the chat may mention, in a sheet (`handles`), edited in place like its tags: a tap
  * takes one off, Add types one in, and the other handles of all the posts (MoreMentions) are added
  * with a tap. Each change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
  */
-export default function ChatMentionsSheet({ isVisible, onClose, handles, onEditMentions }) {
+export default function ChatMentionsSheet({ isVisible, onClose, handles, onEditMentions }: ChatMentionsSheetProps) {
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title="Mentions">
       <View style={styles.body}>
@@ -36,9 +44,11 @@ export default function ChatMentionsSheet({ isVisible, onClose, handles, onEditM
   );
 }
 
+type MoreMentionsProps = Pick<ChatMentionsSheetProps, 'handles' | 'onEditMentions'>;
+
 // Every other handle the user ever mentioned, to add with a tap; read only while the sheet is open
 // (a Modal renders nothing while hidden), since it reads every post.
-function MoreMentions({ handles, onEditMentions }) {
+function MoreMentions({ handles, onEditMentions }: MoreMentionsProps) {
   const mentioned = useMentionedHandles();
 
   const more = mentioned ? withEdits(mentioned, { removed: handles }) : [];

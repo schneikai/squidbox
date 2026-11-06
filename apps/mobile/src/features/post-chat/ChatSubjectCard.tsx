@@ -1,18 +1,33 @@
+import type { AssetRecord, ChatSubjectKind } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
 import ItSeesRow from './ItSeesRow';
 import MentionsRow from './MentionsRow';
+import type { LiveChat } from './useChatSession';
+import type { Mentions } from './useMentions';
+import type { ListEdits } from './withEdits';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import Text from '@/components/Text';
+import type { AssetTagging } from '@/features/photo-tags/useAssetTags';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
 import { colors, layout, sizes } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 const THUMB_SIZE = sizes.thumbnailSmall;
-const SUBJECTS = { draft: 'New post', edit: 'Edit post', post: 'This post' };
+const SUBJECTS: Record<ChatSubjectKind, string> = { draft: 'New post', edit: 'Edit post', post: 'This post' };
+
+type ChatSubjectCardProps = {
+  kind: ChatSubjectKind;
+  assets: AssetRecord[];
+  tagging: AssetTagging;
+  tagEdits: ListEdits;
+  onEditTags: LiveChat['editTags'];
+  mentions: Mentions | undefined;
+  onEditMentions: LiveChat['editMentions'];
+};
 
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
@@ -21,7 +36,15 @@ const SUBJECTS = { draft: 'New post', edit: 'Edit post', post: 'This post' };
  * `onEditTags`) and the handles it may mention (`mentions`, usePostChat's, changed with `onEditMentions`), as grey
  * lines.
  */
-export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEditTags, mentions, onEditMentions }) {
+export default function ChatSubjectCard({
+  kind,
+  assets,
+  tagging,
+  tagEdits,
+  onEditTags,
+  mentions,
+  onEditMentions,
+}: ChatSubjectCardProps) {
   const assetIds = assets.map((asset) => asset.id);
   const albums = useAssetAlbums({ assetIds }, { isLive: false });
 

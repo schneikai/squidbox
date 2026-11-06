@@ -10,7 +10,6 @@ import Card from '@/components/Card';
 import TextInput from '@/components/TextInput';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
-// WriteWithAi is JS: typed as allowJs infers it.
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import { layout, scale, space } from '@/styles/designTokens';
