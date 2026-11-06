@@ -10,7 +10,7 @@ import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
 const STACK_SIZE = sizes.avatar.row;
-const OVERLAP = -scale(18);
+const OVERLAP = -scale(24);
 
 /**
  * The contact lists (contactListQuery's rows) in one section: each list's name and count, the
