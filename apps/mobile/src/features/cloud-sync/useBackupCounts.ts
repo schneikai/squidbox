@@ -2,7 +2,7 @@ import { readBackupCounts } from '@/sync/assetsRepository';
 import { schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
-const NO_COUNTS = { unsyncedCount: 0, syncErrorCount: 0 };
+const NO_COUNTS: Awaited<ReturnType<typeof readBackupCounts>> = { unsyncedCount: 0, syncErrorCount: 0 };
 
 /** The backup's live counts, `{ unsyncedCount, syncErrorCount }` (the run itself needs the session). */
 export default function useBackupCounts() {

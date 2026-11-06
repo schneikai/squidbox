@@ -7,7 +7,6 @@ import Text from '@/components/Text';
 import useCloud from '@/features/cloud/useCloud';
 import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import {} from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { useRecordCounts } from '@/sync/useRecordCounts';
 import { useSyncStatus } from '@/sync/useSyncStatus';
@@ -23,7 +22,7 @@ const RETRY_MS = 5_000;
 // (mergeWaits in library/mergeLibrary.ts).
 const deviceLibraryWaits = () => Boolean(deviceLibraryToJoin());
 
-function useTotal(table) {
+function useTotal(table: Parameters<typeof useRecordCounts>[0]) {
   const { records, tombstones } = useRecordCounts(table);
   return records + tombstones;
 }

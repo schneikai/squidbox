@@ -1,38 +1,44 @@
-import { useState, useRef, useMemo } from 'react';
+import type { UploadProgress } from 'expo-file-system';
+import { useState, useRef, useMemo, type ReactNode } from 'react';
 
-import CloudSyncContext from './CloudSyncContext';
+import CloudSyncContext, { type CloudSyncValue } from './CloudSyncContext';
 
 import uploadFileAsync from '@/features/cloud/assets/uploadFileAsync';
 import useCloud from '@/features/cloud/useCloud';
+import type { OpenLibrary } from '@/library/current';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import { removeAssetFiles } from '@/library/fs';
-import useLibrary from '@/library/useLibrary';
-import { isBackupRunning, runBackup } from '@/sync/backupRun';
+import type { SyncIdentity } from '@/library/sessionMatches';
+import useOpenLibrary from '@/library/useOpenLibrary';
+import { isBackupRunning, runBackup, type BackupUploads } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
 import { getAssetFileUri, getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import ensureAssetThumbnailAsync from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 // Exponential moving average time constant (seconds).
 // Higher = smoother but slower to react. 10s gives a stable readable number.
 const EMA_TAU = 10;
 
+export type CloudSyncProviderProps = { children: ReactNode };
+
 // The backup's progress state around the run itself (sync/backupRun.ts, which owns the one run and
 // its stop).
-export default function CloudSyncProvider({ children }) {
+export default function CloudSyncProvider({ children }: CloudSyncProviderProps) {
   const { isAuthenticated } = useCloud();
-  const { paths } = useLibrary();
+  const { paths } = useOpenLibrary();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState(null);
-  const [syncProgressMessage, setSyncProgressMessage] = useState(null);
-  const [syncSpeedMessage, setSyncSpeedMessage] = useState(null);
-  const [backupError, setBackupError] = useState(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncProgressMessage, setSyncProgressMessage] = useState<CloudSyncValue['syncProgressMessage']>(null);
+  const [syncSpeedMessage, setSyncSpeedMessage] = useState<CloudSyncValue['syncSpeedMessage']>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
 
-  const lastProgressRef = useRef(null);
+  const lastProgressRef = useRef<{ bytes: number; time: number } | null>(null);
   const emaSpeedRef = useRef(0);
-  const sessionStartRef = useRef(null);
+  const sessionStartRef = useRef(0);
   const completedBytesRef = useRef(0);
-  function updateSyncProgressMessage({ bytesSent, totalBytes }) {
+  function updateSyncProgressMessage({ bytesSent, totalBytes }: UploadProgress) {
     const now = Date.now();
 
     if (lastProgressRef.current) {
@@ -67,7 +73,7 @@ export default function CloudSyncProvider({ children }) {
   }
 
   // The uploads of one run, for the session and the library it started with, under the run's signal.
-  function uploadsFor(identity, library) {
+  function uploadsFor(identity: SyncIdentity, library: OpenLibrary): (signal: AbortSignal) => BackupUploads {
     return (signal) => ({
       ensureThumbnail: (asset) => ensureAssetThumbnailAsync(asset, { library }),
       uploadFile: async (asset) => {
@@ -114,7 +120,7 @@ export default function CloudSyncProvider({ children }) {
     } catch (error) {
       // Not an upload (those are marked per asset): the run itself couldn't go on.
       console.error('Backup failed', error);
-      setBackupError(error.message);
+      setBackupError(apiErrorMessage(error));
     } finally {
       setIsSyncing(false);
       setSyncMessage(null);
@@ -123,7 +129,7 @@ export default function CloudSyncProvider({ children }) {
     }
   }
 
-  const value = useMemo(
+  const value = useMemo<CloudSyncValue>(
     () => ({
       backupError,
       isSyncing,

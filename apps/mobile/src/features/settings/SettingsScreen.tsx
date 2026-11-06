@@ -17,20 +17,21 @@ import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
 import DevAccountsSection from '@/features/dev-accounts/DevAccountsSection';
+import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
 import useHasFeature from '@/hooks/useHasFeature';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { colors, space } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
-import formatErrorCount from '@/utils/formatErrorCount';
 import useResortAlbumsByName from '@/utils/tools/useResortAlbumsByName';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { isAuthenticated, needsReauth, user, logoutAsync } = useCloud();
-  const { library } = useLibrary();
+  const { library } = useOpenLibrary();
   const cloudSync = useCloudSync();
   const counts = useBackupCounts();
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
@@ -61,7 +62,7 @@ export default function SettingsScreen() {
       const count = await resortAlbumsByNameAsync();
       Alert.alert('Done!', `Sorted ${count} album${count === 1 ? '' : 's'}.`);
     } catch (error) {
-      Alert.alert('Failed', error.message);
+      Alert.alert('Failed', apiErrorMessage(error));
     } finally {
       hide();
     }
@@ -76,19 +77,8 @@ export default function SettingsScreen() {
         Alert.alert('API error', `Status: ${response.status}\n${SERVER_URL}`);
       }
     } catch (error) {
-      Alert.alert('API unreachable', `${error.message}\n${SERVER_URL}`);
+      Alert.alert('API unreachable', `${apiErrorMessage(error)}\n${SERVER_URL}`);
     }
-  }
-
-  // Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
-  // engine (automatic). Each is one tappable status row → its own detail screen.
-  function librarySyncStatusText() {
-    if (needsReauth) return pendingCount > 0 ? `${pendingCount} waiting for sign-in` : 'Up to date';
-    if (lastError) return 'Error';
-    if (phase === 'pushing' || phase === 'pulling') return 'Syncing…';
-    if (failedCount > 0) return formatErrorCount(failedCount);
-    if (pendingCount > 0) return `${pendingCount} pending`;
-    return 'Up to date';
   }
 
   function renderAccount() {
@@ -137,6 +127,8 @@ export default function SettingsScreen() {
         {isAccountLibrary && (
           <>
             <ScreenSectionHeader title="Backup & Sync" />
+            {/* Backup = uploading full-res photo files to the cloud (manual). Library sync = the metadata
+                engine (automatic). Each is one tappable status row → its own detail screen. */}
             <Section>
               <Row
                 label="Photo backup"
@@ -146,7 +138,7 @@ export default function SettingsScreen() {
               />
               <Row
                 label="Library sync"
-                value={librarySyncStatusText()}
+                value={getLibrarySyncStatusText({ phase, lastError, pendingCount, failedCount, needsReauth })}
                 onPress={() => router.navigate('/settings/sync')}
                 hasChevron
               />
