@@ -234,11 +234,9 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 ### [ ] Rewrite the app in TypeScript
 
 `npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
-asset-list, album-list, album-detail, asset-detail, posts, post-list, post-chat, prompt-buttons,
-model-compare, model-verify and the thumbnail loader's provider and queue, `app/_layout.jsx` and
-those features' routes, and five held files (`SyncErrorViewer`, `SyncScreen`, `Post`,
-`ComponentGalleryScreen`; `AssetPickerGrid` with asset-list). Convert them feature by feature, then
-add `test/` to the check and turn `allowJs` off.
+posts (next: it types against post-list's rows), album-list, album-detail, asset-detail, post-chat,
+prompt-buttons, model-compare and model-verify, `app/_layout.jsx` and those features' routes.
+Convert them feature by feature, then add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 
