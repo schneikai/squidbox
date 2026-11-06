@@ -52,7 +52,6 @@ type PromptButtonEditorProps = {
   id: string | undefined;
   seed: PromptButtonSeed;
 };
-
 function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
   const pathname = usePathname();
   const [draft, setDraft] = useState<PromptButtonSeed>({

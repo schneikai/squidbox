@@ -17,16 +17,16 @@ const MESSAGES = {
   playerError: { icon: 'alert', text: "This video can't be played." },
 } satisfies Record<string, AssetMessageText>;
 
+type AssetVideoProps = {
+  video: AssetVideoValue;
+};
+
 /**
  * The current page's video (`useAssetVideo`'s result), laid over its thumbnail: the video fades in
  * once its first frame is drawn, a cloud copy shows a spinner while it loads or buffers on its way
  * to playing (a paused one just shows its thumbnail), and a video that can't play says why. Touches
  * pass through to the page. Expects a fresh mount per `video.key`.
  */
-type AssetVideoProps = {
-  video: AssetVideoValue;
-};
-
 export default function AssetVideo({ video }: AssetVideoProps) {
   return (
     <View style={[StyleSheet.absoluteFill, styles.overlay]}>
@@ -43,7 +43,6 @@ type PlaybackProps = {
   player: VideoPlayer;
   isRemote: boolean;
 };
-
 function Playback({ player, isRemote }: PlaybackProps) {
   const { status } = useEvent(player, 'statusChange', { status: player.status });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });

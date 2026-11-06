@@ -51,7 +51,6 @@ type AssetPagerProps = {
   onTapAsset: () => void;
   onLockChange: (isLocked: boolean) => void;
 };
-
 function AssetPager({
   assetIds,
   assetsById,

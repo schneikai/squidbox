@@ -1,3 +1,5 @@
+import type { Point } from '@/components/sortable-grid/useGridLongPressPan';
+
 /**
  * How far a zoomed image may move from the center on each axis before an edge comes into view. The
  * image is fitted (`contain`) into the `width` × `height` view; an axis it doesn't overflow can't move.
@@ -8,7 +10,7 @@ export default function getPanBounds({
   width,
   height,
   aspectRatio,
-}: Record<'scale' | 'width' | 'height' | 'aspectRatio', number>): { x: number; y: number } {
+}: Record<'scale' | 'width' | 'height' | 'aspectRatio', number>): Point {
   'worklet';
   if (!(width > 0 && height > 0 && scale > 0)) return { x: 0, y: 0 };
   const viewRatio = width / height;

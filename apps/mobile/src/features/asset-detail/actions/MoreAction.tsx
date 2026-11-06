@@ -10,7 +10,6 @@ import getAssetFileDownloadUrlAsync from '@/utils/cloud-api/assets/getAssetFileD
 type MoreActionProps = {
   asset: Pick<AssetRow, 'id' | 'filename'>;
 };
-
 export default function MoreAction({ asset }: MoreActionProps) {
   function handleAddToAlbum() {
     router.navigate({ pathname: '/add-to-album', params: { assetIds: asset.id } });
