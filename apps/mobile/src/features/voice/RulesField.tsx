@@ -1,14 +1,16 @@
-import { PERSONA_LIMITS } from '@squidbox/shared';
+import { PERSONA_LIMITS, type PersonaRecord } from '@squidbox/shared';
 import { memo } from 'react';
 
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 
+export type RulesFieldProps = { rules: PersonaRecord['rules']; onOpen: (index: number) => void; onAdd: () => void };
+
 /**
  * Rules: one row each, a tap opens it (`onOpen(index)`), and "Add a rule" (`onAdd`) while there is
  * room for one more.
  */
-function RulesField({ rules, onOpen, onAdd }) {
+function RulesField({ rules, onOpen, onAdd }: RulesFieldProps) {
   const canAdd = rules.length < PERSONA_LIMITS.rules;
 
   return (

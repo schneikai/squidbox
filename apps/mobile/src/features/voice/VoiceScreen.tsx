@@ -1,9 +1,9 @@
-import { PERSONA_LIMITS, uniqueTags } from '@squidbox/shared';
+import { PERSONA_LIMITS, type PersonaFields, uniqueTags } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
-import FieldInfoSheet from './FieldInfoSheet';
+import FieldInfoSheet, { type FieldInfoSheetProps } from './FieldInfoSheet';
 import voiceFields from './voiceFields';
 
 import DetailScrollView from '@/components/DetailScrollView';
@@ -18,7 +18,7 @@ import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import usePersona from '@/hooks/usePersona';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import useLibrary from '@/library/useLibrary';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { scale, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import { EMPTY_PERSONA, readPersona, savePersona } from '@/sync/personaRepository';
@@ -26,53 +26,72 @@ import { requestSync } from '@/sync/worker';
 import changedValues from '@/utils/changedValues';
 
 // The fields this screen edits in place (Rules have their own screen, from Assistant).
-const TEXT_FIELDS = ['aboutYou', 'tone', 'contentTags'];
+type VoiceDraft = Pick<PersonaFields, 'aboutYou' | 'tone' | 'contentTags'>;
+
+// One setter per field.
+type VoiceSetters = { [K in keyof VoiceDraft]: (value: VoiceDraft[K]) => void };
 
 // Settings → Assistant → Writing as you: what the assistant writes with, as plain fields, saved as
 // you type, and the Adult content switch under Your content, saved as it flips.
 export default function VoiceScreen() {
   const isAvailable = useLeaveWhenUnavailable();
-  const { library } = useLibrary();
-  const userId = library.owner.userId;
-  const seed = useSeedOrClose(async (db) => {
+  const { userId } = useOpenLibrary();
+
+  // Available already means an account (useIsAssistantAvailable); the userId check only narrows.
+  if (!isAvailable || userId === null) return null;
+  return <SeededVoiceEditor userId={userId} />;
+}
+
+type SeededVoiceEditorProps = { userId: string };
+
+// The screen once the account is known: the fields as stored, then the editor.
+function SeededVoiceEditor({ userId }: SeededVoiceEditorProps) {
+  const seed = useSeedOrClose(async (db): Promise<VoiceDraft> => {
     const persona = (await readPersona(db, userId)) ?? EMPTY_PERSONA;
-    return Object.fromEntries(TEXT_FIELDS.map((field) => [field, persona[field]]));
+    return { aboutYou: persona.aboutYou, tone: persona.tone, contentTags: persona.contentTags };
   }, 'persona');
-  if (!isAvailable || !seed) return null;
+
+  if (!seed) return null;
   return <VoiceEditor userId={userId} seed={seed} />;
 }
 
-function VoiceEditor({ userId, seed }) {
+type VoiceEditorProps = { userId: string; seed: VoiceDraft };
+
+// The fields, saved as you type from `seed` on, and the Adult content switch.
+function VoiceEditor({ userId, seed }: VoiceEditorProps) {
   const navigation = useNavigation();
-  const [draft, setDraft] = useState(seed);
-  const [info, setInfo] = useState({ field: 'aboutYou', isVisible: false });
+  const [draft, setDraft] = useState<VoiceDraft>(seed);
+  const [info, setInfo] = useState<{ field: FieldInfoSheetProps['field']; isVisible: boolean }>({
+    field: 'aboutYou',
+    isVisible: false,
+  });
   // One setter per field that keeps its identity, so typing in one field leaves the others' lists
   // (memo) alone.
-  const [setters] = useState(() =>
-    Object.fromEntries(
-      TEXT_FIELDS.map((field) => [field, (value) => setDraft((current) => ({ ...current, [field]: value }))]),
-    ),
-  );
+  const [setters] = useState<VoiceSetters>(() => ({
+    aboutYou: (value) => setDraft((current) => ({ ...current, aboutYou: value })),
+    tone: (value) => setDraft((current) => ({ ...current, tone: value })),
+    contentTags: (value) => setDraft((current) => ({ ...current, contentTags: value })),
+  }));
   const persona = usePersona();
   const { flush } = useSaveAsYouType(normalized(draft), saveFields);
 
   // Only what the user changed, so a field another device edited meanwhile keeps that edit.
-  async function saveFields(next, stored) {
+  async function saveFields(next: VoiceDraft, stored: VoiceDraft) {
     await savePersona(getDb(), userId, changedValues(stored, next));
   }
 
-  function handleAdultContentChange(isOn) {
+  function handleAdultContentChange(isOn: boolean) {
     savePersona(getDb(), userId, { adultContent: isOn }).then(requestSync, (error) => {
       console.error('Saving Adult content failed', error);
       Alert.alert("Couldn't save your changes", error.message);
     });
   }
 
-  function showInfo(field) {
+  function showInfo(field: FieldInfoSheetProps['field']) {
     setInfo({ field, isVisible: true });
   }
 
-  function textField(field, maxLength) {
+  function textField(field: 'aboutYou' | 'tone', maxLength: number) {
     const { label, placeholder } = voiceFields[field];
     return (
       <Field label={label} onInfo={() => showInfo(field)}>
@@ -134,7 +153,7 @@ function VoiceEditor({ userId, seed }) {
 }
 
 // The fields as they are saved: texts trimmed, a tag once.
-function normalized(draft) {
+function normalized(draft: VoiceDraft): VoiceDraft {
   return {
     aboutYou: draft.aboutYou.trim(),
     tone: draft.tone.trim(),
