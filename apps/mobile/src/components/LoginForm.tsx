@@ -5,7 +5,7 @@ import Button from '@/components/Button';
 import TextInput from '@/components/TextInput';
 import { Section } from '@/components/settings-list/SettingsList';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, layout, sizes } from '@/styles/designTokens';
+import { colors, layout, sizes, space } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 
 export type LoginFormProps = { ownerEmail?: string | null };
@@ -74,10 +74,10 @@ export default function LoginForm({ ownerEmail }: LoginFormProps) {
 const styles = StyleSheet.create({
   input: {
     height: sizes.iconButton,
-    paddingHorizontal: layout.sideGutter, // Divider's inset
+    paddingHorizontal: layout.rowInset, // Divider's inset
   },
   submit: {
-    marginTop: 12,
+    marginTop: space.md,
   },
   inputLocked: {
     color: colors.text.secondary,

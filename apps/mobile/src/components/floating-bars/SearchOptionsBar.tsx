@@ -16,7 +16,7 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { layout, motion, scale, sizes } from '@/styles/designTokens';
+import { layout, motion, sizes, space } from '@/styles/designTokens';
 
 export type SearchOptionsBarProps = {
   expandProgress: SharedValue<number>;
@@ -82,7 +82,7 @@ export default function SearchOptionsBar({
 }: SearchOptionsBarProps) {
   const inputRef = useRef<ComponentRef<typeof RNTextInput>>(null);
   const { bottom: safeBottom } = useSafeAreaInsets();
-  const keyboardInset = useKeyboardInset();
+  const keyboardInset = useKeyboardInset(0); // the bar keeps its own gap above the keyboard
 
   useEffect(() => {
     expandProgress.value = withTiming(isSearchActive ? 1 : 0, motion.move);
@@ -166,7 +166,7 @@ export default function SearchOptionsBar({
   );
 }
 
-const PILL_GAP = 8;
+const PILL_GAP = space.sm;
 // A pill's width around its buttons: the frame on each side.
 const PILL_CHROME = layout.toolbarFrame * 2;
 const COLLAPSED_WIDTH = sizes.iconButton * 2 + PILL_CHROME;
@@ -199,9 +199,8 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    lineHeight: scale(20),
-    paddingLeft: scale(4),
-    paddingRight: scale(12),
+    paddingLeft: space.xs,
+    paddingRight: space.md,
     paddingVertical: 0,
   },
 });

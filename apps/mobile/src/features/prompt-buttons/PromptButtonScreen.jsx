@@ -11,7 +11,7 @@ import TextInput from '@/components/TextInput';
 import useEditSheet from '@/hooks/useEditSheet';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { scale } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import {
   createPromptButton,
@@ -147,6 +147,6 @@ function PromptButtonEditor({ id, seed }) {
 
 const styles = StyleSheet.create({
   fields: {
-    gap: 20,
+    gap: space.xl,
   },
 });

@@ -6,9 +6,10 @@ import { scheduleOnRN } from 'react-native-worklets';
 import Button from '@/components/Button';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
-import { colors, motion, radii, typography } from '@/styles/designTokens';
+import { colors, motion, radii, space, textStyles } from '@/styles/designTokens';
 
 // Off screen before the panel has measured itself.
+// eslint-disable-next-line no-restricted-syntax -- a position far below the screen, not a spacing
 const HIDDEN_OFFSET = 1000;
 
 export type BottomSheetProps = { isVisible: boolean; onClose: () => void; title: string; children?: ReactNode };
@@ -25,7 +26,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }: Bot
   const [isMounted, setIsMounted] = useState(isVisible);
   const progress = useSharedValue(0);
   const panelHeight = useSharedValue(HIDDEN_OFFSET);
-  const bottomInset = useKeyboardInset(SCREEN_PADDING);
+  const bottomInset = useKeyboardInset();
 
   useEffect(() => {
     if (isVisible) {
@@ -97,14 +98,13 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: radii.pill,
     backgroundColor: colors.background.placeholder,
-    marginTop: 6,
+    marginTop: space.sm,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 8,
+    marginVertical: space.sm,
   },
   // The content scrolls edge to edge and pads itself, so a child may reach into the side padding
   // without the scroll view clipping it.
@@ -117,8 +117,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: typography.title2,
-    fontWeight: '700',
+    ...textStyles.title2,
     color: colors.text.primary,
   },
 });

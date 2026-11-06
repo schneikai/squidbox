@@ -2,7 +2,7 @@ import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-na
 
 import FloatingPill from './FloatingPill';
 
-import { colors, layout, lineHeights, scale, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, sizes, textStyles } from '@/styles/designTokens';
 
 export type ToolbarTitleProps = { title?: string; subtitle?: string; isPlain?: boolean; style?: StyleProp<ViewStyle> };
 
@@ -13,7 +13,7 @@ export default function ToolbarTitle({ title, subtitle, isPlain = false, style }
   const content = (
     <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">
       {!!title && (
-        <Text style={[styles.title, isPlain && styles.plainTitle]} numberOfLines={1}>
+        <Text testID="toolbar-title" style={[styles.title, isPlain && styles.plainTitle]} numberOfLines={1}>
           {title}
         </Text>
       )}
@@ -41,31 +41,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexGrow: 1, // fills a pill held at its minWidth, so a short title stays centred in it
     flexShrink: 1,
+    // eslint-disable-next-line no-restricted-syntax -- optical: a title's ends want more room than a button's
     paddingHorizontal: layout.barPaddingX * 1.25,
   },
   twoLines: {
+    // eslint-disable-next-line no-restricted-syntax -- as above, more for two lines
     paddingHorizontal: layout.barPaddingX * 2,
   },
   title: {
-    fontSize: typography.subheadline,
-    lineHeight: scale(17),
-    fontWeight: '600',
+    ...textStyles.subheadlineBold,
     color: colors.text.primary,
     textAlign: 'center',
     flexShrink: 1,
   },
-  plainTitle: {
-    fontSize: typography.body,
-    lineHeight: scale(22),
-    fontWeight: '700',
-  },
-  plainSubtitle: {
-    fontSize: typography.footnote,
-    lineHeight: lineHeights.footnote,
-  },
+  plainTitle: textStyles.bodyBold,
+  plainSubtitle: textStyles.footnote,
   subtitle: {
-    fontSize: typography.caption2,
-    lineHeight: lineHeights.caption2,
+    ...textStyles.caption2,
     color: colors.text.secondary,
     textAlign: 'center',
     flexShrink: 1,

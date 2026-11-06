@@ -1,10 +1,12 @@
 import { memo, useSyncExternalStore } from 'react';
-import { Image, View, StyleSheet, Text } from 'react-native';
+import { Image, View, StyleSheet } from 'react-native';
 
 import AssetImage from '@/components/AssetImage';
 import Icon from '@/components/Icon';
 import SelectIndicator from '@/components/SelectIndicator';
-import { colors, scale, sizes, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import cornerStyles from '@/styles/cornerStyles';
+import { colors, layout, scale, sizes } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // Memoized: providers keep unchanged assets as the same objects, so a write re-renders only its cells.
@@ -21,7 +23,7 @@ function AssetListItem({ asset, selection }) {
       <CornerGlow corner="topRight" size={90} isHidden={!hasPicture} />
       {!!duration && <CornerGlow corner="bottomRight" size={90} isHidden={!hasPicture} />}
       {selection && <SelectGlow selection={selection} assetId={asset.id} hasPicture={hasPicture} />}
-      <View style={styles.indicators}>
+      <View style={[cornerStyles.topRight, styles.indicators]}>
         <FavoriteAssetIndicator isFavorite={isFavorite} />
         {hasPicture && <CloudIndicator isSynced={isSynced} />}
         <NoteIndicator hasNote={!!notes} />
@@ -53,7 +55,7 @@ function SelectGlow({ selection, assetId, hasPicture }) {
 function SelectRing({ selection, assetId }) {
   const state = useSelectionState(selection, assetId);
   if (state === 'off') return null;
-  return <SelectIndicator isSelected={state === 'selected'} isOnMedia style={styles.selectIndicator} />;
+  return <SelectIndicator isSelected={state === 'selected'} isOnMedia style={cornerStyles.topLeft} />;
 }
 
 // One pre-rendered radial fade (black at 42% in the top-left corner, easing out to transparent with no
@@ -78,7 +80,13 @@ function CornerGlow({ corner, size, isHidden = false }) {
 function VideoDuration({ duration }) {
   if (!duration) return null;
 
-  return <Text style={styles.videoDuration}>{formatVideoDuration(duration)}</Text>;
+  return (
+    // Bare text, not a ThumbnailBadge: the grid's cells are small and a capsule on each would crowd
+    // them (the corner glow keeps it readable).
+    <Text variant="label" size="small" tone="inverse" style={cornerStyles.bottomRight}>
+      {formatVideoDuration(duration)}
+    </Text>
+  );
 }
 
 function FavoriteAssetIndicator({ isFavorite }) {
@@ -111,27 +119,9 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
 
-  videoDuration: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    color: colors.text.inverse,
-    fontSize: typography.caption2,
-    fontWeight: '600',
-  },
-
   indicators: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-
-  selectIndicator: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
+    gap: layout.iconGapSmall,
   },
 });

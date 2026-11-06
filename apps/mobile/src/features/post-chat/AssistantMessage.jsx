@@ -1,12 +1,13 @@
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
 import ChatOptionCard from './ChatOptionCard';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import { colors, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors, layout } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
 const SLOW_MS = 20_000;
@@ -21,8 +22,10 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }) {
 
   if (reply.status === 'error') {
     return (
-      <Card style={styles.status}>
-        <Text style={styles.statusText}>{reply.error}</Text>
+      <Card padded style={styles.status}>
+        <Text variant="status" style={styles.statusText}>
+          {reply.error}
+        </Text>
         {onRetry && <Button label="Retry" size="small" onPress={onRetry} />}
       </Card>
     );
@@ -50,9 +53,11 @@ function ThinkingCard() {
   }, []);
 
   return (
-    <Card style={styles.status}>
+    <Card padded style={styles.status}>
       <ActivityIndicator color={colors.text.secondary} />
-      <Text style={styles.statusText}>{isSlow ? 'Still writing…' : 'Thinking…'}</Text>
+      <Text variant="status" style={styles.statusText}>
+        {isSlow ? 'Still writing…' : 'Thinking…'}
+      </Text>
     </Card>
   );
 }
@@ -61,16 +66,13 @@ const styles = StyleSheet.create({
   status: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    // One line: a compact row's height.
+    paddingVertical: layout.rowPaddingYCompact,
   },
   statusText: {
     flex: 1,
-    fontSize: typography.subheadline,
-    color: colors.text.secondary,
   },
   reply: {
-    gap: 10,
+    gap: layout.cardGap,
   },
 });

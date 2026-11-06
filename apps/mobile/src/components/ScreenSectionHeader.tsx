@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, type TextStyle, View, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, type TextStyle, View } from 'react-native';
 
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 type ScreenSectionHeaderSize = 'small' | 'regular';
 
@@ -32,7 +32,7 @@ export default function ScreenSectionHeader({
   size = 'regular',
 }: ScreenSectionHeaderProps) {
   const label = [styles.label, LABEL_STYLES[size], isFlush && styles.flush];
-  const spacing = [SPACING_STYLES[size], isFirst && styles.first];
+  const spacing = [styles.spacing, isFirst && styles.first];
 
   if (!trailing) {
     return <Text style={[label, spacing]}>{title}</Text>;
@@ -48,24 +48,14 @@ export default function ScreenSectionHeader({
 
 const styles = StyleSheet.create({
   label: {
-    fontWeight: '600',
     color: colors.text.secondary,
-    marginLeft: 4,
+    marginLeft: layout.rowInset, // over the rows' text
   },
-  label_small: {
-    fontSize: typography.subheadline,
-    marginLeft: 6,
-  },
-  label_regular: {
-    fontSize: typography.body,
-  },
-  spacing_small: {
-    marginTop: 22,
-    marginBottom: 8,
-  },
-  spacing_regular: {
-    marginTop: 20,
-    marginBottom: 8,
+  label_small: textStyles.subheadlineBold,
+  label_regular: textStyles.bodyBold,
+  spacing: {
+    marginTop: layout.sectionGap,
+    marginBottom: space.sm,
   },
   labelInRow: {
     flex: 1,
@@ -85,9 +75,4 @@ const styles = StyleSheet.create({
 const LABEL_STYLES: Record<ScreenSectionHeaderSize, TextStyle> = {
   small: styles.label_small,
   regular: styles.label_regular,
-};
-
-const SPACING_STYLES: Record<ScreenSectionHeaderSize, ViewStyle> = {
-  small: styles.spacing_small,
-  regular: styles.spacing_regular,
 };

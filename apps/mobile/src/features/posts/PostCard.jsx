@@ -9,7 +9,7 @@ import TextInput from '@/components/TextInput';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
-import { scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 /**
@@ -48,7 +48,7 @@ export default function PostCard({
   }
 
   return (
-    <Card style={styles.card}>
+    <Card padded hasControlRow>
       <View style={styles.top}>
         <TextInput
           multiline
@@ -69,7 +69,11 @@ export default function PostCard({
           />
         )}
       </View>
-      <PostAssetsEditor postAssets={postAssets} onChange={(value) => onChange(key, { postAssets: value })} />
+      <PostAssetsEditor
+        postAssets={postAssets}
+        onChange={(value) => onChange(key, { postAssets: value })}
+        style={styles.assets}
+      />
       <PostCardToolbar
         isFirst={isFirst}
         exclude={postAssets.map((postAsset) => postAsset.asset.id)}
@@ -85,16 +89,7 @@ export default function PostCard({
   );
 }
 
-const CARD_SIDE_INSET = scale(15);
-const CARD_BOTTOM_INSET = scale(8);
-
 const styles = StyleSheet.create({
-  card: {
-    paddingTop: scale(14),
-    paddingHorizontal: CARD_SIDE_INSET,
-    paddingBottom: CARD_BOTTOM_INSET,
-    gap: scale(10),
-  },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {
     flexDirection: 'row',
@@ -104,14 +99,19 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  // A card's gap from the text and the toolbar (the card's gap is the toolbar's slack).
+  assets: {
+    marginVertical: layout.cardGap - layout.controlRowSlack,
+  },
   // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
   // gap, and keeps the card's side inset below it.
   writeWithAi: {
-    marginBottom: CARD_SIDE_INSET - CARD_BOTTOM_INSET,
+    marginTop: layout.cardGap - layout.controlRowSlack,
+    marginBottom: layout.cardInset - layout.controlRowSlack,
   },
   // The × lines up with the text's first line.
   remove: {
     flexShrink: 0,
-    marginTop: -scale(2),
+    marginTop: -space.hair,
   },
 });

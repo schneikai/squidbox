@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
 import useCloud from '@/features/cloud/useCloud';
-import { colors, radii, scale, shadows, sizes, typography } from '@/styles/designTokens';
+import { colors, radii, scale, shadows, sizes, textStyles } from '@/styles/designTokens';
 
 const SIZE = scale(34);
 // Brings the tap target to the 44pt minimum.
@@ -55,12 +55,13 @@ const styles = StyleSheet.create({
   },
   initial: {
     color: colors.accent.base,
-    fontSize: typography.subheadline,
-    fontWeight: '700',
+    ...textStyles.subheadlineBold,
   },
   badge: {
     position: 'absolute',
+    // eslint-disable-next-line no-restricted-syntax -- a hair over the avatar's edge, like an app icon's badge
     top: -1,
+    // eslint-disable-next-line no-restricted-syntax -- as above
     right: -1,
     width: 12,
     height: 12,

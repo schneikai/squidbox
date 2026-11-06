@@ -3,7 +3,7 @@
 // applies at once; clearing the field changes nothing (Remove takes the time away).
 import moment from 'moment';
 
-import { colors, radii, scale, typography } from '@/styles/designTokens';
+import { colors, layout, radii, space, typography } from '@/styles/designTokens';
 import { LOCAL_INPUT_FORMAT } from '@/utils/date-time/constants';
 
 export default function PostedAtCalendar({ timestamp, onChange }) {
@@ -31,11 +31,15 @@ function toLocalInputValue(timestamp) {
 const INPUT_STYLE = {
   boxSizing: 'border-box',
   width: '100%',
-  padding: scale(12),
+  // A field's insets (TextInput's).
+  paddingTop: space.md,
+  paddingBottom: space.md,
+  paddingLeft: layout.rowInset,
+  paddingRight: layout.rowInset,
   border: 'none',
   borderRadius: radii.card,
   backgroundColor: colors.background.muted,
   color: colors.text.primary,
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', // the system font react-native-web's Text uses
-  fontSize: typography.body,
+  fontSize: typography.body, // one line: no line height in an input (TextInput)
 };

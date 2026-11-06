@@ -10,7 +10,7 @@ import Card from '@/components/Card';
 import FadeView from '@/components/FadeView';
 import SuperPressable from '@/components/SuperPressable';
 import PostView from '@/features/posts/PostView';
-import { layout, scale } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 // One stack edge per following post, at most this many.
 const MAX_EDGES = 2;
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   post: {
     flex: 1,
     paddingHorizontal: layout.sideGutter,
-    paddingBottom: scale(14),
+    paddingBottom: space.lg,
   },
   // A thread's: over the stack under it, the edges and the following posts while they come out of it.
   firstCard: {

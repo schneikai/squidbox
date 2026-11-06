@@ -4,12 +4,12 @@ import { FlatList, Modal, Pressable, View, Text as RNText, StyleSheet } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import Text from '@/components/Text';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
-import { press } from '@/styles/designTokens';
+import { layout, press, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -64,7 +64,7 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
           )}
           onEndReached={loadMore}
           onEndReachedThreshold={2}
-          contentContainerStyle={[styles.list, { paddingTop: MODAL_HEADER_HEIGHT + SCREEN_PADDING }]}
+          contentContainerStyle={styles.list}
         />
 
         <View style={styles.footer}>
@@ -77,18 +77,20 @@ export default function SyncErrorViewer({ query, onRetryAll, close }) {
 
 const styles = StyleSheet.create({
   list: {
-    padding: SCREEN_PADDING,
-    gap: 6,
+    paddingTop: layout.sheetContentTop,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingBottom: SCREEN_PADDING,
+    gap: space.sm,
   },
   errorRow: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 12,
+    paddingHorizontal: layout.rowInset,
+    paddingVertical: layout.rowPaddingYCompact,
   },
   errorTitle: {
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
 
   footer: {
-    padding: 16,
+    padding: layout.cardInset,
   },
 });

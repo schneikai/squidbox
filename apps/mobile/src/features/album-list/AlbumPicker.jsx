@@ -1,7 +1,7 @@
 import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import SearchSortFilterBar, { SEARCH_SORT_FILTER_BAR_CLEARANCE } from '@/components/floating-bars/SearchSortFilterBar';
+import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import AlbumList from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
@@ -9,7 +9,7 @@ import albumSortOptions from '@/features/album-list/actions/sort-albums-action/a
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useListControls from '@/hooks/useListControls';
-import { press } from '@/styles/designTokens';
+import { layout, press } from '@/styles/designTokens';
 
 // The albums of a modal to pick one from, with search, sort and filter; a tap hands the album to
 // `onPick`. Smart albums show with `showSmartAlbums` (to pick assets from Favorites, not to add to
@@ -29,7 +29,7 @@ export default function AlbumPicker({ onPick, showSmartAlbums = false, paddingTo
         albums={albums}
         contentContainerStyle={{
           paddingTop,
-          paddingBottom: bottom + SEARCH_SORT_FILTER_BAR_CLEARANCE,
+          paddingBottom: bottom + layout.barClearance,
         }}
         onScroll={onScroll}
         renderItem={({ album, elementWidth }) => (

@@ -18,6 +18,7 @@ import EmptyState from '@/components/EmptyState';
 import Field from '@/components/Field';
 import Icon, { ICON_NAMES } from '@/components/Icon';
 import IntroText from '@/components/IntroText';
+import Note from '@/components/Note';
 import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
 import ProgressRing from '@/components/ProgressRing';
@@ -39,7 +40,7 @@ import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
-import { colors, radii, sizes } from '@/styles/designTokens';
+import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 const TAB_ITEMS = [
@@ -181,10 +182,8 @@ export default function ComponentGalleryScreen() {
     return (
       <>
         <Specimen name="Card">
-          <Card style={styles.fill}>
-            <View style={styles.cardContent}>
-              <Text>A card resting on the page, with text inside it.</Text>
-            </View>
+          <Card padded style={styles.fill}>
+            <Text>A card resting on the page, with text inside it.</Text>
           </Card>
         </Specimen>
         <Specimen name="AssistantTray">
@@ -207,6 +206,11 @@ export default function ComponentGalleryScreen() {
             <ChatBubble side="user" label="New post" text="Write a post about the sunrise hike" />
             <ChatBubble side="assistant" text="Here are three takes on your sunrise hike." />
           </View>
+        </Specimen>
+        <Specimen name="Note">
+          <Note tone="tint" style={styles.fill}>
+            <Text>Golden hour on the ridge, worth the early start.</Text>
+          </Note>
         </Specimen>
         <Specimen name="WarningNote">
           <WarningNote style={styles.fill}>This instruction text is missing its {'{voice}'} placeholder.</WarningNote>
@@ -385,31 +389,28 @@ function Specimen({ name, children }) {
 
 const styles = StyleSheet.create({
   category: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
   specimen: {
-    marginBottom: 24,
+    marginBottom: space.xxl,
   },
   variants: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
   },
   fill: {
     width: '100%',
   },
   fields: {
     width: '100%',
-    gap: 20,
+    gap: space.xl,
   },
   scrim: {
-    padding: 24,
+    padding: space.xxl,
     borderRadius: radii.card,
     backgroundColor: colors.overlay.scrim,
-  },
-  cardContent: {
-    padding: 16,
   },
   popover: {
     position: 'relative',
@@ -426,13 +427,13 @@ const styles = StyleSheet.create({
   icons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: space.sm,
   },
   iconCell: {
     width: 76,
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
+    gap: layout.iconGap,
+    paddingVertical: space.sm,
   },
   iconName: {
     textAlign: 'center',

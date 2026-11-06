@@ -18,6 +18,7 @@ import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import { layout, space } from '@/styles/designTokens';
 
 /**
  * One conversation of a writing Verify (route params `kind`, `modelId`, `name`, `sectionId`; an
@@ -52,7 +53,7 @@ export default function VerifyConversationScreen() {
               />
             </Section>
             {isBriefingOpen && (
-              <Card style={styles.briefing}>
+              <Card padded>
                 <IntroText selectable>{systemMessage}</IntroText>
               </Card>
             )}
@@ -101,13 +102,10 @@ const VerifyTurn = memo(function VerifyTurn({ turn }) {
 
 const styles = StyleSheet.create({
   content: {
-    gap: 16,
-  },
-  briefing: {
-    padding: 14,
+    gap: space.lg,
   },
   turn: {
-    gap: 10,
+    gap: layout.cardGap,
   },
   note: {
     textAlign: 'center',

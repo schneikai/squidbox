@@ -2,7 +2,7 @@ import { View, StyleSheet, type ViewProps } from 'react-native';
 
 import { colors } from '@/styles/designTokens';
 
-export type ModalSheetProps = Pick<ViewProps, 'children' | 'style'>;
+export type ModalSheetProps = Pick<ViewProps, 'children' | 'style' | 'testID'>;
 
 /**
  * Structural container for page-sheet modal screens.
@@ -18,10 +18,15 @@ export type ModalSheetProps = Pick<ViewProps, 'children' | 'style'>;
  * Any padding (bottom inset, horizontal, header offset, etc.) is the
  * caller's responsibility via the style prop.
  *
- * style applies to the root View.
+ * style applies to the root View. testID (the screen's name for the UI flow tests) is the one
+ * prop it passes through.
  */
-export default function ModalSheet({ children, style }: ModalSheetProps) {
-  return <View style={[styles.root, style]}>{children}</View>;
+export default function ModalSheet({ children, style, testID }: ModalSheetProps) {
+  return (
+    <View testID={testID} style={[styles.root, style]}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

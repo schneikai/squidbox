@@ -1,21 +1,21 @@
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import IntroText from '@/components/IntroText';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
+import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { LogBlock, LogEmpty } from '@/components/settings-list/LogBlock';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import { SCREEN_PADDING } from '@/constants';
 import useAssets from '@/features/assets-context/useAssets';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
-import { colors, lineHeights, typography } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import { schema } from '@/sync/db/client';
 import { readUploadFailures } from '@/sync/readUploadFailures';
 
@@ -47,27 +47,31 @@ export default function BackupScreen() {
 
           {!!backupError && unsyncedCount > 0 && !isSyncing && (
             <View style={styles.panel}>
-              <Text style={[styles.line, styles.danger]}>{backupError}</Text>
+              <Text variant="error" size="small">
+                {backupError}
+              </Text>
             </View>
           )}
 
           {isSyncing && (
             <View style={styles.panel}>
               {syncProgressMessage && (
-                <Text style={styles.line}>
+                <Text variant="hint" tone="primary">
                   {syncProgressMessage.sent} / {syncProgressMessage.total}
                   {'  '}
-                  <Text style={styles.bold}>{syncProgressMessage.percent}</Text>
+                  <Text variant="label" tone="primary">
+                    {syncProgressMessage.percent}
+                  </Text>
                 </Text>
               )}
               {syncSpeedMessage && (
-                <Text style={styles.line}>
+                <Text variant="hint" tone="primary">
                   {syncSpeedMessage.now}
                   {'  '}
-                  <Text style={styles.muted}>avg {syncSpeedMessage.avg}</Text>
+                  <Text variant="hint">avg {syncSpeedMessage.avg}</Text>
                 </Text>
               )}
-              <Text style={styles.muted}>Keep the app open until backup finishes.</Text>
+              <Text variant="hint">Keep the app open until backup finishes.</Text>
             </View>
           )}
 
@@ -96,12 +100,8 @@ export default function BackupScreen() {
 
 const styles = StyleSheet.create({
   panel: {
-    paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: 15,
-    gap: 4,
+    paddingHorizontal: layout.rowInset,
+    paddingBottom: layout.rowPaddingY,
+    gap: space.xs,
   },
-  line: { fontSize: typography.footnote, color: colors.text.primary, lineHeight: lineHeights.footnote },
-  bold: { fontWeight: '600', color: colors.text.primary },
-  muted: { color: colors.text.secondary },
-  danger: { color: colors.status.danger },
 });

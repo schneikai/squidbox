@@ -68,7 +68,7 @@ export default function PostEditor({ kind, post, onSave }) {
   }
 
   return (
-    <EditSheet {...sheetProps}>
+    <EditSheet testID="post-editor" {...sheetProps}>
       <View>
         {cards.map((card, index) => (
           <View key={card.key}>

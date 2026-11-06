@@ -4,7 +4,8 @@ import { ScaleDecorator } from 'react-native-draggable-flatlist';
 import AssetImage from '@/components/AssetImage';
 import Button from '@/components/Button';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
-import { press, radii, scale } from '@/styles/designTokens';
+import cornerStyles from '@/styles/cornerStyles';
+import { press, radii } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 // One tile of the post editor's media strip: × in its top right corner, a video's length at the bottom.
@@ -20,9 +21,7 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
         style={({ pressed }) => [styles.tile, style, pressed && press.flat]}
       >
         <AssetImage asset={asset} />
-        {!!asset.duration && (
-          <ThumbnailBadge label={formatVideoDuration(asset.duration)} style={styles.videoDuration} />
-        )}
+        {!!asset.duration && <ThumbnailBadge label={formatVideoDuration(asset.duration)} corner="bottomRight" />}
         <Button
           variant="secondary"
           size="small"
@@ -30,7 +29,7 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
           icon="close"
           onPress={() => onDelete(postAsset)}
           accessibilityLabel="Remove from post"
-          style={styles.deleteButton}
+          style={cornerStyles.topRight}
         />
       </Pressable>
     </ScaleDecorator>
@@ -38,18 +37,9 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
 }
 
 const styles = StyleSheet.create({
+  // A thumbnail outside a post's card, like every CoverImage.
   tile: {
-    borderRadius: radii.card,
+    borderRadius: radii.cover,
     overflow: 'hidden',
-  },
-  deleteButton: {
-    position: 'absolute',
-    top: scale(6),
-    right: scale(6),
-  },
-  videoDuration: {
-    position: 'absolute',
-    bottom: scale(6),
-    right: scale(6),
   },
 });

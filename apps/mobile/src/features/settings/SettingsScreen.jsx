@@ -20,7 +20,7 @@ import DevAccountsSection from '@/features/dev-accounts/DevAccountsSection';
 import useHasFeature from '@/hooks/useHasFeature';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useLibrary from '@/library/useLibrary';
-import { colors } from '@/styles/designTokens';
+import { colors, space } from '@/styles/designTokens';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { SERVER_URL } from '@/utils/cloud-api/apiBaseUrl';
 import confirmAsync from '@/utils/confirmAsync';
@@ -127,7 +127,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <Page>
+    <Page testID="settings-screen">
       <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
       <DetailScrollView>
         <ScreenSectionHeader title="Account" />
@@ -200,5 +200,5 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  loginWrapper: { paddingTop: 8, marginBottom: 4 },
+  loginWrapper: { paddingTop: space.sm, marginBottom: space.xs },
 });

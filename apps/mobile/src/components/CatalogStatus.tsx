@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
-import { colors } from '@/styles/designTokens';
+import { colors, space } from '@/styles/designTokens';
 
 export type CatalogStatusProps = { title?: string; error?: string | null; retry: () => void };
 
@@ -11,7 +11,7 @@ export type CatalogStatusProps = { title?: string; error?: string | null; retry:
 export default function CatalogStatus({ title = "Couldn't load the models", error, retry }: CatalogStatusProps) {
   if (!error) return <ActivityIndicator style={styles.status} color={colors.text.secondary} />;
   return (
-    <View style={styles.status}>
+    <View>
       <EmptyState icon="alert" title={title} subtitle={error} />
       <Button label="Try again" onPress={retry} />
     </View>
@@ -20,6 +20,6 @@ export default function CatalogStatus({ title = "Couldn't load the models", erro
 
 const styles = StyleSheet.create({
   status: {
-    paddingVertical: 40,
+    paddingVertical: space.xxxl,
   },
 });

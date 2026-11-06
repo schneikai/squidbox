@@ -5,7 +5,7 @@ import PromptButtonChip from './PromptButtonChip';
 
 import AssistantTrayContext from '@/components/AssistantTrayContext';
 import { SCREEN_PADDING } from '@/constants';
-import { raisedShadowRoom } from '@/styles/designTokens';
+import { raisedShadowRoom, space } from '@/styles/designTokens';
 
 /**
  * The prompt buttons (`buttons`) as lifted chips on one line, scrolling sideways when they don't fit:
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    gap: 8,
+    gap: space.sm,
     paddingTop: raisedShadowRoom.top,
     paddingBottom: raisedShadowRoom.bottom,
   },

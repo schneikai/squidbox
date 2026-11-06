@@ -1,17 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import ItSeesRow from './ItSeesRow';
 import MentionsRow from './MentionsRow';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
-import { SCREEN_PADDING } from '@/constants';
+import Text from '@/components/Text';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { colors, layout, sizes } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
-const THUMB_SIZE = scale(36);
+const THUMB_SIZE = sizes.thumbnailSmall;
 const SUBJECTS = { draft: 'New post', edit: 'Edit post', post: 'This post' };
 
 /**
@@ -33,7 +33,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
   const mentionsFrom = mentions?.fromAlbum ? (albums?.length === 1 && albumName) || 'your albums' : 'your posts';
 
   return (
-    <Card style={styles.card}>
+    <Card padded>
       <View style={styles.header}>
         {assets.length > 0 && (
           <View style={styles.thumbs}>
@@ -42,7 +42,7 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
             ))}
           </View>
         )}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text size="small" numberOfLines={2} style={styles.title}>
           {title}
         </Text>
       </View>
@@ -63,14 +63,10 @@ export default function ChatSubjectCard({ kind, assets, tagging, tagEdits, onEdi
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: SCREEN_PADDING * 0.75,
-    gap: 6,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: layout.rowLeadingGap,
   },
   thumbs: {
     flexDirection: 'row',
@@ -82,11 +78,10 @@ const styles = StyleSheet.create({
     borderColor: colors.background.surface,
   },
   overlapping: {
+    // eslint-disable-next-line no-restricted-syntax -- the thumbs overlap by a share of their width
     marginLeft: -THUMB_SIZE * 0.4,
   },
   title: {
     flex: 1,
-    fontSize: typography.subheadline,
-    color: colors.text.primary,
   },
 });

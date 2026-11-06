@@ -1,13 +1,14 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import Button from '@/components/Button';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import useAlbums from '@/features/albums-context/useAlbums';
 import listParam from '@/lib/listParam';
+import { layout } from '@/styles/designTokens';
 
 export default function AddToAlbumScreen() {
   const navigation = useNavigation();
@@ -30,7 +31,7 @@ export default function AddToAlbumScreen() {
         title="Add to Album"
         trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
-      <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={MODAL_HEADER_HEIGHT} />
+      <AlbumPicker onPick={handleAddAssetsToAlbum} paddingTop={layout.sheetContentTop} />
     </ModalSheet>
   );
 }

@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import Icon, { type IconName } from '@/components/Icon';
-import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
+import { colors, scale, space, textStyles } from '@/styles/designTokens';
 
 export type EmptyStateProps = {
   icon: IconName;
@@ -30,20 +30,17 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: 40,
-    paddingVertical: 40,
+    gap: space.md,
+    padding: space.xxxl,
   },
   title: {
-    fontSize: typography.body,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
     color: colors.text.secondary,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: typography.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.secondary,
     textAlign: 'center',
-    lineHeight: lineHeights.subheadline,
   },
 });

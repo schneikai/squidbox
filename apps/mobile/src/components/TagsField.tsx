@@ -5,7 +5,7 @@ import { StyleSheet, Text } from 'react-native';
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
 import TagInput from '@/components/TagInput';
-import { colors, typography } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 export type TagsFieldProps = {
   tags: string[];
@@ -95,11 +95,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
-    padding: 12,
+    gap: space.sm,
+    padding: layout.objectInset,
   },
   placeholder: {
-    fontSize: typography.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.tertiary,
   },
 });

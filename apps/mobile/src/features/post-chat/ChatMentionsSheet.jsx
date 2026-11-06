@@ -9,6 +9,7 @@ import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import IntroText from '@/components/IntroText';
 import TagsField from '@/components/TagsField';
+import { space } from '@/styles/designTokens';
 import tagsDifference from '@/utils/tagsDifference';
 
 /**
@@ -64,9 +65,9 @@ function MoreMentions({ handles, onEditMentions }) {
 
 const styles = StyleSheet.create({
   body: {
-    gap: 12,
+    gap: space.md,
   },
   more: {
-    gap: 8,
+    gap: space.sm,
   },
 });

@@ -28,7 +28,7 @@ export default function PostsScreen() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View testID="posts-screen" style={{ flex: 1 }}>
       <FloatingHeader title="Posts" onAdd={handleAdd} />
       <PostList
         listRef={listRef}

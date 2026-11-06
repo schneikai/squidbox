@@ -4,14 +4,14 @@ import DraggableFlatList from 'react-native-draggable-flatlist';
 import PostAsset from './PostAsset';
 
 import useHaptics from '@/hooks/useHaptics';
-import { scale } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list.
-export default function PostAssetsEditor({ postAssets, onChange }) {
+// hold one to reorder, × to take it out. `onChange` gets the new list. style is for layout only.
+export default function PostAssetsEditor({ postAssets, onChange, style }) {
   const haptics = useHaptics();
 
   const countInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
@@ -29,7 +29,7 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
   if (postAssets.length === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <DraggableFlatList
         data={postAssets}
         horizontal
@@ -55,10 +55,10 @@ export default function PostAssetsEditor({ postAssets, onChange }) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: scale(8),
+    gap: space.sm,
   },
   strip: {
-    gap: scale(8),
+    gap: space.sm,
   },
   tile: {
     width: scale(120),

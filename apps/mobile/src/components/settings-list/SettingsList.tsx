@@ -1,20 +1,26 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
-import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
+import {
+  Pressable,
+  Text as RNText,
+  StyleSheet,
+  View,
+  type AccessibilityRole,
+  type AccessibilityState,
+} from 'react-native';
 
 import type { Palette } from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
-import { SCREEN_PADDING } from '@/constants';
-import { colors, lineHeights, press, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
 
-// `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
 export type SectionProps = { children: ReactNode; isHeaderless?: boolean };
 
+// `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
 export function Section({ children, isHeaderless = false }: SectionProps) {
   const kids = Children.toArray(children);
   return (
@@ -30,9 +36,9 @@ export function Section({ children, isHeaderless = false }: SectionProps) {
   );
 }
 
-// iOS-style small gray explanatory text shown BELOW a grouped section.
 export type SectionFooterProps = { children?: ReactNode };
 
+// iOS-style small gray explanatory text shown BELOW a grouped section.
 export function SectionFooter({ children }: SectionFooterProps) {
   return (
     <Text variant="hint" style={styles.footer}>
@@ -52,6 +58,8 @@ export type RowProps = {
   hasChevron?: boolean;
   isSelected?: boolean;
   size?: 'regular' | 'small';
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
   children?: ReactNode;
 };
 
@@ -61,7 +69,9 @@ export type RowProps = {
 // goes before it (an icon), `description` is secondary text under it. `hasChevron` ends it with a
 // chevron (it opens a screen), `isSelected` with the accent check (the current one).
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
-// long list. `disabled` keeps it from taking presses.
+// long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
+// (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
+// `leading` may be several parts (a status icon and a thumbnail), set in a row.
 export function Row({
   label,
   description,
@@ -73,6 +83,8 @@ export function Row({
   hasChevron,
   isSelected = false,
   size = 'regular',
+  accessibilityRole = 'button',
+  accessibilityState,
   children,
 }: RowProps) {
   const content = (
@@ -91,7 +103,12 @@ export function Row({
         {children}
         {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
         {hasChevron && (
-          <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} style={styles.chevron} />
+          <Icon
+            name="chevron-right"
+            size={sizes.iconSmall}
+            color={colors.text.tertiary}
+            style={value && styles.chevronAfterValue}
+          />
         )}
       </View>
     </View>
@@ -102,8 +119,8 @@ export function Row({
       <Pressable
         onPress={onPress}
         disabled={disabled}
-        accessibilityRole="button"
-        accessibilityState={{ disabled, selected: isSelected }}
+        accessibilityRole={accessibilityRole}
+        accessibilityState={{ disabled, selected: isSelected, ...accessibilityState }}
         style={({ pressed }) => pressed && !disabled && press.flat}
       >
         {content}
@@ -115,44 +132,47 @@ export function Row({
 
 const styles = StyleSheet.create({
   headerless: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
   section: {
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: sizes.iconButton,
-    paddingHorizontal: SCREEN_PADDING,
-    paddingVertical: 16,
+    paddingHorizontal: layout.rowInset,
+    paddingVertical: layout.rowPaddingY,
   },
   rowLabel: {
-    fontSize: typography.body,
+    ...textStyles.body,
     color: colors.text.primary,
   },
   rowSmall: {
-    paddingVertical: 12,
+    paddingVertical: layout.rowPaddingYCompact,
   },
-  chevron: {
-    marginLeft: 4,
+  // A value's chevron a little apart from it; a bare label's sits at rowRight's gap, like ThumbnailRow's.
+  chevronAfterValue: {
+    marginLeft: space.xs,
   },
   rowLeading: {
-    marginRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.rowLeadingGap,
+    marginRight: layout.rowLeadingGap,
   },
   rowText: {
     flex: 1,
-    gap: 2,
+    gap: space.hair,
   },
   // With a value the label takes its own width and the value the rest, so a long one wraps
   // instead of squeezing the label away.
   rowTextKept: {
-    gap: 2,
+    gap: space.hair,
     flexShrink: 0,
   },
   rowDescription: {
-    fontSize: typography.subheadline,
-    lineHeight: lineHeights.subheadline,
+    ...textStyles.subheadline,
     color: colors.text.secondary,
   },
   rowLabelDanger: {
@@ -162,20 +182,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
   rowRightFilling: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   rowValue: {
-    fontSize: typography.body,
+    ...textStyles.body,
     color: colors.text.secondary,
     textAlign: 'right',
     flexShrink: 1,
   },
   footer: {
-    marginTop: 8,
-    marginHorizontal: 4,
+    marginTop: space.sm,
+    marginHorizontal: layout.rowInset, // under the rows' text
   },
 });

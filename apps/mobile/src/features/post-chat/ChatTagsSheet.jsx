@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import BottomSheet from '@/components/BottomSheet';
 import IntroText from '@/components/IntroText';
 import TagsField from '@/components/TagsField';
+import { space } from '@/styles/designTokens';
 import tagsDifference from '@/utils/tagsDifference';
 
 /**
@@ -31,6 +32,6 @@ export default function ChatTagsSheet({ isVisible, onClose, tags, onEditTags, di
 
 const styles = StyleSheet.create({
   body: {
-    gap: 12,
+    gap: space.md,
   },
 });

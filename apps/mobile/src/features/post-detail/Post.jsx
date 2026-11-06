@@ -11,7 +11,7 @@ import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
-import { layout } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 const OTHER_POSTS_LIMIT = 30;
 
@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.sideGutter,
   },
   writeWithAi: {
-    marginTop: 24,
+    marginTop: space.xxl,
   },
   related: {
-    marginTop: 20,
+    marginTop: layout.sectionGap,
   },
 });

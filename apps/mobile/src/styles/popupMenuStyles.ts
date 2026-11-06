@@ -21,8 +21,8 @@ export default {
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: layout.menuRowHeight,
     paddingHorizontal: layout.menuRowPaddingX,
-    paddingVertical: 8,
+    paddingVertical: layout.menuRowPaddingY,
+    minHeight: layout.menuRowHeight, // above Apple's 44 pt target; a larger text size grows the row
   } satisfies ViewStyle,
 };

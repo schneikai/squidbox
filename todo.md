@@ -185,9 +185,10 @@ so a better wording can be tried and published.
 - **Dark mode.** The tokens are ready for it (`colors` are semantic roles over a private `palette`
   in `styles/designTokens.ts`), but there is no dark set yet: add one and pick it with
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
-- **Tokens left to do.** Paddings and gaps are still literals (a 4 pt `spacing` scale would cover
-  most), and `typography` and `lineHeights` are paired by hand at each call site; composite text
-  styles (`{ fontSize, lineHeight }`) would keep them in step.
+- **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.js`, an
+  alias of `layout.sideGutter`) still stands in 19 files, to become `layout.sideGutter` once the TS
+  migration is done with them; and `QuickViewHost`'s `paddingVertical: 50`
+  (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.
 
 ## Code quality
 
@@ -241,10 +242,9 @@ them feature by feature, then add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 
-Only pure logic is tested (`apps/mobile/test`, vitest in Node). Set up component tests (for
-example jest-expo with React Native Testing Library) and cover the key screens first: the photo
-detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
-Maestro) for the main flows later.
+The main flows have Playwright tests on the web build (`apps/mobile/e2e`, `npm run test:ui`);
+everything else is pure logic in vitest. If screens need finer checks than a flow gives, set up
+component tests (for example jest-expo with React Native Testing Library).
 
 ### [ ] iPhone simulator smoke tests in the cloud
 
@@ -292,10 +292,7 @@ a distinct photo.
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
 files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
-flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
-react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
-`AssetPager` never learns the new page (header, actions, notes and the swipe-up details stay on the
-first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
+flows in the browser becomes worth it. Playwright's Chromium can't decode H.264 or HEVC, so the
 mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
 play in desktop Chrome either).
 

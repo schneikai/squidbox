@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { Palette } from '@/components/Button';
 import Icon, { type IconName } from '@/components/Icon';
-import { colors, layout, radii, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, radii, sizes, space, textStyles } from '@/styles/designTokens';
 
 export type MenuItemContentProps = {
   label: string;
@@ -57,20 +57,18 @@ const styles = StyleSheet.create({
   label: {
     flexGrow: 1,
     flexShrink: 1,
-    fontSize: typography.body,
+    ...textStyles.body,
     color: colors.text.primary,
   },
   labelDanger: {
     color: colors.status.danger,
   },
-  labelHeader: {
-    fontWeight: '600',
-  },
+  labelHeader: textStyles.subheadlineBold,
   selectedDot: {
     width: 7,
     height: 7,
     borderRadius: radii.pill,
     backgroundColor: colors.accent.base,
-    marginLeft: 8,
+    marginLeft: space.sm,
   },
 });

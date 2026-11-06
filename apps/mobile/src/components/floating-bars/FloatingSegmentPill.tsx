@@ -33,7 +33,7 @@ export default function FloatingSegmentPill<Key extends string>({
 
   return (
     <Animated.View
-      style={[styles.container, { bottom: insets.bottom + layout.barBottom }, slideStyle]}
+      style={[styles.container, { bottom: insets.bottom + layout.barMargin }, slideStyle]}
       pointerEvents="box-none"
     >
       <SegmentedPill items={tabs} activeKey={activeTab} onSelect={onTabPress} />

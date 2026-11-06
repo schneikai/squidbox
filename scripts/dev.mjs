@@ -34,14 +34,23 @@ import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseEnv } from 'node:util';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+import {
+  backendEnv,
+  buildWebBundleAsync,
+  fetchBundleAsync,
+  METRO_URL,
+  readServerEnv,
+  resetMockDataAsync,
+  ROOT,
+  SERVER_DIR,
+  SERVER_ENV,
+  SERVER_URL,
+  withoutKeys,
+} from './localBackend.mjs';
+
 const MIGRATIONS = 'apps/mobile/src/sync/db/migrations/'; // their SQL is inlined (metroCacheArgs)
-const SERVER_DIR = `${ROOT}apps/server`;
 const MOBILE_DIR = `${ROOT}apps/mobile`;
-const SERVER_ENV = `${SERVER_DIR}/.env`;
-const SERVER_URL = 'http://localhost:3100';
 const SERVER_LOG = `${tmpdir()}/squidbox-server.log`;
-const METRO_URL = 'http://localhost:8081';
 // Expo's tunnel (on.expo.app, through the signed-in Expo account) can drop now and then; a later
 // attempt gets through. Expo ends every tunnel error with this hint.
 const TUNNEL_FAILED = /Check the Expo status page/;
@@ -62,7 +71,8 @@ const children = new Set();
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
-if (!existsSync(`${MOBILE_DIR}/.env.local`)) {
+// Only the live backend needs .env.local (its EXPO_PUBLIC_API_URL); the local one runs without it.
+if (live && !existsSync(`${MOBILE_DIR}/.env.local`)) {
   if (spawnSync('scripts/write-env-local.sh', [], { cwd: MOBILE_DIR, stdio: 'inherit' }).status !== 0) {
     fail('scripts/write-env-local.sh failed');
   }
@@ -88,11 +98,7 @@ async function startLocalBackendAndMetro() {
   if (!parseEnv(readFileSync(SERVER_ENV, 'utf8')).LIBRARY_COPY_PASSWORD) {
     appendFileSync(SERVER_ENV, `\nLIBRARY_COPY_PASSWORD=${randomBytes(18).toString('base64url')}\n`);
   }
-  // .env.docker supplies what an older apps/server/.env lacks (the library-copy account's email).
-  const serverEnv = {
-    ...parseEnv(readFileSync(`${SERVER_DIR}/.env.docker`, 'utf8')),
-    ...parseEnv(readFileSync(SERVER_ENV, 'utf8')),
-  };
+  const serverEnv = readServerEnv();
   const copyAccountEnv = {
     LIBRARY_COPY_EMAIL: serverEnv.LIBRARY_COPY_EMAIL,
     LIBRARY_COPY_PASSWORD: serverEnv.LIBRARY_COPY_PASSWORD,
@@ -100,6 +106,8 @@ async function startLocalBackendAndMetro() {
 
   const metroEnv = {
     EXPO_PUBLIC_LOCAL_BACKEND: 'true',
+    // Where Metro's proxy (metro.config.js) sends the API calls.
+    LOCAL_BACKEND_URL: SERVER_URL,
     // In development, .env.local wins over these; leave the login prefill out of it.
     EXPO_PUBLIC_LOGIN_FORM_EMAIL: serverEnv.SEED_USER_EMAIL,
     EXPO_PUBLIC_LOGIN_FORM_PASSWORD: serverEnv.SEED_USER_PASSWORD,
@@ -122,6 +130,9 @@ async function startLocalBackendAndMetro() {
     ? await startMetroLocally(metroEnv)
     : await startMetroWithTunnel(metroEnv);
   await database;
+  // The web preview and the UI flow tests take the API server answering for "ready", bundle
+  // included. The tunnel start hands out its URL only after its bundle anyway.
+  if (webOnly) await bundled;
 
   log('Starting the API server');
   // The copy of the owner's library reads the live database (through the cloud workspace's proxy
@@ -145,7 +156,9 @@ async function startLocalBackendAndMetro() {
 
   if (resetData) {
     log('Resetting the mock data');
-    await run('npm', ['run', 'seed:mock', '--silent'], SERVER_DIR, backendEnv());
+    await resetMockDataAsync({ detached: true, onSpawn: (child) => children.add(child) }).catch((error) =>
+      fail(error.message),
+    );
   }
   await bundled;
 
@@ -165,8 +178,20 @@ async function setUpDatabase(copyAccountEnv) {
     () =>
       spawnSync('docker', ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-q'], { cwd: SERVER_DIR }).status === 0,
   );
-  await run('docker', ['compose', 'wait', 'createbuckets'], SERVER_DIR);
+  await waitForBuckets();
   await run('npm', ['run', 'db:setup', '--silent'], SERVER_DIR, backendEnv(copyAccountEnv));
+}
+
+// The one-shot that makes MinIO's buckets. Not `docker compose wait`: while the container is between
+// restarts (it fails until MinIO answers, `restart: on-failure`) that finds no container and fails.
+async function waitForBuckets() {
+  const state = () =>
+    spawnSync('docker', ['compose', 'ps', '-a', '--format', '{{.State}} {{.ExitCode}}', 'createbuckets'], {
+      cwd: SERVER_DIR,
+      encoding: 'utf8',
+    }).stdout.trim();
+  await waitFor('the MinIO buckets', () => state().startsWith('exited'));
+  if (state() !== 'exited 0') fail(`Creating the MinIO buckets failed (${state()})`);
 }
 
 // What the copy of the owner's library reads from: the live database and the live bucket, with the
@@ -222,14 +247,12 @@ async function buildFirstBundle(metro, answered) {
     // The manifest names the host Metro was asked on; fetch from localhost to stay off the tunnel.
     const { pathname, search } = new URL((await manifestRes.json()).launchAsset.url);
     log('Building the first iOS bundle (half a minute on a cold cache)');
-    const bundleRes = await fetch(`${METRO_URL}${pathname}${search}`);
-    const bundle = await bundleRes.text();
-    if (!bundleRes.ok) fail(`Metro couldn't build the bundle:\n${bundle.slice(0, 2000)}`);
+    await fetchBundleAsync(`${METRO_URL}${pathname}${search}`);
   } catch (error) {
     if (metro.exitCode !== null || !children.has(metro)) return false;
-    fail(`Metro couldn't build the bundle: ${error.message}`);
+    fail(error.message);
   }
-  log(`Bundle ready in ${Math.round((Date.now() - started) / 1000)}s`);
+  logReady('Bundle', started);
   return true;
 }
 
@@ -253,7 +276,7 @@ function startMetro(args, extraEnv, { keepCache = false } = {}) {
   const cacheArgs = metroCacheArgs(env);
   return start(
     'npx',
-    ['expo', 'start', '--dev-client', '--port', '8081', ...(keepCache ? [] : cacheArgs), ...args],
+    ['expo', 'start', '--dev-client', '--port', new URL(METRO_URL).port, ...(keepCache ? [] : cacheArgs), ...args],
     MOBILE_DIR,
     env,
   );
@@ -295,7 +318,8 @@ function saveMetroCacheKey() {
   writeFileSync(METRO_CACHE_KEY, metroCacheKey);
 }
 
-// The web preview builds its own bundle, so this one builds none.
+// Builds the web bundle once Metro answers, so the first page load (the web preview, the UI flow
+// tests) doesn't wait on a cold build.
 async function startMetroLocally(extraEnv) {
   log('Starting Metro');
   const metro = startMetro([], extraEnv);
@@ -304,7 +328,13 @@ async function startMetroLocally(extraEnv) {
   superviseExit(metro);
   await waitFor('Metro', async () => (await fetch(`${METRO_URL}/status`).catch(() => null))?.ok);
   saveMetroCacheKey();
-  return { url: METRO_URL, bundled: Promise.resolve(true) };
+  log('Building the web bundle');
+  const started = Date.now();
+  const bundled = buildWebBundleAsync().then(
+    () => logReady('Web bundle', started),
+    (error) => fail(error.message),
+  );
+  return { url: METRO_URL, bundled };
 }
 
 async function startMetroWithTunnel(extraEnv) {
@@ -362,16 +392,6 @@ function dockerIsUp() {
   return spawnSync('docker', ['info'], { stdio: 'ignore' }).status === 0;
 }
 
-// `node --env-file` never overrides the shell, so AWS credentials exported there would win over
-// MinIO's from apps/server/.env.
-function backendEnv(extra = {}) {
-  return { ...withoutKeys(process.env, (key) => key.startsWith('AWS_')), ...extra };
-}
-
-function withoutKeys(env, isExcluded) {
-  return Object.fromEntries(Object.entries(env).filter(([key]) => !isExcluded(key)));
-}
-
 // Expo's tunnel client only honors http_proxy; the cloud workspace sets HTTPS_PROXY.
 function proxyEnv() {
   const proxy = process.env.HTTPS_PROXY;
@@ -426,6 +446,10 @@ function superviseExit(child) {
 
 function log(message) {
   console.log(`▸ ${message}`);
+}
+
+function logReady(what, started) {
+  log(`${what} ready in ${Math.round((Date.now() - started) / 1000)}s`);
 }
 
 function fail(message) {

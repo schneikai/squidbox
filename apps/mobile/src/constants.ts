@@ -1,5 +1,7 @@
+import { layout } from '@/styles/designTokens';
+
 const APP_NAME = 'Squidbox';
-export const SCREEN_PADDING = 16;
+export const SCREEN_PADDING = layout.sideGutter;
 // A touch that moves further is a drag, not a tap.
 export const TAP_SLOP = 10;
 // While a grid's lifted cell peeks, the finger may drift this far before it drags or selects: a held

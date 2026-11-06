@@ -3,7 +3,7 @@ import { StyleSheet, type ViewProps } from 'react-native';
 
 import { colors } from '@/styles/designTokens';
 
-export type PageProps = Pick<ViewProps, 'children' | 'style'>;
+export type PageProps = Pick<ViewProps, 'children' | 'style' | 'testID'>;
 
 /**
  * Standard screen root wrapper.
@@ -13,11 +13,11 @@ export type PageProps = Pick<ViewProps, 'children' | 'style'>;
  * from bleeding through during navigation animations.
  *
  * Padding and scrolling are intentionally left to the screen itself via
- * useScreenPadding, since they vary per context.
+ * useScreenPadding, since they vary per context. testID names the screen for the UI flow tests.
  */
-export default function Page({ children, style }: PageProps) {
+export default function Page({ children, style, testID }: PageProps) {
   return (
-    <LinearGradient colors={colors.background.app} style={[styles.root, style]}>
+    <LinearGradient testID={testID} colors={colors.background.app} style={[styles.root, style]}>
       {children}
     </LinearGradient>
   );

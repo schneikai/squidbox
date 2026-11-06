@@ -55,7 +55,7 @@ export default function AlbumsScreen() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View testID="albums-screen" style={{ flex: 1 }}>
       <FloatingHeader title="Albums" onAdd={promptAddAlbum} />
       <SortableAlbumList
         listRef={listRef}

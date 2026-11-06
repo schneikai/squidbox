@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, layout, press, sizes, typography } from '@/styles/designTokens';
+import { colors, layout, press, sizes, textStyles } from '@/styles/designTokens';
 
 /** The favorites row: each favorite's avatar (no heart: they are all favorites here) with its first name, side by side, opening the contact. */
 type ContactAvatarRowProps = { contacts: Pick<ContactRecord, 'id' | 'name' | 'avatarFilename'>[] };
@@ -50,8 +50,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   name: {
-    fontSize: typography.caption,
-    fontWeight: '500',
+    ...textStyles.footnote,
     color: colors.text.primary,
   },
 });

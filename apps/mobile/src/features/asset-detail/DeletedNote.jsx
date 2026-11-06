@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import { colors, radii, shadows, sizes, typography } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { colors, layout, radii, shadows, sizes, space } from '@/styles/designTokens';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 
 // The red note on a trashed photo or video (opened from a post it's still in), of `mediaType`,
@@ -10,7 +11,9 @@ export default function DeletedNote({ mediaType }) {
   return (
     <View style={[styles.note, shadows.floating]} accessibilityRole="text">
       <Icon name="trash" size={sizes.menuIcon} color={colors.text.inverse} />
-      <Text style={styles.text}>This {humanizeMediaType(mediaType).toLowerCase()} was deleted</Text>
+      <Text variant="label" tone="inverse">
+        This {humanizeMediaType(mediaType).toLowerCase()} was deleted
+      </Text>
     </View>
   );
 }
@@ -19,15 +22,11 @@ const styles = StyleSheet.create({
   note: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    gap: layout.iconGap,
+    // A chip's height (chipFrame), with room for its text at the sides.
+    minHeight: sizes.smallButton + space.sm,
+    paddingHorizontal: space.lg,
     borderRadius: radii.pill,
     backgroundColor: colors.status.danger,
-  },
-  text: {
-    color: colors.text.inverse,
-    fontSize: typography.footnote,
-    fontWeight: '600',
   },
 });

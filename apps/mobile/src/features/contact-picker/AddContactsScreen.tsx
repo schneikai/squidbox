@@ -2,13 +2,11 @@ import { CONTACT_LINK_TARGETS, type ContactLinkRecord } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { SectionList, type SectionListRenderItemInfo, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import readAddContactsSeed, { type AddContactsSeed, type AddContactsTarget } from './readAddContactsSeed';
 
 import EditSheetHeader from '@/components/EditSheetHeader';
 import EmptyState from '@/components/EmptyState';
-import { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchInput from '@/components/SearchInput';
@@ -20,6 +18,7 @@ import contactSearchText from '@/features/contact-list/contactSearchText';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
@@ -54,7 +53,7 @@ export default function AddContactsScreen() {
 type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed };
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet');
   const { changeTargetContacts, changeListContacts } = useContacts();
   const [selectedIds, setSelectedIds] = useState(seed.linked);
   const [typedText, setTypedText] = useState('');
@@ -133,7 +132,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
         ListEmptyComponent={contacts ? <EmptyState icon="search" title="No contacts match" /> : undefined}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + SCREEN_PADDING }}
+        contentContainerStyle={padding}
       />
     </ModalSheet>
   );

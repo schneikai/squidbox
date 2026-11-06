@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddModelRow from './AddModelRow';
 import searchModels from './searchModels';
@@ -10,13 +9,15 @@ import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import Divider from '@/components/Divider';
 import EmptyState from '@/components/EmptyState';
-import ModalHeader, { MODAL_HEADER_HEIGHT } from '@/components/ModalHeader';
+import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
+import { space } from '@/styles/designTokens';
 import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -29,7 +30,7 @@ export default function AddModelsScreen() {
   const { kind } = useLocalSearchParams();
   const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const [searchText, setSearchText] = useState('');
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet');
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
   const removed = useLiveQuery((db) => readRemovedModels(db, kind), [schema.aiModels, schema.aiScores], [kind]);
@@ -94,7 +95,7 @@ export default function AddModelsScreen() {
         ListEmptyComponent={renderEmpty()}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: MODAL_HEADER_HEIGHT, paddingBottom: bottom + SCREEN_PADDING }}
+        contentContainerStyle={padding}
       />
     </ModalSheet>
   );
@@ -103,6 +104,6 @@ export default function AddModelsScreen() {
 const styles = StyleSheet.create({
   search: {
     marginHorizontal: SCREEN_PADDING,
-    marginBottom: 8,
+    marginBottom: space.sm,
   },
 });

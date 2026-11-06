@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
-import { SCREEN_PADDING } from '@/constants';
+import { layout, space } from '@/styles/designTokens';
 
 export type AddRowProps = { label: string; onPress: () => void };
 
@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   // more room above and below than the button's own, so the add doesn't sit tighter than the rows.
   add: {
     alignItems: 'flex-start',
-    marginLeft: SCREEN_PADDING - 24,
-    paddingVertical: 4,
+    marginLeft: layout.rowInset - layout.linkPaddingX,
+    paddingVertical: space.xs,
   },
 });

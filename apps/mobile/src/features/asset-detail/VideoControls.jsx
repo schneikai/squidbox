@@ -1,16 +1,17 @@
 import { useEvent, useEventListener } from 'expo';
 import { useIsFocused } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Easing, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import VideoScrubber from './VideoScrubber';
 import playVideo from './playVideo';
 
 import Button from '@/components/Button';
+import Text from '@/components/Text';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import useAppSettings from '@/features/app-settings/useAppSettings';
-import { colors, scale, typography } from '@/styles/designTokens';
+import { space, typography } from '@/styles/designTokens';
 import formatVideoDuration from '@/utils/formatVideoDuration';
 
 /**
@@ -100,14 +101,18 @@ export default function VideoControls({ player, fallbackDuration }) {
         onPress={handlePlayPause}
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
       />
-      <Text style={styles.time}>{formatVideoDuration(elapsedSeconds * 1000)}</Text>
+      <Text variant="hint" style={styles.time}>
+        {formatVideoDuration(elapsedSeconds * 1000)}
+      </Text>
       <VideoScrubber
         progress={progress}
         onScrubStart={handleScrubStart}
         onScrub={handleScrub}
         onScrubEnd={handleScrubEnd}
       />
-      <Text style={styles.time}>{formatVideoDuration(duration * 1000)}</Text>
+      <Text variant="hint" style={styles.time}>
+        {formatVideoDuration(duration * 1000)}
+      </Text>
       <Button
         icon={muted ? 'volume-off' : 'volume-on'}
         onPress={handleToggleMute}
@@ -123,9 +128,7 @@ const styles = StyleSheet.create({
   },
   time: {
     minWidth: typography.footnote * 3,
-    marginHorizontal: scale(4),
-    fontSize: typography.footnote,
-    color: colors.text.secondary,
+    marginHorizontal: space.xs,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
   },
