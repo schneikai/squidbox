@@ -1,6 +1,6 @@
 import { CONTACT_LIMITS } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
 
 import ContactAvatarPicker from './ContactAvatarPicker';
@@ -10,7 +10,13 @@ import HandleFieldsCard from './HandleFieldsCard';
 import ListsField from './ListsField';
 import NotesField from './NotesField';
 import PlacesField from './PlacesField';
-import { type ContactDraft, type ContactFormFields, contactDraft, storedContactFields } from './contactFields';
+import {
+  type ContactDraft,
+  type ContactFormFields,
+  contactDraft,
+  draftWithChanges,
+  storedContactFields,
+} from './contactFields';
 import useListsOfContact from './useListsOfContact';
 
 import Button from '@/components/Button';
@@ -34,6 +40,7 @@ import { getDb } from '@/sync/db/client';
 import type * as schema from '@/sync/db/schema';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import changedValues from '@/utils/changedValues';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 
 const PHOTOS_SHOWN = 6;
@@ -57,8 +64,9 @@ export default function Contact({ contact }: ContactProps) {
   const saver = useSaveAsYouType(storedContactFields(draft), save);
   const { flush } = saver;
   const lists = useListsOfContact(contact.id);
-  const photoScope = { contactId: contact.id };
-  const photos = usePhotos(photoScope);
+  // One scope object per contact, so the photos, albums and posts sections don't get a new one on every keystroke.
+  const scope = useMemo(() => ({ contactId: contact.id }), [contact.id]);
+  const photos = usePhotos(scope);
   // The saver compares with the stored contact as it is now, so a change from elsewhere isn't written back.
   useEffect(() => {
     saver.adopt(storedContactFields(contactDraft(contact)));
@@ -69,11 +77,7 @@ export default function Contact({ contact }: ContactProps) {
     const before = contactDraft(seen);
     const after = contactDraft(contact);
     setSeen(contact);
-    setDraft((current) => {
-      const fields = Object.keys(current) as (keyof ContactDraft)[];
-      const taken = fields.filter((field) => JSON.stringify(current[field]) === JSON.stringify(before[field]));
-      return { ...current, ...Object.fromEntries(taken.map((field) => [field, after[field]])) };
-    });
+    setDraft((current) => draftWithChanges(current, Object.keys(current) as (keyof ContactDraft)[], before, after));
   }
   const subtitle = [contactPlace(contact), `added ${dateToTimeAgo(contact.createdAt)}`].filter(Boolean).join(' · ');
 
@@ -97,7 +101,7 @@ export default function Contact({ contact }: ContactProps) {
     try {
       await setAvatarAsync(contact.id, uri);
     } catch (error) {
-      Alert.alert("Couldn't change the photo", error instanceof Error ? error.message : String(error));
+      Alert.alert("Couldn't change the photo", apiErrorMessage(error));
     }
   }
 
@@ -120,12 +124,7 @@ export default function Contact({ contact }: ContactProps) {
         }
       />
       <DetailScrollView keyboardShouldPersistTaps="handled">
-        <ContactAvatarPicker
-          contact={contact}
-          hasPhoto={!!contact.avatarFilename}
-          onPick={handlePickPhoto}
-          onDoublePress={handleToggleFavorite}
-        />
+        <ContactAvatarPicker contact={contact} onPick={handlePickPhoto} onDoublePress={handleToggleFavorite} />
         <TextInput
           variant="title"
           value={draft.name}
@@ -172,16 +171,16 @@ export default function Contact({ contact }: ContactProps) {
           }
         />
         {photos?.count ? (
-          <ContactPhotosStrip assets={photos.rows} scope={photoScope} />
+          <ContactPhotosStrip assets={photos.rows} scope={scope} />
         ) : (
           photos && <Text style={listTextStyles.subtitle}>Not on a photo</Text>
         )}
 
         <ScreenSectionHeader title="Albums" />
-        <AssetAlbums scope={{ contactId: contact.id }} emptyText="Not on an album" />
+        <AssetAlbums scope={scope} emptyText="Not on an album" />
 
         <ScreenSectionHeader title="Posts" />
-        <PostRows scope={{ contactId: contact.id }} emptyText="Not on a post" />
+        <PostRows scope={scope} emptyText="Not on a post" />
       </DetailScrollView>
     </Page>
   );

@@ -2,7 +2,7 @@ import { type ReactNode, useMemo, useState } from 'react';
 
 import NewContactDraftContext, { type NewContactDraftValue } from './NewContactDraftContext';
 
-import { type ContactDraft, contactDraft } from '@/features/contact-detail/contactFields';
+import { type ContactDraft, contactDraft, draftWithChanges } from '@/features/contact-detail/contactFields';
 
 // A fill from a screenshot: the fields it filled, their values before it and what it put in them.
 type Fill = { fields: (keyof ContactDraft)[]; before: Partial<ContactDraft>; after: Partial<ContactDraft> };
@@ -25,7 +25,6 @@ export default function NewContactDraftProvider({ children }: NewContactDraftPro
     () => ({
       draft,
       setField: (field, text) => setDraft((current) => ({ ...current, [field]: text })),
-      // Fills these fields over the draft and remembers it for Undo.
       fillFields: (fields) => {
         const names = Object.keys(fields) as (keyof ContactDraft)[];
         setFill({
@@ -38,12 +37,7 @@ export default function NewContactDraftProvider({ children }: NewContactDraftPro
       filledFields: fill?.fields ?? [],
       undoFill: () => {
         if (!fill) return;
-        setDraft((current) => {
-          const restored = fill.fields.filter(
-            (field) => JSON.stringify(current[field]) === JSON.stringify(fill.after[field]),
-          );
-          return { ...current, ...Object.fromEntries(restored.map((field) => [field, fill.before[field]])) };
-        });
+        setDraft((current) => draftWithChanges(current, fill.fields, fill.after, fill.before));
         setFill(null);
       },
       avatarUri,

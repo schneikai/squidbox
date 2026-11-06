@@ -1,9 +1,4 @@
-import {
-  CONTACT_HANDLE_FIELDS,
-  CONTACT_LIMITS,
-  type ContactFromScreenshotResponse,
-  type ContactPlace,
-} from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS, type ContactFromScreenshotResponse } from '@squidbox/shared';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
@@ -30,9 +25,14 @@ function filledFrom(read: ContactFromScreenshotResponse, draft: ContactDraft): P
   if (read.name) fields.name = read.name.slice(0, CONTACT_LIMITS.name);
   const part = (text: string | undefined) => (text ?? '').slice(0, CONTACT_LIMITS.place);
   const place = storedPlace({ city: part(read.city), state: part(read.state), country: part(read.country) });
-  const draftPlaces = draft.places.filter((known): known is ContactPlace => storedPlace(known) !== null);
-  const isKnown = draftPlaces.some((known) => JSON.stringify(storedPlace(known)) === JSON.stringify(place));
-  if (place && !isKnown) fields.places = [place, ...draftPlaces].slice(0, CONTACT_LIMITS.places);
+  // The draft's places that hold something, each with its stored form to compare.
+  const draftPlaces = draft.places.flatMap((typed) => {
+    const stored = storedPlace(typed);
+    return stored ? [{ typed, stored: JSON.stringify(stored) }] : [];
+  });
+  const isKnown = draftPlaces.some(({ stored }) => stored === JSON.stringify(place));
+  if (place && !isKnown)
+    fields.places = [place, ...draftPlaces.map(({ typed }) => typed)].slice(0, CONTACT_LIMITS.places);
   return fields;
 }
 

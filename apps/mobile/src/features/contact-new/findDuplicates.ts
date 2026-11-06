@@ -1,15 +1,17 @@
 import { CONTACT_HANDLES, type ContactHandleField } from '@squidbox/shared';
 
-import type { ContactHandles } from './useContactHandles';
-
 import type { ContactFormFields, HandleFormField } from '@/features/contact-detail/contactFields';
+import type { ContactSummary } from '@/features/contact-list/contactQuery';
+
+/** What the check reads of a live contact (a ContactSummary), and a match shows. */
+type Candidate = Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | ContactHandleField>;
 
 const HANDLE_REASONS = CONTACT_HANDLES.map(({ field, label }): [ContactHandleField, string] => [
   field,
   `Same ${label} handle`,
 ]);
 
-export type DuplicateMatch = { contact: ContactHandles; reason: string };
+export type DuplicateMatch = { contact: Candidate; reason: string };
 
 /**
  * The contacts a new one may duplicate: those with one of its handles (stored fields, normalized),
@@ -18,7 +20,7 @@ export type DuplicateMatch = { contact: ContactHandles; reason: string };
  */
 export default function findDuplicates(
   fields: Pick<ContactFormFields, 'name' | ContactHandleField>,
-  contacts: readonly ContactHandles[],
+  contacts: readonly Candidate[],
 ): { matches: DuplicateMatch[]; sharedFields: Set<HandleFormField | 'name'> } {
   const name = fields.name.trim().toLowerCase();
   const matches: DuplicateMatch[] = [];

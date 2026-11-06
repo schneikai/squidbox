@@ -3,6 +3,8 @@ import { Alert, Linking } from 'react-native';
 
 import type { HandleFormField } from './contactFields';
 
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+
 // A handle as typed ("@maya", a pasted link), as its profile's path.
 const handle = (value: string) => encodeURIComponent(normalizeHandle(value));
 
@@ -27,8 +29,7 @@ export default async function openContactLinkAsync(field: HandleFormField, value
       await Linking.openURL(url);
       return;
     } catch (error) {
-      if (index === urls.length - 1)
-        Alert.alert("Couldn't open the link", error instanceof Error ? error.message : String(error));
+      if (index === urls.length - 1) Alert.alert("Couldn't open the link", apiErrorMessage(error));
     }
   }
 }

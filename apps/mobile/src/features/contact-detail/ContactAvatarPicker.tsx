@@ -13,29 +13,27 @@ const PLACEHOLDER = sizes.avatar.hero; // as big as the photo it stands for, and
 /**
  * A contact's photo, to pick one square photo and hand its uri to `onPick`. `variant` is where it is:
  *   contact — the contact screen's hero avatar, raised off the page, with a white camera disc on
- *             its corner that picks; `onDoublePress` makes a double tap on it do something (the favorite)
+ *             its corner that picks; `onDoublePress` is what a double tap on it does (the favorite)
  *   form    — New contact's: a camera on a disc until there is a name or a photo (the picture at
- *             `uri`), then the avatar, with Add photo (or Change photo once `hasPhoto`) under it
+ *             `uri`), then the avatar, with Add photo (or Change photo once it has one) under it
  */
 type ContactAvatarPickerProps = {
   contact: ContactAvatarProps['contact'];
   uri?: string | null;
-  hasPhoto: boolean;
-  variant?: 'contact' | 'form';
   onPick: (uri: string) => void;
-  onDoublePress?: () => void;
   style?: StyleProp<ViewStyle>;
-};
+} & ({ variant?: 'contact'; onDoublePress: () => void } | { variant: 'form'; onDoublePress?: never });
 
 export default function ContactAvatarPicker({
   contact,
   uri,
-  hasPhoto,
   variant = 'contact',
   onPick,
   onDoublePress,
   style,
 }: ContactAvatarPickerProps) {
+  const hasPhoto = !!uri || !!contact.avatarFilename;
+
   async function handlePick() {
     const [picked] =
       (await pickImageFromMediaLibrary({
@@ -68,18 +66,12 @@ export default function ContactAvatarPicker({
     );
   }
 
-  const avatar = <ContactAvatar contact={contact} uri={uri} size="hero" />;
-
   return (
     <View style={[styles.hero, style]}>
       <View style={styles.raised}>
-        {onDoublePress ? (
-          <SuperPressable onDoublePress={onDoublePress} accessibilityHint="Double tap to favorite">
-            {avatar}
-          </SuperPressable>
-        ) : (
-          avatar
-        )}
+        <SuperPressable onDoublePress={onDoublePress} accessibilityHint="Double tap to favorite">
+          <ContactAvatar contact={contact} uri={uri} size="hero" />
+        </SuperPressable>
       </View>
       <Pressable
         onPress={handlePick}

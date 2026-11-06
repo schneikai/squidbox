@@ -76,3 +76,32 @@ export function storedContactFields(draft: ContactDraft): ContactFormFields {
     notes: noteText(draft.notes),
   };
 }
+
+/** The place a place sheet edits, from its `?index=` param: null for a new one. */
+export function placeIndex(param: string | undefined): number | null {
+  return param === undefined ? null : Number(param);
+}
+
+/**
+ * A contact's places with the one at `index` set to `place`: added at the end when `index` is null
+ * (a new place), taken out when `place` is null.
+ */
+export function placesWith<T>(places: readonly T[], index: number | null, place: T | null): T[] {
+  if (place === null) return places.filter((_, i) => i !== index);
+  if (index === null) return [...places, place];
+  return places.map((p, i) => (i === index ? place : p));
+}
+
+/**
+ * `current` with each of `fields` that still holds its `old` value taken to its `next` one: a field
+ * edited since keeps the edit (a change from another device, an Undo of a fill).
+ */
+export function draftWithChanges(
+  current: ContactDraft,
+  fields: readonly (keyof ContactDraft)[],
+  old: Partial<ContactDraft>,
+  next: Partial<ContactDraft>,
+): ContactDraft {
+  const taken = fields.filter((field) => JSON.stringify(current[field]) === JSON.stringify(old[field]));
+  return { ...current, ...Object.fromEntries(taken.map((field) => [field, next[field]])) };
+}

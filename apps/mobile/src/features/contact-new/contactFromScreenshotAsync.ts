@@ -1,12 +1,13 @@
 import type { ContactFromScreenshotResponse } from '@squidbox/shared';
 
+import visionImage from '@/utils/assets/visionImage';
 import readContactScreenshotAsync from '@/utils/cloud-api/ai/readContactScreenshotAsync';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 import resizeToJpegAsync from '@/utils/thumbnails/resizeToJpegAsync';
 
 // Big enough that a profile's small text stays readable (a 512 px photo for tags would lose it),
 // small enough for the request's limit.
-const SCREENSHOT = { longSide: 1536, quality: 0.8 };
+const SCREENSHOT = { ...visionImage, longSide: 1536 };
 
 /**
  * Picks a profile screenshot and has the assistant read it: resolves to the fields it read

@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { DuplicateMatch } from './findDuplicates';
-import type { ContactHandles } from './useContactHandles';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -17,7 +16,7 @@ const GAP = 12;
  * "Already in your contacts": the contacts a new one may duplicate (findDuplicates), each with why
  * and Open, which hands the contact to `onOpen`.
  */
-type DuplicatesCardProps = { matches: DuplicateMatch[]; onOpen: (contact: ContactHandles) => void };
+type DuplicatesCardProps = { matches: DuplicateMatch[]; onOpen: (contact: DuplicateMatch['contact']) => void };
 
 export default function DuplicatesCard({ matches, onOpen }: DuplicatesCardProps) {
   return (

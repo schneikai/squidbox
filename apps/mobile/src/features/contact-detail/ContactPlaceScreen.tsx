@@ -2,7 +2,7 @@ import { CONTACT_LIMITS, type ContactPlace } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 
 import PlaceEditor from './PlaceEditor';
-import { storedPlace } from './contactFields';
+import { placeIndex, placesWith, storedPlace } from './contactFields';
 
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import * as contacts from '@/sync/contactsRepository';
@@ -15,7 +15,7 @@ export default function ContactPlaceScreen() {
   const { contactId, index: indexParam } = useLocalSearchParams<{ contactId: string; index?: string }>();
   const contact = useLiveRecord<schema.ContactRow>(schema.contacts, contactId);
   useCloseWhenGone(contact, 'This contact was deleted');
-  const index = indexParam === undefined ? null : Number(indexParam);
+  const index = placeIndex(indexParam);
 
   if (!contact) return null;
 
@@ -33,10 +33,8 @@ export default function ContactPlaceScreen() {
   return (
     <PlaceEditor
       place={index === null ? null : storedPlaces[index]}
-      onSave={(place) =>
-        write(index === null ? [...storedPlaces, place] : storedPlaces.map((p, i) => (i === index ? place : p)))
-      }
-      onRemove={() => write(storedPlaces.filter((_, i) => i !== index))}
+      onSave={(place) => write(placesWith<ContactPlace | string>(storedPlaces, index, place))}
+      onRemove={() => write(placesWith(storedPlaces, index, null))}
     />
   );
 }
