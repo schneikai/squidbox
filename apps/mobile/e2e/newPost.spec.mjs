@@ -3,7 +3,7 @@ import { expect, test } from './fixtures.mjs';
 import { button, openTab, pickFromSquidbox, postCards, uniqueName } from './helpers.mjs';
 
 // Writes a new post with two photos from the library and adds it. The editor opens from the New
-// post sheet (the mock data has posts to repost, so the sheet shows) and goes back to it.
+// post sheet (the mock data has posts to repost, so the sheet shows), and Add closes both sheets.
 async function addPost(page, text) {
   await openTab(page, 'Posts');
   await button(page.getByTestId('posts-screen'), 'Add').click();
@@ -15,11 +15,10 @@ async function addPost(page, text) {
   await editor.getByPlaceholder("What's new?").fill(text);
   await button(editor, 'Add').click();
   await expect(editor).toBeHidden();
-  await button(newPost, 'Close').click();
   await expect(newPost).toBeHidden();
 }
 
-test('Add saves a new post with its photos to the posts list', async ({ page }) => {
+test('Add saves a new post with its photos and lands on the posts list', async ({ page }) => {
   const text = uniqueName('Ridge trail at dawn');
 
   await addPost(page, text);
