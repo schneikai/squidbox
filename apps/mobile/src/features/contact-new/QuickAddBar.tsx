@@ -14,10 +14,9 @@ import useNewContactDraft from './useNewContactDraft';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import Icon from '@/components/Icon';
 import { type ContactDraft, handleText, storedPlace } from '@/features/contact-detail/contactFields';
 import useHasFeature from '@/hooks/useHasFeature';
-import { colors, lineHeights, scale, typography } from '@/styles/designTokens';
+import { colors, lineHeights, typography } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The draft fields a screenshot's reading fills, from what it read: only what it found, within the
@@ -37,14 +36,13 @@ function filledFrom(read: ContactFromScreenshotResponse, draft: ContactDraft): P
 }
 
 /**
- * The New contact sheet's quick adds, side by side as cards: Paste X link, which fills the X handle
- * (and the name when empty) from the X profile link on the clipboard, its hint naming the link once
- * one is seen there; and with the `ai` feature Get info from screenshot, which fills what the
- * assistant read, says so in a card with Undo, and marks the fields.
+ * The New contact sheet's quick adds, side by side as cards: From link, which fills the X handle
+ * (and the name when empty) from the X profile link on the clipboard; and with the `ai` feature From
+ * screenshot, which fills what the assistant read, says so in a card with Undo, and marks the fields.
  */
 export default function QuickAddBar() {
   const { draft, setField, fillFields, filledFields, undoFill } = useNewContactDraft();
-  const { link, readAsync } = useClipboardXLink();
+  const { readAsync } = useClipboardXLink();
   const canReadScreenshots = useHasFeature('ai');
   const [isReading, setIsReading] = useState(false);
 
@@ -56,7 +54,7 @@ export default function QuickAddBar() {
       console.warn('Could not read the clipboard', error);
     }
     if (!pasted) {
-      Alert.alert('No X link on the clipboard', 'Copy the link of a profile on X, then tap Paste X link.');
+      Alert.alert('No X link on the clipboard', 'Copy the link of a profile on X, then tap From link.');
       return;
     }
     setField('xHandle', handleText('xHandle', pasted.handle));
@@ -82,17 +80,11 @@ export default function QuickAddBar() {
   return (
     <View style={styles.bar}>
       <View style={styles.cards}>
-        <QuickAddCard
-          icon="link"
-          title="Paste X link"
-          hint={link ? `${link.url.replace(/^https?:\/\/(www\.)?/, '')} is on your clipboard` : 'From a profile on X'}
-          onPress={handlePaste}
-        />
+        <QuickAddCard icon="link" title="From link" onPress={handlePaste} />
         {canReadScreenshots && (
           <QuickAddCard
             icon="sparkle"
-            title="Get info from screenshot"
-            hint="The assistant reads a profile screenshot"
+            title="From screenshot"
             isAssistant
             loading={isReading}
             onPress={handleScreenshot}
@@ -101,10 +93,7 @@ export default function QuickAddBar() {
       </View>
       {filledFields.length > 0 && (
         <Card style={styles.note}>
-          <Icon name="sparkle" size={scale(18)} color={colors.accent.base} filled />
-          <Text style={styles.noteText}>
-            The assistant filled the marked fields from your screenshot. Check them before you add.
-          </Text>
+          <Text style={styles.noteText}>Filled from your screenshot. Check the marked fields.</Text>
           <Button label="Undo" size="small" onPress={undoFill} />
         </Card>
       )}
@@ -113,8 +102,10 @@ export default function QuickAddBar() {
 }
 
 const styles = StyleSheet.create({
+  // A little more room before the photo under it than between its own parts.
   bar: {
     gap: 12,
+    marginBottom: 8,
   },
   cards: {
     flexDirection: 'row',

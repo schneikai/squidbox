@@ -8,6 +8,7 @@ import openContactLinkAsync from './openContactLinkAsync';
 import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
+import RowMark from '@/components/RowMark';
 import TextInput, { type TextInputProps } from '@/components/TextInput';
 import { colors, layout, scale, typography } from '@/styles/designTokens';
 
@@ -76,8 +77,12 @@ export default function HandleField({
         keyboardType={isPhone ? 'phone-pad' : 'default'}
         textContentType={isPhone ? 'telephoneNumber' : isName ? 'name' : 'none'}
       />
-      {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
-      {isFilled && <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />}
+      {(isDuplicate || isFilled) && (
+        <RowMark>
+          {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
+          {isFilled && <Icon name="sparkle" size={scale(16)} color={colors.accent.base} filled />}
+        </RowMark>
+      )}
       {isOpenable && field !== 'name' && !!value.trim() && (
         // A full 44 pt slot, so its icon sits as far in from the card's edge as the rows' text does.
         <IconSlotContext.Provider value>
