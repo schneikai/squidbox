@@ -10,11 +10,12 @@
  * lint: eslint on apps/mobile (`lint:files` there; its config also enforces prettier). format:
  * prettier on the code in FORMAT_ROOTS. Either runs over the whole repo when its config or the
  * packages changed. typecheck: `npm run typecheck`, whole projects, incremental: the server, and
- * every TypeScript file in the mobile app's src (tsconfig.typecheck.json). tests: per app, the test
- * files whose imports reach a changed file, in any app (`vitest related`), or the app's whole suite
- * when its config, package, test helpers or setup, or the files its tests read from disk changed,
- * or a file was deleted or moved. A packages/shared change counts for both apps. No DB suites:
- * README says when to run those. new files: no .js/.jsx added to apps/mobile/src (checkNewFiles.mjs).
+ * every TypeScript file in the mobile app's src and test (tsconfig.typecheck.json). tests: per app,
+ * the test files whose imports reach a changed file, in any app (`vitest related`), or the app's
+ * whole suite when its config, package, test helpers or setup, or the files its tests read from
+ * disk changed, or a file was deleted or moved. A packages/shared change counts for both apps. No
+ * DB suites: README says when to run those. new files: no .js/.jsx added to apps/mobile/src
+ * (checkNewFiles.mjs).
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

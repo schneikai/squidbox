@@ -418,7 +418,7 @@ describe('deletes, restores and purges across devices', () => {
         ...transport,
         push: async (req) => {
           const answer = await transport.push(req);
-          await deletePurgedFiles(pgDb as any, USER, async (keys) => {
+          await deletePurgedFiles(pgDb, USER, async (keys) => {
             deletedKeys.push(...keys);
             return [];
           });

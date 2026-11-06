@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { makeAssetRecord } from './helpers/factory';
 import { libraryPaths } from '../src/library/libraryPaths';
+import type { ThumbnailStatusAsset } from '../src/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
 
 // A record of the file-system calls the file helpers make.
 const fs: string[] = [];
@@ -90,8 +92,14 @@ describe('asset file and thumbnail paths', () => {
   });
 
   it('a thumbnail on this device is local, one not backed up yet is not uploaded, else it’s in the cloud', async () => {
-    const status = (asset: object, isAuthenticated = true) =>
-      getAssetThumbnailStatusAsync(asset, { isAuthenticated, library: abc });
+    const status = (
+      over: Pick<ThumbnailStatusAsset, 'thumbnailFilename' | 'isThumbnailSynced'>,
+      isAuthenticated = true,
+    ) =>
+      getAssetThumbnailStatusAsync(makeAssetRecord({ ...over, filename: 'missing.jpg' }), {
+        isAuthenticated,
+        library: abc,
+      });
     expect(await status({ thumbnailFilename: 'present.jpg', isThumbnailSynced: false })).toBe('local');
     expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: false })).toBe('notUploaded');
     expect(await status({ thumbnailFilename: 'missing.jpg', isThumbnailSynced: false }, false)).toBe('notUploaded');
@@ -141,6 +149,7 @@ describe('asset file and thumbnail paths', () => {
   });
 
   it('refuse to resolve without a library, instead of guessing the open one', () => {
+    // @ts-expect-error -- the rule under test: a call without a library
     expect(() => getAssetFileUri('a.jpg')).toThrow(TypeError);
   });
 });

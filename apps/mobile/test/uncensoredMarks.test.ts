@@ -1,6 +1,8 @@
 import { type AiModelsResponse, type ApiAiModel, DEFAULT_INSTRUCTIONS } from '@squidbox/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { makeApiModel } from './helpers/makeApiModel';
+
 const setUncensored = vi.fn<(modelId: string, uncensored: boolean | null) => Promise<AiModelsResponse>>();
 vi.mock('@/utils/cloud-api/ai/setUncensoredAsync', () => ({ default: setUncensored }));
 vi.mock('react-native', () => ({ Alert: { alert: () => {} } }));
@@ -8,17 +10,8 @@ vi.mock('react-native', () => ({ Alert: { alert: () => {} } }));
 const { default: uncensoredMarks } = await import('../src/features/model-compare/uncensoredMarks');
 const { default: aiCatalogStore } = await import('../src/lib/aiCatalogStore');
 
-const model = (id: string, isVeniceUncensored = false): ApiAiModel => ({
-  id,
-  name: id,
-  supportsVision: false,
-  isUncensored: isVeniceUncensored,
-  isVeniceUncensored,
-  verifiedKinds: [],
-  uncensoredOverride: null,
-  costPerReplyUsd: 0.001,
-  costPer100PhotosUsd: null,
-});
+const model = (id: string, isVeniceUncensored = false) =>
+  makeApiModel({ id, name: id, isUncensored: isVeniceUncensored, isVeniceUncensored });
 
 const answer = (models: ApiAiModel[]): AiModelsResponse => ({
   models,

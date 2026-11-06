@@ -23,10 +23,12 @@ describe('newRecord', () => {
   });
 
   it('drops keys the collection has no field for', () => {
+    // @ts-expect-error -- the rule under test: a key the collection has no field for
     expect(newRecord(albumCollection, defaults, { assets: ['a'] })).not.toHaveProperty('assets');
   });
 
   it('throws on a wrong field', () => {
+    // @ts-expect-error -- the rule under test: a value the schema rejects
     expect(() => newRecord(albumCollection, defaults, { sortOrder: 'name' })).toThrow();
   });
 });

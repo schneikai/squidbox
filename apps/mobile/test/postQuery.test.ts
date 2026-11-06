@@ -250,7 +250,7 @@ describe('postQuery: threads', () => {
       ['p2', 0],
     ]);
     expect(count).toBe(2);
-    expect(rows[0].threadPosts).toBeUndefined();
+    expect(rows[0]).not.toHaveProperty('threadPosts');
   });
 
   it('lists a following post whose first post is deleted as a post of its own', async () => {

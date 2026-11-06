@@ -13,6 +13,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 
 import { makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
+import type { Db } from '../../server/src/db/client.js';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';
@@ -102,13 +103,13 @@ interface Phone {
 
 d('the installed app (its client code, as built) against this server', () => {
   let pool: pg.Pool;
-  let pgDb: ReturnType<typeof pgDrizzle>;
+  let pgDb: Db;
   let firstNew: number; // the first migration the installed app lacks
 
   const at = (t: number) => vi.setSystemTime(t);
   const transport: SyncTransport = {
-    push: async (req) => ({ results: await serverPush(pgDb as any, USER, req.mutations) }),
-    pull: (req) => serverPull(pgDb as any, USER, { cursor: req.cursor, limit: req.limit }),
+    push: async (req) => ({ results: await serverPush(pgDb, USER, req.mutations) }),
+    pull: (req) => serverPull(pgDb, USER, { cursor: req.cursor, limit: req.limit }),
   };
   const removeFilesOf =
     (phone: Phone): RemoveFiles =>
@@ -133,7 +134,7 @@ d('the installed app (its client code, as built) against this server', () => {
     runMigrations(phone.sqlite, newMigrations, firstNew);
     phone.db = createDb(executor(phone.sqlite));
     phone.old = false;
-    await setOwner(phone.db, { kind: 'account', serverId: 's', userId: USER, email: '' } as any);
+    await setOwner(phone.db, { kind: 'account', serverId: 's', userId: USER, email: '' });
     await retryFailures(phone.db);
   }
   async function sync(phone: Phone, now = S + 100_000) {
@@ -155,17 +156,17 @@ d('the installed app (its client code, as built) against this server', () => {
   const synced = (row: Record<string, unknown> | undefined) =>
     row && Object.fromEntries(syncedKeys.map((key) => [key, row[key] ?? null]));
   async function serverAsset(id: string) {
-    const { table, wireColumns } = serverCollections.assets!;
+    const { wireColumns } = serverCollections.assets!;
     const [row] = await pgDb
       .select(wireColumns)
-      .from(table)
-      .where(and(eq((table as any).userId, USER), eq((table as any).id, id)));
-    return row as Record<string, any> | undefined;
+      .from(serverSchema.assets)
+      .where(and(eq(serverSchema.assets.userId, USER), eq(serverSchema.assets.id, id)));
+    return row;
   }
   async function localAsset(phone: Phone, id: string) {
     const table = phone.old ? main.schema.assets : clientSchema.assets;
     const [row] = await phone.db.select().from(table).where(eq(table.id, id));
-    return row as Record<string, any> | undefined;
+    return row as Record<string, unknown> | undefined;
   }
   async function outboxOf(phone: Phone) {
     return phone.db.select().from(phone.old ? main.schema.outbox : clientSchema.outbox);
@@ -342,7 +343,7 @@ d('the installed app (its client code, as built) against this server', () => {
             const result = await transport.push(req);
             for (const [i, r] of result.results.entries())
               trail.push(
-                `  push ${ids.indexOf(r.id)} ${JSON.stringify(req.mutations[i]!.fields ?? 'whole')} del=${(req.mutations[i]!.record as any).deletedAt} purge=${(req.mutations[i]!.record as any).purgedAt} → ${r.status}${r.current ? ` del=${(r.current as any).deletedAt} purge=${(r.current as any).purgedAt}` : ''}`,
+                `  push ${ids.indexOf(r.id)} ${JSON.stringify(req.mutations[i]!.fields ?? 'whole')} del=${req.mutations[i]!.record.deletedAt} purge=${req.mutations[i]!.record.purgedAt} → ${r.status}${r.current ? ` del=${r.current.deletedAt} purge=${r.current.purgedAt}` : ''}`,
               );
             if (kind === 'editInPush') await once();
             return result;

@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { makeApiModel } from './helpers/makeApiModel';
 import modelDetailText from '../src/utils/ai/modelDetailText';
 
-const model = {
-  costPerReplyUsd: 0.0004,
-  costPer100PhotosUsd: 0.02,
-  reasoning: { supported: false, defaultEffort: null },
-};
+const model = makeApiModel({ costPerReplyUsd: 0.0004, costPer100PhotosUsd: 0.02 });
 
 describe('modelDetailText', () => {
   it('joins the reasoning and the cost, leaving out a reasoning the model lacks', () => {

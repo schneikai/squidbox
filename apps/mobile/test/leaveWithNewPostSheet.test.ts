@@ -12,6 +12,7 @@ function editorIn(routeNames: string[], index: number) {
     routes: routeNames.map((name) => ({ key: `${name}-key`, name })),
     type: 'stack',
     stale: false,
+    routeKeySeq: 0,
   };
   const sheets = { getState: () => state, pop: vi.fn() };
   return { sheets, editor: { getParent: <T>() => sheets as T } };
@@ -35,6 +36,6 @@ describe('leaveWithNewPostSheet', () => {
   });
 
   it('goes back without throwing when the editor has no sheets around it (the post is already added)', () => {
-    expect(leaveWithNewPostSheet({ getParent: () => undefined })).toBeUndefined();
+    expect(leaveWithNewPostSheet({ getParent: <T>() => undefined as T })).toBeUndefined();
   });
 });

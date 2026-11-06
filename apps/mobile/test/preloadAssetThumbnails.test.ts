@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { flushTurns } from './helpers/flushTurns';
+import type { FileLocation } from '../src/features/cloud/assets/preloadFilesAsync';
 import { libraryPaths } from '../src/library/libraryPaths';
 
 // The files on the device, the downloads running (each until the test ends it) and the most at once.
@@ -40,6 +41,10 @@ const { default: preloadAssetThumbnailsAsync } =
   await import('../src/features/cloud/assets/preloadAssetThumbnailsAsync');
 const { default: preloadOnWeb } = await import('../src/features/cloud/assets/preloadFilesAsync.web');
 const { default: webFileUrls } = await import('../src/utils/assets/webFileUrls');
+const { getAssetThumbnailUri, hasThumbnailAsync } = await import('../src/utils/assets/assetStorage');
+
+// The thumbnails' files, as preloadAssetThumbnailsAsync passes them (the web variant doesn't read them).
+const THUMBNAILS: FileLocation = { hasAsync: hasThumbnailAsync, uriOf: getAssetThumbnailUri };
 
 const library = libraryPaths('abc');
 const thumbnails = 'file:///documents/libraries/abc/thumbnails/';
@@ -89,10 +94,10 @@ describe('preloadAssetThumbnailsAsync', () => {
 
   it('on web, keeps the URLs it got, and none once aborted', async () => {
     webFileUrls.set('here.jpg', 'url');
-    expect(await preloadOnWeb(['here.jpg', 'new.jpg'], {}, library)).toEqual(new Set(['here.jpg', 'new.jpg']));
+    expect(await preloadOnWeb(['here.jpg', 'new.jpg'], THUMBNAILS, library)).toEqual(new Set(['here.jpg', 'new.jpg']));
 
     const controller = new AbortController();
-    const result = preloadOnWeb(['late.jpg'], {}, library, controller.signal);
+    const result = preloadOnWeb(['late.jpg'], THUMBNAILS, library, controller.signal);
     controller.abort();
     expect(await result).toEqual(new Set());
     expect(webFileUrls.has('late.jpg')).toBe(false);

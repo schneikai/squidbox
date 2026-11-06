@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import findDuplicates from '../src/features/contact-new/findDuplicates';
+import findDuplicates, { type DuplicateMatch } from '../src/features/contact-new/findDuplicates';
 
 const fields = (over: Record<string, string | null>) => ({
   name: '',
@@ -10,13 +10,14 @@ const fields = (over: Record<string, string | null>) => ({
   jffHandle: null,
   ...over,
 });
-const maya = {
+const maya: DuplicateMatch['contact'] = {
   id: 'maya',
   name: 'Maya Lindqvist',
   xHandle: 'mayal',
   blueskyHandle: 'maya.bsky.social',
   onlyFansHandle: null,
   jffHandle: null,
+  avatarFilename: null,
 };
 
 describe('findDuplicates', () => {

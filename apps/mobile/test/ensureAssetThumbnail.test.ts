@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { flushTurns } from './helpers/flushTurns';
 import { libraryPaths } from '../src/library/libraryPaths';
+import type { ThumbnailAsset } from '../src/utils/assets/thumbnails/ensureAssetThumbnailAsync';
 
 // The files on the device, and the thumbnails being made (each until the test finishes it).
 const files = new Set<string>();
@@ -35,7 +36,7 @@ const { default: getAssetThumbnailStatusAsync } =
 
 const library = libraryPaths('abc');
 const dir = 'file:///documents/libraries/abc/';
-const assetOf = (id: string) => ({
+const assetOf = (id: string): ThumbnailAsset => ({
   id,
   filename: `${id}.mov`,
   thumbnailFilename: `${id}-thumb.png`,

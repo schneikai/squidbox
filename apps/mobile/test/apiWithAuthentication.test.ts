@@ -1,8 +1,9 @@
-import { AxiosError, AxiosHeaders, type AxiosRequestConfig } from 'axios';
+import { type AxiosAdapter, AxiosError } from 'axios';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { sessionStoreMock } from './helpers/sessionStoreMock';
 import type { Session } from '../src/library/session';
+import type { SyncIdentity } from '../src/library/sessionMatches';
 
 const store: { session: Session | null } = { session: null };
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
@@ -15,7 +16,7 @@ vi.mock('../src/utils/cloud-api/authentication/refreshAccessTokenAsync', async (
   const { default: requireSession } = await import('../src/utils/cloud-api/requireSession');
   const { default: SessionChangedError } = await import('../src/utils/cloud-api/SessionChangedError');
   return {
-    default: async (identity?: { serverId: string | null; userId: string }) => {
+    default: async (identity?: SyncIdentity) => {
       requireSession(identity);
       if (refresh.answer === 'unreachable') throw new Error('Network Error');
       if (refresh.answer === 'rejected') {
@@ -43,11 +44,11 @@ const identityA = { serverId: 's1', userId: 'A' };
 // A fake network: records the bearer of each request and answers with `status`.
 function adapter(statuses: number[]) {
   const bearers: string[] = [];
-  const fn = async (config: AxiosRequestConfig) => {
-    bearers.push(String(AxiosHeaders.from(config.headers!).get('Authorization')));
+  const fn: AxiosAdapter = async (config) => {
+    bearers.push(String(config.headers.get('Authorization')));
     const status = statuses.shift() ?? 200;
-    const response = { data: { ok: true }, status, statusText: '', headers: {}, config: config as never };
-    if (status >= 400) throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config as never, null, response);
+    const response = { data: { ok: true }, status, statusText: '', headers: {}, config };
+    if (status >= 400) throw new AxiosError('Unauthorized', 'ERR_BAD_REQUEST', config, null, response);
     return response;
   };
   return { fn, bearers };

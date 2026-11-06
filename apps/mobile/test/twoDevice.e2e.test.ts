@@ -39,6 +39,7 @@ import * as contacts from '../src/sync/contactsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { readByIds } from '../src/sync/readByIds';
 import { runSyncOnce } from '../src/sync/worker';
 import changedValues from '../src/utils/changedValues';
 import noteText from '../src/utils/noteText';
@@ -91,7 +92,7 @@ describe('two devices and a whole-record app on one server', () => {
         await sync(order[1]!);
         await settle();
         expect((await expectConverged('assets', id)).notes).toBe('newer, B');
-        expect((await serverRow('assets', id, { raw: true }))!.fieldClock.notes).toBe(S + 200);
+        expect(await serverRow('assets', id, { raw: true })).toMatchObject({ fieldClock: { notes: S + 200 } });
       }
     });
 
@@ -109,7 +110,7 @@ describe('two devices and a whole-record app on one server', () => {
       const id = await seedAsset();
       await edit(A, S + 1000 + HOUR, () => repo.update(A, id, { notes: 'A, clock ahead' }));
       await sync(A, { now: S + 1000 }); // clamped to the server's clock
-      expect((await serverRow('assets', id, { raw: true }))!.fieldClock.notes).toBe(S + 1000);
+      expect(await serverRow('assets', id, { raw: true })).toMatchObject({ fieldClock: { notes: S + 1000 } });
       await edit(B, S + 2000, () => repo.update(B, id, { notes: 'B, later' }));
       await sync(B, { now: S + 3000 });
       await settle([A, B, C], S + 4000);
@@ -286,13 +287,7 @@ describe('two devices and a whole-record app on one server', () => {
       await createPost(A, { id: postId, createdAt: S, updatedAt: S, text: 'draft' }, [asset1]);
       await settle();
       // A opens the editor: its seed is the post as it is now.
-      const seedRow = (await localRow(A, 'posts', postId))!;
-      const seedEdges = await A.select().from(clientSchema.postAssets);
-      const original = {
-        text: seedRow.text,
-        assetRefs: seedEdges.map((e) => ({ id: e.id, assetId: e.assetId })),
-        postedAt: seedRow.postedAt,
-      };
+      const original = await openEditor(A, postId);
       await edit(B, S + 100, () => posts.update(B, postId, { text: 'B rewrote it' }));
       await sync(B);
       await sync(A); // the edit arrives while A's editor is open
@@ -308,7 +303,7 @@ describe('two devices and a whole-record app on one server', () => {
         const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
         await A.transaction(async (tx) => {
           const { assetRefs, ...fields } = changes;
-          await postEdges.setRefs(tx, postId, assetRefs, original.assetRefs);
+          if (assetRefs !== undefined) await postEdges.setRefs(tx, postId, assetRefs, original.assetRefs);
           await posts.update(tx, postId, fields);
         });
       });
@@ -323,18 +318,15 @@ describe('two devices and a whole-record app on one server', () => {
     const postEdges = makeEdgeRepository('post_assets', clientSchema.postAssets, 'postId');
     async function openEditor(device: SyncDb, postId: string) {
       const post = await readPost(device, postId);
+      if (!post) throw new Error(`no post ${postId}`);
       return { text: post.text, assetRefs: postAssetsToAssetRefs(post.postAssets), postedAt: post.postedAt };
     }
-    async function savePost(
-      device: SyncDb,
-      postId: string,
-      seed: Record<string, unknown>,
-      data: Record<string, unknown>,
-    ) {
+    type EditorData = Awaited<ReturnType<typeof openEditor>>;
+    async function savePost(device: SyncDb, postId: string, seed: EditorData, data: EditorData) {
       const updates = changedValues(seed, data);
       const { assetRefs, ...fields } = updates;
       await device.transaction(async (tx) => {
-        if (assetRefs) await postEdges.setRefs(tx, postId, assetRefs as never, seed.assetRefs as never);
+        if (assetRefs !== undefined) await postEdges.setRefs(tx, postId, assetRefs, seed.assetRefs);
         await posts.update(tx, postId, fields);
       });
       return updates;
@@ -455,7 +447,8 @@ describe('two devices and a whole-record app on one server', () => {
 
     it('a rename and an album notes edit from their seeds keep the other device’s fields', async () => {
       const id = await seedAlbum({ name: 'Trip', notes: null });
-      const seed = (await localRow(A, 'albums', id))!;
+      const [seed] = await readByIds(A, clientSchema.albums, [id]);
+      if (!seed) throw new Error(`no album ${id}`);
       await edit(B, S + 100, () => albumRepo.update(B, id, { notes: 'B notes', isFavorite: true }));
       await sync(B);
       await sync(A);

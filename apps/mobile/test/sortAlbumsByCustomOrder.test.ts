@@ -3,7 +3,12 @@ import { describe, it, expect } from 'vitest';
 
 import sortAlbumsByCustomOrder from '../src/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
 
-const album = (name: string, createdAt: number, position: string | null = null) => ({ name, createdAt, position });
+const album = (name: string, createdAt: number, position: string | null = null) => ({
+  id: name,
+  name,
+  createdAt,
+  position,
+});
 const names = (albums: { name: string }[]) => albums.map((a) => a.name);
 
 describe('albums custom order', () => {

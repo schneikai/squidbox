@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { makeAssetRecord } from './helpers/factory';
 import quickViewStore from '../src/components/quick-view/quickViewStore';
 
-const asset = { id: 'a' };
+const asset = makeAssetRecord({ id: 'a' });
 const gridA = {};
 const gridB = {};
 

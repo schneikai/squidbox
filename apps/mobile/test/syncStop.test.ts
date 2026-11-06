@@ -6,6 +6,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { makeAssetRecord } from './helpers/factory';
 import { flushTurns } from './helpers/flushTurns';
 import { makeTestDb } from './helpers/testDb';
+import { libraryPaths } from '../src/library/libraryPaths';
+import type { SyncIdentity } from '../src/library/sessionMatches';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
@@ -19,7 +21,6 @@ import {
   setSyncTarget,
   syncSettled,
   withSyncPaused,
-  type SyncTarget,
 } from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
 
@@ -29,6 +30,10 @@ vi.mock('../src/sync/transport', () => ({ httpTransport: () => transportImpl.cur
 vi.mock('../src/library/fs', () => ({ purgedFilesRemover: () => async () => {} }));
 // The production wrapper's file uploads need the native file system; these runs name no file.
 vi.mock('../src/sync/fileUploads', () => ({ fileUploader: () => async () => {} }));
+
+// Who and where a run syncs; the mocked transport and file removal never read them.
+const IDENTITY: SyncIdentity = { serverId: 's1', userId: 'A' };
+const LIBRARY = libraryPaths('abc');
 
 let db: AppDb;
 beforeEach(() => {
@@ -106,7 +111,7 @@ describe('withSyncPaused', () => {
         return base.push(req);
       },
     };
-    setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // starts a run
+    setSyncTarget({ db, identity: IDENTITY, library: LIBRARY }); // starts a run
 
     await pushing.entered;
     const section = withSyncPaused(async () => {
@@ -125,7 +130,7 @@ describe('withSyncPaused', () => {
   it('a sync held back by a pause runs after the section', async () => {
     await repo.create(db, makeAssetRecord());
     transportImpl.current = server(0);
-    setSyncTarget({ db, identity: {}, library: {} } as SyncTarget); // queues a run
+    setSyncTarget({ db, identity: IDENTITY, library: LIBRARY }); // queues a run
     await withSyncPaused(async () => {}); // paused before that run starts
 
     await syncSettled();
@@ -145,7 +150,7 @@ describe('withSyncPaused', () => {
         return { changes: {}, cursor, hasMore: false };
       },
     };
-    await withSyncPaused(async () => setSyncTarget({ db, identity: {}, library: {} } as SyncTarget));
+    await withSyncPaused(async () => setSyncTarget({ db, identity: IDENTITY, library: LIBRARY }));
     await syncSettled(); // that run ends: a pause during it would abort it, and its rerun would pull again
     expect(pulls).toEqual([5000]); // the sync setting the target asks for
 

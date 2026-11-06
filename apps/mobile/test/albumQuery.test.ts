@@ -66,21 +66,20 @@ describe('albumQuery', () => {
     expect(rows.custom.assetCount).toBe(2);
     expect(rows.favorites.assetCount).toBe(2);
     expect(rows.deleted.assetCount).toBe(1);
-    expect(rows.regular.coverAssetId).toBeUndefined();
+    expect(rows.regular).not.toHaveProperty('coverAssetId');
   });
 
   it("covers follow the effective sort: the album's own sort, or the custom order", async () => {
     await library();
     let rows = await byId(albumQuery({ scope: 'all' }));
-    expect(rows.regular.cover.id).toBe('asset-3');
-    expect(rows.custom.cover.id).toBe('asset-3'); // the first edge's asset-4 is deleted
-    expect(rows.favorites.cover.id).toBe('asset-5');
+    expect(rows.regular.cover).toMatchObject({ id: 'asset-3' });
+    expect(rows.custom.cover).toMatchObject({ id: 'asset-3' }); // the first edge's asset-4 is deleted
+    expect(rows.favorites.cover).toMatchObject({ id: 'asset-5' });
     rows = await byId(albumQuery({ scope: 'all', oldestFirstIds: ['regular', 'custom', 'favorites'] }));
-    expect(rows.regular.cover.id).toBe('asset-1');
-    expect(rows.custom.cover.id).toBe('asset-3');
-    expect(rows.favorites.cover.id).toBe('asset-2');
-    expect(rows.deleted.cover.id).toBe('asset-4');
-    expect(rows.regular.cover.filename).toBe('a.jpg'); // the whole asset row
+    expect(rows.regular.cover).toMatchObject({ id: 'asset-1', filename: 'a.jpg' }); // the whole asset row
+    expect(rows.custom.cover).toMatchObject({ id: 'asset-3' });
+    expect(rows.favorites.cover).toMatchObject({ id: 'asset-2' });
+    expect(rows.deleted.cover).toMatchObject({ id: 'asset-4' });
   });
 
   it('a cover is the first cell its album shows, under every asset sort', async () => {
