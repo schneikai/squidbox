@@ -35,7 +35,6 @@ function merged(current: VerifyRunState['run'], next: VerifyRun | null): VerifyR
 function createVerifyRun(kind: AiModelKind, modelId: string) {
   const store = createStore<VerifyRunState>({ run: undefined, plan: undefined, error: null });
   let followers = 0;
-  // undefined, not null, when none: both React Native's and Node's clearTimeout take it
   let timer: ReturnType<typeof setTimeout> | undefined;
   let isReading = false;
   let failures = 0;

@@ -65,12 +65,12 @@ const syncedKeys = (collection: string) =>
 export const synced = (collection: string, row: Record<string, unknown> | undefined) =>
   row && Object.fromEntries(syncedKeys(collection).map((key) => [key, row[key] ?? null]));
 
-// drizzle: a table picked by name has no typed columns (as the server's push and pull cast it)
 /** The server's rows with these ids, by id: as the wire carries them, or with `raw` every column. */
 export async function serverRows(collection: string, ids: string[], { raw = false } = {}) {
   const { table, wireColumns } = serverCollections[collection]!;
   const rows: Record<string, unknown>[] = await (raw ? pgDb.select() : pgDb.select(wireColumns))
     .from(table)
+    // drizzle: a table picked by name has no typed columns (as the server's push and pull cast it)
     .where(and(eq((table as any).userId, USER), inArray((table as any).id, ids)));
   return new Map(rows.map((row) => [row.id as string, row]));
 }
@@ -185,7 +185,7 @@ export async function seedAlbum(over: Record<string, unknown> = {}) {
 
 export async function clearServer() {
   for (const { table } of Object.values(serverCollections))
-    // drizzle: a table picked by name has no typed columns (see serverRows)
+    // drizzle: a table picked by name has no typed columns (as in serverRows)
     await pgDb.delete(table).where(eq((table as any).userId, USER));
 }
 

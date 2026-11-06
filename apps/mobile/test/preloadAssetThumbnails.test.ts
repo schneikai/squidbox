@@ -41,10 +41,9 @@ const { default: preloadAssetThumbnailsAsync } =
   await import('../src/features/cloud/assets/preloadAssetThumbnailsAsync');
 const { default: preloadOnWeb } = await import('../src/features/cloud/assets/preloadFilesAsync.web');
 const { default: webFileUrls } = await import('../src/utils/assets/webFileUrls');
-const { getAssetThumbnailUri, hasThumbnailAsync } = await import('../src/utils/assets/assetStorage');
 
-// The thumbnails' files, as preloadAssetThumbnailsAsync passes them (the web variant doesn't read them).
-const THUMBNAILS: FileLocation = { hasAsync: hasThumbnailAsync, uriOf: getAssetThumbnailUri };
+// Where the files are: the web variant takes it like the native one but doesn't read it.
+const THUMBNAILS: FileLocation = { hasAsync: async () => false, uriOf: (name) => name };
 
 const library = libraryPaths('abc');
 const thumbnails = 'file:///documents/libraries/abc/thumbnails/';

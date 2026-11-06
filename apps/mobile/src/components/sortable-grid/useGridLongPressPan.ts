@@ -57,7 +57,6 @@ export default function useGridLongPressPan({
   handlers.current = { onLift, onMove, onRelease };
   const containerHeightRef = useRef(0);
   const pointRef = useRef<Point>({ x: 0, y: 0 });
-  // undefined, not null, when none: both React Native's and Node's clearInterval take it
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const liftedRef = useRef(false);
   useEffect(() => () => clearInterval(timerRef.current), []);

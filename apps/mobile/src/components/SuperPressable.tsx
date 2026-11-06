@@ -18,7 +18,6 @@ export default function SuperPressable({
   ...props
 }: SuperPressableProps) {
   const lastPressRef = useRef(0);
-  // undefined, not null, when none: both React Native's and Node's clearTimeout take it
   const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isLongPressRef = useRef(false);
 

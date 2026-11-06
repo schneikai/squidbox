@@ -216,10 +216,7 @@ and mainClient.e2e no longer covers it: a migration can drop the column once no 
 
 `.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
 ESLint setup. Nothing bundles the app, so a wrong named import in JS passes until a build
-(`npx expo export` would catch it). The mobile typecheck also compiles the 11 `apps/server/src`
-files `test/helpers/twoDeviceServer.ts` imports, under the mobile tsconfig's options, so a server
-change that needs a Node-only `lib` or `types` option fails `npm run typecheck -w apps/mobile`
-first.
+(`npx expo export` would catch it).
 
 ### [ ] Match the test Postgres to production
 

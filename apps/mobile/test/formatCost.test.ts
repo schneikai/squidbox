@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { makeApiModel } from './helpers/makeApiModel';
 import formatCost from '../src/utils/ai/formatCost';
 
-const writing = (usd: number) =>
-  formatCost(makeApiModel({ costPerReplyUsd: usd, costPer100PhotosUsd: null }), 'writing');
+const writing = (usd: number) => formatCost(makeApiModel({ costPerReplyUsd: usd }), 'writing');
 
 describe('formatCost', () => {
   it('shows cents: whole from 10, one decimal from 1, else two, without trailing zeros', () => {

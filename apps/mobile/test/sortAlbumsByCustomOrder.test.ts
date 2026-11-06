@@ -1,9 +1,11 @@
 import { initialKeys, keyBetween } from '@squidbox/shared';
 import { describe, it, expect } from 'vitest';
 
-import sortAlbumsByCustomOrder from '../src/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
+import sortAlbumsByCustomOrder, {
+  type OrderedAlbum,
+} from '../src/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
 
-const album = (name: string, createdAt: number, position: string | null = null) => ({
+const album = (name: string, createdAt: number, position: string | null = null): OrderedAlbum & { name: string } => ({
   id: name,
   name,
   createdAt,

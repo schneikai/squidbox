@@ -4,6 +4,7 @@ import { makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/f
 import { makeTestDb } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
+import { EMPTY_PLACE } from '../src/features/contact-detail/contactFields';
 import contactListQuery from '../src/features/contact-list/contactListQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
 import * as assets from '../src/sync/assetsRepository';
@@ -96,7 +97,7 @@ describe('contactQuery', () => {
   it('search ignores accents both ways', async () => {
     await contacts.create(
       db,
-      makeContactRecord({ id: 'joao', name: 'João', places: [{ city: 'São Paulo', state: '', country: '' }] }),
+      makeContactRecord({ id: 'joao', name: 'João', places: [{ ...EMPTY_PLACE, city: 'São Paulo' }] }),
     );
     await contacts.create(db, makeContactRecord({ id: 'rene', name: 'Rene' }));
     expect(await ids(contactQuery({ search: 'sao' }))).toEqual(['joao']);
@@ -107,7 +108,7 @@ describe('contactQuery', () => {
   it('search matches umlauts and ß by either spelling', async () => {
     await contacts.create(
       db,
-      makeContactRecord({ id: 'mueller', name: 'Jörg Müller', places: [{ city: 'Gießen', state: '', country: '' }] }),
+      makeContactRecord({ id: 'mueller', name: 'Jörg Müller', places: [{ ...EMPTY_PLACE, city: 'Gießen' }] }),
     );
     await contacts.create(db, makeContactRecord({ id: 'schroeder', name: 'Schroeder' }));
     expect(await ids(contactQuery({ search: 'muller' }))).toEqual(['mueller']);

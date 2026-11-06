@@ -15,14 +15,13 @@ const REPLY: ChatResponse = { reply: 'Here are three.', postOptions: ['one', 'tw
 function deferredRequest() {
   const calls: {
     body: ChatRequest;
-    signal: AbortSignal;
+    signal: AbortSignal | undefined;
     resolve: (v: ChatResponse) => void;
     reject: (e: unknown) => void;
   }[] = [];
-  const request = vi.fn<typeof chatAsync>((body, { signal } = {}) => {
-    if (!signal) throw new Error('a chat request without a signal');
-    return new Promise((resolve, reject) => calls.push({ body, signal, resolve, reject }));
-  });
+  const request = vi.fn<typeof chatAsync>(
+    (body, { signal } = {}) => new Promise((resolve, reject) => calls.push({ body, signal, resolve, reject })),
+  );
   return { request, calls };
 }
 
@@ -219,7 +218,7 @@ describe('chatSessions', () => {
     const { request, calls } = deferredRequest();
     const sending = session.send({ content: 'First' }, context, request);
     session.reset();
-    expect(calls[0]!.signal.aborted).toBe(true);
+    expect(calls[0]!.signal?.aborted).toBe(true);
     expect(session.getState()).toMatchObject({ messages: [], isSending: false });
     calls[0]!.resolve(REPLY);
     await sending;
@@ -236,7 +235,7 @@ describe('chatSessions', () => {
     listener.mockClear();
     chatSessions.close(id);
     expect(chatSessions.get(id)).toBeUndefined();
-    expect(calls[0]!.signal.aborted).toBe(true);
+    expect(calls[0]!.signal?.aborted).toBe(true);
     calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState()).toBe(before);

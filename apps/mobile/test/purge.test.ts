@@ -18,6 +18,7 @@ import journal from '../src/sync/db/migrations/meta/_journal.json';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { readByIds } from '../src/sync/readByIds';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeTarget, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles, type RemoveFiles } from '../src/sync/sweepPurgedFiles';
@@ -31,7 +32,7 @@ beforeEach(() => {
 
 // The asset's row, which every caller expects to be there.
 async function assetRow(id: string) {
-  const row = await db.select().from(schema.assets).where(eq(schema.assets.id, id)).get();
+  const [row] = await readByIds(db, schema.assets, [id]);
   if (!row) throw new Error(`no asset ${id}`);
   return row;
 }

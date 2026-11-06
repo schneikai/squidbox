@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
 
+import type { EditedPost } from '../src/features/posts/PostEditor';
 import changedValues from '../src/utils/changedValues';
 
 describe('changedValues', () => {
   it('keeps only what differs from the seed, refs compared by content', () => {
     const refs = [{ id: 'e1', assetId: 'a1' }];
-    const original = { text: 'hi', assetRefs: refs, postedAt: null as number | null };
+    const original: Pick<EditedPost, 'text' | 'assetRefs' | 'postedAt'> = {
+      text: 'hi',
+      assetRefs: refs,
+      postedAt: null,
+    };
     expect(changedValues(original, { text: 'hi', assetRefs: [{ id: 'e1', assetId: 'a1' }], postedAt: null })).toEqual(
       {},
     );
