@@ -20,6 +20,7 @@ export type EditSheetProps = {
   onConfirm?: () => void;
   actions?: ActionButtonsProps['actions'];
   isFilling?: boolean;
+  testID?: string;
   children?: ReactNode;
 };
 
@@ -30,7 +31,7 @@ export type EditSheetProps = {
  * spinner while `isSaving`, when × and the actions are off too. The body (`children`) scrolls under
  * the header, with optional `actions` at its end (ActionButtons: `{ label, colorPalette, onPress,
  * loading, disabled }`, e.g. Delete). `isFilling` lets the body fill the sheet above the keyboard instead of scrolling, for
- * a text field that fills it (TextEditSheet).
+ * a text field that fills it (TextEditSheet). `testID` names the sheet for the UI flow tests.
  */
 export default function EditSheet({
   title,
@@ -41,6 +42,7 @@ export default function EditSheet({
   onConfirm,
   actions = [],
   isFilling = false,
+  testID,
   children,
 }: EditSheetProps) {
   const { bottom } = useSafeAreaInsets();
@@ -72,7 +74,7 @@ export default function EditSheet({
 
   if (isFilling) {
     return (
-      <ModalSheet>
+      <ModalSheet testID={testID}>
         {header}
         <FillingBody>
           {children}
@@ -83,7 +85,7 @@ export default function EditSheet({
   }
 
   return (
-    <ModalSheet>
+    <ModalSheet testID={testID}>
       {header}
       <ScrollView
         automaticallyAdjustKeyboardInsets

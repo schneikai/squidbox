@@ -8,34 +8,57 @@
  *   npm run web:preview -- shot.png --production   # release-mode bundle, for performance checks
  *
  * Test scripts can drive the page instead:
- *   const { page, errors, close } = await openWebPreview();
+ *   const { page, pageErrors, consoleErrors, close } = await openWebPreview();
  *   await page.getByText('Albums').click();
  *   await settleAsync(page);
  */
-import { readFileSync } from 'node:fs';
-import { parseEnv } from 'node:util';
 import { chromium, devices } from 'playwright';
 
-const APP_URL = 'http://localhost:8081/';
-const API_URL = 'http://localhost:3100/api/v1';
-const SERVER_ENV = new URL('../../server/.env', import.meta.url);
+import { METRO_URL, readServerEnv, SERVER_URL } from '../../../scripts/localBackend.mjs';
 
+const API_URL = `${SERVER_URL}/api/v1`;
+// The phone the preview stands in for.
+export const PREVIEW_DEVICE = devices['iPhone 15 Pro Max'];
+
+// A launched browser that fails to sign in or load the app is closed.
 export async function openWebPreview({ signedIn = true, production = false } = {}) {
   const browser = await chromium.launch(launchOptions());
-  const context = await browser.newContext(devices['iPhone 15 Pro Max']);
-  if (signedIn) await context.addInitScript(storeSession, await loginAsync());
+  try {
+    const context = await browser.newContext(PREVIEW_DEVICE);
+    if (signedIn) await signInAsync(context);
+    const page = await context.newPage();
+    const { pageErrors, consoleErrors } = collectErrors(page);
+    if (production) await page.route(/\.bundle\?/, serveProductionBundle);
+    await loadAppAsync(page);
+    return { page, pageErrors, consoleErrors, close: () => browser.close() };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+}
 
-  const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
-  if (production) await page.route(/\.bundle\?/, serveProductionBundle);
+// Signs the browser context in to the mock account: every page it opens starts signed in. A
+// `session` from an earlier loginAsync() can be reused: the server allows 10 sign-ins a minute.
+export async function signInAsync(context, session) {
+  await context.addInitScript(storeSession, session ?? (await loginAsync()));
+}
 
+// Opens the app on `page` and waits for the Library.
+export async function loadAppAsync(page) {
   // Metro builds the bundle on the first request, which can take minutes (a release bundle more so).
-  await page.goto(APP_URL, { timeout: 600_000 });
+  await page.goto(`${METRO_URL}/`, { timeout: 600_000 });
   // Exact: "Setting up your library" (the first-sync screen) must not count as the Library tab.
   await page.getByText('Library', { exact: true }).first().waitFor({ timeout: 600_000 });
-  return { page, errors, close: () => browser.close() };
+}
+
+// Uncaught errors and console errors apart, as the page reports them: the UI flow tests fail on the
+// first, not the second.
+export function collectErrors(page) {
+  const pageErrors = [];
+  const consoleErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('console', (message) => message.type() === 'error' && consoleErrors.push(message.text()));
+  return { pageErrors, consoleErrors };
 }
 
 const SETTLE_MAX_ROUNDS = 10;
@@ -54,6 +77,12 @@ export async function settleAsync(page) {
   }
 }
 
+// For the scripts: what the page reported, uncaught errors first.
+export function printErrors(pageErrors, consoleErrors) {
+  if (pageErrors.length > 0) console.log(`Page errors:\n${pageErrors.join('\n')}`);
+  if (consoleErrors.length > 0) console.log(`Console errors:\n${consoleErrors.join('\n')}`);
+}
+
 // Metro builds a release bundle (no React dev checks, minified) when asked for one.
 function serveProductionBundle(route) {
   const url = new URL(route.request().url());
@@ -64,13 +93,19 @@ function serveProductionBundle(route) {
 
 // The cloud workspace reaches the internet (and Metro's tunnel, where images come from) only through
 // its proxy, which takes HTTPS only. Playwright's proxy option would also send http://localhost there.
-function launchOptions() {
+export function launchOptions() {
   const proxy = process.env.HTTPS_PROXY;
   return proxy ? { args: [`--proxy-server=https=${new URL(proxy).host}`] } : {};
 }
 
-async function loginAsync() {
-  const { SEED_USER_EMAIL: email, SEED_USER_PASSWORD: password } = parseEnv(readFileSync(SERVER_ENV, 'utf8'));
+// The mock account's sign-in, from the local backend's settings.
+export function readSeedCredentials() {
+  const { SEED_USER_EMAIL: email, SEED_USER_PASSWORD: password } = readServerEnv();
+  return { email, password };
+}
+
+export async function loginAsync() {
+  const { email, password } = readSeedCredentials();
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -100,10 +135,12 @@ function storeSession({ accessToken, refreshToken, user, serverId }) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const out = process.argv.slice(2).find((arg) => !arg.startsWith('--')) ?? 'web-preview.png';
-  const { page, errors, close } = await openWebPreview({ production: process.argv.includes('--production') });
+  const { page, pageErrors, consoleErrors, close } = await openWebPreview({
+    production: process.argv.includes('--production'),
+  });
   await settleAsync(page);
   await page.screenshot({ path: out });
   console.log(`Screenshot: ${out}`);
-  if (errors.length > 0) console.log(`Console errors:\n${errors.join('\n')}`);
+  printErrors(pageErrors, consoleErrors);
   await close();
 }

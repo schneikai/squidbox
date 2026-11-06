@@ -18,7 +18,7 @@ export default function PostView({ post, onPressAsset, isTextSelectable = false,
   const { text, postAssets, postedAt } = post;
 
   return (
-    <Card style={styles.card}>
+    <Card testID="post-card" style={styles.card}>
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}

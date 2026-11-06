@@ -68,7 +68,7 @@ export default function AssetsScreen() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View testID="library-screen" style={{ flex: 1 }}>
       <FloatingHeader
         title="Library"
         onAdd={handleAdd}

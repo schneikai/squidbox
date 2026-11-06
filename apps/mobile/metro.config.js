@@ -29,9 +29,12 @@ config.resolver.sourceExts = [...config.resolver.sourceExts, 'sql'];
 config.resolver.assetExts = [...config.resolver.assetExts, 'wasm'];
 
 // Dev only: under `npm run dev:local`, Metro also serves the local backend so the phone reaches it
-// through Metro's tunnel.
+// through Metro's tunnel. dev.mjs says where the API server answers (scripts/localBackend.mjs).
 if (process.env.EXPO_PUBLIC_LOCAL_BACKEND) {
-  const proxy = createLocalBackendProxy({ backendUrl: 'http://localhost:3100', storageUrl: 'http://localhost:9000' });
+  const proxy = createLocalBackendProxy({
+    backendUrl: process.env.LOCAL_BACKEND_URL,
+    storageUrl: 'http://localhost:9000',
+  });
   const enhanceMiddleware = config.server.enhanceMiddleware;
   config.server.enhanceMiddleware = (middleware, server) => {
     const metroMiddleware = enhanceMiddleware ? enhanceMiddleware(middleware, server) : middleware;

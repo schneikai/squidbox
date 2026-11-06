@@ -21,7 +21,7 @@ export default function PostScreen() {
   const headerDate = post.postedAt ? formatDetailHeaderDate(post.postedAt) : { title: 'Not posted', subtitle: '' };
 
   return (
-    <Page>
+    <Page testID="post-screen">
       <FloatingDetailHeader
         title={headerDate.title}
         subtitle={headerDate.subtitle}

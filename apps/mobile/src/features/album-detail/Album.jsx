@@ -140,7 +140,7 @@ export default function Album({ album }) {
   }
 
   return (
-    <Page>
+    <Page testID="album-screen">
       <FloatingDetailHeader
         title={album.name}
         subtitle={headerSubtitle}

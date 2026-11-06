@@ -233,10 +233,9 @@ them feature by feature, then add `test/` to the check and turn `allowJs` off.
 
 ### [ ] Add UI tests
 
-Only pure logic is tested (`apps/mobile/test`, vitest in Node). Set up component tests (for
-example jest-expo with React Native Testing Library) and cover the key screens first: the photo
-detail pager, login and sign-out, and the library grid. Consider end-to-end tests (for example
-Maestro) for the main flows later.
+The main flows have Playwright tests on the web build (`apps/mobile/e2e`, `npm run test:ui`);
+everything else is pure logic in vitest. If screens need finer checks than a flow gives, set up
+component tests (for example jest-expo with React Native Testing Library).
 
 ### [ ] iPhone simulator smoke tests in the cloud
 
@@ -284,10 +283,7 @@ a distinct photo.
 
 The web preview (README → "Web preview") can't add photos from the camera roll, upload, download
 files or pinch. Web versions exist only for tokens and thumbnails. Extend them if testing those
-flows in the browser becomes worth it. The photo viewer also doesn't follow a scroll on web:
-react-native-web's ScrollView never fires `onMomentumScrollEnd`/`onScrollEndDrag`, so
-`AssetPager` never learns the new page (header, actions, notes and the swipe-up details stay on the
-first photo, and only that photo zooms). Playwright's Chromium can't decode H.264 or HEVC, so the
+flows in the browser becomes worth it. Playwright's Chromium can't decode H.264 or HEVC, so the
 mock videos (H.264) don't play in the preview; only a WebM would (an iPhone's HEVC `.mov` may not
 play in desktop Chrome either).
 

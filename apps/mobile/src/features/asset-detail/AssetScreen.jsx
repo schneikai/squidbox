@@ -145,7 +145,7 @@ export default function AssetScreen() {
   if (!windowData) return <Page />;
 
   return (
-    <Page style={styles.clip}>
+    <Page testID="asset-screen" style={styles.clip}>
       <StatusBar hidden={isStatusBarHidden} animated showHideTransition="fade" />
       <FadeView
         isVisible={isFullscreen}
