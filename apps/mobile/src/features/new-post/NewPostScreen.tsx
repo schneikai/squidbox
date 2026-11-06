@@ -7,14 +7,18 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import NewPostCard from '@/features/new-post/NewPostCard';
-import RepostCard from '@/features/new-post/RepostCard';
+import RepostCard, { type RepostCardProps } from '@/features/new-post/RepostCard';
+import laterSuggestRepostAt from '@/features/new-post/laterSuggestRepostAt';
 import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
+import type { PostRow } from '@/sync/db/schema';
 import { readNewestRepostDate } from '@/sync/postsRepository';
 import { usePagedQuery } from '@/sync/usePagedQuery';
+
+type RepostCandidate = RepostCardProps['post'] & Pick<PostRow, 'id' | 'suggestRepostAt'>;
 
 const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' });
 
@@ -28,7 +32,8 @@ export default function NewPostScreen() {
   const { updatePost } = usePosts();
   const padding = useScreenPadding('sheet');
 
-  const { rows, count, loadMore } = usePagedQuery(candidates, 20);
+  // postQuery is JS: its rows typed by what this sheet reads.
+  const { rows, count, loadMore } = usePagedQuery<RepostCandidate>(candidates, 20);
 
   // If there's nothing to repost, skip this screen entirely
   useEffect(() => {
@@ -41,18 +46,15 @@ export default function NewPostScreen() {
     router.navigate('/post-editor');
   }
 
-  function handleRepost(post) {
+  function handleRepost(post: Pick<PostRow, 'id'>) {
     router.navigate({ pathname: '/post-editor', params: { rePostId: post.id } });
   }
 
-  async function handleLater(post) {
-    const newestDate = await readNewestRepostDate(getDb());
-    const from = post.suggestRepostAt || Date.now();
-    const suggestRepostAt = Math.round(from + Math.random() * (newestDate - from)); // the server stores whole ms
-    await updatePost(post.id, { suggestRepostAt });
+  async function handleLater(post: RepostCandidate) {
+    await updatePost(post.id, { suggestRepostAt: laterSuggestRepostAt(post, await readNewestRepostDate(getDb())) });
   }
 
-  async function handleIgnore(post) {
+  async function handleIgnore(post: Pick<PostRow, 'id'>) {
     await updatePost(post.id, { isIgnoredForRepost: true });
   }
 
@@ -93,7 +95,7 @@ export default function NewPostScreen() {
   );
 }
 
-const keyExtractor = (post) => post.id;
+const keyExtractor = (post: Pick<PostRow, 'id'>) => post.id;
 
 const styles = StyleSheet.create({
   content: {

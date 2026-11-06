@@ -4,10 +4,22 @@ import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import usePosts from '@/features/posts-context/usePosts';
+import type { PostRow } from '@/sync/db/schema';
+import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
 import confirmAsync from '@/utils/confirmAsync';
 
-export default function MoreAction({ post, afterDelete }) {
+export type MoreActionProps = {
+  post: Pick<PostRow, 'id'> & {
+    postAssets: { asset: AssetFileAsset }[];
+    threadPosts: { postAssets: { asset: AssetFileAsset }[] }[];
+  };
+  afterDelete?: () => void;
+};
+
+// The post's ⋯ menu: Download assets, Edit, Repost and Delete (all of a thread's posts; then
+// `afterDelete`).
+export default function MoreAction({ post, afterDelete }: MoreActionProps) {
   const { deletePost } = usePosts();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
 

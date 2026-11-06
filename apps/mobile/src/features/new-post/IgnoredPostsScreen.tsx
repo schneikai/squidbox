@@ -12,6 +12,7 @@ import postQuery from '@/features/post-list/postQuery';
 import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout, space } from '@/styles/designTokens';
+import type { PostRow } from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const ignored = postQuery({ scope: 'ignored', sort: 'updatedAt:desc' });
@@ -24,7 +25,7 @@ export default function IgnoredPostsScreen() {
   const { rows, count, loadMore } = usePagedQuery(ignored, 20);
   // Stable, so the list re-renders a post only when it changes (PostListItem is memoized).
   const renderPostActions = useCallback(
-    (post) => (
+    (post: Pick<PostRow, 'id'>) => (
       <View style={styles.actionContainer}>
         <Button
           variant="secondary"
@@ -52,11 +53,16 @@ export default function IgnoredPostsScreen() {
           style={{ flex: 1, paddingTop: layout.sheetContentTop }}
         />
       ) : (
+        // JS component: its destructured props read as required until post-list converts.
         <PostList
           rows={rows}
           loadMore={loadMore}
           contentContainerStyle={padding}
           renderPostActions={renderPostActions}
+          ListHeaderComponent={undefined}
+          FirstListEntryComponent={undefined}
+          listRef={undefined}
+          onScroll={undefined}
         />
       )}
     </ModalSheet>

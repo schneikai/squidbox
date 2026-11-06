@@ -5,11 +5,13 @@ import Icon from '@/components/Icon';
 import { colors, press, scale, sizes } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 
+export type NewPostCardProps = { onPress: () => void };
+
 /**
  * The New post sheet's way into the editor: a card that looks like the editor's empty first card
  * ("What's new?" over the photo button's mark). A tap anywhere on it opens the editor (`onPress`).
  */
-export default function NewPostCard({ onPress }) {
+export default function NewPostCard({ onPress }: NewPostCardProps) {
   return (
     <Pressable
       onPress={onPress}

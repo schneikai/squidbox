@@ -7,21 +7,31 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import PostRowCard from '@/features/posts/PostRowCard';
 import { press, space } from '@/styles/designTokens';
+import type { AssetRow, PostRow } from '@/sync/db/schema';
 import isPresent from '@/utils/isPresent';
+
+export type RepostCardProps = {
+  post: Pick<PostRow, 'text' | 'postedAt'> & { postAssets: { asset: AssetRow }[] };
+  onOpen: () => void;
+  onRepost: () => void;
+  onLater: () => void;
+  onIgnore: () => void;
+};
 
 /**
  * A post offered for a repost on the New post sheet, as a card: its first photo, two lines of its
  * text, when it was posted, then Repost (`onRepost`), Later (`onLater`) and ⋯ with Ignore
  * (`onIgnore`). A tap elsewhere opens the post (`onOpen`).
  */
-export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }) {
+export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }: RepostCardProps) {
   const first = post.postAssets[0]?.asset;
 
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => pressed && press.flat}>
       <PostRowCard asset={first}>
         {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
-        <PostPostedAt postedAt={post.postedAt} />
+        {/* JS component: its destructured props read as required until posts converts. */}
+        <PostPostedAt postedAt={post.postedAt} style={undefined} />
         <View style={styles.actions}>
           <Button variant="primary" size="small" label="Repost" icon="repeat" onPress={onRepost} />
           <Button variant="secondary" size="small" label="Later" onPress={onLater} />
