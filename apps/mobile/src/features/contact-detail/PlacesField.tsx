@@ -1,14 +1,6 @@
 import { CONTACT_LIMITS, type ContactPlace, formatPlace, placeParts } from '@squidbox/shared';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import Card from '@/components/Card';
-import Divider from '@/components/Divider';
-import Icon from '@/components/Icon';
-import AddRow from '@/components/settings-list/AddRow';
-import { colors, layout, press, scale, sizes, typography } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
-
-const ICON_GAP = 12;
+import IconRowsCard from './IconRowsCard';
 
 /**
  * A contact's places as a card: each place one row, its city over "State, Country" (what it has
@@ -23,56 +15,24 @@ type PlacesFieldProps = {
 
 export default function PlacesField({ places, onEdit, onAdd }: PlacesFieldProps) {
   return (
-    <Card>
-      {places.map((stored, index) => {
+    <IconRowsCard
+      icon="map-pin"
+      twoLine
+      rows={places.map((stored, index) => {
         const place = placeParts(stored);
-        const title = place.city || formatPlace(place);
-        const detail = place.city ? [place.state, place.country].filter(Boolean).join(', ') : '';
-        return (
+        return {
           // The index is the place: a place has no id.
-          // eslint-disable-next-line react/no-array-index-key
-          <View key={index}>
-            <Pressable
-              onPress={() => onEdit(index)}
-              accessibilityRole="button"
-              accessibilityLabel={formatPlace(place)}
-              accessibilityHint="Edits the place"
-              style={({ pressed }) => [styles.row, pressed && press.flat]}
-            >
-              <Icon name="map-pin" size={sizes.icon} color={colors.text.secondary} />
-              <View style={styles.labels}>
-                <Text style={styles.title}>{title}</Text>
-                {!!detail && <Text style={listTextStyles.detail}>{detail}</Text>}
-              </View>
-              <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-            </Pressable>
-            <Divider style={styles.divider} />
-          </View>
-        );
+          key: String(index),
+          title: place.city || formatPlace(place),
+          detail: place.city ? [place.state, place.country].filter(Boolean).join(', ') : '',
+          onPress: () => onEdit(index),
+          accessibilityLabel: formatPlace(place),
+          accessibilityHint: 'Edits the place',
+          trailing: 'chevron',
+        };
       })}
-      {places.length < CONTACT_LIMITS.places && <AddRow label="Add place" onPress={onAdd} />}
-    </Card>
+      addLabel={places.length < CONTACT_LIMITS.places ? 'Add place' : undefined}
+      onAdd={onAdd}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ICON_GAP,
-    minHeight: scale(60),
-    paddingVertical: 8,
-    paddingHorizontal: layout.sideGutter,
-  },
-  labels: {
-    flex: 1,
-  },
-  title: {
-    fontSize: typography.body,
-    color: colors.text.primary,
-  },
-  // Under every place, the line starts at the text, the one above Add place too.
-  divider: {
-    marginLeft: layout.sideGutter + sizes.icon + ICON_GAP,
-  },
-});

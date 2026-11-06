@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import LabelledInputRow, { LABELLED_INPUT_TEXT_INSET } from './LabelledInputRow';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
-import TextInput, { type TextInputProps } from '@/components/TextInput';
-import { colors, layout, scale, typography } from '@/styles/designTokens';
+import type { TextInputProps } from '@/components/TextInput';
+import { layout } from '@/styles/designTokens';
 
-// Wide enough for "Country"; the same as a handle's label (HandleField), so the cards line up.
-const LABEL_WIDTH = scale(84);
-const GAP = 12;
 const MAX_SHOWN = 5;
 
 /**
@@ -16,7 +15,7 @@ const MAX_SHOWN = 5;
  * that contain what is typed (ignoring case, not the text itself) show as chips under it, at most
  * five; a tap fills it with one. The other props are TextInput's.
  */
-type SuggestionFieldProps = Omit<TextInputProps, 'value' | 'onChangeText'> & {
+type SuggestionFieldProps = Omit<TextInputProps, 'value' | 'onChangeText' | 'style'> & {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -49,19 +48,14 @@ export default function SuggestionField({
 
   return (
     <View>
-      <View style={styles.row}>
-        <Text style={styles.label}>{label}</Text>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={() => setIsFocused(true)}
-          onBlur={handleBlur}
-          accessibilityLabel={label}
-          autoCorrect={false}
-          style={styles.input}
-          {...inputProps}
-        />
-      </View>
+      <LabelledInputRow
+        label={label}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setIsFocused(true)}
+        onBlur={handleBlur}
+        {...inputProps}
+      />
       {shown.length > 0 && (
         <View style={styles.suggestions}>
           <ChipRow>
@@ -81,27 +75,9 @@ export default function SuggestionField({
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: GAP,
-    minHeight: scale(52),
-    paddingLeft: layout.sideGutter,
-    paddingRight: layout.sideGutter,
-  },
-  label: {
-    minWidth: LABEL_WIDTH,
-    fontSize: typography.body,
-    color: colors.text.primary,
-  },
-  input: {
-    flex: 1,
-    minWidth: 0,
-    paddingVertical: 14,
-  },
   // Under the text, where it starts.
   suggestions: {
-    paddingLeft: layout.sideGutter + LABEL_WIDTH + GAP,
+    paddingLeft: LABELLED_INPUT_TEXT_INSET,
     paddingRight: layout.sideGutter,
     paddingBottom: 12,
   },

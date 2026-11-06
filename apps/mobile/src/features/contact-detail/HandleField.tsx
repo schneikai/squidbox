@@ -1,7 +1,7 @@
 import { CONTACT_HANDLES, CONTACT_LIMITS } from '@squidbox/shared';
-import { StyleSheet, Text, View } from 'react-native';
 
 import DuplicateDot from './DuplicateDot';
+import LabelledInputRow from './LabelledInputRow';
 import type { HandleFormField } from './contactFields';
 import openContactLinkAsync from './openContactLinkAsync';
 
@@ -9,11 +9,9 @@ import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
 import RowMark from '@/components/RowMark';
-import TextInput, { type TextInputProps } from '@/components/TextInput';
-import { colors, layout, scale, typography } from '@/styles/designTokens';
+import type { TextInputProps } from '@/components/TextInput';
+import { colors, scale } from '@/styles/designTokens';
 
-// Wide enough for "OnlyFans"; a larger text size widens it instead of clipping.
-const LABEL_WIDTH = scale(84);
 const OPEN_LABELS = {
   ...(Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])) as Record<
     HandleFormField,
@@ -62,21 +60,18 @@ export default function HandleField({
   const isName = field === 'name';
 
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        style={styles.input}
-        accessibilityLabel={label}
-        maxLength={MAX_LENGTHS[field] ?? CONTACT_LIMITS.handle}
-        autoCapitalize={isName ? 'words' : 'none'}
-        autoCorrect={false}
-        keyboardType={isPhone ? 'phone-pad' : 'default'}
-        textContentType={isPhone ? 'telephoneNumber' : isName ? 'name' : 'none'}
-      />
+    <LabelledInputRow
+      label={label}
+      endsWithButton
+      value={value}
+      onChangeText={onChangeText}
+      onBlur={onBlur}
+      placeholder={placeholder}
+      maxLength={MAX_LENGTHS[field] ?? CONTACT_LIMITS.handle}
+      autoCapitalize={isName ? 'words' : 'none'}
+      keyboardType={isPhone ? 'phone-pad' : 'default'}
+      textContentType={isPhone ? 'telephoneNumber' : isName ? 'name' : 'none'}
+    >
       {(isDuplicate || isFilled) && (
         <RowMark>
           {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
@@ -93,27 +88,6 @@ export default function HandleField({
           />
         </IconSlotContext.Provider>
       )}
-    </View>
+    </LabelledInputRow>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: scale(52),
-    paddingLeft: layout.sideGutter,
-    paddingRight: 4,
-  },
-  label: {
-    minWidth: LABEL_WIDTH,
-    fontSize: typography.body,
-    color: colors.text.primary,
-  },
-  input: {
-    flex: 1,
-    minWidth: 0, // a web input is as wide as its text box otherwise, which pushes the button out
-    paddingVertical: 14,
-  },
-});
