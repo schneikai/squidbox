@@ -34,7 +34,7 @@ export default async function withPostAssets<P extends PostRow>(
 // A post's assets in `byPost`; a post the read didn't ask for is a bug.
 function postAssetsOf(byPost: Map<string, PostAsset<AssetRow>[]>, postId: string): PostAsset<AssetRow>[] {
   const postAssets = byPost.get(postId);
-  if (!postAssets) throw new Error(`postQuery read no assets for post ${postId}`);
+  if (!postAssets) throw new Error(`withPostAssets read no assets for post ${postId}`);
   return postAssets;
 }
 

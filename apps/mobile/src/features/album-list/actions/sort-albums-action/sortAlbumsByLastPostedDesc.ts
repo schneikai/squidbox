@@ -1,6 +1,6 @@
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
 
-type PostedAlbum = Pick<AlbumListRow, 'lastPostedAt'>;
+export type PostedAlbum = Pick<AlbumListRow, 'lastPostedAt'>;
 
 // Albums by when they were last posted, newest first, the never posted (`lastPostedAt` null) last.
 export default function sortAlbumsByLastPostedDesc(a: PostedAlbum, b: PostedAlbum): number {

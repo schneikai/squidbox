@@ -53,7 +53,7 @@ export default function AlbumsScreen() {
 
   // A drag under another sort makes the order on screen the custom one (reorderUnderSort).
   function handleReorder(change: ReorderChange) {
-    return reorderUnderSort(change, {
+    return reorderUnderSort<AlbumSort, number>(change, {
       sortOrder,
       setSortOrder: sortAlbums,
       move: (drop, sort) => moveAlbum({ ...drop, sort }),

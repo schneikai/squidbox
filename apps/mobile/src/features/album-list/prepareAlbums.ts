@@ -1,11 +1,22 @@
-import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
-import albumSortFunctions from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
+import albumSortFunctions, {
+  type AlbumSort,
+} from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import isBlank from '@/utils/isBlank';
 
-export type AlbumFilter = 'starred' | 'archived';
+const ALBUM_FILTERS = ['starred', 'archived'] as const;
+export type AlbumFilter = (typeof ALBUM_FILTERS)[number];
+
+/** How prepareAlbums picks and orders the albums (all but the albums themselves). */
+export type PrepareAlbumsOptions = {
+  sortOrder: AlbumSort;
+  activeFilter?: AlbumFilter[];
+  searchText: string;
+  showSmartAlbums?: boolean;
+  showDeleted?: boolean;
+};
 
 function matchesFilter(album: Pick<AlbumListRow, 'isFavorite' | 'archivedAt'>, activeFilter: AlbumFilter[]) {
   if (activeFilter.includes('starred') && !album.isFavorite) return false;
@@ -24,14 +35,7 @@ export default function prepareAlbums({
   searchText,
   showSmartAlbums = true,
   showDeleted = true,
-}: {
-  albums: AlbumListRow[];
-  sortOrder: AlbumSort;
-  activeFilter?: AlbumFilter[];
-  searchText: string;
-  showSmartAlbums?: boolean;
-  showDeleted?: boolean;
-}): AlbumListRow[] {
+}: { albums: AlbumListRow[] } & PrepareAlbumsOptions): AlbumListRow[] {
   const search = isBlank(searchText) ? null : searchText.toLowerCase();
   const matchedAlbums = albums.filter((album) => {
     if (!showSmartAlbums && isSmartAlbum(album)) return false;

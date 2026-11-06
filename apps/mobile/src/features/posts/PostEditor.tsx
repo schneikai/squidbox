@@ -2,8 +2,8 @@ import type { ChatSubjectKind } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import PostCard, { type PostCardChange, type PostCardData } from './PostCard';
-import postedAtToSave from './postedAtToSave';
+import PostCard, { type PostCardChange, type PostCardContent, type PostCardData } from './PostCard';
+import postedAtToSave, { type PickedPostedAt } from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
 import ThreadConnector from '@/components/ThreadConnector';
@@ -33,7 +33,7 @@ type PostEditorProps = {
   onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
 };
 
-type Draft = { cards: PostCardData[]; postedAt: number | null; pickedPostedAt: number | null | undefined };
+type Draft = { cards: PostCardData[]; postedAt: number | null; pickedPostedAt: PickedPostedAt };
 
 // Edits a post and its thread, seeded from `post` ({ text, postAssets, postedAt, threadPosts }), as a
 // draft sheet: one card per post, the first post's on top, each following post's below it, joined by
@@ -48,7 +48,7 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
   const newKey = () => `card-${nextKey.current++}`;
   const [cards, setCards] = useState(() => seedCards(post).map((card) => ({ ...card, key: newKey() })));
   // The Posted time the user picked: undefined while untouched, null once removed (postedAtToSave).
-  const [pickedPostedAt, setPickedPostedAt] = useState<number | null | undefined>(undefined);
+  const [pickedPostedAt, setPickedPostedAt] = useState<PickedPostedAt>(undefined);
   const [activeKey, setActiveKey] = useState(cards[0].key);
 
   const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
@@ -118,7 +118,7 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
 }
 
 // The editor's cards from the post it edits: the first post's, then one per following post.
-function seedCards(post: PostEditorPost): Omit<PostCardData, 'key'>[] {
+function seedCards(post: PostEditorPost): PostCardContent[] {
   const first = { id: null, text: post.text, postAssets: post.postAssets };
   const following = post.threadPosts.map(({ id, text, postAssets }) => ({ id, text, postAssets }));
   return [first, ...following];
@@ -154,17 +154,17 @@ function draftSheetOptions(
 function postData({
   cards: [first, ...following],
   postedAt,
-}: Pick<Draft, 'postedAt'> & { cards: Omit<PostCardData, 'key'>[] }): EditedPost {
+}: Pick<Draft, 'postedAt'> & { cards: PostCardContent[] }): EditedPost {
   const { text, assetRefs } = partData(first);
   return { text, assetRefs, postedAt, threadPosts: following.map(partData) };
 }
 
 // One card as the posts store takes a post of the thread.
-function partData({ id, text, postAssets }: Omit<PostCardData, 'key'>): ThreadPart {
+function partData({ id, text, postAssets }: PostCardContent): ThreadPart {
   return { id, text, assetRefs: postAssetsToAssetRefs(postAssets) };
 }
 
 // A post needs text or at least one photo.
-function hasCardContent({ text, postAssets }: Pick<PostCardData, 'text' | 'postAssets'>): boolean {
+function hasCardContent({ text, postAssets }: PostCardContent): boolean {
   return Boolean(text) || postAssets.length > 0;
 }

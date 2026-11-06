@@ -2,7 +2,7 @@ import type { AssetRecord } from '@squidbox/shared';
 import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import PostCardToolbar from './PostCardToolbar';
+import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
 import type { PostEditorKind } from './PostEditor';
 
 import Button from '@/components/Button';
@@ -10,13 +10,17 @@ import Card from '@/components/Card';
 import TextInput from '@/components/TextInput';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
-// WriteWithAi and useSubjectChat are JS: typed as allowJs infers them (useSubjectChat by its JSDoc).
+// WriteWithAi is JS: typed as allowJs infers it.
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import { layout, scale, space } from '@/styles/designTokens';
+import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
-export type PostCardData = { key: string; id: string | null; text: string; postAssets: EditorPostAsset[] };
+// What a card holds: one post of the thread, with its assets as the editor's strip holds them.
+export type PostCardContent = Pick<ThreadPart, 'id' | 'text'> & { postAssets: EditorPostAsset[] };
+
+export type PostCardData = PostCardContent & { key: string };
 
 // What a card reports changed to the editor.
 export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'postAssets'>>;
@@ -26,14 +30,10 @@ type PostCardProps = {
   card: PostCardData;
   isFirst: boolean;
   isActive: boolean;
-  postedAt: number | null;
-  isPostedAtShown: boolean;
-  onChangePostedAt: (timestamp: number | null) => void;
   onChange: (key: string, changes: PostCardChange) => void;
   onActivate: (key: string) => void;
   onRemove?: (key: string) => void;
-  onAddToThread?: () => void;
-};
+} & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
  * One post of the post editor (`card`: { key, text, postAssets }): its text, its photos once it has

@@ -1,5 +1,4 @@
-import { type NativeStackNavigationProp, useLocalSearchParams, useNavigation } from 'expo-router';
-import type { ParamListBase } from 'expo-router/react-navigation';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import leaveWithNewPostSheet from './leaveWithNewPostSheet';
 
@@ -39,9 +38,7 @@ export default function AddPostScreen() {
         console.error("Couldn't mark the post as reposted", error);
       }
     }
-    const sheets = navigation.getParent<NativeStackNavigationProp<ParamListBase> | undefined>();
-    if (!sheets) throw new Error('The post editor opens inside a sheet');
-    return leaveWithNewPostSheet(sheets);
+    return leaveWithNewPostSheet(navigation);
   }
 
   if (!seed) return null;

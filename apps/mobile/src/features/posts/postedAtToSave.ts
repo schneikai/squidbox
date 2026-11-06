@@ -1,3 +1,6 @@
+/** The Posted time the user picked in the editor: undefined while untouched, null once removed. */
+export type PickedPostedAt = number | null | undefined;
+
 /**
  * The Posted time a post editor saves. `picked` is the user's choice in the editor: undefined while
  * untouched, a timestamp, or null once they removed it (the post becomes a draft, "Not posted"). An
@@ -11,7 +14,7 @@ export default function postedAtToSave({
   now,
 }: {
   isNew: boolean;
-  picked: number | null | undefined;
+  picked: PickedPostedAt;
   seedPostedAt: number | null;
   now: number;
 }): number | null {

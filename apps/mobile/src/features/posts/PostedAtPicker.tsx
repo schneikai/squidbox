@@ -11,7 +11,11 @@ import PostedAtCalendar from '@/features/posts/PostedAtCalendar';
 import { layout, space } from '@/styles/designTokens';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
-type PostedAtPickerProps = { timestamp: number | null; isShown: boolean; onChange: (timestamp: number | null) => void };
+export type PostedAtPickerProps = {
+  timestamp: number | null;
+  isShown: boolean;
+  onChange: (timestamp: number | null) => void;
+};
 export default function PostedAtPicker({ timestamp, isShown, onChange }: PostedAtPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
 

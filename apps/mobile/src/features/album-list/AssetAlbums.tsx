@@ -7,9 +7,13 @@ import type { AlbumSubsetScope } from '@/features/album-list/albumQuery';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
 import unguarded, { type GuardPress } from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
+import type { LiveOptions } from '@/sync/useLiveQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
-type AssetAlbumsProps = { scope: AlbumSubsetScope; emptyText: string; guardPress?: GuardPress; isLive?: boolean };
+type AssetAlbumsProps = { scope: AlbumSubsetScope; emptyText: string; guardPress?: GuardPress } & Pick<
+  LiveOptions,
+  'isLive'
+>;
 
 /**
  * The albums of `scope` (`{ assetIds }`: holding any of the assets; `{ contactId }`: a contact is

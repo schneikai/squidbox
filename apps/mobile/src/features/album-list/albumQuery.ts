@@ -32,12 +32,12 @@ export type AlbumQueryScope = 'all' | AlbumSubsetScope;
  */
 type AlbumQueryDescriptor = { scope?: AlbumQueryScope; oldestFirstIds?: string[] };
 
-/** A row of the album list: the album with its stats and its cover; `heldCount` under an `{ assetIds }` scope. */
+/** A row of the album list: the album with its stats and its cover; `heldCount` under an `{ assetIds }` scope, else null. */
 export type AlbumListRow = AlbumRow & {
   assetCount: number;
   lastPostedAt: number | null;
   cover: AssetRow | undefined;
-  heldCount?: number;
+  heldCount: number | null;
 };
 
 type AlbumQuery = {
@@ -95,9 +95,10 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: Album
     if (isIdScope(scope, 'contactId')) return sql`al.id in ${contactTargetIds(scope.contactId, 'album')}`;
     return albumHoldsAny(sql.raw('al.id'), scope.assetIds);
   })();
+  // Under another scope there is nothing to hold: null.
   const heldCount = isIdScope(scope, 'assetIds')
     ? sql<number>`(select count(distinct asset_id) from album_assets where album_id = al.id and deleted_at is null and ${inJson(sql.raw('asset_id'), scope.assetIds)})`
-    : undefined;
+    : sql<null>`null`;
 
   return {
     descriptor: { scope, oldestFirstIds },
@@ -111,15 +112,10 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: Album
     ],
     read(db) {
       return db.transaction(async (tx) => {
-        const fields = { ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt };
-        const where = and(isNull(al.deletedAt), inScope);
-        // drizzle's selection takes neither an optional field nor a union of two: one select per shape.
-        const rows = heldCount
-          ? await tx
-              .select({ ...fields, heldCount })
-              .from(al)
-              .where(where)
-          : await tx.select(fields).from(al).where(where);
+        const rows = await tx
+          .select({ ...getTableColumns(al), assetCount, coverAssetId, lastPostedAt: newestPostedAt, heldCount })
+          .from(al)
+          .where(and(isNull(al.deletedAt), inScope));
         const covers = await readByIdMap(
           tx,
           schema.assets,

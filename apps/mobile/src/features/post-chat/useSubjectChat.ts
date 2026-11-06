@@ -1,17 +1,26 @@
+import type { AssetRecord, ChatSubjectKind } from '@squidbox/shared';
 import { useEffect, useState } from 'react';
 
+// JS, typed as allowJs infers it.
 import chatSessions from './chatSessions';
+
+import type { PostAsset } from '@/utils/posts/buildPostAsset';
+
+type SubjectChatOptions = {
+  kind: ChatSubjectKind;
+  text: string;
+  postAssets: PostAsset<AssetRecord>[];
+  setText?: ((text: string) => void) | null;
+};
 
 /**
  * The assistant chat about a post (`kind`, chatSubjectKindSchema): opened with the screen that shows
  * the post (its editor, or a posted post) and closed with it, told the text and the assets as they
  * change, and given `setText` for Use (none for a posted post: its options have Copy). → the chat's
  * id, null until it is open.
- * @param {{ kind: import('@squidbox/shared').ChatSubjectKind; text: string; postAssets: { asset: import('@squidbox/shared').AssetRecord }[]; setText?: ((text: string) => void) | null }} options
- * @returns {string | null}
  */
-export default function useSubjectChat({ kind, text, postAssets, setText = null }) {
-  const [sessionId, setSessionId] = useState(null);
+export default function useSubjectChat({ kind, text, postAssets, setText = null }: SubjectChatOptions): string | null {
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Opened and closed by one effect, so an effect run again (Fast Refresh) opens a new chat.
   useEffect(() => {

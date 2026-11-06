@@ -134,7 +134,7 @@ export default function postQuery({
   return {
     descriptor,
     tables,
-    read(db: SyncDb, options: ReadOptions = {}) {
+    read(db, options: ReadOptions = {}) {
       return db.transaction(async (tx) => {
         const ids = await matchedIds(tx);
         const total = await readCount(tx, ids);
@@ -142,7 +142,7 @@ export default function postQuery({
         return { rows: await withPostAssets(tx, posts, options.firstAssetOnly), count: total };
       });
     },
-    readRows(db: SyncDb, options: ReadOptions = {}) {
+    readRows(db, options: ReadOptions = {}) {
       return db.transaction(async (tx) => withPostAssets(tx, await postsIn(tx, options), options.firstAssetOnly));
     },
     postsIn,

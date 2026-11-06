@@ -1,17 +1,13 @@
 import { type AlbumSort, isAlbumSort } from './albumSortFunctions';
 
-import type { AppSettingsSetters } from '@/features/app-settings/AppSettingsContext';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 
 // The albums list's sort, remembered across launches (albumListSortOrder); a stored key no longer
 // offered falls back to Newest first.
-export default function useSortAlbumsAction(): {
-  sortOrder: AlbumSort;
-  sortAlbums: AppSettingsSetters['setAlbumListSortOrder'];
-  isSortedByLastPosted: boolean;
-} {
+export default function useSortAlbumsAction() {
   const { albumListSortOrder, setAlbumListSortOrder } = useAppSettings();
-  const sortOrder = isAlbumSort(albumListSortOrder) ? albumListSortOrder : 'createdAt:desc';
+  const sortOrder: AlbumSort = isAlbumSort(albumListSortOrder) ? albumListSortOrder : 'createdAt:desc';
+  const sortAlbums: (order: AlbumSort) => void = setAlbumListSortOrder;
 
-  return { sortOrder, sortAlbums: setAlbumListSortOrder, isSortedByLastPosted: sortOrder.startsWith('lastPostedAt') };
+  return { sortOrder, sortAlbums, isSortedByLastPosted: sortOrder.startsWith('lastPostedAt') };
 }

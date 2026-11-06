@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react';
 import { type LayoutChangeEvent, View } from 'react-native';
 
-import type { AlbumListProps } from './AlbumList';
-
 import SortableGrid, { type SortableGridProps } from '@/components/sortable-grid/SortableGrid';
+import type { AlbumListProps } from '@/features/album-list/AlbumList';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import useAlbumGrid from '@/features/album-list/useAlbumGrid';
 

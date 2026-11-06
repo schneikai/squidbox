@@ -1,18 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 
-import PostedAtPicker from './PostedAtPicker';
+import PostedAtPicker, { type PostedAtPickerProps } from './PostedAtPicker';
 
 import Button from '@/components/Button';
 import AddMediaMenu, { type AddMediaMenuProps } from '@/features/asset-picker/AddMediaMenu';
 import { space } from '@/styles/designTokens';
 
-type PostCardToolbarProps = {
+export type PostCardToolbarProps = {
   isFirst: boolean;
   exclude: AddMediaMenuProps['exclude'];
   onAddMedia: AddMediaMenuProps['onAdd'];
-  postedAt: number | null;
-  isPostedAtShown: boolean;
-  onChangePostedAt: (timestamp: number | null) => void;
+  postedAt: PostedAtPickerProps['timestamp'];
+  isPostedAtShown: PostedAtPickerProps['isShown'];
+  onChangePostedAt: PostedAtPickerProps['onChange'];
   onAddToThread?: () => void;
   onActivate: () => void;
 };
@@ -36,9 +36,15 @@ export default function PostCardToolbar({
     toggle();
   }
 
-  function handleChangePostedAt(timestamp: number | null) {
+  function handleChangePostedAt(timestamp: PostedAtPickerProps['timestamp']) {
     onActivate();
     onChangePostedAt(timestamp);
+  }
+
+  // Takes the ⊕'s handler from the branch that renders it, where it is known to be there.
+  function handleAddToThread(addToThread: () => void) {
+    onActivate();
+    addToThread();
   }
 
   return (
@@ -61,10 +67,7 @@ export default function PostCardToolbar({
           icon="add-circle"
           colorPalette="accent"
           accessibilityLabel="Add to thread"
-          onPress={() => {
-            onActivate();
-            onAddToThread();
-          }}
+          onPress={() => handleAddToThread(onAddToThread)}
           style={styles.trailing}
         />
       )}

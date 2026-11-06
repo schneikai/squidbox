@@ -3,10 +3,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadParts from '@/components/ThreadParts';
-// WriteWithAi and useSubjectChat are JS: typed as allowJs infers them (useSubjectChat by its JSDoc).
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
+// WriteWithAi is JS: typed as allowJs infers it.
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import PostRows from '@/features/post-list/PostRows';

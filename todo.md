@@ -237,8 +237,8 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 `npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
 asset-detail, post-chat, prompt-buttons, model-compare and model-verify, `app/_layout.jsx` and those
 features' routes. Convert them feature by feature, then add `test/` to the check and turn `allowJs`
-off. `PromptButtonRow.jsx` and `useSubjectChat.js` hold JSDoc `@param` stand-ins for their types
-(allowJs reads optional props and defaults too narrowly): drop them when those files convert.
+off. `PromptButtonRow.jsx` holds a JSDoc `@param` stand-in for its props' types (allowJs reads
+optional props as required): drop it when that file converts.
 
 ### [ ] Add UI tests
 
