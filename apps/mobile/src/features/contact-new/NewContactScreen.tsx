@@ -8,8 +8,10 @@ import findDuplicates from './findDuplicates';
 import useContactHandles from './useContactHandles';
 import useNewContactDraft from './useNewContactDraft';
 
+import Chip from '@/components/Chip';
+import ChipRow from '@/components/ChipRow';
 import EditSheet from '@/components/EditSheet';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ContactAvatarPicker from '@/features/contact-detail/ContactAvatarPicker';
 import HandleField from '@/features/contact-detail/HandleField';
 import HandleFieldsCard from '@/features/contact-detail/HandleFieldsCard';
@@ -97,14 +99,14 @@ export default function NewContactScreen() {
         onAdd={() => router.navigate('/new-contact/place')}
       />
 
-      <Section isHeaderless>
-        <Row
-          label="Lists"
-          value={listNames.length > 0 ? listNames.join(', ') : 'None'}
-          onPress={() => router.navigate('/new-contact/lists')}
-          hasChevron
-        />
-      </Section>
+      {/* The same chips as on the contact screen; the lists step is pushed inside the sheet. */}
+      <ScreenSectionHeader title="Lists" size="large" />
+      <ChipRow>
+        {listNames.map((name) => (
+          <Chip key={name} label={name} onPress={() => router.navigate('/new-contact/lists')} />
+        ))}
+        <Chip variant="add" label="Add to list" onPress={() => router.navigate('/new-contact/lists')} />
+      </ChipRow>
     </EditSheet>
   );
 }
