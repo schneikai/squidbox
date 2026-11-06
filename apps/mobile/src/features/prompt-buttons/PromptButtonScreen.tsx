@@ -1,4 +1,4 @@
-import { promptButtonCollection } from '@squidbox/shared';
+import { promptButtonCollection, type NewPromptButton } from '@squidbox/shared';
 import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -25,18 +25,21 @@ import getNewItemId from '@/utils/getNewItemId';
 import isPresent from '@/utils/isPresent';
 
 const { shape } = promptButtonCollection.schema;
-const NAME_MAX_LENGTH = shape.name.maxLength;
-const PROMPT_MAX_LENGTH = shape.prompt.maxLength;
+// zod's maxLength is null for a string without a max; both have one.
+const NAME_MAX_LENGTH = shape.name.maxLength ?? undefined;
+const PROMPT_MAX_LENGTH = shape.prompt.maxLength ?? undefined;
 // A button can't be without these.
-const REQUIRED_FIELDS = ['name', 'prompt'];
+const REQUIRED_FIELDS = ['name', 'prompt'] as const;
+
+type PromptButtonSeed = Omit<NewPromptButton, 'id'>;
 
 // One prompt button as a draft sheet: `…/prompt-buttons/[id]` edits it (Save, Duplicate, Delete),
 // `…/prompt-buttons/new` adds one at the end (Add, once it has a name and a prompt). Opened from the
 // list, in Settings or inside the chat's sheet.
 export default function PromptButtonScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const isAvailable = useLeaveWhenUnavailable();
-  const seed = useSeedOrClose(
+  const seed = useSeedOrClose<PromptButtonSeed>(
     (db) => (id ? readPromptButton(db, id) : Promise.resolve({ name: '', prompt: '', icon: null })),
     id ?? 'new',
     'This prompt button was deleted.',
@@ -45,14 +48,19 @@ export default function PromptButtonScreen() {
   return <PromptButtonEditor id={id} seed={seed} />;
 }
 
-function PromptButtonEditor({ id, seed }) {
+type PromptButtonEditorProps = {
+  id: string | undefined;
+  seed: PromptButtonSeed;
+};
+
+function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
   const pathname = usePathname();
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<PromptButtonSeed>({
     name: seed.name,
     prompt: seed.prompt,
     icon: seed.icon,
   });
-  const values = { name: draft.name.trim(), prompt: draft.prompt.trim(), icon: draft.icon };
+  const values: PromptButtonSeed = { name: draft.name.trim(), prompt: draft.prompt.trim(), icon: draft.icon };
   const changes = changedValues(seed, values);
   const { sheetProps, finish, confirmDiscard } = useEditSheet({
     isNew: !id,
@@ -61,7 +69,7 @@ function PromptButtonEditor({ id, seed }) {
     save,
   });
 
-  function setField(field, value) {
+  function setField<K extends keyof PromptButtonSeed>(field: K, value: PromptButtonSeed[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
@@ -75,11 +83,11 @@ function PromptButtonEditor({ id, seed }) {
 
   // A copy of the button as stored at the end of the list, opened in place of this one. Unsaved
   // changes are discarded first (asked before the copy is made, so Keep editing leaves no copy).
-  async function handleDuplicate() {
+  async function handleDuplicate(buttonId: string) {
     if (!(await confirmDiscard())) return;
     await finish(async () => {
       const db = getDb();
-      const button = await readPromptButton(db, id);
+      const button = await readPromptButton(db, buttonId);
       if (!button) throw new Error('This prompt button was deleted.');
       const copy = await createPromptButton(db, {
         id: getNewItemId(),
@@ -91,7 +99,7 @@ function PromptButtonEditor({ id, seed }) {
     }, "Couldn't duplicate the prompt button");
   }
 
-  async function handleDelete() {
+  async function handleDelete(buttonId: string) {
     const isConfirmed = await confirmAsync({
       title: `Delete “${values.name || seed.name}”?`,
       message: 'It goes from every device.',
@@ -99,7 +107,7 @@ function PromptButtonEditor({ id, seed }) {
       destructive: true,
     });
     if (!isConfirmed) return;
-    await finish(() => removePromptButton(getDb(), id), "Couldn't delete the prompt button");
+    await finish(() => removePromptButton(getDb(), buttonId), "Couldn't delete the prompt button");
   }
 
   return (
@@ -109,8 +117,8 @@ function PromptButtonEditor({ id, seed }) {
       actions={
         id
           ? [
-              { label: 'Duplicate', onPress: handleDuplicate },
-              { label: 'Delete prompt button', colorPalette: 'danger', onPress: handleDelete },
+              { label: 'Duplicate', onPress: () => handleDuplicate(id) },
+              { label: 'Delete prompt button', colorPalette: 'danger', onPress: () => handleDelete(id) },
             ]
           : []
       }

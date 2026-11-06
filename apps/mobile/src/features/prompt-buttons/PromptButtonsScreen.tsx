@@ -1,3 +1,4 @@
+import type { NewPromptButton } from '@squidbox/shared';
 import { router, useNavigation, usePathname } from 'expo-router';
 
 import PromptButtonGroup from './PromptButtonGroup';
@@ -25,7 +26,7 @@ export default function PromptButtonsScreen() {
   useSeedPromptButtons();
   const haptics = useHaptics();
 
-  function handleOpen(button) {
+  function handleOpen(button: NewPromptButton) {
     router.navigate(`${pathname}/${button.id}`);
   }
 
@@ -33,7 +34,7 @@ export default function PromptButtonsScreen() {
     router.navigate(`${pathname}/new`);
   }
 
-  function handleMove(id, afterId) {
+  function handleMove(id: string, afterId: string | null) {
     movePromptButton(getDb(), id, afterId).then(requestSync, (error) => {
       console.error('Moving the prompt button failed', error);
       haptics.error();

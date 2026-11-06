@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
+import type { LayoutChangeEvent, LayoutRectangle } from 'react-native';
 import { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import isPastMiddle from './isPastMiddle';
+
 import mergeRowIds from '@/components/sortable-grid/mergeRowIds';
 import sameOrder from '@/components/sortable-grid/sameOrder';
-import useGridLongPressPan from '@/components/sortable-grid/useGridLongPressPan';
+import useGridLongPressPan, { type Point } from '@/components/sortable-grid/useGridLongPressPan';
 import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import { motion } from '@/styles/designTokens';
 
 // The press that ends a drag (a click on web) mustn't open the chip it lands on.
 const PRESS_AFTER_DROP_MS = 500;
+
+export type ChipReorderOptions = {
+  ids: string[];
+  onMove: (id: string, afterId: string | null) => void;
+};
 
 /**
  * Drag-to-move for chips that wrap in rows (a group of prompt buttons), on the grids' long-press
@@ -24,17 +32,17 @@ const PRESS_AFTER_DROP_MS = 500;
  * in the chips' container) fills under the finger. `isPressSuppressed()` is true for the press that
  * ended a drag.
  */
-export default function useChipReorder({ ids, onMove }) {
+export default function useChipReorder({ ids, onMove }: ChipReorderOptions) {
   const haptics = useHaptics();
-  const [dragOrder, setDragOrder] = useState(null);
-  const [held, setHeld] = useState(null);
-  const [liftedId, setLiftedId] = useState(null);
-  const framesRef = useRef(new Map());
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const [held, setHeld] = useState<{ order: string[]; idsKey: string } | null>(null);
+  const [liftedId, setLiftedId] = useState<string | null>(null);
+  const framesRef = useRef(new Map<string, LayoutRectangle>());
   // The dragged chip, from lift to release (`liftedId` stays until it has settled).
-  const draggingIdRef = useRef(null);
+  const draggingIdRef = useRef<string | null>(null);
   const orderRef = useRef(ids);
-  const startAfterIdRef = useRef(null);
-  const grabOffsetRef = useRef({ x: 0, y: 0 });
+  const startAfterIdRef = useRef<string | null>(null);
+  const grabOffsetRef = useRef<Point>({ x: 0, y: 0 });
   const suppressPressUntilRef = useRef(0);
   const liftedX = useSharedValue(0);
   const liftedY = useSharedValue(0);
@@ -82,7 +90,9 @@ export default function useChipReorder({ ids, onMove }) {
     },
     onMove(x, y) {
       const order = orderRef.current;
-      const from = order.indexOf(draggingIdRef.current);
+      const id = draggingIdRef.current;
+      if (id === null) return;
+      const from = order.indexOf(id);
       if (from === -1) return;
       const content = contentPoint(x, y);
       liftedX.value = content.x - grabOffsetRef.current.x;
@@ -111,7 +121,7 @@ export default function useChipReorder({ ids, onMove }) {
   });
 
   // The lifted chip springs into its slot, then the slot's own chip shows again.
-  function settle(id) {
+  function settle(id: string) {
     const frame = framesRef.current.get(id);
     liftedScale.value = withSpring(1, motion.spring);
     if (!frame) {
@@ -119,22 +129,22 @@ export default function useChipReorder({ ids, onMove }) {
       return;
     }
     liftedX.value = withSpring(frame.x, motion.spring);
-    liftedY.value = withSpring(frame.y, motion.spring, (finished) => {
+    liftedY.value = withSpring(frame.y, motion.spring, (finished?: boolean) => {
       'worklet';
       if (finished) scheduleOnRN(setLiftedId, null);
     });
   }
 
   // The chip whose frame holds the point, or -1.
-  function chipIndexAt({ x, y }) {
+  function chipIndexAt({ x, y }: Point) {
     return orderRef.current.findIndex((id) => {
       const frame = framesRef.current.get(id);
       return frame && x >= frame.x && x <= frame.x + frame.width && y >= frame.y && y <= frame.y + frame.height;
     });
   }
 
-  function chipLayout(id) {
-    return (event) => {
+  function chipLayout(id: string) {
+    return (event: LayoutChangeEvent) => {
       framesRef.current.set(id, event.nativeEvent.layout);
     };
   }
@@ -154,12 +164,4 @@ export default function useChipReorder({ ids, onMove }) {
     liftedStyle,
     isPressSuppressed: () => Date.now() < suppressPressUntilRef.current,
   };
-}
-
-// Whether the finger crossed the middle of the chip it is over, in the direction it moves: a chip
-// wider than the lifted one swaps only then, so the swap doesn't flip back under a still finger.
-function isPastMiddle(point, frame, isMovingForward) {
-  if (!frame) return false;
-  const middle = frame.x + frame.width / 2;
-  return isMovingForward ? point.x >= middle : point.x <= middle;
 }

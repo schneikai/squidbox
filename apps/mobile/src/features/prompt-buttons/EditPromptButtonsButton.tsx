@@ -2,10 +2,10 @@ import { router } from 'expo-router';
 import { useContext } from 'react';
 
 import AssistantTrayContext from '@/components/AssistantTrayContext';
-import Button from '@/components/Button';
+import Button, { type ButtonProps } from '@/components/Button';
 
 // The pen on an AssistantTray.
-const TRAY_LOOK = { variant: 'secondary', colorPalette: 'accent' };
+const TRAY_LOOK: Pick<ButtonProps, 'variant' | 'colorPalette'> = { variant: 'secondary', colorPalette: 'accent' };
 
 /**
  * The small pen beside a row of prompt buttons: opens the list of prompt buttons (Settings →

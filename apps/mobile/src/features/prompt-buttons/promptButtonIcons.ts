@@ -1,5 +1,7 @@
+import type { IconName } from '@/components/Icon';
+
 // The icons a prompt button can lead with, in the picker's order (Icon names).
-const PROMPT_BUTTON_ICONS = [
+const PROMPT_BUTTON_ICONS: readonly IconName[] = [
   'scissors',
   'expand',
   'list-checks',
