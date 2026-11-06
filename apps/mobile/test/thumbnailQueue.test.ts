@@ -19,6 +19,7 @@ function setup() {
         batches.push({ keys: assets.map((asset) => asset.thumbnailFilename), signal, resolve, reject });
       }),
     onError: (error: unknown) => errors.push(error),
+    keyOf: (item: Asset) => item.thumbnailFilename,
   });
   const results: string[] = [];
   const request = (key: string) =>
