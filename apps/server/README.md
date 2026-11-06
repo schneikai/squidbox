@@ -15,9 +15,10 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   and batch delete.
 - **Sync:** `/sync/pull` and `/sync/push`.
 - **AI:** `/ai/models` (Venice's live model list, cached 5 minutes), the blind model compare
-  `/ai/compare/writing` and `/ai/compare/vision`, and `POST /ai/contact-from-screenshot` (a New
+  `/ai/compare/writing` and `/ai/compare/vision`, `POST /ai/contact-from-screenshot` (a New
   contact's From screenshot: the name, handles, phone and places read from an X profile
-  screenshot, the handles normalized), behind Venice's chat API
+  screenshot, the handles normalized) and `POST /ai/contact-from-x-profile` (From link's assistant
+  pass: the handles an X profile's fields name and its location split), behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
   Only accounts with the `ai` feature may use them (others get 403 `ai_not_allowed`), and the
@@ -30,9 +31,9 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   the name, bio, website, place, photo and the Bluesky, OnlyFans and JFF handles of a public X
   profile (`src/contacts/`). An anonymous GET of `x.com/<handle>` with the app's own User-Agent, no
   X API or keys, read from the page without running it; the HTML is never stored. When the bio
-  names a Bluesky handle, its public profile fills what X didn't show. Accounts with the `ai`
-  feature also get the writing model's pass (the `contactXProfile` instructions: the handles the
-  regexes miss and the place split), when the server has a Venice key. A profile X hides from
+  names a Bluesky handle, its public profile fills what X didn't show. No assistant here: for
+  accounts with the `ai` feature the app then asks `POST /ai/contact-from-x-profile` (the
+  `contactXProfile` instructions) for the handles the regexes miss and the place split. A profile X hides from
   signed-out readers answers `unavailable`, a missing one `notFound`, and a page it can't read
   `failed` (logged as `From link: …`). Its fetches use Node's `fetch` too: behind a proxy they need
   `NODE_USE_ENV_PROXY=1`, as for Venice.
