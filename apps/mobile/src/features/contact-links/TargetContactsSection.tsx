@@ -41,7 +41,7 @@ export default function TargetContactsSection({
 
   return (
     <>
-      <ScreenSectionHeader title="Contacts" isFlush={isFlush} size="large" />
+      <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
       <ChipRow>
         {contacts?.map((contact) => (
           <Chip

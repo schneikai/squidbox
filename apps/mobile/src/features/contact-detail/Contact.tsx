@@ -141,17 +141,17 @@ export default function Contact({ contact }: ContactProps) {
 
         <HandleFieldsCard draft={draft} onChange={setField} onBlur={() => flush()} style={styles.handles} />
 
-        <ScreenSectionHeader title="Notes" size="large" />
+        <ScreenSectionHeader title="Notes" />
         <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} onBlur={() => flush()} />
 
-        <ScreenSectionHeader title="Places" size="large" />
+        <ScreenSectionHeader title="Places" />
         <PlacesField
           places={draft.places}
           onEdit={(index) => router.navigate({ pathname: `/contact/${contact.id}/place`, params: { index } })}
           onAdd={() => router.navigate(`/contact/${contact.id}/place`)}
         />
 
-        <ScreenSectionHeader title="Lists" size="large" />
+        <ScreenSectionHeader title="Lists" />
         <ListsField
           lists={lists ?? []}
           onOpen={(listId) => router.navigate(`/contact-list/${listId}`)}
@@ -161,7 +161,6 @@ export default function Contact({ contact }: ContactProps) {
 
         <ScreenSectionHeader
           title="Photos"
-          size="large"
           trailing={
             !!photos?.count && (
               <Button
@@ -178,10 +177,10 @@ export default function Contact({ contact }: ContactProps) {
           photos && <Text style={listTextStyles.subtitle}>Not on a photo</Text>
         )}
 
-        <ScreenSectionHeader title="Albums" size="large" />
+        <ScreenSectionHeader title="Albums" />
         <AssetAlbums scope={{ contactId: contact.id }} emptyText="Not on an album" />
 
-        <ScreenSectionHeader title="Posts" size="large" />
+        <ScreenSectionHeader title="Posts" />
         <PostRows scope={{ contactId: contact.id }} emptyText="Not on a post" />
       </DetailScrollView>
     </Page>

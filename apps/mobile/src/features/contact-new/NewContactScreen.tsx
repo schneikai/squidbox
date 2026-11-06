@@ -93,10 +93,10 @@ export default function NewContactScreen() {
         />
       </HandleFieldsCard>
 
-      <ScreenSectionHeader title="Notes" size="large" />
+      <ScreenSectionHeader title="Notes" />
       <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} />
 
-      <ScreenSectionHeader title="Places" size="large" />
+      <ScreenSectionHeader title="Places" />
       <PlacesField
         places={draft.places}
         onEdit={(index) => router.navigate({ pathname: '/new-contact/place', params: { index } })}
@@ -104,7 +104,7 @@ export default function NewContactScreen() {
       />
 
       {/* The lists step is pushed inside the sheet. */}
-      <ScreenSectionHeader title="Lists" size="large" />
+      <ScreenSectionHeader title="Lists" />
       <ListsField
         lists={selectedLists}
         onRemove={(listId) => setListIds(listIds.filter((id) => id !== listId))}
