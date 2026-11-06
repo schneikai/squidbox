@@ -12,6 +12,10 @@
  *   await page.getByText('Albums').click();
  *   await settleAsync(page);
  */
+// The shared login contract, as TypeScript Node strips. eslint-plugin-import would parse it as
+// JavaScript: universe sets its TypeScript parser for .js and .ts files, not .mjs.
+// eslint-disable-next-line import/namespace
+import { loginResponseSchema } from '@squidbox/shared/contracts/auth.ts';
 import { chromium, devices } from 'playwright';
 
 import { METRO_URL, readServerEnv, SERVER_URL } from '../../../scripts/localBackend.mjs';
@@ -21,6 +25,7 @@ const API_URL = `${SERVER_URL}/api/v1`;
 export const PREVIEW_DEVICE = devices['iPhone 15 Pro Max'];
 
 // A launched browser that fails to sign in or load the app is closed.
+/** @param {{ signedIn?: boolean, production?: boolean }} [options] */
 export async function openWebPreview({ signedIn = true, production = false } = {}) {
   const browser = await chromium.launch(launchOptions());
   try {
@@ -39,11 +44,16 @@ export async function openWebPreview({ signedIn = true, production = false } = {
 
 // Signs the browser context in to the mock account: every page it opens starts signed in. A
 // `session` from an earlier loginAsync() can be reused: the server allows 10 sign-ins a minute.
+/**
+ * @param {import('playwright').BrowserContext} context
+ * @param {import('@squidbox/shared').LoginResponse} [session]
+ */
 export async function signInAsync(context, session) {
   await context.addInitScript(storeSession, session ?? (await loginAsync()));
 }
 
 // Opens the app on `page` and waits for the Library.
+/** @param {import('playwright').Page} page */
 export async function loadAppAsync(page) {
   // Metro builds the bundle on the first request, which can take minutes (a release bundle more so).
   await page.goto(`${METRO_URL}/`, { timeout: 600_000 });
@@ -53,8 +63,11 @@ export async function loadAppAsync(page) {
 
 // Uncaught errors and console errors apart, as the page reports them: the UI flow tests fail on the
 // first, not the second.
+/** @param {import('playwright').Page} page */
 export function collectErrors(page) {
+  /** @type {string[]} */
   const pageErrors = [];
+  /** @type {string[]} */
   const consoleErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   page.on('console', (message) => message.type() === 'error' && consoleErrors.push(message.text()));
@@ -65,6 +78,7 @@ const SETTLE_MAX_ROUNDS = 10;
 
 // Waits until the screen has loaded its data and thumbnails: the loader fills cells batch by batch,
 // so wait in rounds until no new image shows up.
+/** @param {import('playwright').Page} page */
 export async function settleAsync(page) {
   let imageCount = -1;
   for (let round = 0; round < SETTLE_MAX_ROUNDS; round++) {
@@ -78,6 +92,10 @@ export async function settleAsync(page) {
 }
 
 // For the scripts: what the page reported, uncaught errors first.
+/**
+ * @param {string[]} pageErrors
+ * @param {string[]} consoleErrors
+ */
 export function printErrors(pageErrors, consoleErrors) {
   if (pageErrors.length > 0) console.log(`Page errors:\n${pageErrors.join('\n')}`);
   if (consoleErrors.length > 0) console.log(`Console errors:\n${consoleErrors.join('\n')}`);
@@ -107,7 +125,7 @@ export function readSeedCredentials() {
   return { email, password };
 }
 
-/** @returns {Promise<import('@squidbox/shared').LoginResponse>} */
+// The mock account's session, as the server's login contract has it (a different answer fails here).
 export async function loginAsync() {
   const { email, password } = readSeedCredentials();
   const res = await fetch(`${API_URL}/auth/login`, {
@@ -116,7 +134,7 @@ export async function loginAsync() {
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) throw new Error(`Login failed: ${res.status} (is \`npm run dev:local\` running?)`);
-  return res.json();
+  return loginResponseSchema.parse(await res.json());
 }
 
 // Runs in the page before every navigation: seeds the session record the web session store
@@ -144,11 +162,19 @@ async function main() {
   const { page, pageErrors, consoleErrors, close } = await openWebPreview({
     production: process.argv.includes('--production'),
   });
-  await settleAsync(page);
-  await page.screenshot({ path: out });
-  console.log(`Screenshot: ${out}`);
-  printErrors(pageErrors, consoleErrors);
-  await close();
+  try {
+    await settleAsync(page);
+    await page.screenshot({ path: out });
+    console.log(`Screenshot: ${out}`);
+    printErrors(pageErrors, consoleErrors);
+  } finally {
+    await close();
+  }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

@@ -1,4 +1,3 @@
-import type { LoginResponse } from '@squidbox/shared';
 import { expect, test as base } from 'playwright/test';
 
 import { collectErrors, loadAppAsync, loginAsync, signInAsync } from '../scripts/webPreview.mjs';
@@ -11,7 +10,7 @@ import { collectErrors, loadAppAsync, loginAsync, signInAsync } from '../scripts
  * The tests share one sign-in per worker (`session`): the server allows 10 sign-ins a minute, and
  * the app refreshes its tokens only on a 401, so a test signing out doesn't end the others'.
  */
-export const test = base.extend<{ signedIn: boolean }, { session: LoginResponse }>({
+export const test = base.extend<{ signedIn: boolean }, { session: Awaited<ReturnType<typeof loginAsync>> }>({
   signedIn: [true, { option: true }],
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture uses from it
   session: [async ({}, use) => use(await loginAsync()), { scope: 'worker' }],

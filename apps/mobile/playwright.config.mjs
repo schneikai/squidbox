@@ -17,10 +17,10 @@ export default defineConfig({
   testDir: 'e2e',
   // No "type": "module" here, so Playwright require()s a .ts file and compiles what it imports to
   // CommonJS, .mjs included, which an ES module can't run: the two scripts the flows import are left
-  // to Node's require() (so nothing in them awaits at top level: scripts/webPreview.mjs runs its CLI
-  // from main()). This file stays .mjs: as .ts it would be require()d too, and its own imports of the
+  // to Node's require(), so nothing they import, themselves included, may await at top level
+  // (scripts/webPreview.mjs runs its CLI from main()). This file stays .mjs: as .ts it would be require()d too, and its own imports of the
   // two scripts run before this applies.
-  build: { external: ['**/scripts/*.mjs'] },
+  build: { external: ['**/apps/mobile/scripts/webPreview.mjs', '**/scripts/localBackend.mjs'] },
   // The flows share one account and one Metro, one after another. A flaky test gets fixed, not
   // retried (no retries is the default).
   workers: 1,
