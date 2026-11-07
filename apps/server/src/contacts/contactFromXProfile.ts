@@ -24,7 +24,7 @@ const X_PROFILE_READ_BUDGET_MS = 12_000;
 
 // The answer with nothing but the handle: a profile X hides, a missing one, a page not read.
 function emptyResponse(status: XProfileStatus, xHandle: string): ContactFromXProfileResponse {
-  return { ...emptyContactRead(), status, xHandle, bio: '', website: '', avatar: null };
+  return { ...emptyContactRead(), status, xHandle, location: '', bio: '', website: '', avatar: null };
 }
 
 /**
@@ -63,6 +63,7 @@ export async function readContactFromXProfileAsync({
     ...read,
     status: 'found',
     name: read.name.trim(),
+    location: page.location,
     bio: page.bio || (bluesky?.description ?? ''),
     website: page.website,
     avatar,

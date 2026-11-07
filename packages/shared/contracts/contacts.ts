@@ -41,10 +41,12 @@ export type XProfileStatus = z.infer<typeof xProfileStatusSchema>;
 
 // Its answer, for every account, without the assistant (POST /ai/contact-from-x-profile is its
 // pass): `xHandle` is the request's handle normalized; the handles the bio, website and Bluesky
-// profile name; `city` the location as X shows it; `bio` with its t.co links expanded; `website`
+// profile name; `city`, `state` and `country` the location split by rules (splitLocation), and
+// `location` as X shows it, for the assistant to read; `bio` with its t.co links expanded; `website`
 // the profile's link; `avatar` the 400 px profile photo (or the Bluesky one), null without one.
 export const contactFromXProfileResponseSchema = contactReadSchema.extend({
   status: xProfileStatusSchema,
+  location: z.string(),
   bio: z.string(),
   website: z.string(),
   avatar: imageSchema.nullable(),

@@ -16,11 +16,15 @@ import useHasFeature from '@/hooks/useHasFeature';
 import readXProfileWithAssistantAsync from '@/utils/cloud-api/ai/readXProfileWithAssistantAsync';
 import readXProfileAsync from '@/utils/cloud-api/contacts/readXProfileAsync';
 
-// Whether the assistant may find more in a found profile: handles still missing, with a bio or
-// website to find them in (the server splits the place itself).
+// Whether the assistant has anything to read in a found profile: a place, or a bio or website that
+// may name the handles still missing.
 function hasMoreToRead(read: ContactFromXProfileResponse): boolean {
-  return OTHER_HANDLE_FIELDS.some((field) => !read[field]) && !!(read.bio || read.website);
+  return !!read.location || (OTHER_HANDLE_FIELDS.some((field) => !read[field]) && !!(read.bio || read.website));
 }
+
+const NO_PLACE = { city: '', state: '', country: '' };
+
+const placeOf = ({ city, state, country }: ContactFromXProfileResponse) => ({ city, state, country });
 
 // Whether the profile's bio or website names `handle`: the assistant's handles count only then, so
 // one it made up (the X handle in every field, say) fills nothing.
@@ -31,8 +35,9 @@ function isNamedIn(handle: string, read: ContactFromXProfileResponse): boolean {
 /**
  * New contact's From link: the X profile link on the clipboard fills the X handle at once, then what
  * the server reads from the public profile (the name, photo, place and handles; never the notes), all
- * as one fill with Undo; with the `ai` feature the assistant's pass then adds, in the background, the
- * handles still missing that the bio or website names, into the same fill, marked as the assistant's. A profile
+ * as one fill with Undo. With the `ai` feature the assistant reads the place instead, as From
+ * screenshot does, and the handles still missing that the bio or website names: in the background,
+ * into the same fill, marked as the assistant's; when it fails, the server's split place fills in. A profile
  * X hides alerts so and offers `onScreenshot` (From screenshot, with `ai`), a missing one alerts so,
  * and a read that fails fills the handle only. Without a name from the profile, the contact is named
  * after the handle, only while the draft has no name when the read lands. The web build takes no
@@ -53,19 +58,24 @@ export default function useFillFromLink(onScreenshot: () => void): {
         handle: read.xHandle,
         name: read.name,
         bio: read.bio,
-        location: read.city,
+        location: read.location,
         website: read.website,
       });
-      // Only the handles the profile's links didn't give and its bio or website names; the place is the server's.
+      // Only the handles the profile's links didn't give and its bio or website names, so one it made
+      // up fills nothing; the place as it read it.
       const handles = Object.fromEntries(
         OTHER_HANDLE_FIELDS.map((field) => [field, !read[field] && isNamedIn(found[field], read) ? found[field] : '']),
       );
-      extendFill(id, 'assistant', (draft) => filledFrom({ ...emptyContactRead(), ...handles }, draft), {
+      const place = { city: found.city, state: found.state, country: found.country };
+      extendFill(id, 'assistant', (draft) => filledFrom({ ...emptyContactRead(), ...handles, ...place }, draft), {
         onlyIntoEmpty: true,
       });
     } catch (error) {
-      // The profile's own fields stand.
+      // The profile's own fields stand, with the server's split place.
       console.warn('From link: the assistant could not read the X profile', error);
+      extendFill(id, 'link', (draft) => filledFrom({ ...emptyContactRead(), ...placeOf(read) }, draft), {
+        onlyIntoEmpty: true,
+      });
     }
   }
 
@@ -95,15 +105,18 @@ export default function useFillFromLink(onScreenshot: () => void): {
     }
     if (read?.status === 'found') {
       const found = read;
+      // The assistant reads the place itself; the server's split is its fallback.
+      const isAssistantRead = canUseAssistant && hasMoreToRead(found);
+      const shown = isAssistantRead ? { ...found, ...NO_PLACE } : found;
       const photoUri = found.avatar && Platform.OS !== 'web' ? imageDataUrl(found.avatar) : undefined;
       extendFill(
         id,
         'link',
-        (draft) => ({ ...filledFrom(found, draft), ...(found.name ? {} : nameAfterHandle(draft)) }),
+        (draft) => ({ ...filledFrom(shown, draft), ...(found.name ? {} : nameAfterHandle(draft)) }),
         { photoUri },
       );
       // In the background, the card free again: its answer extends the fill when it lands (it never throws).
-      if (canUseAssistant && hasMoreToRead(found)) readWithAssistantAsync(id, found);
+      if (isAssistantRead) readWithAssistantAsync(id, found);
       return;
     }
     extendFill(id, 'link', nameAfterHandle);

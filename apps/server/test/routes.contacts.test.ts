@@ -92,6 +92,7 @@ describe('POST /api/v1/contacts/x-profile', () => {
       city: 'Squamish',
       state: 'BC',
       country: '',
+      location: 'Squamish, BC',
       bio: "Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
       website: 'https://onlyfans.com/mayal/c17',
       avatar: { base64: JPEG.toString('base64'), mimeType: 'image/jpeg' },
