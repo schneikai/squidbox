@@ -64,7 +64,6 @@ function ListRow({ list, onLongPress }: { list: ListSummary; onLongPress?: () =>
       }
       onPress={() => router.navigate(`/contact-list/${list.id}`)}
       onLongPress={onLongPress}
-      hasChevron
     >
       <View style={styles.stack}>
         {members.map((member, i) => (
