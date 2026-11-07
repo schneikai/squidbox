@@ -1,5 +1,5 @@
 import type { ContactListRecord } from '@squidbox/shared';
-import { type ReactNode, useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
@@ -9,6 +9,7 @@ import SelectIndicator from '@/components/SelectIndicator';
 import SortFilterMenu from '@/components/floating-bars/SortFilterMenu';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
+import type { BuiltInContactListSummary } from '@/features/contact-list/builtInContactLists';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import shownContactLists from '@/features/contact-list/shownContactLists';
 import useAddListAction from '@/features/contact-list/useAddListAction';
@@ -23,21 +24,21 @@ import toggleItem from '@/utils/toggleItem';
  * The contact lists to choose from, under a search field that narrows them by name and a sort menu
  * beside it (the Lists tab's: shownContactLists, useContactListSort), with "New list" at the end (a
  * new list is chosen too). `selectedIds` are the chosen lists' ids; `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
- * the accent check in front, where the selection circles are otherwise. `leadingRows` go before the lists while
- * nothing is searched for (Favorites, on the pin).
+ * the accent check in front, where the selection circles are otherwise. `builtIns` are built-in lists
+ * to offer among them, searched and sorted with them (Favorites, on the pin), as the Lists tab does.
  */
 type ContactListPickerProps = {
   selectedIds: string[];
   onChange: (listIds: string[]) => void;
   isSingle?: boolean;
-  leadingRows?: ReactNode;
+  builtIns?: readonly BuiltInContactListSummary[];
 };
 
 export default function ContactListPicker({
   selectedIds,
   onChange,
   isSingle = false,
-  leadingRows,
+  builtIns,
 }: ContactListPickerProps) {
   const lists = useContactListRows({ withMembers: false });
   const { sortOrder, sortLists } = useContactListSort();
@@ -48,7 +49,10 @@ export default function ContactListPicker({
     message: isSingle ? undefined : 'The list is made now, even if you close this without saving.',
   });
 
-  const shown = useMemo(() => lists && shownContactLists(lists, searchText, sortOrder), [lists, searchText, sortOrder]);
+  const shown = useMemo(
+    () => lists && shownContactLists([...(builtIns ?? []), ...lists], searchText, sortOrder),
+    [lists, builtIns, searchText, sortOrder],
+  );
 
   function handlePress(listId: string) {
     onChange(isSingle ? [listId] : toggleItem(selectedIds, listId));
@@ -76,7 +80,6 @@ export default function ContactListPicker({
         <EmptyState icon="search" title="No lists match" />
       ) : (
         <Section isHeaderless>
-          {!searchText && leadingRows}
           {shown.map((list) => {
             const isSelected = selectedIds.includes(list.id);
             return (

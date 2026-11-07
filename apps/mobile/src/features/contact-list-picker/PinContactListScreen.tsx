@@ -6,9 +6,9 @@ import ContactListPicker from './ContactListPicker';
 import Button from '@/components/Button';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import { Row } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import pinnedList from '@/features/contact-list/pinnedList';
+import useBuiltInContactListRows from '@/features/contact-list/useBuiltInContactListRows';
 import useContactListRows from '@/features/contact-list/useContactListRows';
 import useContacts from '@/features/contacts-context/useContacts';
 import useScreenPadding from '@/hooks/useScreenPadding';
@@ -21,9 +21,11 @@ export default function PinContactListScreen() {
   const { paddingBottom } = useScreenPadding('sheet');
   const { pinList } = useContacts();
   const pinned = pinnedList(useContactListRows({ withMembers: false }));
+  // Favorites is what shows unless a list is pinned.
+  const favorites = useBuiltInContactListRows()?.filter((list) => list.id === 'favorites');
 
   function handlePin(listId: string | null) {
-    pinList(listId);
+    pinList(listId === 'favorites' ? null : listId);
     navigation.goBack();
   }
 
@@ -40,9 +42,9 @@ export default function PinContactListScreen() {
       >
         <ContactListPicker
           isSingle
-          selectedIds={pinned ? [pinned.id] : []}
+          selectedIds={[pinned?.id ?? 'favorites']}
           onChange={([listId]) => handlePin(listId ?? null)}
-          leadingRows={<Row label="Favorites" isSelected={!pinned} onPress={() => handlePin(null)} />}
+          builtIns={favorites}
         />
       </ScrollView>
     </ModalSheet>
