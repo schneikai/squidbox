@@ -4,7 +4,6 @@ import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
 
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import Text from '@/components/Text';
 import AlbumPeopleSheet from '@/features/album-detail/AlbumPeopleSheet';
 import useAlbumPeople from '@/features/album-detail/useAlbumPeople';
@@ -27,7 +26,7 @@ type AlbumHeaderProps = {
 
 /**
  * The top of an album, over its grid: its name, how many assets and when it was last posted, the
- * Archived badge and its notes, then a chip with the faces of the contacts in it (useAlbumPeople),
+ * Archived badge and its notes, then, on one line, a chip with the faces of the contacts in it (useAlbumPeople),
  * which opens them in a bottom sheet, and one with its posts, which pushes them. A smart album has no
  * contacts of its own, so no contacts chip.
  */
@@ -62,10 +61,10 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
         </Pressable>
       )}
       <View style={styles.chips}>
-        <ChipRow>
-          {!isSmart &&
-            !!people &&
-            (people.length ? (
+        {!isSmart &&
+          !!people &&
+          (people.length ? (
+            <View style={styles.people}>
               <Chip
                 label={peopleNames(people.map((contact) => contact.name))}
                 size="large"
@@ -85,25 +84,24 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
                 accessibilityLabel={`Contacts: ${people.map((contact) => contact.name).join(', ')}`}
                 onPress={() => setIsPeopleShown(true)}
               />
-            ) : (
-              hasPhotos && (
-                <Chip
-                  variant="add"
-                  size="large"
-                  label="Add contacts"
-                  onPress={() => router.navigate({ pathname: '/add-contacts', params: { photosOfAlbumId: album.id } })}
-                />
-              )
-            ))}
-          {!!posts.count && (
-            <Chip
-              label={pluralizeText('1 post', '%{count} posts', posts.count)}
-              icon="share-alt"
-              size="large"
-              onPress={() => router.navigate(`/album/${album.id}/posts`)}
-            />
-          )}
-        </ChipRow>
+            </View>
+          ) : (
+            hasPhotos && (
+              <Chip
+                variant="add"
+                size="large"
+                label="Add contacts"
+                onPress={() => router.navigate({ pathname: '/add-contacts', params: { photosOfAlbumId: album.id } })}
+              />
+            )
+          ))}
+        {!!posts.count && (
+          <Chip
+            label={pluralizeText('1 post', '%{count} posts', posts.count)}
+            size="large"
+            onPress={() => router.navigate(`/album/${album.id}/posts`)}
+          />
+        )}
       </View>
       {!!people && (
         <AlbumPeopleSheet
@@ -133,8 +131,14 @@ const styles = StyleSheet.create({
   name: {
     color: colors.text.primary,
   },
+  // One line: the contacts' names are cut short before the posts chip is.
   chips: {
     alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  people: {
+    flexShrink: 1,
   },
   faces: {
     flexDirection: 'row',
