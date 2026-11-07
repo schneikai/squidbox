@@ -27,7 +27,7 @@ const AVATAR_INSET = layout.rowInset + sizes.avatar.row + layout.rowLeadingGap;
  * Restore button); without one, a row that opens the contact ends with Row's chevron. `onLongPress` opens its menu (ContactRowMenu's `openFromLongPress`). The rows of one list
  * read as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates
  * the rest. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
- * a row to pick, with a selection circle at its end.
+ * a row to pick, with a selection circle at its end. `detail` replaces the place under the name.
  */
 type ContactRowProps = {
   contact: Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | 'isFavorite' | 'places' | 'listNames'>;
@@ -37,12 +37,13 @@ type ContactRowProps = {
   isSelected?: boolean;
   isFirst?: boolean;
   isLast?: boolean;
+  detail?: string;
 };
 
-function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFirst, isLast }: ContactRowProps) {
+function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFirst, isLast, detail }: ContactRowProps) {
   const { toggleFavoriteContact } = useContacts();
   const haptics = useHaptics();
-  const subtitle = contactPlace(contact);
+  const subtitle = detail ?? contactPlace(contact);
   // A picker's row (isSelected given) only picks; a browsing row's avatar favorites on a double tap.
   const canFavorite = isSelected === undefined;
 

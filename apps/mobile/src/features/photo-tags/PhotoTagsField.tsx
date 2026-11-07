@@ -24,6 +24,7 @@ export default function PhotoTagsField({ asset, placeholder, disabled, guardPres
       maxTagLength={ASSET_TAG_LIMITS.tag}
       disabled={disabled}
       guardPress={guardPress}
+      isFlush
     />
   );
 }

@@ -25,6 +25,8 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { layout } from '@/styles/designTokens';
 import { matchingIds } from '@/sync/matchingIds';
+import confirmAsync from '@/utils/confirmAsync';
+import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
 
 type ContactSectionData = { title: string; data: ContactSummary[] };
@@ -35,8 +37,11 @@ const isTargetType = (type: string | undefined): type is ContactLinkRecord['targ
 /**
  * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
  * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
- * with a search and the Contacts tab's sort beside it (useContactSort). Save adds the ones picked here and removes the ones unpicked here. For every photo
- * of an album (`?photosOfAlbumId=`) nothing starts picked, and Add puts the picked ones on each photo.
+ * with a search and the Contacts tab's sort beside it (useContactSort). Save adds the ones picked
+ * here and removes the ones unpicked here. For every photo of an album (`?photosOfAlbumId=`) it is
+ * the album's Contacts: the ones on any of its photos start picked, each with how many it is on;
+ * Save puts the newly picked ones on every photo and, once confirmed, takes the unpicked ones off
+ * all of them.
  */
 export default function AddContactsScreen() {
   const params = useLocalSearchParams<{
@@ -66,7 +71,8 @@ type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const padding = useScreenPadding('sheet');
-  const { changeTargetContacts, changeListContacts, addContactsToAlbumPhotos } = useContacts();
+  const { changeTargetContacts, changeListContacts, addContactsToAlbumPhotos, removeContactsFromPhotosOf } =
+    useContacts();
   const [selectedIds, setSelectedIds] = useState(seed.linked);
   const [typedText, setTypedText] = useState('');
   const searchText = useDeferredValue(typedText).trim().toLowerCase();
@@ -88,25 +94,35 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const linked = useMemo(() => new Set(seed.linked), [seed.linked]);
   const sections = useMemo(() => (contacts ? toSections(contacts, seed) : []), [contacts, seed]);
 
-  const isToAlbumPhotos = 'photosOfAlbumId' in target;
   const isDirty = selected.size !== linked.size || selectedIds.some((id) => !linked.has(id));
-  const { sheetProps } = useEditSheet({
-    isDirty,
-    save,
-    syncsItself: true,
-    isNew: isToAlbumPhotos,
-    isValid: !isToAlbumPhotos || selected.size > 0,
-  });
+  const { sheetProps } = useEditSheet({ isDirty, save, syncsItself: true });
 
   // Writes only what was picked or unpicked here, so a contact another device added or removed
   // while the sheet was open keeps that change.
-  function save() {
-    if ('photosOfAlbumId' in target) return addContactsToAlbumPhotos(target.photosOfAlbumId, selectedIds);
+  async function save() {
     const change = {
       added: selectedIds.filter((id) => !linked.has(id)),
       removed: seed.linked.filter((id) => !selected.has(id)),
     };
+    if ('photosOfAlbumId' in target) return saveToAlbumPhotos(target.photosOfAlbumId, change);
     return 'listId' in target ? changeListContacts(target.listId, change) : changeTargetContacts(target, change);
+  }
+
+  async function saveToAlbumPhotos(albumId: string, { added, removed }: { added: string[]; removed: string[] }) {
+    if (removed.length) {
+      const names = removed.map((id) => allContacts?.find((contact) => contact.id === id)?.name ?? 'A contact');
+      const isConfirmed = await confirmAsync({
+        title: names.length === 1 ? `Remove ${names[0]}?` : `Remove ${names.length} contacts?`,
+        message: `${names.join(', ')} ${names.length === 1 ? 'comes' : 'come'} off every photo in this album.`,
+        action: 'Remove',
+        destructive: true,
+      });
+      // An empty refusal keeps the sheet open as it is.
+      if (!isConfirmed) return { refused: '' };
+      await removeContactsFromPhotosOf({ targetType: 'album', targetId: albumId }, removed);
+    }
+    if (added.length) await addContactsToAlbumPhotos(albumId, added);
+    return undefined;
   }
 
   const handleToggle = useCallback(
@@ -119,17 +135,18 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
       <PickRow
         contact={contact}
         isSelected={selected.has(contact.id)}
+        detail={photoDetail(seed, contact.id)}
         onToggle={handleToggle}
         isFirst={index === 0}
         isLast={index === section.data.length - 1}
       />
     ),
-    [selected, handleToggle],
+    [selected, handleToggle, seed],
   );
 
   return (
     <ModalSheet>
-      <EditSheetHeader {...sheetProps} title="Add contacts" subtitle={seed.title} />
+      <EditSheetHeader {...sheetProps} title={seed.photos ? 'Contacts' : 'Add contacts'} subtitle={seed.title} />
       <SectionList
         sections={sections}
         keyExtractor={(contact) => contact.id}
@@ -171,10 +188,11 @@ type PickRowProps = {
   onToggle: (contactId: string) => void;
   isFirst: boolean;
   isLast: boolean;
+  detail?: string;
 };
 
-// A contact to pick, with its place under its name (ContactRow's).
-const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, isLast }: PickRowProps) {
+// A contact to pick, with its place under its name (ContactRow's), or `detail`.
+const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, isLast, detail }: PickRowProps) {
   return (
     <View style={styles.gutter}>
       <ContactRow
@@ -183,10 +201,19 @@ const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, 
         isSelected={isSelected}
         isFirst={isFirst}
         isLast={isLast}
+        detail={detail}
       />
     </View>
   );
 });
+
+// "On 2 of 29 photos" for a contact on an album's photos: "On all 29 photos" when on each of them.
+function photoDetail({ photos }: AddContactsSeed, contactId: string): string | undefined {
+  const count = photos?.counts.get(contactId);
+  if (!photos || count === undefined) return undefined;
+  if (count === photos.total) return pluralizeText('On its photo', 'On all %{count} photos', count);
+  return `On ${count.toLocaleString()} of ${photos.total.toLocaleString()} photos`;
+}
 
 // The contacts in the seed's sections, each once, where it first fits, in the contacts' sort;
 // everyone else after them.

@@ -1,11 +1,9 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
 
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
 import Text from '@/components/Text';
-import AlbumPeopleSheet from '@/features/album-detail/AlbumPeopleSheet';
 import useAlbumPeople from '@/features/album-detail/useAlbumPeople';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
@@ -26,24 +24,27 @@ type AlbumHeaderProps = {
 
 /**
  * The top of an album, over its grid: its name, how many assets and when it was last posted, the
- * Archived badge and its notes, then, on one line, a chip with the faces of the contacts in it (useAlbumPeople),
- * which opens them in a bottom sheet, and one with its posts, which pushes them, each only when it has
- * some. A smart album has no contacts of its own, so no contacts chip.
+ * Archived badge and its notes, then, on one line, a chip with the faces of the contacts on its
+ * photos (useAlbumPeople), which opens the album's Contacts sheet (AddContactsScreen), and one
+ * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
 export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const people = useAlbumPeople(album.id);
   const posts = usePagedQuery(postQuery({ scope: { albumId: album.id }, sort: 'postedAt:desc' }), 1);
-  const [isPeopleShown, setIsPeopleShown] = useState(false);
 
   const isSmart = isSmartAlbum(album);
-  const hasPhotos = !!assetCount;
   // Contacts are added from the ⋯ menu (Add contacts to photos), so none shows no chip.
   const hasPeople = !isSmart && !!people?.length;
+  const faces = people?.slice(0, STACKED) ?? [];
   const lastPostedAt = posts.rows?.[0]?.postedAt ?? null;
   const details = [
     pluralizeText('1 Asset', '%{count} Assets', assetCount ?? 0),
     ...(posts.rows ? [albumLastPostedText({ lastPostedAt })] : []),
   ].join(' · ');
+
+  function openContacts() {
+    router.navigate({ pathname: '/add-contacts', params: { photosOfAlbumId: album.id } });
+  }
 
   return (
     <View style={styles.header}>
@@ -71,18 +72,19 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
                 size="large"
                 leading={
                   <View style={styles.faces}>
-                    {people.slice(0, STACKED).map((contact, i) => (
+                    {faces.map((contact, i) => (
                       <ContactAvatar
                         key={contact.id}
                         contact={contact}
                         size="chip"
+                        cutout={i < faces.length - 1 ? space.md : undefined}
                         style={i > 0 && styles.overlapped}
                       />
                     ))}
                   </View>
                 }
                 accessibilityLabel={`Contacts: ${people.map((contact) => contact.name).join(', ')}`}
-                onPress={() => setIsPeopleShown(true)}
+                onPress={openContacts}
               />
             </View>
           )}
@@ -94,15 +96,6 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
             />
           )}
         </View>
-      )}
-      {!!people && (
-        <AlbumPeopleSheet
-          albumId={album.id}
-          people={people}
-          hasPhotos={hasPhotos}
-          isVisible={isPeopleShown}
-          onClose={() => setIsPeopleShown(false)}
-        />
       )}
     </View>
   );

@@ -22,8 +22,8 @@ type TargetContactChipProps = {
 
 /**
  * A contact on a photo, album or post: a tap opens the contact (`onOpen`), its × takes it off, as a
- * list's × does on the contact screen. `isOnPhotos`: an album or post lists it through its photos,
- * so the × takes it off all of them, once confirmed.
+ * list's × does on the contact screen, once confirmed. `isOnPhotos`: an album or post lists it
+ * through its photos, so the × takes it off all of them.
  */
 export default function TargetContactChip({
   contact,
@@ -35,17 +35,18 @@ export default function TargetContactChip({
   const { changeTargetContacts, removeContactsFromPhotosOf } = useContacts();
 
   async function handleRemove() {
-    if (!isOnPhotos || targetType === 'asset') {
-      await changeTargetContacts({ targetType, targetId }, { added: [], removed: [contact.id] });
-      return;
-    }
+    const isFromPhotos = isOnPhotos && targetType !== 'asset';
     const isConfirmed = await confirmAsync({
       title: `Remove ${contact.name}?`,
-      message: `${contact.name} comes off every photo of this ${TARGET_NAMES[targetType]} they are on.`,
+      message: isFromPhotos
+        ? `${contact.name} comes off every photo of this ${TARGET_NAMES[targetType]} they are on.`
+        : `${contact.name} comes off this ${TARGET_NAMES[targetType]}.`,
       action: 'Remove',
       destructive: true,
     });
-    if (isConfirmed) await removeContactsFromPhotosOf({ targetType, targetId }, [contact.id]);
+    if (!isConfirmed) return;
+    if (isFromPhotos) await removeContactsFromPhotosOf({ targetType, targetId }, [contact.id]);
+    else await changeTargetContacts({ targetType, targetId }, { added: [], removed: [contact.id] });
   }
 
   return (

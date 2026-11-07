@@ -61,7 +61,7 @@ export const colors = {
     base: palette.violet600,
     light: alpha(palette.violet600, 0.12),
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
-    border: alpha(palette.violet600, 0.3), // the frame of an outlined or dashed chip
+    border: alpha(palette.violet600, 0.3), // the thread's connector line
     onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
     gradient: [palette.violet600, palette.indigo600] as const,
     frame: palette.violet650, // the frame of a toolbar that is only the primary (FloatingPill), between the gradient's ends
@@ -84,6 +84,7 @@ export const colors = {
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
+    fill: alpha(palette.black, 0.06), // a tag chip's see-through fill: a shade darker than the white or grey behind it
     tint: palette.violet50, // a lavender card on a white sheet
     // The lavender tray of the assistant's actions (AssistantTray): a step deeper than the page, so it
     // stands out on the page and in a white card alike
@@ -98,6 +99,7 @@ export const colors = {
   border: {
     glass: alpha(palette.black, 0.08),
     divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
+    dashed: alpha(palette.black, 0.2), // the dashed frame of an Add chip
   },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface

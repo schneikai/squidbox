@@ -26,7 +26,14 @@ export type AddContactsTarget =
 /** A section of contacts Add contacts offers: a title and the contacts' ids, in order. */
 export type ContactSection = { title: string; ids: string[] };
 
-export type AddContactsSeed = { title: string; linkedTitle: string; linked: string[]; related: ContactSection[] };
+export type AddContactsSeed = {
+  title: string;
+  linkedTitle: string;
+  linked: string[];
+  related: ContactSection[];
+  // Every photo of an album: how many there are, and how many each linked contact is on.
+  photos?: { total: number; counts: Map<string, number> };
+};
 
 type AlbumName = Pick<schema.AlbumRow, 'id' | 'name'>;
 
@@ -35,7 +42,9 @@ type AlbumName = Pick<schema.AlbumRow, 'id' | 'name'>;
  * a list (`{ listId }`): its `title` ("to 1 photo", "to Sea to Sky"), the `linked` contacts' ids
  * with their section's `linkedTitle`, and the `related` sections: contacts on what it is part of or
  * holds, `{ title, ids }` (a photo's albums one by one; an album's photos; a post's photos and
- * albums). `null` when the target is gone. One transaction.
+ * albums). For every photo of an album (`{ photosOfAlbumId }`) the linked ones are those on any of
+ * its photos or on the album itself, with `photos`: how many it has and how many each is on.
+ * `null` when the target is gone. One transaction.
  */
 export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarget): Promise<AddContactsSeed | null> {
   return db.transaction(async (tx) => {
@@ -50,16 +59,19 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       const albumId = target.photosOfAlbumId;
       const [album] = await readByIds(tx, schema.albums, [albumId]);
       if (!album || album.deletedAt || album.smartAlbumType) return null;
-      const assetIds = await assetQuery({ scope: { albumId } }).ids(tx);
-      const related = [
-        {
-          title: 'On this album',
-          ids: await contactQuery({ scope: { targetType: 'album', targetId: albumId } }).ids(tx),
-        },
-        { title: 'On its photos', ids: assetIds.length ? await onAny(tx, 'asset', assetIds) : [] },
-      ];
-      const title = pluralizeText('to its photo', `to all ${assetIds.length.toLocaleString()} photos`, assetIds.length);
-      return { title, linkedTitle: '', linked: [], related: related.filter((section) => section.ids.length) };
+      const total = (await assetQuery({ scope: { albumId } }).ids(tx)).length;
+      // On its photos, and on the album itself (from before only photos were tagged).
+      const onPhotos = await contactQuery({ scope: { photosOf: 'album', id: albumId } }).ids(tx);
+      const onAlbum = await contactQuery({ scope: { targetType: 'album', targetId: albumId } }).ids(tx);
+      const linked = [...new Set([...onPhotos, ...onAlbum])];
+      const title = pluralizeText('on its photo', `on its ${total.toLocaleString()} photos`, total);
+      return {
+        title,
+        linkedTitle: 'On its photos',
+        linked,
+        related: [],
+        photos: { total, counts: await photoCounts(tx, albumId) },
+      };
     }
     const { targetType, targetId } = target;
     const [record] = await readByIds(tx, TABLES[targetType], [targetId]);
@@ -141,4 +153,22 @@ async function contactsOnAlbums(tx: SyncDb, albums: AlbumName[]): Promise<Map<st
     else byAlbum.set(albumId, [contactId]);
   }
   return byAlbum;
+}
+
+// How many of the album's live photos each contact is on.
+async function photoCounts(tx: SyncDb, albumId: string): Promise<Map<string, number>> {
+  const l = schema.contactLinks;
+  const rows = await tx
+    .select({ contactId: l.contactId, count: sql<number>`count(distinct ${l.targetId})` })
+    .from(l)
+    .innerJoin(schema.assets, and(eq(schema.assets.id, l.targetId), isNull(schema.assets.deletedAt)))
+    .where(
+      and(
+        eq(l.targetType, 'asset'),
+        isNull(l.deletedAt),
+        sql`${l.targetId} in (select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`,
+      ),
+    )
+    .groupBy(l.contactId);
+  return new Map(rows.map((row) => [row.contactId, row.count]));
 }

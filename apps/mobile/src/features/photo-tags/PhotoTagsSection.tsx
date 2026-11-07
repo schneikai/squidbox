@@ -13,24 +13,14 @@ import type { AssetRow } from '@/sync/db/schema';
 export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: GuardPress };
 
 /**
- * The tags the assistant sees in the asset, in its details, edited in place (PhotoTagsField: a tap
- * on a chip takes it off, Add adds one), with Tag again under them while the assistant is available
- * (the field takes no changes while it runs). Never tagged and the assistant available: "Not tagged
- * yet" with Tag it instead. `guardPress` (useDetailsPanelDrag's) keeps a touch that dragged the panel
+ * The asset's tags, in its details, always edited in place (PhotoTagsField: a chip's × takes it
+ * off, Add adds one), with the assistant's Tag it (Tag again once tagged) under them while it is
+ * available (the field takes no changes while it runs). `guardPress` (useDetailsPanelDrag's) keeps a touch that dragged the panel
  * from pressing a chip or a button. It never tags by itself.
  */
 export default function PhotoTagsSection({ asset, guardPress }: PhotoTagsSectionProps) {
   const isAssistantAvailable = useIsAssistantAvailable();
   const { retag, isRunning, error } = useRetag(asset);
-
-  if (asset.tags === null && isAssistantAvailable) {
-    return (
-      <View style={styles.line}>
-        <Text style={listTextStyles.subtitle}>{error ?? 'Not tagged yet'}</Text>
-        <Button label="Tag it" icon="sparkle" size="small" onPress={guardPress(() => retag())} loading={isRunning} />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.section}>
@@ -39,7 +29,7 @@ export default function PhotoTagsSection({ asset, guardPress }: PhotoTagsSection
         <View style={styles.line}>
           {error && <Text style={listTextStyles.subtitle}>{error}</Text>}
           <Button
-            label="Tag again"
+            label={asset.tags === null ? 'Tag it' : 'Tag again'}
             icon="sparkle"
             size="small"
             onPress={guardPress(() => retag())}

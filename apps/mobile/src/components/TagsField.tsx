@@ -1,6 +1,6 @@
 import { uniqueTags } from '@squidbox/shared';
 import { memo, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import Card from '@/components/Card';
 import Chip from '@/components/Chip';
@@ -17,10 +17,12 @@ export type TagsFieldProps = {
   itemName?: string;
   disabled?: boolean;
   guardPress?: GuardPress;
+  isFlush?: boolean;
 };
 
 /**
- * Tags as chips, a tap on one takes it out. The dashed Add turns into an input that adds a tag on
+ * Tags as chips on a card, each with a × that takes it out; `isFlush` lays them on the page instead
+ * (the secondary info under a photo, which has no cards). The dashed Add turns into an input that adds a tag on
  * return (and stays open for the next) and closes on blur, adding what it holds. A tag that is
  * already there (in any case) isn't added twice; there is room for `maxTags` of `maxTagLength`.
  * `itemName` names one for VoiceOver ("tag" by default).
@@ -37,6 +39,7 @@ function TagsField({
   itemName = 'tag',
   disabled = false,
   guardPress = unguarded,
+  isFlush = false,
 }: TagsFieldProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [text, setText] = useState('');
@@ -57,15 +60,15 @@ function TagsField({
     setIsAdding(false);
   }
 
+  const Surface = isFlush ? View : Card;
   return (
-    <Card style={styles.card}>
+    <Surface style={[styles.field, !isFlush && styles.card]}>
       {tags.map((tag) => (
         <Chip
           key={tag}
           label={tag}
-          isSelected
-          onPress={disabled ? undefined : guardPress(() => onChange(tags.filter((each) => each !== tag)))}
-          accessibilityHint={`Removes this ${itemName}`}
+          onRemove={disabled ? undefined : guardPress(() => onChange(tags.filter((each) => each !== tag)))}
+          removeLabel={`Remove ${tag}`}
         />
       ))}
       {isAdding && canAdd ? (
@@ -81,18 +84,20 @@ function TagsField({
         )
       )}
       {tags.length === 0 && !isAdding && <Text style={styles.placeholder}>{placeholder}</Text>}
-    </Card>
+    </Surface>
   );
 }
 
 export default memo(TagsField);
 
 const styles = StyleSheet.create({
-  card: {
+  field: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: space.sm,
+  },
+  card: {
     padding: layout.objectInset,
   },
   placeholder: {

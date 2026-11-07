@@ -15,7 +15,7 @@ import {
   textStyles,
 } from '@/styles/designTokens';
 
-export type ChipVariant = 'tag' | 'action' | 'raised' | 'lead' | 'add';
+export type ChipVariant = 'tag' | 'raised' | 'lead' | 'add';
 
 export type ChipProps = Pick<
   PressableProps,
@@ -33,23 +33,23 @@ export type ChipProps = Pick<
 };
 
 /**
- * A pill with a short label. `variant` says what it is: `tag` (the default: grey, violet once
- * `isSelected`), `action` (white with a violet frame, a prompt button), `raised` (white and lifted
- * by a soft shadow, a prompt button in a row of them: the assistant's tray, over the chat's
- * composer), `lead` (light violet with a semibold violet label, lifted like `raised`, the
- * assistant's own action at the end of a row of prompt buttons: Ask anything) or `add` (the
- * dashed Add at the end of a row, with its plus). Every variant has the same frame, so a tag
- * tapped on never changes its width and moves the chips after it.
+ * A pill with a short label. `variant` says what it is: `tag` (the default: a thing, such as a tag
+ * or a contact, grey on white or on the page; violet only for a toggle that `isSelected`), `raised`
+ * (white and lifted by a soft shadow, with a violet label and icon: a prompt button in the
+ * assistant's tray, which is tinted),
+ * `lead` (light violet with a semibold violet label, lifted like `raised`, the assistant's own
+ * action at the end of a row of prompt buttons: Ask anything) or `add` (the grey dashed Add at the
+ * end of a row, with its plus). Every variant has the same frame, so a tag tapped on never changes
+ * its width and moves the chips after it.
  *
- * icon — leads the label (Icon name), in the accent color; `leading` leads it instead with a node
+ * icon — leads the label (Icon name), grey, or violet when it is the assistant's sparkle; `leading` leads it instead with a node
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
  * chip would be wider than its row. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
  * what VoiceOver reads for it.
- * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts); a large tag
- * has a hairline, so it looks the same on a screen's grey and on a white panel.
+ * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts).
  * style is for layout only.
  */
 export default function Chip({
@@ -71,7 +71,9 @@ export default function Chip({
   const isLarge = size === 'large';
   const leadingIcon = variant === 'add' ? 'add' : icon;
   const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
-  const isAccent = isAccentFill || variant === 'add';
+  // Violet marks the assistant only: its fill and tray (`raised`), and its sparkle.
+  const isAccent = isAccentFill || variant === 'raised';
+  const iconColor = isAccent || leadingIcon === 'sparkle' ? colors.accent.base : colors.text.secondary;
   const isLifted = variant === 'raised' || variant === 'lead';
   const frame = [
     chipFrame,
@@ -81,12 +83,11 @@ export default function Chip({
     isLifted && styles.lifted,
     !!leading && styles.withLeading,
     isLarge && styles.large,
-    isLarge && variant === 'tag' && !isSelected && styles.largeTag,
     isLarge && !!leading && styles.largeWithLeading,
   ];
   const content = (
     <>
-      {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={colors.accent.base} />)}
+      {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={iconColor} />)}
       <Text
         style={[
           styles.label,
@@ -102,14 +103,6 @@ export default function Chip({
     </>
   );
 
-  if (!onPress) {
-    return (
-      <View accessibilityLabel={accessibilityLabel} style={[frame, disabled && styles.disabled, style]}>
-        {content}
-      </View>
-    );
-  }
-
   const remove = onRemove && (
     <Pressable
       onPress={onRemove}
@@ -122,20 +115,34 @@ export default function Chip({
     </Pressable>
   );
 
+  if (!onPress && !remove) {
+    return (
+      <View accessibilityLabel={accessibilityLabel} style={[frame, disabled && styles.disabled, style]}>
+        {content}
+      </View>
+    );
+  }
+
   if (remove) {
     return (
       <View style={[frame, styles.withRemove, disabled && styles.disabled, style]}>
-        <Pressable
-          onPress={onPress}
-          hitSlop={space.xs}
-          disabled={disabled}
-          accessibilityRole={accessibilityRole}
-          accessibilityLabel={accessibilityLabel}
-          accessibilityHint={accessibilityHint}
-          style={({ pressed }) => [styles.chip, styles.shrinks, pressed && press.flat]}
-        >
-          {content}
-        </Pressable>
+        {onPress ? (
+          <Pressable
+            onPress={onPress}
+            hitSlop={space.xs}
+            disabled={disabled}
+            accessibilityRole={accessibilityRole}
+            accessibilityLabel={accessibilityLabel}
+            accessibilityHint={accessibilityHint}
+            style={({ pressed }) => [styles.chip, styles.shrinks, pressed && press.flat]}
+          >
+            {content}
+          </Pressable>
+        ) : (
+          <View accessibilityLabel={accessibilityLabel} style={[styles.chip, styles.shrinks]}>
+            {content}
+          </View>
+        )}
         {remove}
       </View>
     );
@@ -171,8 +178,9 @@ const styles = StyleSheet.create({
   shrinks: {
     flexShrink: 1,
   },
+  // See-through, so a tag is a shade darker than what it sits on, a white card or a screen's grey.
   tag: {
-    backgroundColor: colors.background.muted,
+    backgroundColor: colors.background.fill,
   },
   // The node sits close to the frame's start, as an avatar in a pill does.
   withLeading: {
@@ -188,19 +196,10 @@ const styles = StyleSheet.create({
     paddingLeft: space.xs - chipFrame.borderWidth,
     paddingRight: space.md,
   },
-  // The tag's grey with a hairline, so a person's chip looks the same on a screen's grey, where the
-  // fill alone would fade, and on a white panel (a photo's details).
-  largeTag: {
-    borderColor: colors.border.divider,
-  },
   largeLabel: textStyles.body,
   // A selected tag and the `lead` chip.
   accentFill: {
     backgroundColor: colors.accent.light,
-  },
-  action: {
-    backgroundColor: colors.background.surface,
-    borderColor: colors.accent.border,
   },
   raised: {
     backgroundColor: colors.background.surface,
@@ -210,7 +209,7 @@ const styles = StyleSheet.create({
     ...shadows.raised,
   },
   add: {
-    borderColor: colors.accent.border,
+    borderColor: colors.border.dashed,
     borderStyle: 'dashed',
   },
   disabled: {
@@ -238,7 +237,6 @@ const styles = StyleSheet.create({
 // Each variant's own look, where it has one (`lead` is `accentFill` and `lifted`).
 const VARIANT_STYLES: Partial<Record<ChipVariant, ViewStyle>> = {
   tag: styles.tag,
-  action: styles.action,
   raised: styles.raised,
   add: styles.add,
 };
