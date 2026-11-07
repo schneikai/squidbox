@@ -116,6 +116,15 @@ Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iO
 touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
 `zeego` and `react-native-ios-context-menu` would make SDK upgrades harder.
 
+### [ ] From link for any profile link, not only X
+
+From link reads only X links today (`useClipboardXLink`, `fetchXProfileAsync`, `POST
+/ai/contact-from-link`). Any https profile link should work: fetch the page on the server, hand its
+title, og:description/og:image and visible text to the writing model with the URL, and let it say
+which handle the link itself is. Needs SSRF guards for user-given URLs (no private addresses, size
+and time caps) and a photo from any host. Pages behind a login wall (Instagram, OnlyFans, X's hidden
+profiles) get the "try From screenshot" alert. X may keep its own page read, as its data is cleaner.
+
 ### [ ] Saved assistant chats
 
 Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`) lives only while
