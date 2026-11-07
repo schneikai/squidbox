@@ -13,7 +13,6 @@ import shownContactLists from './shownContactLists';
 import useAddListAction from './useAddListAction';
 import useBuiltInContactListRows from './useBuiltInContactListRows';
 import useContactListRows from './useContactListRows';
-import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
 import usePinnedContactList from './usePinnedContactList';
 
@@ -39,7 +38,7 @@ const SEGMENTS: SegmentedPillItem<Segment>[] = [
   { key: 'lists', label: 'Lists' },
 ];
 const PAGE_SIZE = 100;
-const PINNED_MAX = 30;
+const PINNED_PAGE_SIZE = 30;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
 // The Contacts tab: the contacts (favorites first as a row of avatars, or the list the pen pinned in their place, then everyone, by name or recently added) or
@@ -69,10 +68,11 @@ export default function ContactsScreen() {
   const pin = usePinnedContactList({ isLive: isContacts && !isSearching });
   const pinned = pin.pinned ?? null;
   const canChangePin = pin.canPinBuiltIn || !!pin.lists?.length;
-  const pinnedContacts = useContactRows(
-    { scope: pinned?.scope ?? 'favorites' },
-    // A row of avatars: Tagged can hold nearly everyone.
-    { isLive: isContacts && !isSearching, limit: PINNED_MAX },
+  // Paged as the row scrolls: Tagged can hold nearly everyone.
+  const { rows: pinnedContacts, loadMore: loadMorePinned } = usePagedQuery(
+    contactQuery({ scope: pinned?.scope ?? 'favorites' }),
+    PINNED_PAGE_SIZE,
+    { isLive: isContacts && !isSearching },
   );
   // Over the contacts once there are any, even while it is empty, so the pen can change it.
   const hasPinned = !isSearching && !!pinnedContacts && (pinnedContacts.length > 0 || !!pinned || !!count);
@@ -120,7 +120,7 @@ export default function ContactsScreen() {
                 }
               />
               {pinnedContacts?.length ? (
-                <ContactAvatarRow contacts={pinnedContacts} />
+                <ContactAvatarRow contacts={pinnedContacts} loadMore={loadMorePinned} />
               ) : (
                 <IntroText isScreenIntro>{pinnedEmptyText}</IntroText>
               )}
