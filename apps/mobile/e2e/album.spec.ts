@@ -48,7 +48,7 @@ test('From Squidbox adds the picked photos to the album', async ({ page }) => {
 
   const album = await addPhotos(page, name, 3);
 
-  await expect(album.getByText('3 Assets', { exact: true })).toBeVisible();
+  await expect(album.getByText('3 Assets · Never posted', { exact: true })).toBeVisible();
 });
 
 test("dragging a photo onto another's slot reorders the album", async ({ page }) => {
