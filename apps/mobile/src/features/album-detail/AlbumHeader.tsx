@@ -136,6 +136,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   overlapped: {
-    marginLeft: -space.sm,
+    marginLeft: -space.md,
   },
 });
