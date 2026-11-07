@@ -1,5 +1,7 @@
 import type { ContactLinkRecord } from '@squidbox/shared';
 
+import confirmRemoveFromPhotos from './confirmRemoveFromPhotos';
+
 import Chip from '@/components/Chip';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import type { ContactSummary } from '@/features/contact-list/contactQuery';
@@ -22,8 +24,8 @@ type TargetContactChipProps = {
 
 /**
  * A contact on a photo, album or post: a tap opens the contact (`onOpen`), its × takes it off, as a
- * list's × does on the contact screen, once confirmed. `isOnPhotos`: an album or post lists it
- * through its photos, so the × takes it off all of them.
+ * list's × does on the contact screen, once confirmed. `isOnPhotos`: it is on some of an album's or
+ * post's photos, so the × takes it off all of them and off the album or post.
  */
 export default function TargetContactChip({
   contact,
@@ -36,14 +38,14 @@ export default function TargetContactChip({
 
   async function handleRemove() {
     const isFromPhotos = isOnPhotos && targetType !== 'asset';
-    const isConfirmed = await confirmAsync({
-      title: `Remove ${contact.name}?`,
-      message: isFromPhotos
-        ? `${contact.name} comes off every photo of this ${TARGET_NAMES[targetType]} they are on.`
-        : `${contact.name} comes off this ${TARGET_NAMES[targetType]}.`,
-      action: 'Remove',
-      destructive: true,
-    });
+    const isConfirmed = isFromPhotos
+      ? await confirmRemoveFromPhotos([contact.name], TARGET_NAMES[targetType])
+      : await confirmAsync({
+          title: `Remove ${contact.name}?`,
+          message: `${contact.name} comes off this ${TARGET_NAMES[targetType]}.`,
+          action: 'Remove',
+          destructive: true,
+        });
     if (!isConfirmed) return;
     if (isFromPhotos) await removeContactsFromPhotosOf({ targetType, targetId }, [contact.id]);
     else await changeTargetContacts({ targetType, targetId }, { added: [], removed: [contact.id] });
@@ -52,7 +54,6 @@ export default function TargetContactChip({
   return (
     <Chip
       label={contact.name}
-      size="large"
       leading={<ContactAvatar contact={contact} size="chip" />}
       onPress={onOpen}
       onRemove={handleRemove}

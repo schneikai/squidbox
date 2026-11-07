@@ -1,6 +1,6 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useNavigation } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import Page from '@/components/Page';
@@ -67,9 +67,25 @@ export default function Album({ album }: AlbumProps) {
     search: searchText,
   });
   const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150, { withReadAt: true });
+  // The album's own count, for its header and menu: a filter or search narrows only the grid's.
+  const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
+  const unnarrowed = usePagedQuery(assetQuery({ scope: getAlbumAssetScope(album), sort: sortOrder }), 1, {
+    isLive: isNarrowed,
+  });
+  const albumCount = isNarrowed ? unnarrowed.count : count;
 
   const actions = useAssetSelectionActions(selection, query, count);
   const isSmart = isSmartAlbum(album);
+  // The album's name, its contacts and its posts, scrolling away with the grid: the same element
+  // while they are, so a selection or a keystroke doesn't render it again.
+  const header = useMemo(
+    () => (
+      <View style={styles.header}>
+        <AlbumHeader album={album} assetCount={albumCount} />
+      </View>
+    ),
+    [album, albumCount],
+  );
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
@@ -144,7 +160,7 @@ export default function Album({ album }: AlbumProps) {
             <>
               <MoreAction
                 album={album}
-                hasPhotos={!!count}
+                hasPhotos={!!albumCount}
                 afterDelete={() => navigation.goBack()}
                 onSelect={toggleSelectMode}
               />
@@ -153,11 +169,6 @@ export default function Album({ album }: AlbumProps) {
           )
         }
       />
-
-      {/* The album's name, its contacts and its posts, over the grid */}
-      <View style={[styles.header, { marginTop: paddingTop }]}>
-        <AlbumHeader album={album} assetCount={count} />
-      </View>
 
       <View style={styles.content}>
         <AssetGrid
@@ -169,8 +180,9 @@ export default function Album({ album }: AlbumProps) {
           isAssetSelected={isAssetSelected}
           onPressAsset={actions.openAsset}
           listRef={listRef}
-          paddingTop={0}
+          paddingTop={paddingTop}
           paddingBottom={paddingBottom}
+          header={header}
           selectAssets={selectAssets}
           isSortable={!isSmart}
           reorderEnabled={reorderEnabled}

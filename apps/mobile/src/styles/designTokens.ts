@@ -160,8 +160,9 @@ export const shadows = {
   litEdge: litEdge(alpha(palette.white, 1), alpha(palette.black, 0.06)),
   // litEdge on a lavender surface (the assistant's tray): its shaded edge in violet, not gray
   litEdgeTint: litEdge(alpha(palette.white, 0.9), alpha(palette.violet600, 0.08)),
-  // litEdge on the violet, in violets: white and black would read as a hard crescent and a gray line
-  litEdgeAccent: litEdge(alpha(palette.violet250, 0.95), alpha(palette.violet900, 0.85)),
+  // litEdge on the violet, in violets: white and black would read as a hard crescent and a gray line;
+  // its shade as faint as litEdge's
+  litEdgeAccent: litEdge(alpha(palette.violet250, 0.95), alpha(palette.violet900, 0.2)),
 };
 
 // The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back

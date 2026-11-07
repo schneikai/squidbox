@@ -6,20 +6,19 @@ import TagsField, { type TagsFieldProps } from '@/components/TagsField';
 import type { AssetRow } from '@/sync/db/schema';
 
 export type PhotoTagsFieldProps = { asset: Pick<AssetRow, 'id' | 'tags'> } & Required<
-  Pick<TagsFieldProps, 'placeholder' | 'disabled' | 'guardPress'>
+  Pick<TagsFieldProps, 'disabled' | 'guardPress'>
 >;
 
 /**
- * The tags of `asset` (its live row), edited in place (usePhotoTagsEdit): a tap on a chip takes it
+ * The tags of `asset` (its live row), edited in place (usePhotoTagsEdit): a chip's × takes it
  * off, Add adds one. `disabled` while a tagging runs; `guardPress`, TagsField's.
  */
-export default function PhotoTagsField({ asset, placeholder, disabled, guardPress }: PhotoTagsFieldProps) {
+export default function PhotoTagsField({ asset, disabled, guardPress }: PhotoTagsFieldProps) {
   const { tags, change } = usePhotoTagsEdit(asset);
   return (
     <TagsField
       tags={tags}
       onChange={change}
-      placeholder={placeholder}
       maxTags={ASSET_TAG_LIMITS.tags}
       maxTagLength={ASSET_TAG_LIMITS.tag}
       disabled={disabled}

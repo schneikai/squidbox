@@ -7,6 +7,7 @@ import type { SortableGridProps } from '@/components/sortable-grid/SortableGrid'
 import useDragSelect from '@/components/sortable-grid/useDragSelect';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import useScrollY from '@/hooks/useScrollY';
+import useScrollingHeader from '@/hooks/useScrollingHeader';
 import { layout as layoutTokens } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
 
@@ -20,6 +21,7 @@ export type AssetListProps = Pick<
   | 'listRef'
   | 'paddingTop'
   | 'paddingBottom'
+  | 'header'
   | 'onScroll'
   | 'dragSelectEnabled'
   | 'dragSelectLocksSwipeBack'
@@ -43,6 +45,7 @@ export default function AssetList({
   listRef,
   paddingTop = 0,
   paddingBottom = 0,
+  header,
   onScroll,
   scrollY,
   dragSelectEnabled = false,
@@ -67,6 +70,8 @@ export default function AssetList({
   const effectiveScrollY = scrollY ?? internal.scrollY;
   const effectiveOnScroll = onScroll ?? internal.onScroll;
 
+  const { headerView, cellsTop } = useScrollingHeader(header, paddingTop);
+
   const selectedIdsRef = useRef(selectedAssetIds);
   selectedIdsRef.current = selectedAssetIds;
 
@@ -76,7 +81,7 @@ export default function AssetList({
     enabled: dragSelectEnabled,
     rows,
     layout,
-    paddingTop,
+    paddingTop: cellsTop,
     listRef,
     scrollY: effectiveScrollY,
     selectedIdsRef,
@@ -107,6 +112,7 @@ export default function AssetList({
       renderItem={renderItem}
       keyExtractor={keyExtractor}
       contentContainerStyle={contentContainerStyle}
+      ListHeaderComponent={headerView}
       // Grid rows, not cells: about a screen's worth. FlatList keeps these mounted at the top.
       initialNumToRender={10}
       onEndReached={loadMore}

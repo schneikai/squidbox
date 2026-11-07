@@ -129,10 +129,6 @@ export default function AssetScreen() {
     if (details.isShown) setIsFullscreen(false);
   }, [details.isShown]);
 
-  // The details stay open while a screen opened from them shows (a contact, an album or a post), so
-  // going back finds them as they were. Paging while they show keeps them open, showing the next
-  // asset's.
-
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {
     const third = windowIds.length / 3;

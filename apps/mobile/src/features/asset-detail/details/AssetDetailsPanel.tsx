@@ -33,9 +33,8 @@ type AssetDetailsPanelProps = {
 };
 
 /**
- * The asset's details below the photo (useDetailsPanel), as Apple Photos' Info: its note, the tags
- * the assistant sees in it (while the Assistant is available), the contacts on it, when it was added and its size, the
- * albums it is in and the posts it is in (PostRows), each opening its album or post. The panel
+ * The asset's details below the photo (useDetailsPanel), as Apple Photos' Info: when it was added
+ * and its size, its note, its tags, the contacts on it, the albums it is in and the posts it is in (PostRows), each opening its album or post. The panel
  * (`style`) clips the details (`contentStyle`, which report `onContentLayout`); a drag anywhere on
  * it moves them along `verticalDrag`'s track (useDetailsPanelDrag, holding `pagerGesture` while it
  * runs). While the note is edited, `onEditingBottomChange(bottom)` says where its field ends within
@@ -82,6 +81,11 @@ type AssetDetailsProps = Pick<AssetDetailsPanelProps, 'asset' | 'isCurrent' | 'o
 function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }: AssetDetailsProps) {
   return (
     <>
+      <View style={styles.info}>
+        <Text style={listTextStyles.title}>{formatFullDateTime(asset.createdAt)}</Text>
+        <Text style={listTextStyles.subtitle}>{infoLine(asset)}</Text>
+      </View>
+
       <AssetNote
         key={asset.id}
         asset={asset}
@@ -90,9 +94,7 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }: A
         onEditingBottomChange={onEditingBottomChange}
       />
 
-      <View style={styles.tags}>
-        <PhotoTagsSection asset={asset} guardPress={guardPress} />
-      </View>
+      <PhotoTagsSection asset={asset} guardPress={guardPress} />
 
       <TargetContactsSection
         targetType="asset"
@@ -101,11 +103,6 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }: A
         isLive={isCurrent}
         isFlush
       />
-
-      <View style={styles.info}>
-        <Text style={listTextStyles.title}>{formatFullDateTime(asset.createdAt)}</Text>
-        <Text style={listTextStyles.subtitle}>{infoLine(asset)}</Text>
-      </View>
 
       <ScreenSectionHeader title="Albums" isFlush />
       <AssetAlbums
@@ -142,11 +139,8 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingHorizontal: layout.sideGutter,
   },
-  // The panel's blocks are apart as a screen's sections are.
-  tags: {
-    marginTop: layout.sectionGap,
-  },
+  // The note belongs to the photo's info, right under its date and size.
   info: {
-    marginTop: layout.sectionGap,
+    marginBottom: space.md,
   },
 });

@@ -83,7 +83,7 @@ function TagsField({
           />
         )
       )}
-      {tags.length === 0 && !isAdding && <Text style={styles.placeholder}>{placeholder}</Text>}
+      {tags.length === 0 && !isAdding && !!placeholder && <Text style={styles.placeholder}>{placeholder}</Text>}
     </Surface>
   );
 }

@@ -3,17 +3,7 @@ import { Pressable, type PressableProps, type StyleProp, StyleSheet, Text, View,
 
 import Icon, { type IconName } from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
-import {
-  colors,
-  disabledOpacity,
-  layout,
-  press,
-  scale,
-  shadows,
-  sizes,
-  space,
-  textStyles,
-} from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, shadows, sizes, space, textStyles } from '@/styles/designTokens';
 
 export type ChipVariant = 'tag' | 'raised' | 'lead' | 'add';
 
@@ -28,7 +18,6 @@ export type ChipProps = Pick<
   onRemove?: () => void;
   removeLabel?: string;
   isSelected?: boolean;
-  size?: 'regular' | 'large';
   style?: StyleProp<ViewStyle>;
 };
 
@@ -49,7 +38,6 @@ export type ChipProps = Pick<
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
  * what VoiceOver reads for it.
- * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts).
  * style is for layout only.
  */
 export default function Chip({
@@ -65,10 +53,8 @@ export default function Chip({
   accessibilityRole = 'button',
   accessibilityLabel,
   accessibilityHint,
-  size = 'regular',
   style,
 }: ChipProps) {
-  const isLarge = size === 'large';
   const leadingIcon = variant === 'add' ? 'add' : icon;
   const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
   // Violet marks the assistant only: its fill and tray (`raised`), and its sparkle.
@@ -82,20 +68,14 @@ export default function Chip({
     isAccentFill && styles.accentFill,
     isLifted && styles.lifted,
     !!leading && styles.withLeading,
-    isLarge && styles.large,
-    isLarge && !!leading && styles.largeWithLeading,
   ];
+  const accessibilityState =
+    accessibilityRole === 'checkbox' ? { checked: isSelected, disabled } : { selected: isSelected, disabled };
   const content = (
     <>
       {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={iconColor} />)}
       <Text
-        style={[
-          styles.label,
-          styles.shrinks,
-          isLarge && styles.largeLabel,
-          isAccent && styles.accentLabel,
-          variant === 'lead' && styles.leadLabel,
-        ]}
+        style={[styles.label, styles.shrinks, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}
         numberOfLines={leading ? 1 : undefined}
       >
         {label}
@@ -106,6 +86,7 @@ export default function Chip({
   const remove = onRemove && (
     <Pressable
       onPress={onRemove}
+      disabled={disabled}
       hitSlop={space.sm}
       accessibilityRole="button"
       accessibilityLabel={removeLabel}
@@ -132,6 +113,7 @@ export default function Chip({
             hitSlop={space.xs}
             disabled={disabled}
             accessibilityRole={accessibilityRole}
+            accessibilityState={accessibilityState}
             accessibilityLabel={accessibilityLabel}
             accessibilityHint={accessibilityHint}
             style={({ pressed }) => [styles.chip, styles.shrinks, pressed && press.flat]}
@@ -155,9 +137,7 @@ export default function Chip({
       hitSlop={space.xs}
       disabled={disabled}
       accessibilityRole={accessibilityRole}
-      accessibilityState={
-        accessibilityRole === 'checkbox' ? { checked: isSelected, disabled } : { selected: isSelected, disabled }
-      }
+      accessibilityState={accessibilityState}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [frame, pressed && press.flat, disabled && styles.disabled, style]}
@@ -187,16 +167,6 @@ const styles = StyleSheet.create({
     paddingLeft: space.hair,
     paddingRight: space.md + space.hair,
   },
-  // The label space.lg from the pill's edge, as the frame's is space.md.
-  large: {
-    height: scale(40),
-    paddingHorizontal: space.lg - chipFrame.borderWidth,
-  },
-  largeWithLeading: {
-    paddingLeft: space.xs - chipFrame.borderWidth,
-    paddingRight: space.md,
-  },
-  largeLabel: textStyles.body,
   // A selected tag and the `lead` chip.
   accentFill: {
     backgroundColor: colors.accent.light,

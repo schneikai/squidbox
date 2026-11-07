@@ -180,7 +180,6 @@ export default function ComponentGalleryScreen() {
             ))}
             <Chip
               label="Sam Rivera"
-              size="large"
               leading={<ContactAvatar contact={{ name: 'Sam Rivera' }} size="chip" />}
               onPress={noop}
               onRemove={noop}
@@ -323,6 +322,7 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="SelectIndicator">
           <SelectIndicator isSelected />
+          <SelectIndicator isSelected="mixed" />
           <SelectIndicator isSelected={false} />
           <View style={styles.media}>
             <SelectIndicator isSelected={false} isOnMedia />

@@ -32,11 +32,13 @@ import type { UsePeekAfterLiftOptions } from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
 import type { ScrollableList } from '@/hooks/useListControls';
+import useScrollingHeader from '@/hooks/useScrollingHeader';
 
 // A grid whose cells can be dragged into a new order, Apple Photos-style (an album's photos, the
 // albums). Cells are absolutely positioned so they can be dragged and reflowed, and only the rows
 // within WINDOW_SCREENS screens of the viewport are mounted, like a FlatList's window. With `onPeek`,
-// a lifted cell held still peeks instead (see useDragReorder).
+// a lifted cell held still peeks instead (see useDragReorder). `header` sits above the cells and
+// scrolls with them (an album's name and chips).
 const WINDOW_SCREENS = 2;
 // How long after a drop its click may still come (it follows the pointer's release at once).
 const CLICK_AFTER_DROP_MS = 500;
@@ -52,6 +54,7 @@ export type SortableGridProps<Row extends GridRow> = {
   cellPadding?: number;
   paddingTop?: number;
   paddingBottom?: number;
+  header?: ReactNode;
   listRef?: RefObject<ScrollableList | null>;
   onScroll?: ScrollHandlerProcessed;
   dragSelectEnabled?: boolean;
@@ -74,6 +77,7 @@ export default function SortableGrid<Row extends GridRow>({
   cellPadding = 0,
   paddingTop = 0,
   paddingBottom = 0,
+  header,
   listRef,
   onScroll,
   dragSelectEnabled = false,
@@ -93,6 +97,8 @@ export default function SortableGrid<Row extends GridRow>({
     () => ({ numColumns, cellWidth, cellHeight: cellHeight ?? cellWidth, gap }),
     [numColumns, cellWidth, cellHeight, gap],
   );
+
+  const { headerView, cellsTop } = useScrollingHeader(header, paddingTop);
 
   // The grid's own offset: a screen's shared one (the floating bars') is reset on tab switches.
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -195,7 +201,7 @@ export default function SortableGrid<Row extends GridRow>({
     enabled: dragSelectEnabled,
     rows: ordered,
     layout,
-    paddingTop,
+    paddingTop: cellsTop,
     listRef,
     scrollY,
     selectedIdsRef,
@@ -209,7 +215,7 @@ export default function SortableGrid<Row extends GridRow>({
     enabled: reorderEnabled && !isWriting,
     rows: ordered,
     layout,
-    paddingTop,
+    paddingTop: cellsTop,
     listRef,
     scrollY,
     positions,
@@ -235,8 +241,8 @@ export default function SortableGrid<Row extends GridRow>({
 
   const rowPitch = layout.cellHeight + layout.gap;
   const gridHeight = Math.ceil((rows?.length ?? 0) / numColumns) * rowPitch;
-  const windowTop = (screenIndex - WINDOW_SCREENS) * viewportHeight - paddingTop;
-  const windowBottom = (screenIndex + 1 + WINDOW_SCREENS) * viewportHeight - paddingTop;
+  const windowTop = (screenIndex - WINDOW_SCREENS) * viewportHeight - cellsTop;
+  const windowBottom = (screenIndex + 1 + WINDOW_SCREENS) * viewportHeight - cellsTop;
   const firstSlot = Math.max(0, Math.floor(windowTop / rowPitch)) * numColumns;
   const endSlot = Math.max(0, Math.ceil(windowBottom / rowPitch)) * numColumns;
   const lifted = useMemo(() => liftedId && ordered?.find((row) => row.id === liftedId), [liftedId, ordered]);
@@ -309,6 +315,7 @@ export default function SortableGrid<Row extends GridRow>({
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
+          {headerView}
           <View style={{ height: gridHeight }}>
             {ordered.slice(firstSlot, endSlot).map((row, i) => (
               <SortableGridCell

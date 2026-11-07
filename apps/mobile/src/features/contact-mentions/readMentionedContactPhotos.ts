@@ -1,4 +1,4 @@
-import { CONTACT_HANDLE_FIELDS } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, normalizeHandle } from '@squidbox/shared';
 import { and, eq, isNull, like } from 'drizzle-orm';
 
 import extractHandles from '@/lib/extractHandles';
@@ -29,7 +29,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
     const contactsByPost = new Map<string, string[]>();
     for (const post of posts) {
       const ids = new Set(
-        extractHandles([post.text]).flatMap((handle) => contactsByHandle.get(handleKey(handle)) ?? []),
+        extractHandles([post.text]).flatMap((handle) => contactsByHandle.get(normalizeHandle(handle)) ?? []),
       );
       if (ids.size) contactsByPost.set(post.id, [...ids]);
     }
@@ -47,11 +47,6 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
       postCount: contactsByPost.size,
     };
   });
-}
-
-// A handle as it is compared: without its `@`, lowercased.
-function handleKey(handle: string): string {
-  return handle.replace(/^@/, '').toLowerCase();
 }
 
 // The live contacts by each of their handles (stored normalized, so already lowercased without `@`).

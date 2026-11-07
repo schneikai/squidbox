@@ -3,13 +3,12 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import assetQuery from '@/features/asset-list/assetQuery';
 import contactQuery from '@/features/contact-list/contactQuery';
-import { albumHoldsAny } from '@/sync/assetSql';
+import { albumHoldsAny, liveAlbumAssetIds } from '@/sync/assetSql';
 import type { CollectionTable } from '@/sync/clientCollections';
 import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { readByIds } from '@/sync/readByIds';
-import pluralizeText from '@/utils/pluralizeText';
 
 type TargetType = ContactLinkRecord['targetType'];
 
@@ -31,8 +30,8 @@ export type AddContactsSeed = {
   linkedTitle: string;
   linked: string[];
   related: ContactSection[];
-  // Every photo of an album: how many there are, and how many each linked contact is on.
-  photos?: { total: number; counts: Map<string, number> };
+  // Every photo of an album: the linked contacts on only some of them (the rest are on all).
+  partial?: string[];
 };
 
 type AlbumName = Pick<schema.AlbumRow, 'id' | 'name'>;
@@ -43,7 +42,7 @@ type AlbumName = Pick<schema.AlbumRow, 'id' | 'name'>;
  * with their section's `linkedTitle`, and the `related` sections: contacts on what it is part of or
  * holds, `{ title, ids }` (a photo's albums one by one; an album's photos; a post's photos and
  * albums). For every photo of an album (`{ photosOfAlbumId }`) the linked ones are those on any of
- * its photos or on the album itself, with `photos`: how many it has and how many each is on.
+ * its photos or on the album itself, and `partial` those not on every one of them.
  * `null` when the target is gone. One transaction.
  */
 export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarget): Promise<AddContactsSeed | null> {
@@ -60,17 +59,17 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       const [album] = await readByIds(tx, schema.albums, [albumId]);
       if (!album || album.deletedAt || album.smartAlbumType) return null;
       const total = (await assetQuery({ scope: { albumId } }).ids(tx)).length;
+      const counts = await photoCounts(tx, albumId);
       // On its photos, and on the album itself (from before only photos were tagged).
       const onPhotos = await contactQuery({ scope: { photosOf: 'album', id: albumId } }).ids(tx);
       const onAlbum = await contactQuery({ scope: { targetType: 'album', targetId: albumId } }).ids(tx);
       const linked = [...new Set([...onPhotos, ...onAlbum])];
-      const title = pluralizeText('on its photo', `on its ${total.toLocaleString()} photos`, total);
       return {
-        title,
+        title: '',
         linkedTitle: 'On its photos',
         linked,
         related: [],
-        photos: { total, counts: await photoCounts(tx, albumId) },
+        partial: linked.filter((id) => (counts.get(id) ?? 0) < total),
       };
     }
     const { targetType, targetId } = target;
@@ -78,7 +77,7 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
     if (!record || record.deletedAt) return null;
     const linked = await contactQuery({ scope: { targetType, targetId } }).ids(tx);
     const onTargets = async (type: TargetType, ids: string[]): Promise<string[]> =>
-      ids.length ? onAny(tx, type, ids) : [];
+      ids.length ? contactQuery({ scope: { targetType: type, targetId: ids } }).ids(tx) : [];
     const related: ContactSection[] = [];
 
     if (targetType === 'asset') {
@@ -108,11 +107,6 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
     ];
     return { title, linkedTitle: TITLES[targetType], linked, related: related.filter((section) => section.ids.length) };
   });
-}
-
-// The live contacts on any of these photos, albums or posts, by name.
-function onAny(tx: SyncDb, targetType: TargetType, targetIds: string[]): Promise<string[]> {
-  return contactQuery({ scope: { targetType, targetId: targetIds } }).ids(tx);
 }
 
 // The live albums holding any of these assets (a smart album has no edges), by name: id and name.
@@ -162,13 +156,7 @@ async function photoCounts(tx: SyncDb, albumId: string): Promise<Map<string, num
     .select({ contactId: l.contactId, count: sql<number>`count(distinct ${l.targetId})` })
     .from(l)
     .innerJoin(schema.assets, and(eq(schema.assets.id, l.targetId), isNull(schema.assets.deletedAt)))
-    .where(
-      and(
-        eq(l.targetType, 'asset'),
-        isNull(l.deletedAt),
-        sql`${l.targetId} in (select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`,
-      ),
-    )
+    .where(and(eq(l.targetType, 'asset'), isNull(l.deletedAt), sql`${l.targetId} in ${liveAlbumAssetIds(albumId)}`))
     .groupBy(l.contactId);
   return new Map(rows.map((row) => [row.contactId, row.count]));
 }

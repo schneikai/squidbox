@@ -15,6 +15,7 @@ import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
 import { placesChanged } from '@/features/contact-detail/contactFields';
 import { builtInContactList } from '@/features/contact-list/builtInContactLists';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import { postThreadAssetIds } from '@/sync/assetSql';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
@@ -161,20 +162,14 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
         written((tx) => contactLinks.change(tx, { targetType, targetId }, change, getNewItemId)),
       // Puts the contacts on every one of the photos; those already on one stay as they are.
       addContactsToPhotos: (assetIds, contactIds) => written((tx) => addToPhotos(tx, assetIds, contactIds)),
-      // Puts the contacts on every photo the album shows, as it holds them when this writes.
-      addContactsToAlbumPhotos: (albumId, contactIds) =>
-        written(async (tx) => addToPhotos(tx, await assetQuery({ scope: { albumId } }).ids(tx), contactIds)),
-      // Takes the contacts off every photo of the album or post (a thread's posts too), and off the
-      // album or post itself (a link from before only photos were tagged).
-      removeContactsFromPhotosOf: (target, contactIds) =>
+      // Puts the added contacts on every photo the album shows, as it holds them when this writes, and
+      // takes the removed ones off them all (removeFromPhotosOf), in one write.
+      changeAlbumPhotosContacts: (albumId, { added, removed }) =>
         written(async (tx) => {
-          const photoIds =
-            target.targetType === 'album'
-              ? await assetQuery({ scope: { albumId: target.targetId } }).ids(tx)
-              : await postPhotoIds(tx, target.targetId);
-          const photos = photoIds.map((targetId) => ({ targetType: 'asset', targetId }));
-          await contactLinks.removeFromEach(tx, [...photos, target], contactIds);
+          if (removed.length) await removeFromPhotosOf(tx, { targetType: 'album', targetId: albumId }, removed);
+          if (added.length) await addToPhotos(tx, await assetQuery({ scope: { albumId } }).ids(tx), added);
         }),
+      removeContactsFromPhotosOf: (target, contactIds) => written((tx) => removeFromPhotosOf(tx, target, contactIds)),
     };
   }, [library, userId]);
 
@@ -183,11 +178,23 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
 
 // The photos of a post and of its thread's posts, through live edges.
 async function postPhotoIds(tx: SyncDb, postId: string): Promise<string[]> {
-  const rows = await tx.all<{ asset_id: string }>(
-    sql`select distinct asset_id from post_assets where deleted_at is null and (post_id = ${postId} or post_id in
-      (select id from posts where thread_root_id = ${postId} and deleted_at is null))`,
-  );
+  const rows = await tx.all<{ asset_id: string }>(sql`select distinct asset_id from ${postThreadAssetIds(postId)}`);
   return rows.map((row) => row.asset_id);
+}
+
+// Takes the contacts off every photo of the album or post (a thread's posts too), and off the album
+// or post itself (a link from before only photos were tagged).
+async function removeFromPhotosOf(
+  tx: SyncDb,
+  target: { targetType: 'album' | 'post'; targetId: string },
+  contactIds: string[],
+): Promise<void> {
+  const photoIds =
+    target.targetType === 'album'
+      ? await assetQuery({ scope: { albumId: target.targetId } }).ids(tx)
+      : await postPhotoIds(tx, target.targetId);
+  const photos = photoIds.map((targetId) => ({ targetType: 'asset', targetId }));
+  await contactLinks.removeFromEach(tx, [...photos, target], contactIds);
 }
 
 function addToPhotos(tx: SyncDb, assetIds: string[], contactIds: string[]): Promise<void> {

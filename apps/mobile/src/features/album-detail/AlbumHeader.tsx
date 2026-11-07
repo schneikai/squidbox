@@ -4,9 +4,9 @@ import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
 import Text from '@/components/Text';
-import useAlbumPeople from '@/features/album-detail/useAlbumPeople';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
+import useTargetContacts from '@/features/contact-links/useTargetContacts';
 import postQuery from '@/features/post-list/postQuery';
 import { colors, press, space, textStyles } from '@/styles/designTokens';
 import type { AlbumRow } from '@/sync/db/schema';
@@ -25,17 +25,19 @@ type AlbumHeaderProps = {
 /**
  * The top of an album, over its grid: its name, how many assets and when it was last posted, the
  * Archived badge and its notes, then, on one line, a chip with the faces of the contacts on its
- * photos (useAlbumPeople), which opens the album's Contacts sheet (AddContactsScreen), and one
+ * photos or on the album (useTargetContacts), which opens the album's Contacts sheet (AddContactsScreen), and one
  * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
 export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
-  const people = useAlbumPeople(album.id);
+  const isSmart = isSmartAlbum(album);
+  // A smart album has no contacts of its own: read once, not kept live.
+  const people = useTargetContacts('album', album.id, { isLive: !isSmart })?.contacts;
   const posts = usePagedQuery(postQuery({ scope: { albumId: album.id }, sort: 'postedAt:desc' }), 1);
 
-  const isSmart = isSmartAlbum(album);
   // Contacts are added from the ⋯ menu (Add contacts to photos), so none shows no chip.
   const hasPeople = !isSmart && !!people?.length;
   const faces = people?.slice(0, STACKED) ?? [];
+  const names = people?.map((contact) => contact.name) ?? [];
   const lastPostedAt = posts.rows?.[0]?.postedAt ?? null;
   const details = [
     pluralizeText('1 Asset', '%{count} Assets', assetCount ?? 0),
@@ -68,8 +70,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
           {hasPeople && (
             <View style={styles.people}>
               <Chip
-                label={peopleNames(people.map((contact) => contact.name))}
-                size="large"
+                label={peopleNames(names)}
                 leading={
                   <View style={styles.faces}>
                     {faces.map((contact, i) => (
@@ -83,7 +84,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
                     ))}
                   </View>
                 }
-                accessibilityLabel={`Contacts: ${people.map((contact) => contact.name).join(', ')}`}
+                accessibilityLabel={`Contacts: ${names.join(', ')}`}
                 onPress={openContacts}
               />
             </View>
@@ -91,7 +92,6 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
           {!!posts.count && (
             <Chip
               label={pluralizeText('1 post', '%{count} posts', posts.count)}
-              size="large"
               onPress={() => router.navigate(`/album/${album.id}/posts`)}
             />
           )}

@@ -4,6 +4,7 @@ import PhotoTagsField from './PhotoTagsField';
 import useRetag from './useRetag';
 
 import Button from '@/components/Button';
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import type { GuardPress } from '@/lib/unguarded';
 import { space } from '@/styles/designTokens';
@@ -14,8 +15,8 @@ export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: GuardPress };
 
 /**
  * The asset's tags, in its details, always edited in place (PhotoTagsField: a chip's × takes it
- * off, Add adds one), with the assistant's Tag it (Tag again once tagged) under them while it is
- * available (the field takes no changes while it runs). `guardPress` (useDetailsPanelDrag's) keeps a touch that dragged the panel
+ * off, Add adds one) under a Tags header, with the assistant's Tag it (Tag again once tagged) at the
+ * header's end while it is available (the field takes no changes while it runs). `guardPress` (useDetailsPanelDrag's) keeps a touch that dragged the panel
  * from pressing a chip or a button. It never tags by itself.
  */
 export default function PhotoTagsSection({ asset, guardPress }: PhotoTagsSectionProps) {
@@ -23,32 +24,32 @@ export default function PhotoTagsSection({ asset, guardPress }: PhotoTagsSection
   const { retag, isRunning, error } = useRetag(asset);
 
   return (
-    <View style={styles.section}>
-      <PhotoTagsField asset={asset} placeholder="No tags" disabled={isRunning} guardPress={guardPress} />
-      {isAssistantAvailable && (
-        <View style={styles.line}>
-          {error && <Text style={listTextStyles.subtitle}>{error}</Text>}
-          <Button
-            label={asset.tags === null ? 'Tag it' : 'Tag again'}
-            icon="sparkle"
-            size="small"
-            onPress={guardPress(() => retag())}
-            loading={isRunning}
-          />
-        </View>
-      )}
+    <View>
+      <ScreenSectionHeader
+        title="Tags"
+        isFlush
+        trailing={
+          isAssistantAvailable && (
+            <Button
+              label={asset.tags === null ? 'Tag it' : 'Tag again'}
+              icon="sparkle"
+              size="small"
+              onPress={guardPress(() => retag())}
+              loading={isRunning}
+            />
+          )
+        }
+      />
+      <View style={styles.section}>
+        <PhotoTagsField asset={asset} disabled={isRunning} guardPress={guardPress} />
+        {!!error && <Text style={listTextStyles.subtitle}>{error}</Text>}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
-    gap: space.sm,
-  },
-  line: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: space.sm,
   },
 });

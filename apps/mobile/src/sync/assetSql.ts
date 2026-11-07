@@ -108,6 +108,12 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
+/** The ids of the assets of a post and of its thread's following posts, through live edges. */
+export function postThreadAssetIds(postId: string): SQL {
+  return sql`(select asset_id from post_assets where deleted_at is null and (post_id = ${postId} or post_id in
+    (select id from posts where thread_root_id = ${postId} and deleted_at is null)))`;
+}
+
 /** Whether the album `albumId` (a column, or an id) holds any of these assets, through a live edge. */
 export function albumHoldsAny(albumId: string | SQL | SQLiteColumn, assetIds: string[]): SQL {
   return sql`exists (select 1 from album_assets where album_id = ${albumId} and deleted_at is null and ${inJson(sql.raw('asset_id'), assetIds)})`;

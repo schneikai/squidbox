@@ -5,6 +5,7 @@ import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import contactSearchText, { SEARCHED_FIELDS } from './contactSearchText';
 import type { ContactSort } from './contactSortOptions';
 
+import { liveAlbumAssetIds, postThreadAssetIds } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
@@ -111,11 +112,7 @@ export default function contactQuery({
       return sql`${c.id} in (select contact_id from contact_links where target_type = ${target.targetType} and deleted_at is null and ${inJson(sql.raw('target_id'), ids)})`;
     }
     if (photosOf) {
-      const photoIds =
-        photosOf.photosOf === 'album'
-          ? sql`(select asset_id from album_assets where album_id = ${photosOf.id} and deleted_at is null)`
-          : sql`(select asset_id from post_assets where deleted_at is null and (post_id = ${photosOf.id} or post_id in
-              (select id from posts where thread_root_id = ${photosOf.id} and deleted_at is null)))`;
+      const photoIds = photosOf.photosOf === 'album' ? liveAlbumAssetIds(photosOf.id) : postThreadAssetIds(photosOf.id);
       return sql`${c.id} in (select l.contact_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
         where l.target_type = 'asset' and l.deleted_at is null and l.target_id in ${photoIds})`;
     }

@@ -6,6 +6,7 @@ import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAlbums from '@/features/albums-context/useAlbums';
 import type { AlbumRow } from '@/sync/db/schema';
+import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import confirmAsync from '@/utils/confirmAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
@@ -53,7 +54,7 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
       <MenuOption label={album.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} />
       <MenuOption label="Rename" icon="edit" onPress={handleRenameAlbum} />
-      {hasPhotos && !album.smartAlbumType && (
+      {hasPhotos && !isSmartAlbum(album) && (
         <MenuOption label="Add contacts to photos" icon="contacts" onPress={handleAddContactsToPhotos} />
       )}
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}

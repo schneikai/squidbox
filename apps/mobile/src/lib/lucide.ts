@@ -62,6 +62,7 @@ export { default as Maximize2 } from 'lucide-react-native/icons/maximize-2';
 export { default as Megaphone } from 'lucide-react-native/icons/megaphone';
 export { default as MessageCircle } from 'lucide-react-native/icons/message-circle';
 export { default as MessagesSquare } from 'lucide-react-native/icons/messages-square';
+export { default as Minus } from 'lucide-react-native/icons/minus';
 export { default as MountainSnow } from 'lucide-react-native/icons/mountain-snow';
 export { default as Pause } from 'lucide-react-native/icons/pause';
 export { default as PenLine } from 'lucide-react-native/icons/pen-line';
