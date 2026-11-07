@@ -91,13 +91,15 @@ async function readLiveLibrary(liveUrl: string) {
   const owner = { id: found[0]!.id, storageBucket: found[0]!.storage_bucket };
 
   // The live database can be a migration or two behind this code: a column it doesn't have yet is
-  // left out of the read, and of the copied record, so the copy takes that field's default.
+  // left out of the read, and of the copied record, so the copy takes that field's default; a
+  // collection whose table it doesn't have yet copies nothing.
   const liveColumns = (await live.transaction(
     (tx) => [tx`select table_name, column_name from information_schema.columns where table_schema = 'public'`],
     { readOnly: true },
   )) as unknown as Array<Array<{ table_name: string; column_name: string }>>;
   const hasColumn = new Set((liveColumns[0] ?? []).map((c) => `${c.table_name}.${c.column_name}`));
-  const collections = Object.values(serverCollections);
+  const liveTables = new Set((liveColumns[0] ?? []).map((c) => c.table_name));
+  const collections = Object.values(serverCollections).filter((col) => liveTables.has(getTableName(col.table)));
   const columnsOf = (col: (typeof collections)[number]) =>
     Object.entries(col.wireColumns).filter(([, column]) => hasColumn.has(`${getTableName(col.table)}.${column.name}`));
   const results = (await live.transaction(
