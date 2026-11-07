@@ -72,6 +72,7 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import {
   ASSET_TAG_LIMITS,
   CHAT_LIMITS,
+  CONTACT_HANDLES,
   DEFAULT_INSTRUCTIONS,
   INSTRUCTION_LIMITS,
   type ChatReply,
@@ -83,6 +84,7 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { publishInstruction, readAppInstructions, readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
+import { CONTACT_FIELDS_FORMAT } from '../src/ai/prompts.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
@@ -533,7 +535,12 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
       country: 'Canada',
     });
     const [body] = chatBodies();
-    expect(body.messages[0]).toEqual({ role: 'system', content: DEFAULT_INSTRUCTIONS.contactScreenshot });
+    expect(body.messages[0]).toEqual({
+      role: 'system',
+      content: DEFAULT_INSTRUCTIONS.contactScreenshot.replace('{fields}', CONTACT_FIELDS_FORMAT),
+    });
+    // The fields follow the contact's own: every handle is asked for.
+    for (const { field } of CONTACT_HANDLES) expect(CONTACT_FIELDS_FORMAT).toContain(`"${field}"`);
   });
 
   it('502 ai_unavailable when the answer is not JSON', async () => {
@@ -560,6 +567,8 @@ describe('POST /api/v1/ai/contact-from-x-profile', () => {
     const res = await call('POST', '/ai/contact-from-x-profile', xProfileRequest);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
+      name: '',
+      xHandle: '',
       blueskyHandle: 'maya.studio',
       onlyFansHandle: '',
       jffHandle: '',
@@ -573,15 +582,17 @@ describe('POST /api/v1/ai/contact-from-x-profile', () => {
     expect(body.messages).toEqual([
       {
         role: 'user',
-        content: DEFAULT_INSTRUCTIONS.contactXProfile.replace(
-          '{profile}',
-          [
-            'Handle: @mayal',
-            'Name: Maya Lindqvist',
-            'Bio: Trail runs and tide pools <3 🦋 maya.studio',
-            'Location: Squamish, BC',
-          ].join('\n'),
-        ),
+        content: DEFAULT_INSTRUCTIONS.contactXProfile
+          .replace('{fields}', CONTACT_FIELDS_FORMAT)
+          .replace(
+            '{profile}',
+            [
+              'Handle: @mayal',
+              'Name: Maya Lindqvist',
+              'Bio: Trail runs and tide pools <3 🦋 maya.studio',
+              'Location: Squamish, BC',
+            ].join('\n'),
+          ),
       },
     ]);
   });

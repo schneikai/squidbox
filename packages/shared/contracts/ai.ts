@@ -329,7 +329,8 @@ export const contactFromXProfileAiRequestSchema = z.object({
 });
 export type ContactFromXProfileAiRequest = z.infer<typeof contactFromXProfileAiRequestSchema>;
 
-export const contactFromXProfileAiResponseSchema = contactReadSchema.omit({ name: true, xHandle: true });
+// The same fields as From screenshot's read (CONTACT_FIELDS_FORMAT); the app takes the handles and the place.
+export const contactFromXProfileAiResponseSchema = contactReadSchema;
 export type ContactFromXProfileAiResponse = z.infer<typeof contactFromXProfileAiResponseSchema>;
 
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's

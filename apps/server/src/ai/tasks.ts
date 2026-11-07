@@ -7,7 +7,6 @@ import {
   CONTACT_HANDLE_FIELDS,
   normalizeHandle,
   uniqueTags,
-  type ContactFromXProfileAiResponse,
   type ContactRead,
   type AiModelKind,
   type ChatReply,
@@ -17,14 +16,7 @@ import type { User } from '../db/schema.js';
 import { AppError } from '../errors.js';
 import { catalogAsync, findModel, type CatalogEntry } from './catalog.js';
 import { readChosenModelId } from './modelChoices.js';
-import {
-  chatReplyJsonSpec,
-  contactSchema,
-  judgeVerdictJsonSpec,
-  postsSchema,
-  tagsSchema,
-  xProfileContactSchema,
-} from './prompts.js';
+import { chatReplyJsonSpec, contactSchema, judgeVerdictJsonSpec, postsSchema, tagsSchema } from './prompts.js';
 import { chatJsonAsync, VeniceError, type ChatMessage, type JsonSchemaSpec } from './venice.js';
 
 /**
@@ -134,15 +126,9 @@ function checkContactFields<T extends Partial<Record<keyof ContactRead, string>>
   return checked as T;
 }
 
-// A contact read from a profile screenshot (POST /ai/contact-from-screenshot).
+// A contact read from a profile screenshot or an X profile's text (POST /ai/contact-from-screenshot,
+// /ai/contact-from-x-profile).
 export const contactReadTask: AiTask<ContactRead> = { schema: contactSchema, check: checkContactFields };
-
-// From link's assistant pass on an X profile (POST /ai/contact-from-x-profile): the other handles and
-// the place.
-export const xProfileContactTask: AiTask<ContactFromXProfileAiResponse> = {
-  schema: xProfileContactSchema,
-  check: checkContactFields,
-};
 
 // The model check's judge: whether a chat turn's reply answered the request, and why in one line.
 export const judgeTask: AiTask<{ pass: boolean; reason: string }> = {

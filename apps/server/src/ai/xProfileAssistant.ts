@@ -5,7 +5,7 @@ import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
 import { xProfileMessages } from './prompts.js';
-import { runChosenModelTask, xProfileContactTask } from './tasks.js';
+import { contactReadTask, runChosenModelTask } from './tasks.js';
 
 /**
  * The Bluesky, OnlyFans and JFF handles the profile's fields name, and its location split into its
@@ -28,7 +28,7 @@ export async function readXProfileWithAssistantAsync({
     db,
     user,
     kind: 'writing',
-    task: xProfileContactTask,
+    task: contactReadTask,
     messagesAsync: readInstructions(db, user).then((instructions) =>
       xProfileMessages(instructions.contactXProfile, profile),
     ),

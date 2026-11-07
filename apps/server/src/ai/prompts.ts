@@ -1,14 +1,13 @@
 // The AI's prompts and the JSON each model must answer with.
 import {
   chatReplyFieldsSchema,
-  contactFromXProfileAiResponseSchema,
+  CONTACT_HANDLES,
   contactReadSchema,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
   type ChatTurn,
   type ContactFromXProfileAiRequest,
-  type ContactFromXProfileAiResponse,
   type ContactRead,
   type Instructions,
   type PersonaFields,
@@ -27,6 +26,18 @@ export type Persona = PersonaFields | null;
 export function fillTemplate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? values[name]! : match));
 }
+
+// The fields a contact read returns and how, for From screenshot and From link alike (their
+// instructions' `{fields}`). Not one of the editable instructions (the owner's call): it follows the
+// contact's own fields, so a handle added to CONTACT_HANDLES is asked for by both, with the keys
+// contactSchema holds the reply to.
+export const CONTACT_FIELDS_FORMAT = [
+  "Return only a JSON object with these keys, each a string, and an empty string for what isn't there:",
+  '- "name": the name they show',
+  ...CONTACT_HANDLES.map(({ field, label }) => `- "${field}": their ${label} handle, without @ and without a URL`),
+  '- "city", "state" and "country": where they live, with official English names; "state" is the state or province, only in the US. Always try to name the country, even when only a city or a region is given ("East Coast Canada" is in Canada; a flag names its country).',
+  'No commentary or Markdown.',
+].join('\n');
 
 // Only how a writing compare answers, not what it writes, so it isn't one of the editable
 // instructions (the owner's call): the prompt box stays all the guidance a model gets. It names
@@ -232,7 +243,7 @@ export function writingBriefingText(
 
 /**
  * From link's question about an X profile: `template` (instructions.contactXProfile) with
- * `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
+ * `{fields}` (CONTACT_FIELDS_FORMAT) and `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
  * "Location: …", "Website: …"; an empty field's line left out), as the one user message (a model
  * behind Venice refuses a request with only a system message). The model gets these lines, never
  * the page.
@@ -249,7 +260,7 @@ export function xProfileMessages(template: string, profile: ContactFromXProfileA
     .filter(([, value]) => value.trim())
     .map(([label, value]) => `${label}: ${value.trim()}`)
     .join('\n');
-  return [{ role: 'user', content: fillTemplate(template, { profile: text }) }];
+  return [{ role: 'user', content: fillTemplate(template, { fields: CONTACT_FIELDS_FORMAT, profile: text }) }];
 }
 
 /**
@@ -377,10 +388,4 @@ function contactFieldsSpec<K extends string>(name: string, fields: readonly K[])
 export const contactSchema: JsonSchemaSpec<ContactRead> = contactFieldsSpec(
   'contact',
   contactReadSchema.keyof().options,
-);
-
-// What From link's assistant pass reads from an X profile: the other handles and the place.
-export const xProfileContactSchema: JsonSchemaSpec<ContactFromXProfileAiResponse> = contactFieldsSpec(
-  'x_profile_contact',
-  contactFromXProfileAiResponseSchema.keyof().options,
 );

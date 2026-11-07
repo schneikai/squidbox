@@ -4,7 +4,7 @@ import { imageDataUrl, type ContactRead } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
-import { visionMessages } from './prompts.js';
+import { CONTACT_FIELDS_FORMAT, fillTemplate, visionMessages } from './prompts.js';
 import { contactReadTask, runChosenModelTask } from './tasks.js';
 
 /**
@@ -27,7 +27,7 @@ export async function readContactScreenshotAsync({
   async function messagesAsync() {
     const instructions = await readInstructions(db, user);
     return visionMessages({
-      prompt: instructions.contactScreenshot,
+      prompt: fillTemplate(instructions.contactScreenshot, { fields: CONTACT_FIELDS_FORMAT }),
       imageDataUrl: imageDataUrl(image),
     });
   }
