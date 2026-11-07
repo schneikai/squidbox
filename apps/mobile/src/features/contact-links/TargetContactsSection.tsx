@@ -1,6 +1,8 @@
 import type { ContactLinkRecord } from '@squidbox/shared';
 import { router } from 'expo-router';
 
+import TargetContactChip from './TargetContactChip';
+
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -19,7 +21,8 @@ type TargetContactsSectionProps = {
 
 /**
  * The Contacts section of a photo, album or post (`targetType`, `targetId`): a chip per contact on
- * it, opening the contact, and Add, which opens the Add contacts sheet (where one is taken off too).
+ * it, opening the contact (its × takes it off, TargetContactChip), and Add, which
+ * opens the Add contacts sheet (where one is taken off too).
  * Inside a sheet (a photo, album or post opened in New post or Compare) the chips only show who is
  * on it: a contact and the Add contacts sheet open from the main app, never as a second sheet or a
  * screen that edits as you type inside a draft. `guardPress` may wrap the presses (useDetailsPanelDrag's); `isLive: false` reads them once.
@@ -40,15 +43,24 @@ export default function TargetContactsSection({
     <>
       <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
       <ChipRow>
-        {contacts?.map((contact) => (
-          <Chip
-            key={contact.id}
-            label={contact.name}
-            size="large"
-            leading={<ContactAvatar contact={contact} size="chip" />}
-            onPress={isInSheet ? undefined : guardPress(() => router.navigate(`/contact/${contact.id}`))}
-          />
-        ))}
+        {contacts?.map((contact) =>
+          isInSheet ? (
+            <Chip
+              key={contact.id}
+              label={contact.name}
+              size="large"
+              leading={<ContactAvatar contact={contact} size="chip" />}
+            />
+          ) : (
+            <TargetContactChip
+              key={contact.id}
+              contact={contact}
+              targetType={targetType}
+              targetId={targetId}
+              onOpen={guardPress(() => router.navigate(`/contact/${contact.id}`))}
+            />
+          ),
+        )}
         {!isInSheet && (
           <Chip
             variant="add"

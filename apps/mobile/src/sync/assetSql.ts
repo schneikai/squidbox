@@ -118,6 +118,12 @@ export function contactTargetIds(contactId: string, targetType: 'asset' | 'album
   return sql`(select target_id from contact_links where contact_id = ${contactId} and target_type = ${targetType} and deleted_at is null)`;
 }
 
+/** The ids of the live, untrashed photos a contact is on, through its live links. */
+export function contactPhotoIds(contactId: string): SQL {
+  return sql`(select l.target_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
+    where l.contact_id = ${contactId} and l.target_type = 'asset' and l.deleted_at is null)`;
+}
+
 /**
  * The ids of the assets of a post's live albums (the albums holding any of the assets the post
  * screen shows, its thread's following posts' included, so not the purged), through live edges. A

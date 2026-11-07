@@ -25,6 +25,8 @@ export type ChipProps = Pick<
   variant?: ChipVariant;
   icon?: IconName;
   leading?: ReactNode;
+  onRemove?: () => void;
+  removeLabel?: string;
   isSelected?: boolean;
   size?: 'regular' | 'large';
   style?: StyleProp<ViewStyle>;
@@ -43,6 +45,8 @@ export type ChipProps = Pick<
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
+ * `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
+ * what VoiceOver reads for it.
  * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts).
  * style is for layout only.
  */
@@ -51,6 +55,8 @@ export default function Chip({
   variant = 'tag',
   icon,
   leading,
+  onRemove,
+  removeLabel = 'Remove',
   isSelected = false,
   disabled = false,
   onPress,
@@ -96,6 +102,37 @@ export default function Chip({
     return (
       <View accessibilityLabel={accessibilityLabel} style={[frame, disabled && styles.disabled, style]}>
         {content}
+      </View>
+    );
+  }
+
+  const remove = onRemove && (
+    <Pressable
+      onPress={onRemove}
+      hitSlop={space.sm}
+      accessibilityRole="button"
+      accessibilityLabel={removeLabel}
+      style={({ pressed }) => [styles.remove, pressed && press.flat]}
+    >
+      <Icon name="close" size={sizes.menuIcon} color={colors.text.secondary} />
+    </Pressable>
+  );
+
+  if (remove) {
+    return (
+      <View style={[frame, styles.withRemove, disabled && styles.disabled, style]}>
+        <Pressable
+          onPress={onPress}
+          hitSlop={space.xs}
+          disabled={disabled}
+          accessibilityRole={accessibilityRole}
+          accessibilityLabel={accessibilityLabel}
+          accessibilityHint={accessibilityHint}
+          style={({ pressed }) => [styles.chip, pressed && press.flat]}
+        >
+          {content}
+        </Pressable>
+        {remove}
       </View>
     );
   }
@@ -164,6 +201,13 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: disabledOpacity,
+  },
+  // The × sits in the pill's end padding, as close to the label as the leading node is.
+  withRemove: {
+    paddingRight: space.xs,
+  },
+  remove: {
+    padding: space.hair,
   },
   label: {
     ...textStyles.subheadline,
