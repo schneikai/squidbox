@@ -7,22 +7,17 @@ import contactPlace from './contactPlace';
 import type { ContactSummary } from './contactQuery';
 
 import Divider from '@/components/Divider';
-import Icon from '@/components/Icon';
-import IconSlotContext from '@/components/IconSlotContext';
+import RowSlots from '@/components/RowSlots';
 import SelectIndicator from '@/components/SelectIndicator';
 import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContacts from '@/features/contacts-context/useContacts';
 import useHaptics from '@/hooks/useHaptics';
-import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
+import { colors, layout, press, radii, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 // Between the avatar and the text; the divider starts where the text does.
-const GAP = layout.rowLeadingGap;
-const AVATAR_INSET = layout.rowInset + sizes.avatar.row + GAP;
-// The row's inset at its end, outside the press area: a trailing 44 pt button's glyph ends rowInset
-// from the edge, and so does the text, with the press area's own padding.
-const END_INSET = layout.rowInset - (sizes.iconButton - sizes.icon) / 2;
+const AVATAR_INSET = layout.rowInset + sizes.avatar.row + layout.rowLeadingGap;
 
 /**
  * A contact in a list of contacts: its avatar (with the favorite's heart), name, place (wrapping
@@ -81,41 +76,41 @@ function ContactRow({
 
   return (
     <View style={[styles.surface, isFirst && styles.first, isLast && styles.last]}>
-      <View style={styles.row}>
-        <Pressable
-          style={({ pressed }) => [styles.pressable, pressed && press.flat]}
-          onPress={handlePress}
-          onLongPress={handleLongPress}
-          accessibilityRole="button"
-          accessibilityState={canFavorite ? undefined : { selected: isSelected }}
+      <Pressable
+        style={({ pressed }) => pressed && press.flat}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        accessibilityRole="button"
+        accessibilityState={canFavorite ? undefined : { selected: isSelected }}
+      >
+        <RowSlots
+          leading={
+            canFavorite ? (
+              <SuperPressable
+                onPress={handlePress}
+                onDoublePress={handleToggleFavorite}
+                onLongPress={handleLongPress}
+                accessibilityRole="button"
+                accessibilityLabel={contact.name}
+                accessibilityHint={
+                  contact.isFavorite ? 'Double tap to remove from favorites' : 'Double tap to favorite'
+                }
+              >
+                {avatar}
+              </SuperPressable>
+            ) : (
+              avatar
+            )
+          }
+          trailing={canFavorite ? trailing : <SelectIndicator isSelected={isSelected} />}
+          hasChevron={canFavorite}
+          size="small"
         >
-          {canFavorite ? (
-            <SuperPressable
-              onPress={handlePress}
-              onDoublePress={handleToggleFavorite}
-              onLongPress={handleLongPress}
-              accessibilityRole="button"
-              accessibilityLabel={contact.name}
-              accessibilityHint={contact.isFavorite ? 'Double tap to remove from favorites' : 'Double tap to favorite'}
-            >
-              {avatar}
-            </SuperPressable>
-          ) : (
-            avatar
-          )}
-          <View style={styles.labels}>
-            <Text style={listTextStyles.name}>{contact.name}</Text>
-            {!!subtitle && <Text style={listTextStyles.detail}>{subtitle}</Text>}
-            {!!contact.listNames?.length && <ContactListPills names={contact.listNames} />}
-          </View>
-          {!canFavorite && <SelectIndicator isSelected={isSelected} style={styles.indicator} />}
-          {canFavorite && !trailing && (
-            <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
-          )}
-        </Pressable>
-        {/* A full 44 pt slot, so its icon sits in from the card's edge. */}
-        <IconSlotContext.Provider value>{trailing}</IconSlotContext.Provider>
-      </View>
+          <Text style={listTextStyles.name}>{contact.name}</Text>
+          {!!subtitle && <Text style={listTextStyles.detail}>{subtitle}</Text>}
+          {!!contact.listNames?.length && <ContactListPills names={contact.listNames} />}
+        </RowSlots>
+      </Pressable>
       {!isLast && <Divider style={styles.divider} />}
     </View>
   );
@@ -135,26 +130,6 @@ const styles = StyleSheet.create({
   last: {
     borderBottomLeftRadius: radii.card,
     borderBottomRightRadius: radii.card,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: END_INSET,
-  },
-  pressable: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: GAP,
-    paddingLeft: layout.rowInset,
-    paddingRight: layout.rowInset - END_INSET,
-    paddingVertical: layout.rowPaddingYCompact,
-  },
-  labels: {
-    flex: 1,
-  },
-  indicator: {
-    marginRight: space.xs,
   },
   divider: {
     marginLeft: AVATAR_INSET,

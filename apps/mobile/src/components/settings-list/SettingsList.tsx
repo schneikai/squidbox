@@ -11,10 +11,9 @@ import {
 import type { Palette } from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
-import Icon from '@/components/Icon';
-import { LIST_INDICATOR_SIZE } from '@/components/SelectIndicator';
+import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
-import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, press, space, textStyles } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -65,14 +64,12 @@ export type RowProps = {
   children?: ReactNode;
 };
 
+// A row of a section card, laid out in RowSlots (its slots, chevron and pick rules hold here).
 // The label always keeps its width; a long value wraps onto more lines beside it, as Apple's
 // guidance prefers over truncating or shrinking text.
 // `label` is its text, or a component that takes the label's place (a model's summary). `leading`
-// goes before it (an icon), `description` is secondary text under it. `hasChevron` ends it with a
-// chevron (it opens a screen) while nothing else is at its end: `children` (a list's avatars) take
-// the chevron's place, a value keeps it beside it, `isSelected` makes it a row
-// of a pick-one list: the accent check in front when it is the current one, an empty slot as wide as
-// SelectIndicator's circle when not, so the names line up as in a pick-several list.
+// goes before it (an icon), `description` is secondary text under it. `children` go at its
+// end (a list's avatars) and take `hasChevron`'s chevron's place; `isSelected` makes it a pick-one row.
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
 // long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
 // (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
@@ -94,40 +91,22 @@ export function Row({
   accessibilityState,
   children,
 }: RowProps) {
-  const hasTrailing = Children.toArray(children).length > 0;
   const content = (
-    <View style={[styles.row, size === 'small' && styles.rowSmall]}>
-      {(leading != null || isSelected !== undefined) && (
-        <View style={styles.rowLeading}>
-          {isSelected !== undefined && (
-            <View style={styles.pickSlot}>
-              {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
-            </View>
-          )}
-          {leading}
-        </View>
+    <RowSlots
+      leading={leading}
+      isSelected={isSelected}
+      value={value ? <RNText style={styles.rowValue}>{value}</RNText> : null}
+      trailing={Children.toArray(children).length > 0 ? children : null}
+      hasChevron={hasChevron}
+      size={size}
+    >
+      {typeof label === 'string' ? (
+        <RNText style={[styles.rowLabel, colorPalette === 'danger' && styles.rowLabelDanger]}>{label}</RNText>
+      ) : (
+        label
       )}
-      <View style={value ? styles.rowTextKept : styles.rowText}>
-        {typeof label === 'string' ? (
-          <RNText style={[styles.rowLabel, colorPalette === 'danger' && styles.rowLabelDanger]}>{label}</RNText>
-        ) : (
-          label
-        )}
-        {description != null && <RNText style={styles.rowDescription}>{description}</RNText>}
-      </View>
-      <View style={[styles.rowRight, value && styles.rowRightFilling]}>
-        {value ? <RNText style={styles.rowValue}>{value}</RNText> : null}
-        {children}
-        {hasChevron && !hasTrailing && (
-          <Icon
-            name="chevron-right"
-            size={sizes.iconSmall}
-            color={colors.text.tertiary}
-            style={value && styles.chevronAfterValue}
-          />
-        )}
-      </View>
-    </View>
+      {description != null && <RNText style={styles.rowDescription}>{description}</RNText>}
+    </RowSlots>
   );
 
   if (onPress) {
@@ -154,43 +133,9 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: space.xs,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: sizes.iconButton,
-    paddingHorizontal: layout.rowInset,
-    paddingVertical: layout.rowPaddingY,
-  },
   rowLabel: {
     ...textStyles.body,
     color: colors.text.primary,
-  },
-  rowSmall: {
-    paddingVertical: layout.rowPaddingYCompact,
-  },
-  // A value's chevron a little apart from it; a bare label's sits at rowRight's gap, like ThumbnailRow's.
-  chevronAfterValue: {
-    marginLeft: space.xs,
-  },
-  pickSlot: {
-    width: LIST_INDICATOR_SIZE,
-    alignItems: 'center',
-  },
-  rowLeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.rowLeadingGap,
-    marginRight: layout.rowLeadingGap,
-  },
-  rowText: {
-    flex: 1,
-    gap: space.hair,
-  },
-  // With a value the label takes its own width and the value the rest, so a long one wraps
-  // instead of squeezing the label away.
-  rowTextKept: {
-    gap: space.hair,
-    flexShrink: 0,
   },
   rowDescription: {
     ...textStyles.subheadline,
@@ -198,16 +143,6 @@ const styles = StyleSheet.create({
   },
   rowLabelDanger: {
     color: colors.status.danger,
-  },
-  rowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 1,
-    marginLeft: space.sm,
-  },
-  rowRightFilling: {
-    flex: 1,
-    justifyContent: 'flex-end',
   },
   rowValue: {
     ...textStyles.body,
