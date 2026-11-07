@@ -42,7 +42,9 @@ const LIST_NAMES = sql<
 
 /**
  * A list's members, or the contacts on a photo, album or post (several of one type with a list of
- * ids). `tagged`: the contacts on any photo, album or post; `deleted`: the deleted contacts.
+ * ids). `photosOf`: the contacts on the live, untrashed photos of an album or a post (a thread's
+ * posts too), which is how an album or post lists who is in it. `tagged`: the contacts on any photo,
+ * album or post; `deleted`: the deleted contacts.
  */
 export type ContactScope =
   | 'all'
@@ -50,7 +52,8 @@ export type ContactScope =
   | 'tagged'
   | 'deleted'
   | { listId: string }
-  | { targetType: ContactLinkRecord['targetType']; targetId: string | string[] };
+  | { targetType: ContactLinkRecord['targetType']; targetId: string | string[] }
+  | { photosOf: 'album' | 'post'; id: string };
 
 export type ContactDescriptor = {
   scope?: ContactScope;
@@ -81,9 +84,14 @@ export default function contactQuery({
   const searchText = search.trim().toLowerCase();
   const listId = typeof scope === 'object' && 'listId' in scope ? scope.listId : null;
   const target = typeof scope === 'object' && 'targetType' in scope ? scope : null;
+  const photosOf = typeof scope === 'object' && 'photosOf' in scope ? scope : null;
   const tables: SQLiteTable[] = [schema.contacts];
   if (listId) tables.push(schema.contactListMembers);
   if (target) tables.push(schema.contactLinks);
+  if (photosOf) {
+    tables.push(schema.contactLinks, schema.assets);
+    tables.push(...(photosOf.photosOf === 'album' ? [schema.albumAssets] : [schema.postAssets, schema.posts]));
+  }
   if (scope === 'tagged') tables.push(schema.contactLinks, schema.assets, schema.albums, schema.posts);
   if (withLists) tables.push(schema.contactLists, ...(listId ? [] : [schema.contactListMembers]));
 
@@ -101,6 +109,15 @@ export default function contactQuery({
     if (target) {
       const ids = Array.isArray(target.targetId) ? target.targetId : [target.targetId];
       return sql`${c.id} in (select contact_id from contact_links where target_type = ${target.targetType} and deleted_at is null and ${inJson(sql.raw('target_id'), ids)})`;
+    }
+    if (photosOf) {
+      const photoIds =
+        photosOf.photosOf === 'album'
+          ? sql`(select asset_id from album_assets where album_id = ${photosOf.id} and deleted_at is null)`
+          : sql`(select asset_id from post_assets where deleted_at is null and (post_id = ${photosOf.id} or post_id in
+              (select id from posts where thread_root_id = ${photosOf.id} and deleted_at is null)))`;
+      return sql`${c.id} in (select l.contact_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
+        where l.target_type = 'asset' and l.deleted_at is null and l.target_id in ${photoIds})`;
     }
     return undefined;
   })();

@@ -16,13 +16,21 @@ type TargetContactChipProps = {
   targetType: ContactLinkRecord['targetType'];
   targetId: string;
   onOpen: () => void;
+  isRemovable?: boolean;
 };
 
 /**
  * A contact on a photo, album or post: a tap opens the contact (`onOpen`), its × takes it off, as a
- * list's × does on the contact screen.
+ * list's × does on the contact screen. `isRemovable: false` drops the ×, for a contact an album or post
+ * lists through its photos.
  */
-export default function TargetContactChip({ contact, targetType, targetId, onOpen }: TargetContactChipProps) {
+export default function TargetContactChip({
+  contact,
+  targetType,
+  targetId,
+  onOpen,
+  isRemovable = true,
+}: TargetContactChipProps) {
   const { changeTargetContacts } = useContacts();
 
   function handleRemove() {
@@ -35,7 +43,7 @@ export default function TargetContactChip({ contact, targetType, targetId, onOpe
       size="large"
       leading={<ContactAvatar contact={contact} size="chip" />}
       onPress={onOpen}
-      onRemove={handleRemove}
+      onRemove={isRemovable ? handleRemove : undefined}
       removeLabel={`Remove ${contact.name} from this ${TARGET_NAMES[targetType]}`}
     />
   );

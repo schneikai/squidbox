@@ -186,7 +186,7 @@ describe("a contact's photos and albums", () => {
     expect(rows.map((row: { id: string }) => row.id)).toEqual(['al1']);
   });
 
-  it("a contact's albums and posts include those holding a photo it is on, not a trashed one", async () => {
+  it("a contact's albums and posts include those holding a photo it is on, not a trashed one, and they list it", async () => {
     await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya'], newId);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a2' }, ['maya'], newId);
@@ -201,6 +201,15 @@ describe("a contact's photos and albums", () => {
     const rows = await albumQuery({ scope: { contactId: 'maya' } }).read(db);
     expect(rows.map((row: { id: string }) => row.id)).toEqual(['al1']);
     expect((await postQuery({ scope: { contactId: 'maya' } }).read(db)).rows.map((row) => row.id)).toEqual(['p1']);
+    const listed = async (scope: { photosOf: 'album' | 'post'; id: string }) => contactQuery({ scope }).ids(db);
+    expect([await listed({ photosOf: 'album', id: 'al1' }), await listed({ photosOf: 'post', id: 'p1' })]).toEqual([
+      ['maya'],
+      ['maya'],
+    ]);
+    expect([await listed({ photosOf: 'album', id: 'al2' }), await listed({ photosOf: 'post', id: 'p2' })]).toEqual([
+      [],
+      [],
+    ]);
   });
 });
 

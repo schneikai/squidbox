@@ -47,7 +47,8 @@ export type ChipProps = Pick<
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
  * what VoiceOver reads for it.
- * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts).
+ * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts); a large tag
+ * is white with a hairline, to stand out on a screen's grey and on a white panel.
  * style is for layout only.
  */
 export default function Chip({
@@ -79,6 +80,7 @@ export default function Chip({
     isLifted && styles.lifted,
     !!leading && styles.withLeading,
     isLarge && styles.large,
+    isLarge && variant === 'tag' && !isSelected && styles.largeTag,
     isLarge && !!leading && styles.largeWithLeading,
   ];
   const content = (
@@ -178,6 +180,12 @@ const styles = StyleSheet.create({
   largeWithLeading: {
     paddingLeft: space.xs - chipFrame.borderWidth,
     paddingRight: space.md,
+  },
+  // White with a hairline, as a card is: a person stands out on a screen's grey, where the tag's grey
+  // would fade, and still on a white panel (a photo's details).
+  largeTag: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.border.divider,
   },
   largeLabel: textStyles.body,
   // A selected tag and the `lead` chip.
