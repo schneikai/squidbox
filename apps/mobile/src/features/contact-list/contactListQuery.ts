@@ -6,8 +6,8 @@ import type { SyncDb } from '@/sync/db/types';
 const l = schema.contactLists;
 const m = schema.contactListMembers;
 const c = schema.contacts;
-/** How many of a list's first members its row's avatar stack shows, behind the count. */
-export const LIST_STACK = 2;
+/** How many of a list's first members its row's avatar stack shows. */
+export const LIST_STACK = 3;
 
 /** One of a list's first members, for its row's avatar stack. */
 export type ListMember = Pick<schema.ContactRow, 'id' | 'name' | 'avatarFilename'>;

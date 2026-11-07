@@ -53,6 +53,7 @@ export type RowProps = {
   leading?: ReactNode;
   value?: string | null;
   onPress?: () => void;
+  onLongPress?: () => void;
   disabled?: boolean;
   colorPalette?: Extract<Palette, 'danger'>;
   hasChevron?: boolean;
@@ -71,6 +72,7 @@ export type RowProps = {
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
 // long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
 // (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
+// `onLongPress` is for a row with a menu of its own (a list's Edit and Delete), on a pressable row.
 // `leading` may be several parts (a status icon and a thumbnail), set in a row.
 export function Row({
   label,
@@ -78,6 +80,7 @@ export function Row({
   leading,
   value,
   onPress,
+  onLongPress,
   disabled = false,
   colorPalette,
   hasChevron,
@@ -118,6 +121,7 @@ export function Row({
     return (
       <Pressable
         onPress={onPress}
+        onLongPress={onLongPress}
         disabled={disabled}
         accessibilityRole={accessibilityRole}
         accessibilityState={{ disabled, selected: isSelected, ...accessibilityState }}
