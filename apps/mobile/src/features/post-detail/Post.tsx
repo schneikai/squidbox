@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadParts from '@/components/ThreadParts';
@@ -52,13 +52,11 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 
       <TargetContactsSection targetType="post" targetId={post.id} isFlush />
 
-      <View style={styles.related}>
-        <ScreenSectionHeader title="Posted Albums" isFlush />
-        <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />
+      <ScreenSectionHeader title="Posted Albums" isFlush />
+      <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />
 
-        <ScreenSectionHeader title="Other Posts" isFlush />
-        <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
-      </View>
+      <ScreenSectionHeader title="Other Posts" isFlush />
+      <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
     </ScrollView>
   );
 }
@@ -69,8 +67,5 @@ const styles = StyleSheet.create({
   },
   writeWithAi: {
     marginTop: space.xxl,
-  },
-  related: {
-    marginTop: layout.sectionGap,
   },
 });
