@@ -211,37 +211,42 @@ describe('contactListQuery', () => {
 });
 
 describe('pinned list', () => {
+  const USER_ID = '00000000-0000-4000-8000-000000000001';
   const makeList = (id: string, fields: Partial<schema.ContactListRow> = {}) =>
     lists.create(db, { id, createdAt: 1, updatedAt: 1, deletedAt: null, name: id, notes: null, ...fields });
   const pinnedId = async () =>
-    pinnedList(
-      await contactListQuery({ withMembers: false }).read(db),
-      await readContactSettings(db, '00000000-0000-4000-8000-000000000001'),
-    )?.id ?? null;
+    pinnedList(await contactListQuery({ withMembers: false }).read(db), await readContactSettings(db, USER_ID))?.id ??
+    null;
 
   it('pinning a list unpins the one pinned before, and pinning Favorites unpins every list', async () => {
     await makeList('hiking');
     await makeList('brands');
-    await lists.pin(db, { listId: 'hiking' }, '00000000-0000-4000-8000-000000000001');
-    await lists.pin(db, { listId: 'brands' }, '00000000-0000-4000-8000-000000000001');
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    await lists.pin(db, { listId: 'brands' }, USER_ID);
     expect(await pinnedId()).toBe('brands');
     expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(1);
-    await lists.pin(db, null, '00000000-0000-4000-8000-000000000001');
+    await lists.pin(db, null, USER_ID);
     expect(await pinnedId()).toBeNull();
   });
 
   it('pins Tagged in the contact settings, in place of a pinned list, and a list in place of it', async () => {
     await makeList('hiking');
-    await lists.pin(db, { listId: 'hiking' }, '00000000-0000-4000-8000-000000000001');
-    await lists.pin(db, { builtInId: 'tagged' }, '00000000-0000-4000-8000-000000000001');
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    await lists.pin(db, { builtInId: 'tagged' }, USER_ID);
     expect(await pinnedId()).toBe('tagged');
     expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(0);
-    await lists.pin(db, { listId: 'hiking' }, '00000000-0000-4000-8000-000000000001');
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
     expect(await pinnedId()).toBe('hiking');
-    expect(await readContactSettings(db, '00000000-0000-4000-8000-000000000001')).toEqual({
-      pinnedListId: null,
-      pinnedAt: null,
-    });
+    // Pinning the list already pinned again changes nothing.
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    expect(await pinnedId()).toBe('hiking');
+  });
+
+  it('shows Favorites when it was picked after another device pinned Tagged', () => {
+    expect(pinnedList([], { pinnedListId: 'tagged', pinnedAt: 20 })?.id).toBe('tagged');
+    expect(
+      pinnedList([{ id: 'hiking', name: 'hiking', pinnedAt: 10 }], { pinnedListId: 'favorites', pinnedAt: 30 }),
+    ).toBeNull();
   });
 
   it('shows Tagged or a list, whichever two devices pinned last', async () => {

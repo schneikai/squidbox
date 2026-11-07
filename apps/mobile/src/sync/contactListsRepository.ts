@@ -22,15 +22,19 @@ export type PinTarget = { listId: string } | { builtInId: string } | null;
 export async function pin(db: SyncDb, target: PinTarget, userId: string | null): Promise<void> {
   const id = target && 'listId' in target ? target.listId : null;
   const builtInId = target && 'builtInId' in target ? target.builtInId : null;
+  if (builtInId && !userId) throw new Error('A built-in list is pinned only in an account library');
   await db.transaction(async (tx) => {
-    if (userId) await pinBuiltInList(tx, userId, builtInId);
     const rows = await tx
       .select({ id: l.id })
       .from(l)
       .where(and(isNotNull(l.pinnedAt), isNull(l.deletedAt)));
     const pinned = rows.map((row) => row.id);
+    const isNewList = !!id && !pinned.includes(id);
+    // The settings name Favorites when a list or nothing is pinned, timestamped, so the pick is the
+    // latest against another device's too; a list pinned in the same write gets a time no earlier.
+    if (userId && (!id || isNewList)) await pinBuiltInList(tx, userId, builtInId ?? 'favorites');
     const unpinned = pinned.filter((listId) => listId !== id);
     if (unpinned.length) await updateAll(tx, unpinned, { pinnedAt: null });
-    if (id && !pinned.includes(id)) await update(tx, id, { pinnedAt: Date.now() });
+    if (isNewList) await update(tx, id, { pinnedAt: Date.now() });
   });
 }

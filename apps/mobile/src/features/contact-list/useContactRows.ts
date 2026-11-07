@@ -7,7 +7,15 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * (contactQuery's summaries); undefined while reading. `isLive: false` stops re-reading them
  * (useLiveQuery's), say while they are hidden.
  */
-export default function useContactRows(descriptor: ContactDescriptor, { isLive }: { isLive?: boolean } = {}) {
+export default function useContactRows(
+  descriptor: ContactDescriptor,
+  { isLive, limit }: { isLive?: boolean; limit?: number } = {},
+) {
   const query = contactQuery(descriptor);
-  return useLiveQuery((db) => query.summaries(db), query.tables, [query.descriptor], { isLive });
+  return useLiveQuery(
+    (db) => (limit === undefined ? query.summaries(db) : query.read(db, { limit }).then(({ rows }) => rows)),
+    query.tables,
+    [query.descriptor, limit],
+    { isLive },
+  );
 }

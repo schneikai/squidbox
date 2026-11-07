@@ -22,15 +22,19 @@ export async function readContactSettings(db: SyncDb, userId: string): Promise<C
   return row ?? EMPTY_SETTINGS;
 }
 
-/** Pins the built-in list `listId` to the top of Contacts now, or null to unpin it (a no-op unpinned). */
-export function pinBuiltInList(db: SyncDb, userId: string, listId: string | null): Promise<void> {
+/**
+ * Pins the built-in list `listId` to the top of Contacts now, or `favorites` for none (a list of the
+ * user's is pinned on its own record): timestamped either way, so the latest pick wins over one
+ * another device made before they synced. Picking what is already pinned writes nothing.
+ */
+export function pinBuiltInList(db: SyncDb, userId: string, listId: string): Promise<void> {
   return saveUserRecord(
     db,
     'contact_settings',
     t,
     userId,
     (stored): Partial<ContactSettings> =>
-      listId ? { pinnedListId: listId, pinnedAt: Date.now() } : stored?.pinnedListId ? EMPTY_SETTINGS : {},
+      stored?.pinnedListId === listId ? {} : { pinnedListId: listId, pinnedAt: Date.now() },
     EMPTY_SETTINGS,
   );
 }

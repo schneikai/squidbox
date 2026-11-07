@@ -26,8 +26,8 @@ export default function PinContactListScreen() {
   const pin = usePinnedContactList();
   const builtInRows = useBuiltInContactListRows();
   const builtIns = useMemo(
-    () => builtInRows?.filter((list) => PINNABLE.includes(list.id) && (list.id === 'favorites' || pin?.canPinBuiltIn)),
-    [builtInRows, pin?.canPinBuiltIn],
+    () => builtInRows?.filter((list) => PINNABLE.includes(list.id) && (list.id === 'favorites' || pin.canPinBuiltIn)),
+    [builtInRows, pin.canPinBuiltIn],
   );
 
   function handlePin(listId: string | null) {
@@ -48,7 +48,7 @@ export default function PinContactListScreen() {
       >
         <ContactListPicker
           isSingle
-          selectedIds={[pin?.pinned?.id ?? 'favorites']}
+          selectedIds={[pin.pinned?.id ?? 'favorites']}
           onChange={([listId]) => handlePin(listId ?? null)}
           builtIns={builtIns}
         />

@@ -39,6 +39,7 @@ const SEGMENTS: SegmentedPillItem<Segment>[] = [
   { key: 'lists', label: 'Lists' },
 ];
 const PAGE_SIZE = 100;
+const PINNED_MAX = 30;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
 // The Contacts tab: the contacts (favorites first as a row of avatars, or the list the pen pinned in their place, then everyone, by name or recently added) or
@@ -66,17 +67,17 @@ export default function ContactsScreen() {
   const builtInLists = useBuiltInContactListRows({ isLive: segment === 'lists' });
   // What is pinned in place of Favorites, and whether there is anything else to pin (the pen).
   const pin = usePinnedContactList({ isLive: isContacts && !isSearching });
-  const pinned = pin?.pinned ?? null;
-  const canChangePin = !!pin && (pin.canPinBuiltIn || pin.lists.length > 0);
+  const pinned = pin.pinned ?? null;
+  const canChangePin = pin.canPinBuiltIn || !!pin.lists?.length;
   const pinnedContacts = useContactRows(
     { scope: pinned?.scope ?? 'favorites' },
-    { isLive: isContacts && !isSearching },
+    // A row of avatars: Tagged can hold nearly everyone.
+    { isLive: isContacts && !isSearching, limit: PINNED_MAX },
   );
   // Over the contacts once there are any, even while it is empty, so the pen can change it.
   const hasPinned = !isSearching && !!pinnedContacts && (pinnedContacts.length > 0 || !!pinned || !!count);
-  const pinnedEmptyText = pinned
-    ? `${builtInContactList(pinned.id)?.emptyTitle ?? 'No contacts in this list yet'}.`
-    : "No favorites yet. Double-tap a contact's photo to add one.";
+  const emptyTitle = builtInContactList(pinned?.id ?? 'favorites')?.emptyTitle ?? 'No contacts in this list yet';
+  const pinnedEmptyText = pinned ? `${emptyTitle}.` : `${emptyTitle}. Double-tap a contact's photo to add one.`;
   const shownLists = useMemo(
     () => lists && builtInLists && shownContactLists([...builtInLists, ...lists], searchText, listSortOrder),
     [lists, builtInLists, searchText, listSortOrder],
