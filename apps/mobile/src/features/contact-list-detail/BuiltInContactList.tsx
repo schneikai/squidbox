@@ -42,7 +42,7 @@ export default function BuiltInContactList({ list }: BuiltInContactListProps) {
   const { sortOrder, sortContacts } = useContactSort();
   const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
   // Trimmed, so a trailing space doesn't read the list again.
-  const query = contactQuery({ scope: list.scope, search: searchText.trim(), sort: sortOrder });
+  const query = contactQuery({ scope: list.scope, search: searchText.trim(), sort: sortOrder, withLists: true });
   const { rows, count, loadMore } = usePagedQuery(query, 100);
   const attachList = useListRefCallback(listRef);
   const isDeleted = list.id === 'deleted';

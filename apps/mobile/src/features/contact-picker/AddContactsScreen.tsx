@@ -12,7 +12,6 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import ContactRow from '@/features/contact-list/ContactRow';
-import contactPlace from '@/features/contact-list/contactPlace';
 import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSearchText from '@/features/contact-list/contactSearchText';
 import useContactRows from '@/features/contact-list/useContactRows';
@@ -146,7 +145,7 @@ type PickRowProps = {
   isLast: boolean;
 };
 
-// A contact to pick, with its place under its name.
+// A contact to pick, with its place under its name (ContactRow's).
 const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, isLast }: PickRowProps) {
   return (
     <View style={styles.gutter}>
@@ -154,7 +153,6 @@ const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, 
         contact={contact}
         onPress={() => onToggle(contact.id)}
         isSelected={isSelected}
-        subtitle={contactPlace(contact)}
         isFirst={isFirst}
         isLast={isLast}
       />

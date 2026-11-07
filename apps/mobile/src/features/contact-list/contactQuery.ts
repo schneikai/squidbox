@@ -27,8 +27,18 @@ const SEARCHED = {
 // What rows, chips and avatars show of a contact, and a search runs over (no notes).
 const SUMMARY = { id: c.id, isFavorite: c.isFavorite, avatarFilename: c.avatarFilename, ...SEARCHED };
 
-/** What a row, chip or avatar shows of a contact (contactQuery's `summaries`). */
-export type ContactSummary = Pick<schema.ContactRow, 'id' | 'isFavorite' | 'avatarFilename' | keyof typeof SEARCHED>;
+/**
+ * What a row, chip or avatar shows of a contact (contactQuery's `summaries`), and with `withLists`
+ * the names of the lists it is in, by name.
+ */
+export type ContactSummary = Pick<schema.ContactRow, 'id' | 'isFavorite' | 'avatarFilename' | keyof typeof SEARCHED> & {
+  listNames?: string[];
+};
+
+// The names of the live lists a contact is in, by name, as a JSON array.
+const LIST_NAMES = sql<
+  string | null
+>`(select json_group_array(name) from (select l.name as name from contact_list_members m join contact_lists l on l.id = m.list_id and l.deleted_at is null where m.contact_id = contacts.id and m.deleted_at is null group by l.id order by l.name collate nocase, l.id))`;
 
 /**
  * A list's members, or the contacts on a photo, album or post (several of one type with a list of
@@ -49,6 +59,8 @@ export type ContactDescriptor = {
   search?: string;
   // By name ignoring case, or recently added first: to the app, or in a list's scope to that list.
   sort?: ContactSort;
+  // `read`'s rows carry the names of the lists each contact is in (a contact row's pills).
+  withLists?: boolean;
 };
 
 /**
@@ -60,13 +72,19 @@ export type ContactDescriptor = {
  * were deleted, newest first), with an id tie-break so pages see one stable
  * order.
  */
-export default function contactQuery({ scope = 'all', search = '', sort = 'name:asc' }: ContactDescriptor) {
+export default function contactQuery({
+  scope = 'all',
+  search = '',
+  sort = 'name:asc',
+  withLists = false,
+}: ContactDescriptor) {
   const searchText = search.trim().toLowerCase();
   const listId = typeof scope === 'object' && 'listId' in scope ? scope.listId : null;
   const target = typeof scope === 'object' && 'targetType' in scope ? scope : null;
   const tables: SQLiteTable[] = [schema.contacts];
   if (listId) tables.push(schema.contactListMembers);
   if (target || scope === 'tagged') tables.push(schema.contactLinks);
+  if (withLists) tables.push(schema.contactLists, ...(listId ? [] : [schema.contactListMembers]));
 
   const scopeCondition = ((): SQL | undefined => {
     if (scope === 'favorites') return eq(c.isFavorite, true);
@@ -111,19 +129,24 @@ export default function contactQuery({ scope = 'all', search = '', sort = 'name:
   const where = (ids: string[] | null) => and(liveness, scopeCondition, ids ? inJson(c.id, ids) : undefined);
 
   return {
-    descriptor: { scope, search, sort },
+    descriptor: { scope, search, sort, withLists },
     tables,
     read(db: SyncDb, { limit }: { limit?: number } = {}): Promise<{ rows: ContactSummary[]; count: number }> {
       return db.transaction(async (tx) => {
         const ids = await matchedIds(tx);
         const [{ count: total }] = await tx.select({ count: count() }).from(c).where(where(ids));
         const query = tx
-          .select(SUMMARY)
+          .select({ ...SUMMARY, listNames: withLists ? LIST_NAMES : sql<string | null>`null` })
           .from(c)
           .where(where(ids))
           .orderBy(...order);
         const rows = await (limit === undefined ? query : query.limit(limit));
-        return { rows, count: total };
+        return {
+          rows: rows.map(({ listNames, ...row }) =>
+            listNames == null ? row : { ...row, listNames: JSON.parse(listNames) as string[] },
+          ),
+          count: total,
+        };
       });
     },
     summaries(db: SyncDb): Promise<ContactSummary[]> {

@@ -42,6 +42,21 @@ beforeEach(async () => {
 const ids = (query: ReturnType<typeof contactQuery>) => query.ids(db);
 
 describe('contactQuery', () => {
+  it('withLists names the live lists each contact is in, by name', async () => {
+    const list = (id: string, name: string, deletedAt: number | null = null) =>
+      lists.create(db, { id, createdAt: 1, updatedAt: 1, deletedAt, name, notes: null });
+    await list('l1', 'Print buyers');
+    await list('l2', 'hiking crew');
+    await list('l3', 'Gone', 5);
+    await contactListMembers.addToEach(db, [{ listId: 'l1' }, { listId: 'l2' }, { listId: 'l3' }], ['maya'], newId);
+    const { rows } = await contactQuery({ withLists: true }).read(db);
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.listNames]))).toEqual({
+      ana: [],
+      ben: [],
+      maya: ['hiking crew', 'Print buyers'],
+    });
+  });
+
   it('Tagged lists the contacts on any photo, album or post, once each', async () => {
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
     await contactLinks.add(db, { targetType: 'post', targetId: 'p1' }, ['maya'], newId);

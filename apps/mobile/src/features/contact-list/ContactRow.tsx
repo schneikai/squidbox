@@ -1,10 +1,10 @@
-import type { ContactHandleField } from '@squidbox/shared';
 import { router } from 'expo-router';
 import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import ContactListPills from './ContactListPills';
+import contactPlace from './contactPlace';
 import type { ContactSummary } from './contactQuery';
-import contactSubtitle from './contactSubtitle';
 
 import Divider from '@/components/Divider';
 import IconSlotContext from '@/components/IconSlotContext';
@@ -24,14 +24,15 @@ const AVATAR_INSET = layout.rowInset + sizes.avatar.row + GAP;
 const END_INSET = layout.rowInset - (sizes.iconButton - sizes.icon) / 2;
 
 /**
- * A contact in a list of contacts: its avatar (with the favorite's heart), name and "place ·
- * @handle" (wrapping onto more lines rather than cut off), and `trailing` at its end, beside the row's press area (its ⋯ menu). The rows of one list
+ * A contact in a list of contacts: its avatar (with the favorite's heart), name, place (wrapping
+ * onto more lines rather than cut off) and, when the row has them (contactQuery's `withLists`), its
+ * lists as pills (ContactListPills), and `trailing` at its end, beside the row's press area (its ⋯ menu). The rows of one list
  * read as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates
- * the rest. `subtitle` replaces the "place · @handle" line (a picker shows only the place). The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
+ * the rest. `subtitle` replaces the place line. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
  * a row to pick, with a selection circle at its end.
  */
 type ContactRowProps = {
-  contact: Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | 'isFavorite' | 'places' | ContactHandleField>;
+  contact: Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | 'isFavorite' | 'places' | 'listNames'>;
   subtitle?: string | null;
   trailing?: ReactNode;
   onPress?: () => void;
@@ -51,7 +52,7 @@ function ContactRow({
 }: ContactRowProps) {
   const { toggleFavoriteContact } = useContacts();
   const haptics = useHaptics();
-  const subtitle = givenSubtitle === undefined ? contactSubtitle(contact) : givenSubtitle;
+  const subtitle = givenSubtitle === undefined ? contactPlace(contact) : givenSubtitle;
   // A picker's row (isSelected given) only picks; a browsing row's avatar favorites on a double tap.
   const canFavorite = isSelected === undefined;
 
@@ -92,6 +93,7 @@ function ContactRow({
           <View style={styles.labels}>
             <Text style={listTextStyles.name}>{contact.name}</Text>
             {!!subtitle && <Text style={listTextStyles.detail}>{subtitle}</Text>}
+            {!!contact.listNames?.length && <ContactListPills names={contact.listNames} />}
           </View>
           {!canFavorite && <SelectIndicator isSelected={isSelected} style={styles.indicator} />}
         </Pressable>
