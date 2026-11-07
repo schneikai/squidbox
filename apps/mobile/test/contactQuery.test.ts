@@ -42,6 +42,21 @@ beforeEach(async () => {
 const ids = (query: ReturnType<typeof contactQuery>) => query.ids(db);
 
 describe('contactQuery', () => {
+  it('Tagged lists the contacts on any photo, album or post, once each', async () => {
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
+    await contactLinks.add(db, { targetType: 'post', targetId: 'p1' }, ['maya'], newId);
+    expect(await ids(contactQuery({ scope: 'tagged' }))).toEqual(['ana', 'maya']);
+  });
+
+  it('Deleted lists only the deleted contacts, the latest deleted first, until one is restored', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'old', name: 'Old', deletedAt: 5 }));
+    await contacts.create(db, makeContactRecord({ id: 'new', name: 'New', deletedAt: 9 }));
+    expect(await ids(contactQuery({ scope: 'deleted' }))).toEqual(['new', 'old']);
+    await contacts.update(db, 'new', { deletedAt: null });
+    expect(await ids(contactQuery({ scope: 'deleted' }))).toEqual(['old']);
+    expect(await ids(contactQuery({}))).toContain('new');
+  });
+
   it('lists the live contacts by name, ignoring case', async () => {
     await contacts.create(db, makeContactRecord({ id: 'gone', name: 'Zed', deletedAt: 9 }));
     expect(await ids(contactQuery({}))).toEqual(['ana', 'ben', 'maya']);

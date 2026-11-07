@@ -11,6 +11,7 @@ import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
 import pinnedList from './pinnedList';
 import useAddListAction from './useAddListAction';
+import useBuiltInContactListRows from './useBuiltInContactListRows';
 import useContactListRows from './useContactListRows';
 import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
@@ -40,7 +41,7 @@ const PAGE_SIZE = 100;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
 // The Contacts tab: the contacts (favorites first as a row of avatars, or the list the pen pinned in their place, then everyone, by name or recently added) or
-// the contact lists, switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
+// the contact lists (the built-in ones first: Favorites, Tagged, Deleted), switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
 export default function ContactsScreen() {
   const [segment, setSegment] = useState<Segment>('contacts');
   const { paddingTop, paddingBottom } = useScreenPadding('main');
@@ -57,6 +58,7 @@ export default function ContactsScreen() {
   // Each stays live only while it shows.
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
   const lists = useContactListRows({ isLive: segment === 'lists' });
+  const builtInLists = useBuiltInContactListRows({ isLive: segment === 'lists' });
   // The lists (the pen shows once there are some), and the one pinned in place of Favorites.
   const pinOptions = useContactListRows({ withMembers: false, isLive: isContacts && !isSearching });
   const pinned = pinnedList(pinOptions);
@@ -131,14 +133,19 @@ export default function ContactsScreen() {
         </>
       ) : (
         lists &&
-        (lists.length > 0 ? (
+        builtInLists && (
           <>
-            <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} size="small" isFirst />
-            <ContactListRows lists={lists} />
+            <ContactListRows lists={builtInLists} />
+            {lists.length > 0 ? (
+              <>
+                <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} size="small" />
+                <ContactListRows lists={lists} />
+              </>
+            ) : (
+              <EmptyState icon="list" title="No lists yet" subtitle="Tap + to make one." />
+            )}
           </>
-        ) : (
-          <EmptyState icon="list" title="No lists yet" subtitle="Tap + to make one." />
-        ))
+        )
       )}
     </View>
   );

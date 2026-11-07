@@ -13,10 +13,12 @@ const STACK_SIZE = sizes.avatar.row;
 const OVERLAP = -space.xxl;
 
 /**
- * The contact lists (contactListQuery's rows) in one section: each list's name and count, the
+ * The contact lists (contactListQuery's rows, or the built-in ones) in one section: each list's name and count, the
  * avatars of its first members overlapping with "+N" for the rest, opening the list.
  */
-type ContactListRowsProps = { lists: ContactListSummary[] };
+type ContactListRowsProps = {
+  lists: Pick<ContactListSummary, 'id' | 'name' | 'memberCount' | 'firstMembers'>[];
+};
 
 export default function ContactListRows({ lists }: ContactListRowsProps) {
   return (

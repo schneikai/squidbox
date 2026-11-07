@@ -124,6 +124,9 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           await contactListMembers.tombstoneWhere(tx, { contactId: id });
           await contactLinks.tombstoneWhere(tx, { contactId: id });
         }),
+      // Brings a deleted contact back (Deleted's rows), with its photo; the lists and the photos,
+      // albums and posts it left when it was deleted stay as they are now.
+      restoreContact: (id) => written((tx) => contacts.update(tx, id, { deletedAt: null })),
       addList: (name) => written((tx) => lists.create(tx, newRecord(contactListCollection, LIST_DEFAULTS, { name }))),
       updateList: (id, fields) => written((tx) => lists.update(tx, id, fields)),
       setListDeleted: (id) =>

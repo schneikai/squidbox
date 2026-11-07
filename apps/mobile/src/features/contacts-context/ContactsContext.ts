@@ -17,6 +17,7 @@ export type ContactsContextValue = {
   removeAvatar: (id: string) => Promise<void>;
   changePlace: (id: string, from: ContactPlace | null, to: ContactPlace | null) => Promise<void>;
   setContactDeleted: (id: string) => Promise<void>;
+  restoreContact: (id: string) => Promise<void>;
   addList: (name: string) => Promise<ContactListRecord>;
   updateList: (id: string, fields: Partial<ContactListRecord>) => Promise<void>;
   setListDeleted: (id: string) => Promise<void>;
