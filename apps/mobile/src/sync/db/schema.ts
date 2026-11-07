@@ -248,6 +248,7 @@ export const contacts = sqliteTable(
     blueskyHandle: text('bluesky_handle'),
     onlyFansHandle: text('only_fans_handle'),
     jffHandle: text('jff_handle'),
+    instagramHandle: text('instagram_handle'),
     phoneNumber: text('phone_number'),
     places: text('places', { mode: 'json' }).$type<ContactPlace[]>().notNull(),
     avatarFilename: text('avatar_filename'),

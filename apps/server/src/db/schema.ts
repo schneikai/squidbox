@@ -298,6 +298,7 @@ export const contacts = pgTable(
     blueskyHandle: text('bluesky_handle'),
     onlyFansHandle: text('only_fans_handle'),
     jffHandle: text('jff_handle'),
+    instagramHandle: text('instagram_handle'),
     phoneNumber: text('phone_number'),
     places: jsonb('places').$type<ContactPlace[]>().notNull(),
     avatarFilename: text('avatar_filename'),

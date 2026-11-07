@@ -35,6 +35,7 @@ import m0030 from './0030_post_threads.sql';
 import m0031 from './0031_contacts.sql';
 import m0032 from './0032_contact_x_profile.sql';
 import m0033 from './0033_contact_list_pinned.sql';
+import m0034 from './0034_contact_instagram.sql';
 
   export default {
     journal,
@@ -72,7 +73,8 @@ m0029,
 m0030,
 m0031,
 m0032,
-m0033
+m0033,
+m0034
     }
   }
   

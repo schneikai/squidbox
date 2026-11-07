@@ -41,7 +41,7 @@ export type HandleFieldProps = {
  * text on the right, and while it holds one a 44 pt button that opens it where it lives
  * (openContactLinkAsync). `field` is the contact field it edits (xHandle, …, phoneNumber, or the
  * name in the New contact sheet): a handle takes no capitals or corrections, the phone number the
- * phone pad. `filledBy` marks a value filled in for the user: by the assistant (a sparkle) or from a
+ * phone pad. `filledBy` marks a value filled in for the user with the sparkle (FillMark), from a
  * link (the link icon); `isDuplicate` one another contact has too (an amber dot).
  */
 export default function HandleField({
@@ -74,7 +74,7 @@ export default function HandleField({
       {(isDuplicate || !!filledBy) && (
         <RowMark>
           {isDuplicate && <DuplicateDot accessibilityLabel="Another contact has this too" />}
-          {filledBy && <FillMark source={filledBy} />}
+          {filledBy && <FillMark />}
         </RowMark>
       )}
       {isOpenable && field !== 'name' && !!value.trim() && (

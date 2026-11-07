@@ -16,18 +16,23 @@ import useHasFeature from '@/hooks/useHasFeature';
 import readXProfileWithAssistantAsync from '@/utils/cloud-api/ai/readXProfileWithAssistantAsync';
 import readXProfileAsync from '@/utils/cloud-api/contacts/readXProfileAsync';
 
-// Whether the assistant may find more in a found profile: a location to split, or handles still
-// missing with a bio or website to find them in.
+// Whether the assistant may find more in a found profile: handles still missing, with a bio or
+// website to find them in (the server splits the place itself).
 function hasMoreToRead(read: ContactFromXProfileResponse): boolean {
-  const isMissingHandles = OTHER_HANDLE_FIELDS.some((field) => !read[field]);
-  return !!read.city || (isMissingHandles && !!(read.bio || read.website));
+  return OTHER_HANDLE_FIELDS.some((field) => !read[field]) && !!(read.bio || read.website);
+}
+
+// Whether the profile's bio or website names `handle`: the assistant's handles count only then, so
+// one it made up (the X handle in every field, say) fills nothing.
+function isNamedIn(handle: string, read: ContactFromXProfileResponse): boolean {
+  return !!handle && `${read.bio}\n${read.website}`.toLowerCase().includes(handle.toLowerCase());
 }
 
 /**
  * New contact's From link: the X profile link on the clipboard fills the X handle at once, then what
- * the server reads from the public profile (the name, photo, place, notes and handles), all as one
- * fill with Undo; with the `ai` feature the assistant's pass then adds, in the background, the
- * handles still missing and the place split, into the same fill, marked as the assistant's. A profile
+ * the server reads from the public profile (the name, photo, place and handles; never the notes), all
+ * as one fill with Undo; with the `ai` feature the assistant's pass then adds, in the background, the
+ * handles still missing that the bio or website names, into the same fill, marked as the assistant's. A profile
  * X hides alerts so and offers `onScreenshot` (From screenshot, with `ai`), a missing one alerts so,
  * and a read that fails fills the handle only. Without a name from the profile, the contact is named
  * after the handle, only while the draft has no name when the read lands. The web build takes no
@@ -51,9 +56,11 @@ export default function useFillFromLink(onScreenshot: () => void): {
         location: read.city,
         website: read.website,
       });
-      // Only the handles the profile's links didn't give.
-      const handles = Object.fromEntries(OTHER_HANDLE_FIELDS.map((field) => [field, read[field] ? '' : found[field]]));
-      extendFill(id, 'assistant', (draft) => filledFrom({ ...emptyContactRead(), ...found, ...handles }, draft), {
+      // Only the handles the profile's links didn't give and its bio or website names; the place is the server's.
+      const handles = Object.fromEntries(
+        OTHER_HANDLE_FIELDS.map((field) => [field, !read[field] && isNamedIn(found[field], read) ? found[field] : '']),
+      );
+      extendFill(id, 'assistant', (draft) => filledFrom({ ...emptyContactRead(), ...handles }, draft), {
         onlyIntoEmpty: true,
       });
     } catch (error) {

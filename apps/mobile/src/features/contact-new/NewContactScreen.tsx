@@ -43,17 +43,18 @@ export default function NewContactScreen() {
   const allContacts = useContactRows({ scope: 'all' });
   const lists = useContactListRows({ withMembers: false });
   // Rescanned only when the contacts or what the check reads change, not on every keystroke in the notes.
-  const { name, xHandle, blueskyHandle, onlyFansHandle, jffHandle } = draft;
+  const { name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle } = draft;
   const { matches, sharedFields } = useMemo(() => {
     const typed: Pick<ContactDraft, 'name' | ContactHandleField> = {
       name,
       xHandle,
+      instagramHandle,
       blueskyHandle,
       onlyFansHandle,
       jffHandle,
     };
     return findDuplicates(storedContactFields({ ...EMPTY_DRAFT, ...typed }), allContacts ?? []);
-  }, [allContacts, name, xHandle, blueskyHandle, onlyFansHandle, jffHandle]);
+  }, [allContacts, name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle]);
   const fields = storedContactFields(draft);
   const selectedLists = (lists ?? []).filter((list) => listIds.includes(list.id));
   const isDirty = JSON.stringify(fields) !== EMPTY || !!avatarUri || listIds.length > 0;

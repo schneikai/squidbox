@@ -32,8 +32,8 @@ function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
 /**
  * The New contact sheet's quick adds, side by side as cards: From link, which fills what the public
  * X profile on the clipboard shows (useFillFromLink); and with the `ai` feature From screenshot,
- * which fills what the assistant read. A fill says so in a note with Undo, and marks the fields: the
- * link icon for From link, the sparkle for From screenshot (FillMark).
+ * which fills what the assistant read (the image icon on its card). A fill says so in a note with
+ * Undo and marks the fields it filled, both with the sparkle (FillMark).
  */
 export default function QuickAddBar() {
   const { fillFields, fill, undoFill } = useNewContactDraft();
@@ -64,7 +64,7 @@ export default function QuickAddBar() {
         <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={fillFromLinkAsync} />
         {canReadScreenshots && (
           <QuickAddCard
-            icon="sparkle"
+            icon="image"
             title="From screenshot"
             isAssistant
             loading={isReading}
@@ -73,11 +73,7 @@ export default function QuickAddBar() {
         )}
       </View>
       {fill && (fill.fields.length > 0 || fill.photoUri) && (
-        <Note
-          tone="card"
-          leading={<FillMark source={fill.source} />}
-          trailing={<Button label="Undo" size="small" onPress={undoFill} />}
-        >
+        <Note tone="card" leading={<FillMark />} trailing={<Button label="Undo" size="small" onPress={undoFill} />}>
           <Text size="small">{noteText(fill)}</Text>
         </Note>
       )}

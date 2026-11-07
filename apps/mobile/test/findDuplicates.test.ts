@@ -8,6 +8,7 @@ const fields = (over: Record<string, string | null>) => ({
   blueskyHandle: null,
   onlyFansHandle: null,
   jffHandle: null,
+  instagramHandle: null,
   ...over,
 });
 const maya: DuplicateMatch['contact'] = {
@@ -17,6 +18,7 @@ const maya: DuplicateMatch['contact'] = {
   blueskyHandle: 'maya.bsky.social',
   onlyFansHandle: null,
   jffHandle: null,
+  instagramHandle: null,
   avatarFilename: null,
 };
 

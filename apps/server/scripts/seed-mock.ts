@@ -406,6 +406,7 @@ for (const [index, contact] of CONTACTS.entries()) {
     blueskyHandle: null,
     onlyFansHandle: null,
     jffHandle: null,
+    instagramHandle: null,
     phoneNumber: null,
     places: [],
     ...contact.fields,

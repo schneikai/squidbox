@@ -13,6 +13,7 @@ import { withTimeout } from '../withTimeout.js';
 import { fetchAvatarAsync } from './avatarImage.js';
 import { fetchBlueskyProfileAsync } from './blueskyProfile.js';
 import { handlesInText } from './handlesInText.js';
+import { splitLocation } from './splitLocation.js';
 import { fetchXProfileAsync } from './fetchXProfileAsync.js';
 
 type Log = Pick<FastifyBaseLogger, 'info' | 'warn'>;
@@ -27,8 +28,8 @@ function emptyResponse(status: XProfileStatus, xHandle: string): ContactFromXPro
 }
 
 /**
- * What From link fills from the X profile of `handle`: the name, bio, website, location (as the
- * city, as X shows it) and photo X shows, and the Bluesky, OnlyFans and JFF handles the bio and
+ * What From link fills from the X profile of `handle`: the name, bio, website, location (split into
+ * its city, state and country: splitLocation) and photo X shows, and the Bluesky, OnlyFans and JFF handles the bio and
  * website name (handlesInText). When a Bluesky handle is named, its public profile fills the
  * handles, name and bio still empty, and the photo when X's doesn't download; it is read while X's
  * photo downloads. All of it within X_PROFILE_READ_BUDGET_MS. `xHandle` is always the request's.
@@ -53,7 +54,7 @@ export async function readContactFromXProfileAsync({
     handles.blueskyHandle ? fetchBlueskyProfileAsync(handles.blueskyHandle, { signal: budget, log }) : null,
     page.avatarUrl ? fetchAvatarAsync(page.avatarUrl, { signal: budget, log }) : null,
   ]);
-  const read = { ...emptyContactRead(), xHandle, name: page.name, city: page.location };
+  const read = { ...emptyContactRead(), xHandle, name: page.name, ...splitLocation(page.location) };
   const more = bluesky ? handlesInText([bluesky.description]) : {};
   for (const field of OTHER_HANDLE_FIELDS) read[field] = handles[field] || more[field] || '';
   if (bluesky) read.name ||= bluesky.displayName;

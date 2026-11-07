@@ -34,6 +34,14 @@ export const CONTACT_HANDLES = [
     profileUrl: (handle: string) => `https://x.com/${handle}`,
   },
   {
+    field: 'instagramHandle',
+    label: 'Instagram',
+    placeholder: '@username',
+    isAtHandle: true,
+    hosts: ['instagram.com/'],
+    profileUrl: (handle: string) => `https://instagram.com/${handle}`,
+  },
+  {
     field: 'blueskyHandle',
     label: 'Bluesky',
     placeholder: '@username',
@@ -70,10 +78,12 @@ export const CONTACT_HANDLE_BY_FIELD = Object.fromEntries(CONTACT_HANDLES.map((h
   [F in ContactHandleField]: Extract<(typeof CONTACT_HANDLES)[number], { field: F }>;
 };
 
-const handleSchemas = Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, handleSchema])) as Record<
-  ContactHandleField,
-  typeof handleSchema
->;
+// Instagram's came after the others: optional, so a record from before it reads as without one.
+const handleSchemas = Object.fromEntries(
+  CONTACT_HANDLE_FIELDS.map((field) => [field, field === 'instagramHandle' ? handleSchema.optional() : handleSchema]),
+) as Record<Exclude<ContactHandleField, 'instagramHandle'>, typeof handleSchema> & {
+  instagramHandle: ReturnType<typeof handleSchema.optional>;
+};
 
 // `contacts` — the people the user works with (the Contacts tab). The handles are stored without
 // `@` or a URL (normalizeHandle); `places` is a list of `{ city, state, country }` (the state

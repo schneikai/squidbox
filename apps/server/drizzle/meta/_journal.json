@@ -239,6 +239,13 @@
       "when": 1793977282783,
       "tag": "0033_contact_list_pinned",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794045563803,
+      "tag": "0034_contact_instagram",
+      "breakpoints": true
     }
   ]
 }

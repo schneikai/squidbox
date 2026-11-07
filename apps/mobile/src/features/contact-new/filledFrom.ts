@@ -3,17 +3,13 @@ import { CONTACT_HANDLE_FIELDS, CONTACT_LIMITS, type ContactRead, normalizeHandl
 import { type ContactDraft, handleText, storedPlace } from '@/features/contact-detail/contactFields';
 
 /**
- * The draft fields a reading of a profile fills (From screenshot's, or From link's, which adds the
- * bio and website), from what it read: only what it found and the draft doesn't hold yet, within the
- * contact's limits. A handle or name the draft already has (as typed, `@` and case aside) isn't
- * filled, so Undo leaves it; a place it read joins first, unless the draft has it, and the last one
- * goes past CONTACT_LIMITS.places; the bio and website, on their own lines, become the notes only
- * while the draft's are empty.
+ * The draft fields a reading of a profile fills (From screenshot's or From link's), from what it
+ * read: only what it found and the draft doesn't hold yet, within the contact's limits. A handle or
+ * name the draft already has (as typed, `@` and case aside) isn't filled, so Undo leaves it; a place
+ * it read joins first, unless the draft has it, and the last one goes past CONTACT_LIMITS.places. The
+ * notes are the user's: a profile's bio and website never fill them.
  */
-export default function filledFrom(
-  read: ContactRead & { bio?: string; website?: string },
-  draft: ContactDraft,
-): Partial<ContactDraft> {
+export default function filledFrom(read: ContactRead, draft: ContactDraft): Partial<ContactDraft> {
   const fields: Partial<ContactDraft> = {};
   for (const field of CONTACT_HANDLE_FIELDS) {
     const handle = read[field].slice(0, CONTACT_LIMITS.handle);
@@ -31,7 +27,5 @@ export default function filledFrom(
   const isKnown = draftPlaces.some(({ stored }) => stored === JSON.stringify(place));
   if (place && !isKnown)
     fields.places = [place, ...draftPlaces.map(({ typed }) => typed)].slice(0, CONTACT_LIMITS.places);
-  const notes = [read.bio?.trim(), read.website?.trim()].filter(Boolean).join('\n');
-  if (notes && !draft.notes.trim()) fields.notes = notes.slice(0, CONTACT_LIMITS.notes);
   return fields;
 }

@@ -19,6 +19,7 @@ const SEARCHED = {
   blueskyHandle: c.blueskyHandle,
   onlyFansHandle: c.onlyFansHandle,
   jffHandle: c.jffHandle,
+  instagramHandle: c.instagramHandle,
   phoneNumber: c.phoneNumber,
   places: c.places,
 } satisfies Record<(typeof SEARCHED_FIELDS)[number] | 'places', unknown>;

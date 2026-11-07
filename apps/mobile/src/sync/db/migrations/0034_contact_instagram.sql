@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `instagram_handle` text;
