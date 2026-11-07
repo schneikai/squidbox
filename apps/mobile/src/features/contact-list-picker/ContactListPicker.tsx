@@ -1,10 +1,16 @@
 import type { ContactListRecord } from '@squidbox/shared';
 import { type ReactNode, useDeferredValue, useMemo, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import contactListSortOptions from './contactListSortOptions';
+import sortContactLists from './sortContactLists';
+import useContactListSort from './useContactListSort';
 
 import EmptyState from '@/components/EmptyState';
+import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
 import SelectIndicator from '@/components/SelectIndicator';
+import SortFilterMenu from '@/components/floating-bars/SortFilterMenu';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAddListAction from '@/features/contact-list/useAddListAction';
@@ -16,8 +22,8 @@ import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
 
 /**
- * The contact lists to choose from, by name, under a search field that narrows them by name, with
- * "New list" at the end (a new list is chosen too). `selectedIds` are the chosen lists' ids;
+ * The contact lists to choose from, under a search field that narrows them by name and a sort menu
+ * beside it (Name, Most contacts, Recently added; remembered), with "New list" at the end (a new list is chosen too). `selectedIds` are the chosen lists' ids;
  * `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
  * the accent check instead of the selection circles. `leadingRows` go before the lists while
  * nothing is searched for (Favorites, on the pin).
@@ -36,6 +42,7 @@ export default function ContactListPicker({
   leadingRows,
 }: ContactListPickerProps) {
   const lists = useContactListRows({ withMembers: false });
+  const { sortOrder, sortLists } = useContactListSort();
   const [typedText, setTypedText] = useState('');
   const searchText = useDeferredValue(typedText).trim().toLowerCase();
   const promptAddList = useAddListAction({
@@ -44,15 +51,17 @@ export default function ContactListPicker({
   });
 
   const shown = useMemo(() => {
-    if (!lists || !searchText) return lists;
+    if (!lists) return lists;
+    const sorted = sortContactLists(lists, sortOrder);
+    if (!searchText) return sorted;
     const matched = new Set(
       matchingIds(
         lists.map((list) => ({ id: list.id, text: list.name.toLowerCase() })),
         searchText,
       ),
     );
-    return lists.filter((list) => matched.has(list.id));
-  }, [lists, searchText]);
+    return sorted.filter((list) => matched.has(list.id));
+  }, [lists, searchText, sortOrder]);
 
   function handlePress(listId: string) {
     onChange(isSingle ? [listId] : toggleItem(selectedIds, listId));
@@ -62,15 +71,20 @@ export default function ContactListPicker({
 
   return (
     <>
-      <SearchInput
-        variant="field"
-        placeholder="Search lists"
-        accessibilityLabel="Search lists"
-        value={typedText}
-        onChangeText={setTypedText}
-        clearButtonMode="while-editing"
-        style={styles.search}
-      />
+      <View style={styles.controls}>
+        <SearchInput
+          variant="field"
+          placeholder="Search lists"
+          accessibilityLabel="Search lists"
+          value={typedText}
+          onChangeText={setTypedText}
+          clearButtonMode="while-editing"
+          style={styles.search}
+        />
+        <MenuButton icon="sort" accessibilityLabel="Sort lists">
+          <SortFilterMenu sortOrder={sortOrder} sortOptions={contactListSortOptions} onSort={sortLists} />
+        </MenuButton>
+      </View>
       {searchText && shown.length === 0 ? (
         <EmptyState icon="search" title="No lists match" />
       ) : (
@@ -100,7 +114,13 @@ export default function ContactListPicker({
 }
 
 const styles = StyleSheet.create({
-  search: {
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.rowLeadingGap,
     marginBottom: layout.sectionGap,
+  },
+  search: {
+    flex: 1,
   },
 });

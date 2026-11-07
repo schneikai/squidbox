@@ -13,6 +13,8 @@ export type AppSettings = {
   // The contacts' sort (useContactSort), shared by the Contacts tab and a list's screen: one of
   // contactSortOptions' keys, which it checks, as a stored one may be gone.
   contactListSortOrder: string;
+  // The list picker's sort (useContactListSort): one of contactListSortOptions' keys, which it checks.
+  contactListPickerSortOrder: string;
   // Whether a video in the asset detail screen starts by itself.
   isVideoAutoplayOn: boolean;
   // Whether lifts, drops, peeks and outcomes tap back (useHaptics).
@@ -26,6 +28,7 @@ const appSettingsDefaults: AppSettings = {
   albumSortOrders: {},
   albumListSortOrder: 'createdAt:desc',
   contactListSortOrder: 'name:asc',
+  contactListPickerSortOrder: 'name:asc',
   isVideoAutoplayOn: true,
   isHapticsOn: true,
 };
