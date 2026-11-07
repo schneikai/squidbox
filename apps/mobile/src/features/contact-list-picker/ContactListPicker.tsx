@@ -2,7 +2,6 @@ import type { ContactListRecord } from '@squidbox/shared';
 import { type ReactNode, useDeferredValue, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import contactListSortOptions from './contactListSortOptions';
 import sortContactLists from './sortContactLists';
 import useContactListSort from './useContactListSort';
 
@@ -13,6 +12,7 @@ import SelectIndicator from '@/components/SelectIndicator';
 import SortFilterMenu from '@/components/floating-bars/SortFilterMenu';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
+import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useAddListAction from '@/features/contact-list/useAddListAction';
 import useContactListRows from '@/features/contact-list/useContactListRows';
 import { layout } from '@/styles/designTokens';
@@ -23,7 +23,7 @@ import toggleItem from '@/utils/toggleItem';
 
 /**
  * The contact lists to choose from, under a search field that narrows them by name and a sort menu
- * beside it (Name, Most contacts, Recently added; remembered), with "New list" at the end (a new list is chosen too). `selectedIds` are the chosen lists' ids;
+ * beside it (the contacts' Name and Recently added; remembered), with "New list" at the end (a new list is chosen too). `selectedIds` are the chosen lists' ids;
  * `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
  * the accent check instead of the selection circles. `leadingRows` go before the lists while
  * nothing is searched for (Favorites, on the pin).
@@ -81,8 +81,8 @@ export default function ContactListPicker({
           clearButtonMode="while-editing"
           style={styles.search}
         />
-        <MenuButton icon="sort" accessibilityLabel="Sort lists">
-          <SortFilterMenu sortOrder={sortOrder} sortOptions={contactListSortOptions} onSort={sortLists} />
+        <MenuButton icon="options" accessibilityLabel="Sort lists">
+          <SortFilterMenu sortOrder={sortOrder} sortOptions={contactSortOptions} onSort={sortLists} />
         </MenuButton>
       </View>
       {searchText && shown.length === 0 ? (

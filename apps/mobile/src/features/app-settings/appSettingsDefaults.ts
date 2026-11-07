@@ -13,7 +13,7 @@ export type AppSettings = {
   // The contacts' sort (useContactSort), shared by the Contacts tab and a list's screen: one of
   // contactSortOptions' keys, which it checks, as a stored one may be gone.
   contactListSortOrder: string;
-  // The list picker's sort (useContactListSort): one of contactListSortOptions' keys, which it checks.
+  // The list picker's sort (useContactListSort): one of contactSortOptions' keys, which it checks.
   contactListPickerSortOrder: string;
   // Whether a video in the asset detail screen starts by itself.
   isVideoAutoplayOn: boolean;
