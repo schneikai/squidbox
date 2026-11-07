@@ -39,13 +39,14 @@ export const X_PROFILE_STATUSES = ['found', 'unavailable', 'notFound', 'failed']
 export const xProfileStatusSchema = z.enum(X_PROFILE_STATUSES);
 export type XProfileStatus = z.infer<typeof xProfileStatusSchema>;
 
-// Its answer, for every account, without the assistant (POST /ai/contact-from-x-profile is its
-// pass): `xHandle` is the request's handle normalized; the handles the bio, website and Bluesky
-// profile name; `city`, `state` and `country` the location split by rules (splitLocation), and
-// `location` as X shows it, for the assistant to read; `bio` with its t.co links expanded; `website`
-// the profile's link; `avatar` the 400 px profile photo (or the Bluesky one), null without one.
-export const contactFromXProfileResponseSchema = contactReadSchema.extend({
+// Its answer, for an account with the assistant, which then reads the handles and the place from it
+// (POST /ai/contact-from-x-profile): `xHandle` is the request's handle normalized; `name`,
+// `location` and `website` as X shows them; `bio` with its t.co links expanded; `avatar` the 400 px
+// profile photo, null without one.
+export const contactFromXProfileResponseSchema = z.object({
   status: xProfileStatusSchema,
+  xHandle: z.string(),
+  name: z.string(),
   location: z.string(),
   bio: z.string(),
   website: z.string(),

@@ -5,10 +5,14 @@ import Text from '@/components/Text';
 import { colors, disabledOpacity, layout, press, radii, scale, shadows } from '@/styles/designTokens';
 
 const DISC = scale(40);
+const BADGE = scale(14);
+// The white ring around the badge, as on the account button's: a larger white sparkle behind it.
+const RING = BADGE + scale(5);
 
 /**
  * One of New contact's quick adds: a white card with its `icon` in a disc and a `title` under it.
- * `isAssistant` marks the assistant's (the sparkle on the accent's disc); the others' disc is grey.
+ * `isAssistant` marks the assistant's: its icon on the accent's disc, with the filled sparkle, ringed in white, as
+ * a badge on the disc's bottom right; the others' disc is grey.
  * `loading` shows a spinner in the disc and takes no presses.
  */
 type QuickAddCardProps = {
@@ -41,7 +45,13 @@ export default function QuickAddCard({
         {loading ? (
           <ActivityIndicator size="small" color={iconColor} />
         ) : (
-          <Icon name={icon} size={scale(20)} color={iconColor} filled={isAssistant} />
+          <Icon name={icon} size={scale(20)} color={iconColor} />
+        )}
+        {isAssistant && (
+          <View style={styles.badge} pointerEvents="none">
+            <Icon name="sparkle" size={RING} color={colors.text.inverse} filled />
+            <Icon name="sparkle" size={BADGE} color={colors.accent.base} filled style={styles.badgeGlyph} />
+          </View>
         )}
       </View>
       <Text variant="title" size="small">
@@ -73,5 +83,18 @@ const styles = StyleSheet.create({
   },
   assistantDisc: {
     backgroundColor: colors.accent.light,
+  },
+  // On the disc's edge, in its corner.
+  badge: {
+    position: 'absolute',
+    // eslint-disable-next-line no-restricted-syntax -- a hair over the disc's edge, like the account button's badge
+    right: -scale(3),
+    // eslint-disable-next-line no-restricted-syntax -- as above
+    bottom: -scale(3),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeGlyph: {
+    position: 'absolute',
   },
 });

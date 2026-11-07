@@ -30,14 +30,15 @@ function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
 }
 
 /**
- * The New contact sheet's quick adds, side by side as cards: From link, which fills what the public
- * X profile on the clipboard shows (useFillFromLink); and with the `ai` feature From screenshot,
- * which fills what the assistant read (the image icon on its card). A fill says so in a note with
+ * The New contact sheet's quick adds, both the assistant's (the `ai` feature; nothing without it), side
+ * by side as cards: From link, which fills what the X profile on the clipboard shows and the assistant
+ * reads from it (useFillFromLink); and From screenshot, which fills what the assistant read in a
+ * picture (the image icon on its card). A fill says so in a note with
  * Undo and marks the fields it filled, both with the sparkle (FillMark).
  */
 export default function QuickAddBar() {
   const { fillFields, fill, undoFill } = useNewContactDraft();
-  const canReadScreenshots = useHasFeature('ai');
+  const hasAssistant = useHasFeature('ai');
   const [isReading, setIsReading] = useState(false);
   const { isReading: isReadingLink, fillFromLinkAsync } = useFillFromLink(handleScreenshot);
 
@@ -58,19 +59,13 @@ export default function QuickAddBar() {
     }
   }
 
+  if (!hasAssistant) return null;
+
   return (
     <View style={styles.bar}>
       <View style={styles.cards}>
-        <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={fillFromLinkAsync} />
-        {canReadScreenshots && (
-          <QuickAddCard
-            icon="image"
-            title="From screenshot"
-            isAssistant
-            loading={isReading}
-            onPress={handleScreenshot}
-          />
-        )}
+        <QuickAddCard icon="link" title="From link" isAssistant loading={isReadingLink} onPress={fillFromLinkAsync} />
+        <QuickAddCard icon="image" title="From screenshot" isAssistant loading={isReading} onPress={handleScreenshot} />
       </View>
       {fill && (fill.fields.length > 0 || fill.photoUri) && (
         <Note tone="card" leading={<FillMark />} trailing={<Button label="Undo" size="small" onPress={undoFill} />}>

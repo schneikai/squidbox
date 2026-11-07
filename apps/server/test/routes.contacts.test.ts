@@ -28,14 +28,13 @@ const PAGES: Record<string, { status: number; body: string }> = {
   hidden: { status: 200, body: fixture('unavailable.html') },
   nobody: { status: 404, body: '' },
 };
-const BLUESKY = fixture('bluesky-profile.json');
 // A JPEG's first bytes stand in for the photo: the server never decodes it.
 const JPEG = Buffer.from('ffd8ffe000104a464946', 'hex');
 
 const auth = { authorization: `Bearer ${signAccessToken('u1')}` };
 const fetchMock = vi.fn();
 
-// x.com by handle, the photo, Bluesky; `overrides` by URL prefix.
+// x.com by handle and the photo; `overrides` by URL prefix.
 function webAnswers(overrides: Record<string, () => Promise<Response> | Response> = {}) {
   fetchMock.mockImplementation(async (url: string) => {
     const override = Object.entries(overrides).find(([prefix]) => url.startsWith(prefix));
@@ -44,10 +43,8 @@ function webAnswers(overrides: Record<string, () => Promise<Response> | Response
       const page = PAGES[url.slice('https://x.com/'.length).toLowerCase()]!;
       return new Response(page.body, { status: page.status, headers: { 'content-type': 'text/html' } });
     }
-    if (url.startsWith('https://pbs.twimg.com/') || url.startsWith('https://cdn.bsky.app/'))
+    if (url.startsWith('https://pbs.twimg.com/'))
       return new Response(JPEG, { headers: { 'content-type': 'image/jpeg' } });
-    if (url.startsWith('https://public.api.bsky.app/'))
-      return new Response(BLUESKY, { headers: { 'content-type': 'application/json' } });
     throw new Error(`unexpected fetch ${url}`);
   });
 }
@@ -72,26 +69,19 @@ async function call(
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
-  signedInWith([]);
+  signedInWith(['ai']);
   webAnswers();
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('POST /api/v1/contacts/x-profile', () => {
-  it('fills from the profile, its links and the Bluesky profile it names, for any account', async () => {
+  it("answers the profile's name, photo and texts as X shows them, for the assistant to read", async () => {
     const res = await call({ handle: 'MayaL' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       status: 'found',
       name: 'Maya Lindqvist 🌲',
       xHandle: 'mayal',
-      blueskyHandle: 'maya.bsky.social',
-      onlyFansHandle: 'mayal',
-      jffHandle: 'mayal',
-      instagramHandle: '',
-      city: 'Squamish',
-      state: 'BC',
-      country: '',
       location: 'Squamish, BC',
       bio: "Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
       website: 'https://onlyfans.com/mayal/c17',
@@ -123,28 +113,9 @@ describe('POST /api/v1/contacts/x-profile', () => {
     );
   });
 
-  it('keeps the Bluesky handle and the rest when Bluesky does not know it', async () => {
-    webAnswers({
-      'https://public.api.bsky.app/': () =>
-        new Response('{"error":"InvalidRequest","message":"Profile not found"}', { status: 400 }),
-    });
-    const res = await call({ handle: 'mayal' });
-    expect(res.json()).toMatchObject({ status: 'found', blueskyHandle: 'maya.bsky.social', jffHandle: '' });
-  });
-
-  it("takes the Bluesky profile's photo, as its thumbnail, when X's does not download", async () => {
-    webAnswers({ 'https://pbs.twimg.com/': () => new Response('gone', { status: 404 }) });
-    const res = await call({ handle: 'mayal' });
-    expect(res.json()).toMatchObject({ status: 'found', avatar: { mimeType: 'image/jpeg' } });
-    expect(requested()).toContain(
-      'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:maya000000000000000000/abc@jpeg',
-    );
-  });
-
   it('answers without the photo when none downloads', async () => {
     webAnswers({
       'https://pbs.twimg.com/': () => new Response('gone', { status: 404 }),
-      'https://cdn.bsky.app/': () => new Response('gone', { status: 404 }),
     });
     const res = await call({ handle: 'mayal' });
     expect(res.json()).toMatchObject({ status: 'found', name: 'Maya Lindqvist 🌲', avatar: null });
@@ -154,7 +125,6 @@ describe('POST /api/v1/contacts/x-profile', () => {
     webAnswers({
       'https://pbs.twimg.com/': () =>
         new Response(JPEG, { headers: { 'content-type': 'image/jpeg', 'content-length': String(1024 * 1024) } }),
-      'https://cdn.bsky.app/': () => new Response('gone', { status: 404 }),
     });
     const res = await call({ handle: 'mayal' });
     expect(res.json().avatar).toBeNull();
@@ -177,6 +147,14 @@ describe('POST /api/v1/contacts/x-profile', () => {
   it('refuses a handle that is not an X handle, and a request without a token', async () => {
     expect((await call({ handle: 'mayal/status' })).statusCode).toBe(400);
     expect((await call({ handle: 'mayal' }, { headers: {} })).statusCode).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses an account without the assistant, with nothing fetched', async () => {
+    signedInWith([]);
+    const res = await call({ handle: 'mayal' });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'ai_not_allowed' } });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

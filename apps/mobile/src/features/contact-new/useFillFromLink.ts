@@ -12,7 +12,6 @@ import useClipboardXLink from './useClipboardXLink';
 import useNewContactDraft from './useNewContactDraft';
 
 import type { ContactDraft } from '@/features/contact-detail/contactFields';
-import useHasFeature from '@/hooks/useHasFeature';
 import readXProfileWithAssistantAsync from '@/utils/cloud-api/ai/readXProfileWithAssistantAsync';
 import readXProfileAsync from '@/utils/cloud-api/contacts/readXProfileAsync';
 
@@ -21,16 +20,6 @@ function hasTextToRead(read: ContactFromXProfileResponse): boolean {
   return !!(read.location || read.bio || read.website);
 }
 
-// What the assistant reads instead of the server: the handles (the server's text search) and the place (its rules).
-const ASSISTANT_FIELDS = [...OTHER_HANDLE_FIELDS, 'city', 'state', 'country'] as const;
-
-const assistantFieldsOf = (read: ContactFromXProfileResponse) =>
-  Object.fromEntries(ASSISTANT_FIELDS.map((field) => [field, read[field]]));
-const withoutAssistantFields = (read: ContactFromXProfileResponse): ContactFromXProfileResponse => ({
-  ...read,
-  ...Object.fromEntries(ASSISTANT_FIELDS.map((field) => [field, ''])),
-});
-
 // Whether the profile's bio or website names `handle`: the assistant's handles count only then, so
 // one it made up (the X handle in every field, say) fills nothing.
 function isNamedIn(handle: string, read: ContactFromXProfileResponse): boolean {
@@ -38,12 +27,11 @@ function isNamedIn(handle: string, read: ContactFromXProfileResponse): boolean {
 }
 
 /**
- * New contact's From link: the X profile link on the clipboard fills the X handle at once, then what
- * the server reads from the public profile (the name, photo, place and handles; never the notes), all
- * as one fill with Undo. With the `ai` feature the assistant reads the handles and the place from the
- * profile's text instead, as From screenshot reads a picture: in the background, into the same fill,
- * marked as the assistant's; when it fails, the server's handles and place fill in. A profile
- * X hides alerts so and offers `onScreenshot` (From screenshot, with `ai`), a missing one alerts so,
+ * New contact's From link, an assistant feature (the `ai` one): the X profile link on the clipboard
+ * fills the X handle at once, then the name and photo the public profile shows, as one fill with
+ * Undo; the assistant then reads the handles and the place from the profile's text (never the
+ * notes), as From screenshot reads a picture: in the background, into the same fill, marked as the
+ * assistant's. A profile X hides alerts so and offers `onScreenshot` (From screenshot), a missing one alerts so,
  * and a read that fails fills the handle only. Without a name from the profile, the contact is named
  * after the handle, only while the draft has no name when the read lands. The web build takes no
  * photo (it can't make a contact photo; the photo picker's web twin says so).
@@ -54,7 +42,6 @@ export default function useFillFromLink(onScreenshot: () => void): {
 } {
   const { fillFields, extendFill } = useNewContactDraft();
   const { readAsync } = useClipboardXLink();
-  const canUseAssistant = useHasFeature('ai');
   const [isReading, setIsReading] = useState(false);
 
   async function readWithAssistantAsync(id: number, read: ContactFromXProfileResponse) {
@@ -75,11 +62,8 @@ export default function useFillFromLink(onScreenshot: () => void): {
         onlyIntoEmpty: true,
       });
     } catch (error) {
-      // The server's handles and place, then.
+      // The name and photo stand.
       console.warn('From link: the assistant could not read the X profile', error);
-      extendFill(id, 'link', (draft) => filledFrom({ ...emptyContactRead(), ...assistantFieldsOf(read) }, draft), {
-        onlyIntoEmpty: true,
-      });
     }
   }
 
@@ -109,9 +93,7 @@ export default function useFillFromLink(onScreenshot: () => void): {
     }
     if (read?.status === 'found') {
       const found = read;
-      // The assistant reads the handles and the place itself; the server's are its fallback.
-      const isAssistantRead = canUseAssistant && hasTextToRead(found);
-      const shown = isAssistantRead ? withoutAssistantFields(found) : found;
+      const shown = { ...emptyContactRead(), xHandle: found.xHandle, name: found.name };
       const photoUri = found.avatar && Platform.OS !== 'web' ? imageDataUrl(found.avatar) : undefined;
       extendFill(
         id,
@@ -120,7 +102,7 @@ export default function useFillFromLink(onScreenshot: () => void): {
         { photoUri },
       );
       // In the background, the card free again: its answer extends the fill when it lands (it never throws).
-      if (isAssistantRead) readWithAssistantAsync(id, found);
+      if (hasTextToRead(found)) readWithAssistantAsync(id, found);
       return;
     }
     extendFill(id, 'link', nameAfterHandle);
@@ -133,12 +115,10 @@ export default function useFillFromLink(onScreenshot: () => void): {
       Alert.alert(
         'X hides this profile',
         'X shows this profile only to signed-in readers, so there is nothing more to fill.',
-        canUseAssistant
-          ? [
-              { text: 'OK', style: 'cancel' },
-              { text: 'From screenshot', onPress: onScreenshot },
-            ]
-          : undefined,
+        [
+          { text: 'OK', style: 'cancel' },
+          { text: 'From screenshot', onPress: onScreenshot },
+        ],
       );
     // `failed` or no answer: the server logged why; the handle is what From link always fills.
   }

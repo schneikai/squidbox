@@ -1,21 +1,22 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { contactFromXProfileRequestSchema, contactFromXProfileResponseSchema } from '@squidbox/shared';
-import { authenticate } from '../auth/authenticate.js';
+import { authenticate, requireFeature } from '../auth/authenticate.js';
+import { AppError } from '../errors.js';
 import { untilClientLeaves } from '../untilClientLeaves.js';
 import { readContactFromXProfileAsync } from './contactFromXProfile.js';
 
-// The contacts' routes: for every signed-in account, not behind the assistant's gate.
+// The contacts' routes, for a signed-in account.
 export async function contactRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
-  // POST /contacts/x-profile — From link on a New contact: what the public X profile of a handle
-  // shows (readContactFromXProfileAsync). Each request is one fetch of x.com. Never a 5xx for what X
+  // POST /contacts/x-profile — From link on a New contact, an assistant feature (403 ai_not_allowed
+  // without `ai`): what the public X profile of a handle shows (readContactFromXProfileAsync). Each request is one fetch of x.com. Never a 5xx for what X
   // gave: the status says it. Nothing is stored.
   r.route({
     method: 'POST',
     url: '/contacts/x-profile',
-    preHandler: authenticate(),
+    preHandler: [authenticate(), requireFeature('ai', AppError.aiNotAllowed)],
     config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
     schema: { body: contactFromXProfileRequestSchema, response: { 200: contactFromXProfileResponseSchema } },
     handler: async (request, reply) =>
