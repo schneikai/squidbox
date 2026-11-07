@@ -13,7 +13,7 @@ const BLUESKY_SUFFIX = '.bsky.social';
 export type MentionedContactPhotos = { photosByContact: Map<string, string[]>; postCount: number };
 
 /**
- * For every live post with an @handle that is a live contact's handle (X, Bluesky, OnlyFans or JFF,
+ * For every live post with an @handle that is a live contact's handle (any of CONTACT_HANDLES,
  * without case; a Bluesky handle also without `.bsky.social`), that contact and the post's live
  * photos. A handle that several contacts have matches each of them. One transaction.
  */
@@ -57,16 +57,7 @@ function handleKey(handle: string): string {
 // The live contacts by each of their handles (stored normalized, so already lowercased without `@`).
 async function readContactsByHandle(tx: SyncDb): Promise<Map<string, string[]>> {
   const c = schema.contacts;
-  const contacts = await tx
-    .select({
-      id: c.id,
-      xHandle: c.xHandle,
-      blueskyHandle: c.blueskyHandle,
-      onlyFansHandle: c.onlyFansHandle,
-      jffHandle: c.jffHandle,
-    })
-    .from(c)
-    .where(isNull(c.deletedAt));
+  const contacts = await tx.select().from(c).where(isNull(c.deletedAt));
   const byHandle = new Map<string, string[]>();
   const add = (handle: string, contactId: string) => {
     const ids = byHandle.get(handle) ?? [];
