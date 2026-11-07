@@ -60,9 +60,7 @@
       "indexes": {
         "album_assets_album_idx": {
           "name": "album_assets_album_idx",
-          "columns": [
-            "album_id"
-          ],
+          "columns": ["album_id"],
           "isUnique": false
         }
       },
@@ -365,10 +363,7 @@
       "indexes": {
         "outbox_collection_record_idx": {
           "name": "outbox_collection_record_idx",
-          "columns": [
-            "collection",
-            "record_id"
-          ],
+          "columns": ["collection", "record_id"],
           "isUnique": true
         }
       },
@@ -433,9 +428,7 @@
       "indexes": {
         "post_assets_post_idx": {
           "name": "post_assets_post_idx",
-          "columns": [
-            "post_id"
-          ],
+          "columns": ["post_id"],
           "isUnique": false
         }
       },
@@ -559,18 +552,12 @@
       "indexes": {
         "row_changes_table_row_idx": {
           "name": "row_changes_table_row_idx",
-          "columns": [
-            "table_name",
-            "row_id"
-          ],
+          "columns": ["table_name", "row_id"],
           "isUnique": true
         },
         "row_changes_table_version_idx": {
           "name": "row_changes_table_version_idx",
-          "columns": [
-            "table_name",
-            "version"
-          ],
+          "columns": ["table_name", "version"],
           "isUnique": false
         }
       },

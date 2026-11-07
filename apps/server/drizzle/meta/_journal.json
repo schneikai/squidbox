@@ -246,6 +246,13 @@
       "when": 1794045563803,
       "tag": "0034_contact_instagram",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794051468739,
+      "tag": "0035_contact_settings",
+      "breakpoints": true
     }
   ]
 }

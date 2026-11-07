@@ -273,6 +273,18 @@ export const contactLists = sqliteTable('contact_lists', {
 });
 export type ContactListRow = typeof contactLists.$inferSelect;
 
+// One record per user (its id is the user's id): the built-in list pinned to the top of Contacts
+// (`pinnedListId`) and when (mirror @squidbox/shared contact_settings).
+export const contactSettings = sqliteTable('contact_settings', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  pinnedListId: text('pinned_list_id'),
+  pinnedAt: integer('pinned_at'),
+});
+export type ContactSettingRow = typeof contactSettings.$inferSelect;
+
 export const contactListMembers = sqliteTable(
   'contact_list_members',
   {

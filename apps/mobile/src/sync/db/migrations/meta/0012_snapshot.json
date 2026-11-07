@@ -60,20 +60,13 @@
       "indexes": {
         "album_assets_album_position_idx": {
           "name": "album_assets_album_position_idx",
-          "columns": [
-            "album_id",
-            "position",
-            "asset_id"
-          ],
+          "columns": ["album_id", "position", "asset_id"],
           "isUnique": false,
           "where": "\"album_assets\".\"deleted_at\" is null"
         },
         "album_assets_asset_idx": {
           "name": "album_assets_asset_idx",
-          "columns": [
-            "asset_id",
-            "album_id"
-          ],
+          "columns": ["asset_id", "album_id"],
           "isUnique": false,
           "where": "\"album_assets\".\"deleted_at\" is null"
         }
@@ -338,55 +331,37 @@
       "indexes": {
         "assets_live_created_idx": {
           "name": "assets_live_created_idx",
-          "columns": [
-            "created_at",
-            "id",
-            "is_favorite",
-            "media_type"
-          ],
+          "columns": ["created_at", "id", "is_favorite", "media_type"],
           "isUnique": false,
           "where": "\"assets\".\"deleted_at\" is null"
         },
         "assets_deleted_idx": {
           "name": "assets_deleted_idx",
-          "columns": [
-            "deleted_at",
-            "id",
-            "purged_at"
-          ],
+          "columns": ["deleted_at", "id", "purged_at"],
           "isUnique": false,
           "where": "\"assets\".\"deleted_at\" is not null and \"assets\".\"purged_at\" is null"
         },
         "assets_unsynced_idx": {
           "name": "assets_unsynced_idx",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "isUnique": false,
           "where": "\"assets\".\"is_synced\" = 0 and \"assets\".\"deleted_at\" is null and \"assets\".\"sync_error\" is null"
         },
         "assets_sync_error_idx": {
           "name": "assets_sync_error_idx",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "isUnique": false,
           "where": "\"assets\".\"sync_error\" is not null and \"assets\".\"deleted_at\" is null"
         },
         "assets_notes_idx": {
           "name": "assets_notes_idx",
-          "columns": [
-            "id",
-            "notes"
-          ],
+          "columns": ["id", "notes"],
           "isUnique": false,
           "where": "\"assets\".\"notes\" is not null and \"assets\".\"deleted_at\" is null"
         },
         "assets_purged_files_idx": {
           "name": "assets_purged_files_idx",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "isUnique": false,
           "where": "\"assets\".\"purged_at\" is not null and \"assets\".\"files_removed_for\" is not \"assets\".\"purged_at\""
         }
@@ -476,17 +451,12 @@
       "indexes": {
         "outbox_collection_record_idx": {
           "name": "outbox_collection_record_idx",
-          "columns": [
-            "collection",
-            "record_id"
-          ],
+          "columns": ["collection", "record_id"],
           "isUnique": true
         },
         "outbox_error_idx": {
           "name": "outbox_error_idx",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "isUnique": false,
           "where": "\"outbox\".\"error\" is not null"
         }
@@ -552,17 +522,12 @@
       "indexes": {
         "post_assets_post_idx": {
           "name": "post_assets_post_idx",
-          "columns": [
-            "post_id"
-          ],
+          "columns": ["post_id"],
           "isUnique": false
         },
         "post_assets_asset_idx": {
           "name": "post_assets_asset_idx",
-          "columns": [
-            "asset_id",
-            "post_id"
-          ],
+          "columns": ["asset_id", "post_id"],
           "isUnique": false,
           "where": "\"post_assets\".\"deleted_at\" is null"
         }
@@ -656,10 +621,7 @@
       "indexes": {
         "posts_live_posted_idx": {
           "name": "posts_live_posted_idx",
-          "columns": [
-            "posted_at",
-            "id"
-          ],
+          "columns": ["posted_at", "id"],
           "isUnique": false,
           "where": "\"posts\".\"deleted_at\" is null"
         }

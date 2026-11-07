@@ -11,6 +11,7 @@ import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 
 import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
 import { placesChanged } from '@/features/contact-detail/contactFields';
+import { builtInContactList } from '@/features/contact-list/builtInContactLists';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
@@ -42,7 +43,7 @@ type ContactsProviderProps = { children: ReactNode };
 // that writes a record and its edges commits once. Screens read through their own live queries
 // (contactQuery, contactListQuery).
 export default function ContactsProvider({ children }: ContactsProviderProps) {
-  const { paths: library } = useOpenLibrary();
+  const { paths: library, userId } = useOpenLibrary();
   const value = useMemo<ContactsContextValue>(() => {
     const db = getDb();
     async function written<T>(write: (tx: SyncDb) => Promise<T>): Promise<T> {
@@ -134,7 +135,11 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           await lists.remove(tx, [id]);
           await contactListMembers.tombstoneWhere(tx, { listId: id });
         }),
-      pinList: (id) => written((tx) => lists.pin(tx, id)),
+      pinList: (id) => {
+        const builtIn = builtInContactList(id ?? undefined);
+        const target = !id || builtIn?.id === 'favorites' ? null : builtIn ? { builtInId: id } : { listId: id };
+        return written((tx) => lists.pin(tx, target, userId));
+      },
       addToLists: (contactIds, listIds) =>
         written((tx) =>
           contactListMembers.addToEach(
@@ -153,7 +158,7 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       changeTargetContacts: ({ targetType, targetId }, change) =>
         written((tx) => contactLinks.change(tx, { targetType, targetId }, change, getNewItemId)),
     };
-  }, [library]);
+  }, [library, userId]);
 
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
 }

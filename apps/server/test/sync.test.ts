@@ -389,6 +389,7 @@ d('sync engine (Postgres)', () => {
       contact_lists: () => ({ ...base(), name: 'Squamish', notes: null }),
       contact_list_members: () => ({ ...base(), listId: randomUUID(), contactId: randomUUID() }),
       contact_links: () => ({ ...base(), contactId: randomUUID(), targetType: 'album', targetId: randomUUID() }),
+      contact_settings: () => ({ ...base(), pinnedListId: 'tagged', pinnedAt: 1000 }),
     };
 
     for (const name of collectionNames) {

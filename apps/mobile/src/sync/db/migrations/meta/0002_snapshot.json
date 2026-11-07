@@ -333,10 +333,7 @@
       "indexes": {
         "outbox_collection_record_idx": {
           "name": "outbox_collection_record_idx",
-          "columns": [
-            "collection",
-            "record_id"
-          ],
+          "columns": ["collection", "record_id"],
           "isUnique": true
         }
       },

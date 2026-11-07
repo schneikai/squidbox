@@ -6,15 +6,16 @@ import Animated from 'react-native-reanimated';
 import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
 import ContactMenuRow from './ContactMenuRow';
+import { builtInContactList } from './builtInContactLists';
 import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
-import pinnedList from './pinnedList';
 import shownContactLists from './shownContactLists';
 import useAddListAction from './useAddListAction';
 import useBuiltInContactListRows from './useBuiltInContactListRows';
 import useContactListRows from './useContactListRows';
 import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
+import usePinnedContactList from './usePinnedContactList';
 
 import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
@@ -63,14 +64,19 @@ export default function ContactsScreen() {
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
   const lists = useContactListRows({ isLive: segment === 'lists' });
   const builtInLists = useBuiltInContactListRows({ isLive: segment === 'lists' });
-  // The lists (the pen shows once there are some), and the one pinned in place of Favorites.
-  const pinOptions = useContactListRows({ withMembers: false, isLive: isContacts && !isSearching });
-  const pinned = pinnedList(pinOptions);
-  const pinnedContacts = useContactRows(pinned ? { scope: { listId: pinned.id } } : { scope: 'favorites' }, {
-    isLive: isContacts && !isSearching,
-  });
-  // Favorites shows once there are some; a pinned list even while it is empty, so the pen can change it.
-  const hasPinned = !isSearching && (!!pinnedContacts?.length || (!!pinned && !!pinnedContacts));
+  // What is pinned in place of Favorites, and whether there is anything else to pin (the pen).
+  const pin = usePinnedContactList({ isLive: isContacts && !isSearching });
+  const pinned = pin?.pinned ?? null;
+  const canChangePin = !!pin && (pin.canPinBuiltIn || pin.lists.length > 0);
+  const pinnedContacts = useContactRows(
+    { scope: pinned?.scope ?? 'favorites' },
+    { isLive: isContacts && !isSearching },
+  );
+  // Over the contacts once there are any, even while it is empty, so the pen can change it.
+  const hasPinned = !isSearching && !!pinnedContacts && (pinnedContacts.length > 0 || !!pinned || !!count);
+  const pinnedEmptyText = pinned
+    ? `${builtInContactList(pinned.id)?.emptyTitle ?? 'No contacts in this list yet'}.`
+    : "No favorites yet. Double-tap a contact's photo to add one.";
   const shownLists = useMemo(
     () => lists && builtInLists && shownContactLists([...builtInLists, ...lists], searchText, listSortOrder),
     [lists, builtInLists, searchText, listSortOrder],
@@ -102,7 +108,7 @@ export default function ContactsScreen() {
                 size="small"
                 isFirst
                 trailing={
-                  !!pinOptions?.length && (
+                  canChangePin && (
                     <Button
                       icon="edit"
                       size="small"
@@ -115,7 +121,7 @@ export default function ContactsScreen() {
               {pinnedContacts?.length ? (
                 <ContactAvatarRow contacts={pinnedContacts} />
               ) : (
-                <IntroText isScreenIntro>No contacts in this list yet.</IntroText>
+                <IntroText isScreenIntro>{pinnedEmptyText}</IntroText>
               )}
             </>
           )}

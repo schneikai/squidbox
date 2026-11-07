@@ -10,6 +10,7 @@ import contactQuery from '../src/features/contact-list/contactQuery';
 import pinnedList from '../src/features/contact-list/pinnedList';
 import * as assets from '../src/sync/assetsRepository';
 import * as lists from '../src/sync/contactListsRepository';
+import { readContactSettings } from '../src/sync/contactSettingsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -212,17 +213,45 @@ describe('contactListQuery', () => {
 describe('pinned list', () => {
   const makeList = (id: string, fields: Partial<schema.ContactListRow> = {}) =>
     lists.create(db, { id, createdAt: 1, updatedAt: 1, deletedAt: null, name: id, notes: null, ...fields });
-  const pinnedId = async () => pinnedList(await contactListQuery({ withMembers: false }).read(db))?.id ?? null;
+  const pinnedId = async () =>
+    pinnedList(
+      await contactListQuery({ withMembers: false }).read(db),
+      await readContactSettings(db, '00000000-0000-4000-8000-000000000001'),
+    )?.id ?? null;
 
   it('pinning a list unpins the one pinned before, and pinning Favorites unpins every list', async () => {
     await makeList('hiking');
     await makeList('brands');
-    await lists.pin(db, 'hiking');
-    await lists.pin(db, 'brands');
+    await lists.pin(db, { listId: 'hiking' }, '00000000-0000-4000-8000-000000000001');
+    await lists.pin(db, { listId: 'brands' }, '00000000-0000-4000-8000-000000000001');
     expect(await pinnedId()).toBe('brands');
     expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(1);
-    await lists.pin(db, null);
+    await lists.pin(db, null, '00000000-0000-4000-8000-000000000001');
     expect(await pinnedId()).toBeNull();
+  });
+
+  it('pins Tagged in the contact settings, in place of a pinned list, and a list in place of it', async () => {
+    await makeList('hiking');
+    await lists.pin(db, { listId: 'hiking' }, '00000000-0000-4000-8000-000000000001');
+    await lists.pin(db, { builtInId: 'tagged' }, '00000000-0000-4000-8000-000000000001');
+    expect(await pinnedId()).toBe('tagged');
+    expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(0);
+    await lists.pin(db, { listId: 'hiking' }, '00000000-0000-4000-8000-000000000001');
+    expect(await pinnedId()).toBe('hiking');
+    expect(await readContactSettings(db, '00000000-0000-4000-8000-000000000001')).toEqual({
+      pinnedListId: null,
+      pinnedAt: null,
+    });
+  });
+
+  it('shows Tagged or a list, whichever two devices pinned last', async () => {
+    await makeList('hiking', { pinnedAt: 10 });
+    expect(
+      pinnedList([{ id: 'hiking', name: 'hiking', pinnedAt: 10 }], { pinnedListId: 'tagged', pinnedAt: 20 })?.id,
+    ).toBe('tagged');
+    expect(
+      pinnedList([{ id: 'hiking', name: 'hiking', pinnedAt: 30 }], { pinnedListId: 'tagged', pinnedAt: 20 })?.id,
+    ).toBe('hiking');
   });
 
   it('shows the list pinned last when two devices pinned one each, and Favorites once it is deleted', async () => {

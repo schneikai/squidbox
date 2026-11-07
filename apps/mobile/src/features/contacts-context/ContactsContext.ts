@@ -21,6 +21,8 @@ export type ContactsContextValue = {
   addList: (name: string) => Promise<ContactListRecord>;
   updateList: (id: string, fields: Partial<ContactListRecord>) => Promise<void>;
   setListDeleted: (id: string) => Promise<void>;
+  // Pins a list of the user's or a built-in one (by id) to the top of Contacts; null or Favorites'
+  // id for Favorites again.
   pinList: (id: string | null) => Promise<void>;
   addToLists: (contactIds: string[], listIds: string[]) => Promise<void>;
   changeListContacts: (listId: string, change: MembershipChange) => Promise<void>;

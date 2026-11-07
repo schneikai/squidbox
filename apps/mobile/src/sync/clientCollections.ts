@@ -15,6 +15,7 @@ const tables = {
   contact_lists: schema.contactLists,
   contact_list_members: schema.contactListMembers,
   contact_links: schema.contactLinks,
+  contact_settings: schema.contactSettings,
 };
 
 /** A collection's table: one of the registry's. */
