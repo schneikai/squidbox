@@ -1,4 +1,4 @@
-import type { ContactListSummary } from './contactListQuery';
+import { type ContactListSummary, LIST_STACK } from './contactListQuery';
 import contactQuery, { type ContactScope } from './contactQuery';
 
 import * as schema from '@/sync/db/schema';
@@ -23,12 +23,14 @@ export function builtInContactList(id: string | undefined): BuiltInContactList |
 }
 
 /** A built-in list as its row in the Lists tab shows it (ContactListRows). */
-export type BuiltInContactListSummary = Pick<ContactListSummary, 'id' | 'name' | 'memberCount' | 'firstMembers'>;
-
-const STACK = 3;
+export type BuiltInContactListSummary = Pick<
+  ContactListSummary,
+  'id' | 'name' | 'createdAt' | 'memberCount' | 'firstMembers'
+>;
 
 /**
- * The built-in lists, each with its count and first three contacts (its scope's order), read in one
+ * The built-in lists, each with its count and first LIST_STACK contacts (its scope's order), and `createdAt` 0, so
+ * Recently added puts them last,, read in one
  * transaction; `tables` → what a live read watches.
  */
 export const builtInContactListsQuery = {
@@ -38,10 +40,11 @@ export const builtInContactListsQuery = {
     return db.transaction(async (tx) => {
       const summaries: BuiltInContactListSummary[] = [];
       for (const list of BUILT_IN_CONTACT_LISTS) {
-        const { rows, count } = await contactQuery({ scope: list.scope }).read(tx, { limit: STACK });
+        const { rows, count } = await contactQuery({ scope: list.scope }).read(tx, { limit: LIST_STACK });
         summaries.push({
           id: list.id,
           name: list.name,
+          createdAt: 0,
           memberCount: count,
           firstMembers: rows.map(({ id, name, avatarFilename }) => ({ id, name, avatarFilename })),
         });

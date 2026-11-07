@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type ListRenderItemInfo, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -10,9 +10,11 @@ import ContactRowMenu from './ContactRowMenu';
 import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
 import pinnedList from './pinnedList';
+import shownContactLists from './shownContactLists';
 import useAddListAction from './useAddListAction';
 import useBuiltInContactListRows from './useBuiltInContactListRows';
 import useContactListRows from './useContactListRows';
+import useContactListSort from './useContactListSort';
 import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
 
@@ -41,20 +43,23 @@ const PAGE_SIZE = 100;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
 // The Contacts tab: the contacts (favorites first as a row of avatars, or the list the pen pinned in their place, then everyone, by name or recently added) or
-// the contact lists (the built-in ones first: Favorites, Tagged, Deleted), switched with the Contacts | Lists pill that is the header's title. + adds a contact, or a list.
+// the contact lists (the built-in ones, Favorites, Tagged and Deleted, among the user's), switched with the Contacts | Lists pill that is the header's title.
+// Each has its own sort in the one search and sort bar, which searches the one showing. + adds a contact, or a list.
 export default function ContactsScreen() {
   const [segment, setSegment] = useState<Segment>('contacts');
   const { paddingTop, paddingBottom } = useScreenPadding('main');
-  const { sortOrder, sortContacts } = useContactSort();
-  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
+  const { sortOrder: contactSortOrder, sortContacts } = useContactSort();
+  const { sortOrder: listSortOrder, sortLists } = useContactListSort();
+  const isContacts = segment === 'contacts';
+  const sortOrder = isContacts ? contactSortOrder : listSortOrder;
+  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: isContacts ? sortContacts : sortLists });
   const attachList = useListRefCallback(listRef);
   const scrollHandler = useFloatingBarScrollHandler();
   const promptAddList = useAddListAction();
 
-  const isContacts = segment === 'contacts';
   const isSearching = !!searchText.trim();
   // Trimmed, so a trailing space doesn't read the list again.
-  const query = contactQuery({ scope: 'all', search: searchText.trim(), sort: sortOrder, withLists: true });
+  const query = contactQuery({ scope: 'all', search: searchText.trim(), sort: contactSortOrder, withLists: true });
   // Each stays live only while it shows.
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
   const lists = useContactListRows({ isLive: segment === 'lists' });
@@ -67,6 +72,10 @@ export default function ContactsScreen() {
   });
   // Favorites shows once there are some; a pinned list even while it is empty, so the pen can change it.
   const hasPinned = !isSearching && (!!pinnedContacts?.length || (!!pinned && !!pinnedContacts));
+  const shownLists = useMemo(
+    () => lists && builtInLists && shownContactLists([...builtInLists, ...lists], searchText, listSortOrder),
+    [lists, builtInLists, searchText, listSortOrder],
+  );
 
   const data = isContacts ? (rows ?? []) : [];
   const lastIndex = data.length - 1;
@@ -132,20 +141,19 @@ export default function ContactsScreen() {
           )}
         </>
       ) : (
-        lists &&
-        builtInLists && (
+        shownLists &&
+        (shownLists.length > 0 ? (
           <>
-            <ContactListRows lists={builtInLists} />
-            {lists.length > 0 ? (
-              <>
-                <ScreenSectionHeader title={pluralizeText('1 list', '%{count} lists', lists.length)} size="small" />
-                <ContactListRows lists={lists} />
-              </>
-            ) : (
-              <EmptyState icon="list" title="No lists yet" subtitle="Tap + to make one." />
-            )}
+            <ScreenSectionHeader
+              title={pluralizeText('1 list', '%{count} lists', shownLists.length)}
+              size="small"
+              isFirst
+            />
+            <ContactListRows lists={shownLists} />
           </>
-        )
+        ) : (
+          <EmptyState icon="search" title="No lists match" />
+        ))
       )}
     </View>
   );
@@ -170,15 +178,13 @@ export default function ContactsScreen() {
         keyboardDismissMode="on-drag"
         style={styles.list}
       />
-      {isContacts && (
-        <FloatingActionsBar
-          search={searchBar}
-          placeholder="Search contacts…"
-          sortOrder={sortOrder}
-          sortOptions={contactSortOptions}
-          onSort={sort}
-        />
-      )}
+      <FloatingActionsBar
+        search={searchBar}
+        placeholder={isContacts ? 'Search contacts…' : 'Search lists…'}
+        sortOrder={sortOrder}
+        sortOptions={contactSortOptions}
+        onSort={sort}
+      />
     </View>
   );
 }

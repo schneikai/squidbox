@@ -6,8 +6,8 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useContacts from '@/features/contacts-context/useContacts';
 import confirmAsync from '@/utils/confirmAsync';
 
-/** A contact list's ⋯ menu: Edit list (its name and description, in a sheet), delete it (its contacts stay). */
-type ContactListMenuProps = { list: Pick<ContactListRecord, 'id' | 'name'>; afterDelete: () => void };
+/** A contact list's ⋯ menu: Edit list (its name and description, in a sheet), delete it (its contacts stay), then `afterDelete` (leaving its screen). */
+type ContactListMenuProps = { list: Pick<ContactListRecord, 'id' | 'name'>; afterDelete?: () => void };
 
 export default function ContactListMenu({ list, afterDelete }: ContactListMenuProps) {
   const { setListDeleted } = useContacts();
@@ -20,7 +20,7 @@ export default function ContactListMenu({ list, afterDelete }: ContactListMenuPr
       destructive: true,
     });
     if (!confirmed) return;
-    afterDelete();
+    afterDelete?.();
     await setListDeleted(list.id);
   }
 

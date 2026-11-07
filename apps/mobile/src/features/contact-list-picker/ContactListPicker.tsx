@@ -2,9 +2,6 @@ import type { ContactListRecord } from '@squidbox/shared';
 import { type ReactNode, useDeferredValue, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import sortContactLists from './sortContactLists';
-import useContactListSort from './useContactListSort';
-
 import EmptyState from '@/components/EmptyState';
 import MenuButton from '@/components/MenuButton';
 import SearchInput from '@/components/SearchInput';
@@ -13,18 +10,19 @@ import SortFilterMenu from '@/components/floating-bars/SortFilterMenu';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
+import shownContactLists from '@/features/contact-list/shownContactLists';
 import useAddListAction from '@/features/contact-list/useAddListAction';
 import useContactListRows from '@/features/contact-list/useContactListRows';
+import useContactListSort from '@/features/contact-list/useContactListSort';
 import { layout } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-import { matchingIds } from '@/sync/matchingIds';
 import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
 
 /**
  * The contact lists to choose from, under a search field that narrows them by name and a sort menu
- * beside it (the contacts' Name and Recently added; remembered), with "New list" at the end (a new list is chosen too). `selectedIds` are the chosen lists' ids;
- * `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
+ * beside it (the Lists tab's: shownContactLists, useContactListSort), with "New list" at the end (a
+ * new list is chosen too). `selectedIds` are the chosen lists' ids; `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
  * the accent check instead of the selection circles. `leadingRows` go before the lists while
  * nothing is searched for (Favorites, on the pin).
  */
@@ -44,24 +42,13 @@ export default function ContactListPicker({
   const lists = useContactListRows({ withMembers: false });
   const { sortOrder, sortLists } = useContactListSort();
   const [typedText, setTypedText] = useState('');
-  const searchText = useDeferredValue(typedText).trim().toLowerCase();
+  const searchText = useDeferredValue(typedText).trim();
   const promptAddList = useAddListAction({
     onAdded: (list: ContactListRecord) => onChange(isSingle ? [list.id] : [...selectedIds, list.id]),
     message: isSingle ? undefined : 'The list is made now, even if you close this without saving.',
   });
 
-  const shown = useMemo(() => {
-    if (!lists) return lists;
-    const sorted = sortContactLists(lists, sortOrder);
-    if (!searchText) return sorted;
-    const matched = new Set(
-      matchingIds(
-        lists.map((list) => ({ id: list.id, text: list.name.toLowerCase() })),
-        searchText,
-      ),
-    );
-    return sorted.filter((list) => matched.has(list.id));
-  }, [lists, searchText, sortOrder]);
+  const shown = useMemo(() => lists && shownContactLists(lists, searchText, sortOrder), [lists, searchText, sortOrder]);
 
   function handlePress(listId: string) {
     onChange(isSingle ? [listId] : toggleItem(selectedIds, listId));
