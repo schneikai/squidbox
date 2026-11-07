@@ -7,6 +7,7 @@ import contactPlace from './contactPlace';
 import type { ContactSummary } from './contactQuery';
 
 import Divider from '@/components/Divider';
+import Icon from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
 import SelectIndicator from '@/components/SelectIndicator';
 import SuperPressable from '@/components/SuperPressable';
@@ -27,7 +28,7 @@ const END_INSET = layout.rowInset - (sizes.iconButton - sizes.icon) / 2;
  * A contact in a list of contacts: its avatar (with the favorite's heart), name, place (wrapping
  * onto more lines rather than cut off) and, when the row has them (contactQuery's `withLists`), its
  * lists as pills (ContactListPills), and `trailing` at its end, beside the row's press area (a
- * Restore button). `onLongPress` opens its menu (ContactRowMenu's trigger), with a peek tap. The rows of one list
+ * Restore button); without one, a row that opens the contact ends with Row's chevron. `onLongPress` opens its menu (ContactRowMenu's trigger), with a peek tap. The rows of one list
  * read as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates
  * the rest. `subtitle` replaces the place line. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
  * a row to pick, with a selection circle at its end.
@@ -108,6 +109,9 @@ function ContactRow({
             {!!contact.listNames?.length && <ContactListPills names={contact.listNames} />}
           </View>
           {!canFavorite && <SelectIndicator isSelected={isSelected} style={styles.indicator} />}
+          {canFavorite && !trailing && (
+            <Icon name="chevron-right" size={sizes.iconSmall} color={colors.text.tertiary} />
+          )}
         </Pressable>
         {/* A full 44 pt slot, so its icon sits in from the card's edge. */}
         <IconSlotContext.Provider value>{trailing}</IconSlotContext.Provider>
