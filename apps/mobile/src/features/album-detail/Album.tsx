@@ -1,21 +1,16 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { router, useNavigation } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
 
-import Badge from '@/components/Badge';
 import Page from '@/components/Page';
-import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
-import type { SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
 import type { SortOption } from '@/components/floating-bars/SortFilterMenu';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import type { ReorderChange } from '@/components/sortable-grid/useDragReorder';
-import AlbumPostsView from '@/features/album-detail/AlbumPostsView';
+import AlbumHeader from '@/features/album-detail/AlbumHeader';
 import AddAssetAction from '@/features/album-detail/actions/AddAssetAction';
 import MoreAction from '@/features/album-detail/actions/MoreAction';
 import useAlbums from '@/features/albums-context/useAlbums';
@@ -29,10 +24,9 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
-import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import { press, space } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 import type { AssetSort } from '@/sync/assetSql';
 import { countByMediaType } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
@@ -43,14 +37,6 @@ import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
-import pluralizeText from '@/utils/pluralizeText';
-
-type AlbumTab = 'Assets' | 'Posts';
-
-const TABS: SegmentedPillItem<AlbumTab>[] = [
-  { key: 'Assets', icon: 'grid', label: 'Assets' },
-  { key: 'Posts', icon: 'share-alt', label: 'Posts' },
-];
 
 const ALBUM_SORT_OPTIONS: SortOption<AssetSort>[] = [...assetSortOptions, { key: 'custom', label: 'Custom order' }];
 
@@ -73,9 +59,6 @@ export default function Album({ album }: AlbumProps) {
   // shows at once rather than when the synced Custom order flag catches up.
   const [sessionSortOrder, setSessionSortOrder] = useState<AssetSort | null>(null);
   const sortOrder = sessionSortOrder ?? getAlbumSortOrder(album, albumSortOrders);
-  const [activeTab, setActiveTab] = useState<AlbumTab>('Assets');
-  const [postCount, setPostCount] = useState<number>();
-  const expandProgress = useSharedValue(0);
 
   const query = assetQuery({
     scope: getAlbumAssetScope(album),
@@ -87,13 +70,10 @@ export default function Album({ album }: AlbumProps) {
 
   const actions = useAssetSelectionActions(selection, query, count);
   const isSmart = isSmartAlbum(album);
-  // A smart album has no contacts of its own.
-  const hasSubHeader = !!album.archivedAt || !!album.notes || !isSmart;
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
-  const reorderEnabled =
-    activeTab === 'Assets' && !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
+  const reorderEnabled = !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
 
   // Smart albums have no stored order, so no Custom order; Deleted lists the most recently deleted first.
   const sortOptions = isDeletedAssetsAlbum(album) ? [] : isSmart ? assetSortOptions : ALBUM_SORT_OPTIONS;
@@ -127,11 +107,6 @@ export default function Album({ album }: AlbumProps) {
     });
   }
 
-  const headerSubtitle =
-    activeTab === 'Posts'
-      ? pluralizeText('1 Post', '%{count} Posts', postCount ?? 0)
-      : pluralizeText('1 Asset', '%{count} Assets', count ?? 0);
-
   async function handleDeleteFromAlbum() {
     const counts = await countByMediaType(getDb(), selectedAssetIds);
     showActionSheetWithOptions(
@@ -155,8 +130,6 @@ export default function Album({ album }: AlbumProps) {
   return (
     <Page testID="album-screen">
       <FloatingDetailHeader
-        title={album.name}
-        subtitle={headerSubtitle}
         onBack={() => navigation.goBack()}
         isSelectMode={isSelectMode}
         menuSlot={
@@ -181,69 +154,34 @@ export default function Album({ album }: AlbumProps) {
         }
       />
 
-      {/* Sub-header — the archived badge, the notes and the contacts on the album */}
-      {hasSubHeader && (
-        <View style={[styles.subHeader, { marginTop: paddingTop }]}>
-          {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
-          {!!album.notes && (
-            <Pressable
-              style={({ pressed }) => pressed && press.flat}
-              onPress={() => router.navigate(`/album/${album.id}/notes`)}
-            >
-              <Text variant="hint">{album.notes}</Text>
-            </Pressable>
-          )}
-          {!isSmart && (
-            <View style={styles.contacts}>
-              <TargetContactsSection targetType="album" targetId={album.id} isFlush />
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Active view — content scrolls behind the floating header. The sub-header
-          (when present) already reserves the top space, so the list padding drops
-          to 0 in that case. */}
-      <View style={styles.content}>
-        {activeTab === 'Assets' ? (
-          <AssetGrid
-            rows={rows}
-            rowsReadAt={readAt}
-            loadMore={loadMore}
-            isSelectMode={isSelectMode}
-            selectedAssetIds={selectedAssetIds}
-            isAssetSelected={isAssetSelected}
-            onPressAsset={actions.openAsset}
-            listRef={listRef}
-            paddingTop={hasSubHeader ? 0 : paddingTop}
-            paddingBottom={paddingBottom}
-            selectAssets={selectAssets}
-            isSortable={!isSmart}
-            reorderEnabled={reorderEnabled}
-            onReorder={handleReorder}
-          />
-        ) : (
-          <AlbumPostsView
-            albumId={album.id}
-            onCount={setPostCount}
-            paddingTop={hasSubHeader ? 0 : paddingTop}
-            paddingBottom={paddingBottom}
-          />
-        )}
+      {/* The album's name, its contacts and its posts, over the grid */}
+      <View style={[styles.header, { marginTop: paddingTop }]}>
+        <AlbumHeader album={album} assetCount={count} />
       </View>
 
-      <FloatingSegmentPill
-        tabs={TABS}
-        activeTab={activeTab}
-        onTabPress={setActiveTab}
-        expandProgress={expandProgress}
-      />
+      <View style={styles.content}>
+        <AssetGrid
+          rows={rows}
+          rowsReadAt={readAt}
+          loadMore={loadMore}
+          isSelectMode={isSelectMode}
+          selectedAssetIds={selectedAssetIds}
+          isAssetSelected={isAssetSelected}
+          onPressAsset={actions.openAsset}
+          listRef={listRef}
+          paddingTop={0}
+          paddingBottom={paddingBottom}
+          selectAssets={selectAssets}
+          isSortable={!isSmart}
+          reorderEnabled={reorderEnabled}
+          onReorder={handleReorder}
+        />
+      </View>
 
-      {/* Assets tab only, hidden in select mode */}
-      {activeTab === 'Assets' && !isSelectMode && (
+      {/* Hidden in select mode */}
+      {!isSelectMode && (
         <SearchSortFilterBar
           search={searchBar}
-          expandProgress={expandProgress}
           placeholder="Search notes…"
           sortOrder={sortOrder}
           sortOptions={sortOptions}
@@ -265,16 +203,11 @@ function withAlbumSortOrder(albumSortOrders: AppSettings['albumSortOrders'], alb
 }
 
 const styles = StyleSheet.create({
-  subHeader: {
-    alignItems: 'flex-start',
-    paddingHorizontal: space.lg,
-    paddingBottom: space.sm,
-    gap: space.xs,
+  header: {
+    paddingHorizontal: layout.sideGutter,
+    paddingBottom: space.lg,
   },
   content: {
     flex: 1,
-  },
-  contacts: {
-    alignSelf: 'stretch',
   },
 });

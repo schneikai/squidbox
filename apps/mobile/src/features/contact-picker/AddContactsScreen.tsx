@@ -7,18 +7,23 @@ import readAddContactsSeed, { type AddContactsSeed, type AddContactsTarget } fro
 
 import EditSheetHeader from '@/components/EditSheetHeader';
 import EmptyState from '@/components/EmptyState';
+import MenuButton from '@/components/MenuButton';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchInput from '@/components/SearchInput';
+import SortFilterMenu from '@/components/floating-bars/SortFilterMenu';
 import { SCREEN_PADDING } from '@/constants';
 import ContactRow from '@/features/contact-list/ContactRow';
 import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSearchText from '@/features/contact-list/contactSearchText';
+import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactRows from '@/features/contact-list/useContactRows';
+import useContactSort from '@/features/contact-list/useContactSort';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import { layout } from '@/styles/designTokens';
 import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
 
@@ -30,7 +35,7 @@ const isTargetType = (type: string | undefined): type is ContactLinkRecord['targ
 /**
  * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
  * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
- * with a search. Save adds the ones picked here and removes the ones unpicked here. For every photo
+ * with a search and the Contacts tab's sort beside it (useContactSort). Save adds the ones picked here and removes the ones unpicked here. For every photo
  * of an album (`?photosOfAlbumId=`) nothing starts picked, and Add puts the picked ones on each photo.
  */
 export default function AddContactsScreen() {
@@ -65,8 +70,10 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const [selectedIds, setSelectedIds] = useState(seed.linked);
   const [typedText, setTypedText] = useState('');
   const searchText = useDeferredValue(typedText).trim().toLowerCase();
-  // Every contact, read once (and on writes); a search filters them here, so typing reads nothing.
-  const allContacts = useContactRows({ scope: 'all' });
+  const { sortOrder, setSortOrder } = useContactSort();
+  // Every contact, read once (and on writes and a new sort); a search filters them here, so typing
+  // reads nothing.
+  const allContacts = useContactRows({ scope: 'all', sort: sortOrder });
   // Each contact's searched text, made once per read rather than per keystroke.
   const searchList = useMemo(
     () => allContacts?.map((contact) => ({ id: contact.id, text: contactSearchText(contact) })),
@@ -134,15 +141,20 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
         )}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
-          <SearchInput
-            variant="field"
-            placeholder="Name, handle or location"
-            accessibilityLabel="Search contacts"
-            value={typedText}
-            onChangeText={setTypedText}
-            clearButtonMode="while-editing"
-            style={styles.search}
-          />
+          <View style={styles.controls}>
+            <SearchInput
+              variant="field"
+              placeholder="Name, handle or location"
+              accessibilityLabel="Search contacts"
+              value={typedText}
+              onChangeText={setTypedText}
+              clearButtonMode="while-editing"
+              style={styles.search}
+            />
+            <MenuButton icon="options" accessibilityLabel="Sort contacts">
+              <SortFilterMenu sortOrder={sortOrder} sortOptions={contactSortOptions} onSort={setSortOrder} />
+            </MenuButton>
+          </View>
         }
         ListEmptyComponent={contacts ? <EmptyState icon="search" title="No contacts match" /> : undefined}
         keyboardShouldPersistTaps="handled"
@@ -176,16 +188,14 @@ const PickRow = memo(function PickRow({ contact, isSelected, onToggle, isFirst, 
   );
 });
 
-// The contacts in the seed's sections, each once, where it first fits; everyone else after them.
+// The contacts in the seed's sections, each once, where it first fits, in the contacts' sort;
+// everyone else after them.
 function toSections(contacts: ContactSummary[], seed: AddContactsSeed): ContactSectionData[] {
-  const byId = new Map(contacts.map((contact) => [contact.id, contact]));
   const placed = new Set<string>();
   const sections: ContactSectionData[] = [];
   for (const { title, ids } of [{ title: seed.linkedTitle, ids: seed.linked }, ...seed.related]) {
-    const data = ids
-      .filter((id) => !placed.has(id))
-      .map((id) => byId.get(id))
-      .filter((contact): contact is ContactSummary => !!contact);
+    const inSection = new Set(ids);
+    const data = contacts.filter((contact) => inSection.has(contact.id) && !placed.has(contact.id));
     for (const contact of data) placed.add(contact.id);
     if (data.length) sections.push({ title, data });
   }
@@ -198,7 +208,13 @@ const styles = StyleSheet.create({
   gutter: {
     paddingHorizontal: SCREEN_PADDING,
   },
-  search: {
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.rowLeadingGap,
     marginHorizontal: SCREEN_PADDING,
+  },
+  search: {
+    flex: 1,
   },
 });

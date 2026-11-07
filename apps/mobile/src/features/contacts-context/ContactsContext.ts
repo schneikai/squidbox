@@ -29,6 +29,10 @@ export type ContactsContextValue = {
   changeTargetContacts: (target: ContactTarget, change: MembershipChange) => Promise<void>;
   addContactsToPhotos: (assetIds: string[], contactIds: string[]) => Promise<void>;
   addContactsToAlbumPhotos: (albumId: string, contactIds: string[]) => Promise<void>;
+  removeContactsFromPhotosOf: (
+    target: { targetType: 'album' | 'post'; targetId: string },
+    contactIds: string[],
+  ) => Promise<void>;
 };
 
 const ContactsContext = createContext<ContactsContextValue | null>(null);

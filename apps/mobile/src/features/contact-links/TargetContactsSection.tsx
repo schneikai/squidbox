@@ -23,8 +23,7 @@ type TargetContactsSectionProps = {
  * The Contacts section of a photo, album or post (`targetType`, `targetId`): a chip per contact on
  * it, opening the contact (its × takes it off, TargetContactChip), and Add, which
  * opens the Add contacts sheet (where one is taken off too). An album or post also lists the
- * contacts on its photos, by name with the ones on it, without a × (they come off on the photo);
- * an album's Add puts contacts on all its photos.
+ * contacts on its photos, by name with the ones on it; their × takes them off all its photos.
  * Inside a sheet (a photo, album or post opened in New post or Compare) the chips only show who is
  * on it: a contact and the Add contacts sheet open from the main app, never as a second sheet or a
  * screen that edits as you type inside a draft. `guardPress` may wrap the presses (useDetailsPanelDrag's); `isLive: false` reads them once.
@@ -70,7 +69,7 @@ export default function TargetContactsSection({
               contact={contact}
               targetType={targetType}
               targetId={targetId}
-              isRemovable={linkedIds.has(contact.id)}
+              isOnPhotos={!linkedIds.has(contact.id)}
               onOpen={guardPress(() => router.navigate(`/contact/${contact.id}`))}
             />
           ),
@@ -81,12 +80,7 @@ export default function TargetContactsSection({
             size="large"
             label="Add"
             accessibilityLabel="Add contacts"
-            onPress={guardPress(() =>
-              router.navigate({
-                pathname: '/add-contacts',
-                params: targetType === 'album' ? { photosOfAlbumId: targetId } : { targetType, targetId },
-              }),
-            )}
+            onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: { targetType, targetId } }))}
           />
         )}
       </ChipRow>

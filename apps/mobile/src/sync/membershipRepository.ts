@@ -90,8 +90,22 @@ export function makeMembershipRepository(
     });
   }
 
+  /** Takes these children out of every one of the parents, in one transaction (read as addToEach). */
+  async function removeFromEach(db: SyncDb, parents: Parent[], childIds: string[]): Promise<void> {
+    if (childIds.length === 0 || parents.length === 0) return;
+    await db.transaction(async (tx) => {
+      const edges: any[] = [];
+      for (const some of chunk(parents, PARENTS_PER_READ))
+        edges.push(
+          ...(await read(tx, and(or(...some.map(isParent)), inJson(t[childField], childIds), isNull(t.deletedAt)))),
+        );
+      await tombstoneAll(tx, edges);
+    });
+  }
+
   return {
     addToEach,
+    removeFromEach,
 
     /** Puts these children in the parent (one transaction, one read of its edges). */
     add: (db: SyncDb, parent: Parent, childIds: string[], newId: () => string) =>

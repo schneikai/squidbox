@@ -5,6 +5,7 @@ import {
   type ContactListRecord,
   type ContactRecord,
 } from '@squidbox/shared';
+import { sql } from 'drizzle-orm';
 import { type ReactNode, useMemo } from 'react';
 
 import ContactsContext, { type ContactsContextValue } from './ContactsContext';
@@ -163,10 +164,30 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       // Puts the contacts on every photo the album shows, as it holds them when this writes.
       addContactsToAlbumPhotos: (albumId, contactIds) =>
         written(async (tx) => addToPhotos(tx, await assetQuery({ scope: { albumId } }).ids(tx), contactIds)),
+      // Takes the contacts off every photo of the album or post (a thread's posts too), and off the
+      // album or post itself (a link from before only photos were tagged).
+      removeContactsFromPhotosOf: (target, contactIds) =>
+        written(async (tx) => {
+          const photoIds =
+            target.targetType === 'album'
+              ? await assetQuery({ scope: { albumId: target.targetId } }).ids(tx)
+              : await postPhotoIds(tx, target.targetId);
+          const photos = photoIds.map((targetId) => ({ targetType: 'asset', targetId }));
+          await contactLinks.removeFromEach(tx, [...photos, target], contactIds);
+        }),
     };
   }, [library, userId]);
 
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
+}
+
+// The photos of a post and of its thread's posts, through live edges.
+async function postPhotoIds(tx: SyncDb, postId: string): Promise<string[]> {
+  const rows = await tx.all<{ asset_id: string }>(
+    sql`select distinct asset_id from post_assets where deleted_at is null and (post_id = ${postId} or post_id in
+      (select id from posts where thread_root_id = ${postId} and deleted_at is null))`,
+  );
+  return rows.map((row) => row.asset_id);
 }
 
 function addToPhotos(tx: SyncDb, assetIds: string[], contactIds: string[]): Promise<void> {

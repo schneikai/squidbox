@@ -86,12 +86,14 @@ describe('membershipRepository', () => {
     expect((await members()).filter((e) => e.listId === 'list-1' && e.contactId === 'a')).toHaveLength(1);
   });
 
-  it('addToEach puts contacts on more photos than SQLite allows terms in one expression', async () => {
+  it('addToEach and removeFromEach work on more photos than SQLite allows terms in one expression', async () => {
     const photos = Array.from({ length: 1200 }, (_, i) => ({ targetType: 'asset', targetId: `p${i}` }));
     await contactLinks.add(db, photos[700]!, ['a'], newId);
     await contactLinks.addToEach(db, photos, ['a', 'b'], newId);
-    const live = (await db.select().from(schema.contactLinks)).filter((e) => e.deletedAt === null);
-    expect(live).toHaveLength(2400);
+    const live = async () => (await db.select().from(schema.contactLinks)).filter((e) => e.deletedAt === null);
+    expect(await live()).toHaveLength(2400);
+    await contactLinks.removeFromEach(db, photos, ['a']);
+    expect((await live()).map((e) => e.contactId)).toEqual(Array(1200).fill('b'));
   });
 
   it('add, change and addToEach read the parent’s edges through its index, never the whole table', async () => {

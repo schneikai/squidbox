@@ -42,13 +42,14 @@ export type ChipProps = Pick<
  * tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), in the accent color; `leading` leads it instead with a node
- * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line. `isSelected` tells VoiceOver it's on (as
+ * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
+ * chip would be wider than its row. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
  * what VoiceOver reads for it.
  * `size="large"` is taller with a bigger label, for a row of people (a photo's contacts); a large tag
- * is white with a hairline, to stand out on a screen's grey and on a white panel.
+ * has a hairline, so it looks the same on a screen's grey and on a white panel.
  * style is for layout only.
  */
 export default function Chip({
@@ -89,6 +90,7 @@ export default function Chip({
       <Text
         style={[
           styles.label,
+          styles.shrinks,
           isLarge && styles.largeLabel,
           isAccent && styles.accentLabel,
           variant === 'lead' && styles.leadLabel,
@@ -130,7 +132,7 @@ export default function Chip({
           accessibilityRole={accessibilityRole}
           accessibilityLabel={accessibilityLabel}
           accessibilityHint={accessibilityHint}
-          style={({ pressed }) => [styles.chip, pressed && press.flat]}
+          style={({ pressed }) => [styles.chip, styles.shrinks, pressed && press.flat]}
         >
           {content}
         </Pressable>
@@ -159,10 +161,15 @@ export default function Chip({
 }
 
 const styles = StyleSheet.create({
+  // No wider than its row: a long name is cut short (a contact's label is one line).
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.iconGap,
+    maxWidth: '100%',
+  },
+  shrinks: {
+    flexShrink: 1,
   },
   tag: {
     backgroundColor: colors.background.muted,
@@ -181,10 +188,9 @@ const styles = StyleSheet.create({
     paddingLeft: space.xs - chipFrame.borderWidth,
     paddingRight: space.md,
   },
-  // White with a hairline, as a card is: a person stands out on a screen's grey, where the tag's grey
-  // would fade, and still on a white panel (a photo's details).
+  // The tag's grey with a hairline, so a person's chip looks the same on a screen's grey, where the
+  // fill alone would fade, and on a white panel (a photo's details).
   largeTag: {
-    backgroundColor: colors.background.surface,
     borderColor: colors.border.divider,
   },
   largeLabel: textStyles.body,
