@@ -75,9 +75,11 @@ const COUNTRY_ALIASES: Record<string, string> = {
   'northern ireland': 'United Kingdom',
 };
 
+const REGION_NAMES = new Intl.DisplayNames(['en'], { type: 'region' });
+
 // Every country's official English name, by its lowercased name (Intl's region names).
 const COUNTRIES: Map<string, string> = (() => {
-  const names = new Intl.DisplayNames(['en'], { type: 'region' });
+  const names = REGION_NAMES;
   const map = new Map<string, string>();
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   for (const a of letters)
@@ -102,19 +104,53 @@ function usState(part: string): string | undefined {
   return STATE_NAMES.get(part.toLowerCase()) ?? US_STATES[part.toUpperCase().replace(/\./g, '')];
 }
 
+// A flag emoji: two regional indicator letters, 🇨🇦 for CA.
+const FLAG = /[\u{1F1E6}-\u{1F1FF}]{2}/gu;
+const REGIONAL_A = 0x1f1e6;
+
+// The country of the first flag in `text` ("East coast 🇨🇦" → Canada), if any.
+function flagCountry(text: string): string | undefined {
+  const flag = text.match(FLAG)?.[0];
+  if (!flag) return undefined;
+  const code = [...flag].map((letter) => String.fromCharCode(letter.codePointAt(0)! - REGIONAL_A + 65)).join('');
+  const name = REGION_NAMES.of(code);
+  return name && name !== code ? name : undefined;
+}
+
+// A part that ends with a country's name after a space ("East Coast Canada"), as the part before it
+// and the country; the longest name that fits wins ("Papua New Guinea" over "Guinea").
+function splitTrailingCountry(part: string): [string, string] | undefined {
+  const lower = part.toLowerCase();
+  let best: [string, string] | undefined;
+  for (const [name, official] of COUNTRIES) {
+    if (lower.endsWith(` ${name}`) && (!best || name.length > best[1].length)) {
+      best = [part.slice(0, part.length - name.length).trim(), name];
+    }
+  }
+  return best && [best[0], COUNTRIES.get(best[1])!];
+}
+
 export type SplitLocation = { city: string; state: string; country: string };
 
 /**
  * `location` as a place: "City, Country", "City, State, Country" (anything between the first and the
  * last part is the state) or "City, ST" in the US, the country by its official English name; one part
  * is a country, a US state or else the city. A last part that is no country stays the state
- * ("Squamish, BC"). Empty for an empty location.
+ * ("Squamish, BC"), unless it ends with one ("East Coast Canada": East Coast, Canada). Without a
+ * country named, a flag gives it ("Toronto 🇨🇦"). Empty for an empty location.
  */
 export function splitLocation(location: string): SplitLocation {
+  const place = splitParts(location.replace(FLAG, ' '));
+  return place.country ? place : { ...place, country: flagCountry(location) ?? '' };
+}
+
+function splitParts(location: string): SplitLocation {
   const parts = location
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
+  const tail = parts.length > 0 && !country(parts.at(-1)!) && !usState(parts.at(-1)!) && splitTrailingCountry(parts.at(-1)!);
+  if (tail) parts.splice(-1, 1, ...tail.filter(Boolean));
   const empty = { city: '', state: '', country: '' };
   if (parts.length === 0) return empty;
   const last = parts[parts.length - 1]!;

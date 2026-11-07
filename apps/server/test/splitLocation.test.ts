@@ -21,4 +21,10 @@ describe('splitLocation', () => {
   it('keeps a last part that is no country as the state', () => {
     expect(splitLocation('Squamish, BC')).toEqual({ city: 'Squamish', state: 'BC', country: '' });
   });
+
+  it('reads a country at the end of a part without a comma, or from a flag', () => {
+    expect(splitLocation('East Coast Canada')).toEqual({ city: 'East Coast', state: '', country: 'Canada' });
+    expect(splitLocation('Port Moresby, Papua New Guinea')).toMatchObject({ country: 'Papua New Guinea' });
+    expect(splitLocation('Toronto 🇨🇦')).toEqual({ city: 'Toronto', state: '', country: 'Canada' });
+  });
 });
