@@ -68,7 +68,8 @@ export type RowProps = {
 // guidance prefers over truncating or shrinking text.
 // `label` is its text, or a component that takes the label's place (a model's summary). `leading`
 // goes before it (an icon), `description` is secondary text under it. `hasChevron` ends it with a
-// chevron (it opens a screen), `isSelected` with the accent check (the current one).
+// chevron (it opens a screen) while nothing else is at its end: `children` (a list's avatars) take
+// the chevron's place, a value keeps it beside it, `isSelected` with the accent check (the current one).
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
 // long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
 // (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
@@ -90,6 +91,7 @@ export function Row({
   accessibilityState,
   children,
 }: RowProps) {
+  const hasTrailing = Children.toArray(children).length > 0;
   const content = (
     <View style={[styles.row, size === 'small' && styles.rowSmall]}>
       {leading != null && <View style={styles.rowLeading}>{leading}</View>}
@@ -105,7 +107,7 @@ export function Row({
         {value ? <RNText style={styles.rowValue}>{value}</RNText> : null}
         {children}
         {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
-        {hasChevron && (
+        {hasChevron && !hasTrailing && (
           <Icon
             name="chevron-right"
             size={sizes.iconSmall}

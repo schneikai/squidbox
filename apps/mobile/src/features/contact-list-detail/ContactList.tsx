@@ -12,6 +12,7 @@ import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import ContactRow from '@/features/contact-list/ContactRow';
+import ContactRowMenu from '@/features/contact-list/ContactRowMenu';
 import contactQuery, { type ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
@@ -42,7 +43,12 @@ export default function ContactList({ list }: ContactListProps) {
   // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
   const renderItem = useCallback(
     ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
-      <ContactRow contact={contact} isFirst={index === 0} isLast={index === lastIndex} />
+      <ContactRowMenu
+        contact={contact}
+        trigger={({ toggle }) => (
+          <ContactRow contact={contact} onLongPress={toggle} isFirst={index === 0} isLast={index === lastIndex} />
+        )}
+      />
     ),
     [lastIndex],
   );

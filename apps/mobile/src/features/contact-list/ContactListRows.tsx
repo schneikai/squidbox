@@ -18,8 +18,8 @@ type ListSummary = Pick<ContactListSummary, 'id' | 'name' | 'memberCount' | 'fir
 
 /**
  * The contact lists (contactListQuery's rows and the built-in ones) in one section: each list's name
- * and number of contacts, the avatars of its first members overlapping on the right, opening the
- * list. A long press on a list of the user's opens its menu (Edit list, Delete list), as its ⋯ does
+ * and number of contacts, the avatars of its first members overlapping on the right (an empty one
+ * shows Row's chevron instead), opening the list. A long press on a list of the user's opens its menu (Edit list, Delete list), as its ⋯ does
  * on its screen; a built-in one has none, it can't be edited or deleted.
  */
 type ContactListRowsProps = { lists: ListSummary[] };
@@ -64,12 +64,15 @@ function ListRow({ list, onLongPress }: { list: ListSummary; onLongPress?: () =>
       }
       onPress={() => router.navigate(`/contact-list/${list.id}`)}
       onLongPress={onLongPress}
+      hasChevron
     >
-      <View style={styles.stack}>
-        {members.map((member, i) => (
-          <ContactAvatar key={member.id} contact={member} size="row" isStacked style={i > 0 && styles.overlapped} />
-        ))}
-      </View>
+      {members.length > 0 && (
+        <View style={styles.stack}>
+          {members.map((member, i) => (
+            <ContactAvatar key={member.id} contact={member} size="row" isStacked style={i > 0 && styles.overlapped} />
+          ))}
+        </View>
+      )}
     </Row>
   );
 }

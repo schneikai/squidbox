@@ -50,21 +50,23 @@ export default function BuiltInContactList({ list }: BuiltInContactListProps) {
   const lastIndex = (rows?.length ?? 0) - 1;
   // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
   const renderItem = useCallback(
-    ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
-      <ContactRow
-        contact={contact}
-        onPress={isDeleted ? () => restoreContact(contact.id) : undefined}
-        trailing={
-          isDeleted ? (
-            <Button label="Restore" size="small" onPress={() => restoreContact(contact.id)} />
-          ) : (
-            <ContactRowMenu contact={contact} />
-          )
-        }
-        isFirst={index === 0}
-        isLast={index === lastIndex}
-      />
-    ),
+    ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) =>
+      isDeleted ? (
+        <ContactRow
+          contact={contact}
+          onPress={() => restoreContact(contact.id)}
+          trailing={<Button label="Restore" size="small" onPress={() => restoreContact(contact.id)} />}
+          isFirst={index === 0}
+          isLast={index === lastIndex}
+        />
+      ) : (
+        <ContactRowMenu
+          contact={contact}
+          trigger={({ toggle }) => (
+            <ContactRow contact={contact} onLongPress={toggle} isFirst={index === 0} isLast={index === lastIndex} />
+          )}
+        />
+      ),
     [lastIndex, isDeleted, restoreContact],
   );
 

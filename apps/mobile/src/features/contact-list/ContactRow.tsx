@@ -26,7 +26,8 @@ const END_INSET = layout.rowInset - (sizes.iconButton - sizes.icon) / 2;
 /**
  * A contact in a list of contacts: its avatar (with the favorite's heart), name, place (wrapping
  * onto more lines rather than cut off) and, when the row has them (contactQuery's `withLists`), its
- * lists as pills (ContactListPills), and `trailing` at its end, beside the row's press area (its ⋯ menu). The rows of one list
+ * lists as pills (ContactListPills), and `trailing` at its end, beside the row's press area (a
+ * Restore button). `onLongPress` opens its menu (ContactRowMenu's trigger), with a peek tap. The rows of one list
  * read as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates
  * the rest. `subtitle` replaces the place line. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
  * a row to pick, with a selection circle at its end.
@@ -36,6 +37,7 @@ type ContactRowProps = {
   subtitle?: string | null;
   trailing?: ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
   isSelected?: boolean;
   isFirst?: boolean;
   isLast?: boolean;
@@ -46,6 +48,7 @@ function ContactRow({
   subtitle: givenSubtitle,
   trailing,
   onPress,
+  onLongPress,
   isSelected,
   isFirst,
   isLast,
@@ -61,6 +64,13 @@ function ContactRow({
     else router.navigate(`/contact/${contact.id}`);
   }
 
+  const handleLongPress =
+    onLongPress &&
+    (() => {
+      haptics.peek();
+      onLongPress();
+    });
+
   function handleToggleFavorite() {
     haptics.selection();
     toggleFavoriteContact(contact.id);
@@ -74,6 +84,7 @@ function ContactRow({
         <Pressable
           style={({ pressed }) => [styles.pressable, pressed && press.flat]}
           onPress={handlePress}
+          onLongPress={handleLongPress}
           accessibilityRole="button"
           accessibilityState={canFavorite ? undefined : { selected: isSelected }}
         >
@@ -81,6 +92,7 @@ function ContactRow({
             <SuperPressable
               onPress={handlePress}
               onDoublePress={handleToggleFavorite}
+              onLongPress={handleLongPress}
               accessibilityRole="button"
               accessibilityLabel={contact.name}
               accessibilityHint={contact.isFavorite ? 'Double tap to remove from favorites' : 'Double tap to favorite'}

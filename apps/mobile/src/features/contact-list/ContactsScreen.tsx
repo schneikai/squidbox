@@ -82,11 +82,11 @@ export default function ContactsScreen() {
   // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
   const renderItem = useCallback(
     ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
-      <ContactRow
+      <ContactRowMenu
         contact={contact}
-        trailing={<ContactRowMenu contact={contact} />}
-        isFirst={index === 0}
-        isLast={index === lastIndex}
+        trigger={({ toggle }) => (
+          <ContactRow contact={contact} onLongPress={toggle} isFirst={index === 0} isLast={index === lastIndex} />
+        )}
       />
     ),
     [lastIndex],

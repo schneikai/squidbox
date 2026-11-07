@@ -103,10 +103,12 @@ Best run on the server (a daily job purging assets deleted 30+ days ago, then th
 it works with no device open and can't clash with a restore made on another device.
 Possible paid tier later: 3 days' retention by default, 30 days for paying users.
 
-### [ ] Context menus on long press (photo, album, post)
+### [ ] Context menus on long press (photo, album, post, contact, list)
 
-Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
-Favorite, Delete. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
+Apple-Photos-style menu on long press, the same everywhere: a preview with actions such as Share,
+Save, Add to album, Favorite, Delete. For now a long press on a contact, list or post row opens a
+plain anchored menu (`ContactRowMenu`, `ContactListMenu`), photos only peek and albums only drag;
+this replaces all three. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
 `components/popup-menu-options` under it, opened from the grids' "hold still" step (`onPeek` in
 `components/sortable-grid/useDragReorder.ts`), so moving the finger still closes it and drags, as in
 Photos, and it works on web. Unlike today's quick view, the menu stays open after the finger lifts.
