@@ -149,7 +149,8 @@ function splitParts(location: string): SplitLocation {
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
-  const tail = parts.length > 0 && !country(parts.at(-1)!) && !usState(parts.at(-1)!) && splitTrailingCountry(parts.at(-1)!);
+  const tail =
+    parts.length > 0 && !country(parts.at(-1)!) && !usState(parts.at(-1)!) && splitTrailingCountry(parts.at(-1)!);
   if (tail) parts.splice(-1, 1, ...tail.filter(Boolean));
   const empty = { city: '', state: '', country: '' };
   if (parts.length === 0) return empty;
