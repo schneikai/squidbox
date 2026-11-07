@@ -1,14 +1,12 @@
 import { VERIFY_JUDGE_MODEL_ID } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
+import { makeApiModel } from './helpers/makeApiModel';
 import { VISION_PLAN } from './helpers/verifyRuns';
 import verifyEstimate from '../src/features/model-verify/verifyEstimate';
 
-const model = (costPerReplyUsd: number, costPer100PhotosUsd: number | null = null) => ({
-  id: 'm',
-  costPerReplyUsd,
-  costPer100PhotosUsd,
-});
+const model = (costPerReplyUsd: number, costPer100PhotosUsd: number | null = null) =>
+  makeApiModel({ id: 'm', costPerReplyUsd, costPer100PhotosUsd });
 // 21 turns, as the writing Verify plays
 const PLAN = { sections: [{ id: 'a', title: 'A', prompts: Array.from({ length: 21 }, () => 'Hi') }] };
 const withJudge = (costPerReplyUsd: number) => [{ ...model(costPerReplyUsd), id: VERIFY_JUDGE_MODEL_ID }];

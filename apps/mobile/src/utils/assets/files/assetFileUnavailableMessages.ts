@@ -1,5 +1,7 @@
 import type { UnavailableStatus } from './getAssetFileStatusAsync';
 
+import type { IconName } from '@/components/Icon';
+
 // What to tell the user when getAssetFileStatusAsync (or getAssetThumbnailStatusAsync) finds a file
 // that can't be had.
 const assetFileUnavailableMessages = {
@@ -13,6 +15,6 @@ const assetFileUnavailableMessages = {
     title: 'Not signed in',
     message: 'Sign in to get files that are only in the cloud.',
   },
-} as const satisfies Record<UnavailableStatus, { icon: string; title: string; message: string }>;
+} as const satisfies Record<UnavailableStatus, { icon: IconName; title: string; message: string }>;
 
 export default assetFileUnavailableMessages;

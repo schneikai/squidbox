@@ -123,7 +123,7 @@ export default function NewContactScreen() {
       <ScreenSectionHeader title="Lists" />
       <ListsField
         lists={selectedLists}
-        onRemove={(listId) => setListIds(listIds.filter((id) => id !== listId))}
+        onRemove={(list) => setListIds(listIds.filter((id) => id !== list.id))}
         onAdd={() => router.navigate('/new-contact/lists')}
       />
     </EditSheet>

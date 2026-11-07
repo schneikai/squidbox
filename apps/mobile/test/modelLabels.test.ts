@@ -1,12 +1,15 @@
+import type { AiModelKind } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
+import { makeApiModel } from './helpers/makeApiModel';
 import modelLabels from '../src/utils/ai/modelLabels';
 
 const yourDefaults = {
   writing: { regular: 'claude', unrestricted: 'venice' },
   vision: { regular: 'gemma', unrestricted: 'gemma' },
 };
-const model = (id: string, verifiedKinds: string[], isUncensored = false) => ({ id, verifiedKinds, isUncensored });
+const model = (id: string, verifiedKinds: AiModelKind[], isUncensored = false) =>
+  makeApiModel({ id, verifiedKinds, isUncensored });
 const NONE = { verified: false, uncensored: false, default: false, uncensoredDefault: false, changed: false };
 
 describe('modelLabels', () => {

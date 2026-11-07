@@ -42,6 +42,7 @@ import type * as schema from '@/sync/db/schema';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import changedValues from '@/utils/changedValues';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import confirmAsync from '@/utils/confirmAsync';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 
 const PHOTOS_SHOWN = 6;
@@ -106,6 +107,17 @@ export default function Contact({ contact }: ContactProps) {
     }
   }
 
+  // The × in Lists takes the contact off at once, so it asks first. New contact doesn't: its lists are a draft.
+  async function handleRemoveFromList(list: { id: string; name: string }) {
+    const isConfirmed = await confirmAsync({
+      title: `Remove from ${list.name}?`,
+      message: `${contact.name || 'The contact'} stays in your contacts.`,
+      action: 'Remove',
+      destructive: true,
+    });
+    if (isConfirmed) await changeListContacts(list.id, { added: [], removed: [contact.id] });
+  }
+
   return (
     <Page>
       <FloatingDetailHeader
@@ -157,7 +169,7 @@ export default function Contact({ contact }: ContactProps) {
         <ListsField
           lists={lists ?? []}
           onOpen={(listId) => router.navigate(`/contact-list/${listId}`)}
-          onRemove={(listId) => changeListContacts(listId, { added: [], removed: [contact.id] })}
+          onRemove={handleRemoveFromList}
           onAdd={() => router.navigate(addToContactListHref([contact.id]))}
         />
 

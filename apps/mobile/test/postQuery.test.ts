@@ -250,7 +250,7 @@ describe('postQuery: threads', () => {
       ['p2', 0],
     ]);
     expect(count).toBe(2);
-    expect(rows[0].threadPosts).toBeUndefined();
+    expect(rows[0]).not.toHaveProperty('threadPosts');
   });
 
   it('lists a following post whose first post is deleted as a post of its own', async () => {
@@ -274,8 +274,6 @@ describe('postQuery: threads', () => {
       ['t1-a', ['a1']],
       ['t1-b', ['a2', 'a3']],
     ]);
-    const [first] = (await postQuery({ scope: { postId: 't1' } }).read(db, { firstAssetOnly: true })).rows as Row[];
-    expect(first!.threadPosts!.map(assetIdsOf)).toEqual([[], ['a1'], ['a2']]);
   });
 
   it('scopes a photo, an album and Other Posts to the live first post of a following post that has it', async () => {

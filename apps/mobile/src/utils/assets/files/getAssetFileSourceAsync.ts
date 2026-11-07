@@ -21,7 +21,5 @@ export default async function getAssetFileSourceAsync(
   const status = await getAssetFileStatusAsync(asset, { isAuthenticated, library });
   if (status === 'local') return { uri: getAssetFileUri(asset.filename, library), isRemote: false };
   if (status !== 'remote') return { status };
-  const uri = await getAssetFileDownloadUrlAsync(asset.filename);
-  if (!uri) throw new Error(`No download URL for ${asset.filename}`);
-  return { uri, isRemote: true };
+  return { uri: await getAssetFileDownloadUrlAsync(asset.filename), isRemote: true };
 }

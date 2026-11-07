@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import assetFileUnavailableMessages from './assetFileUnavailableMessages';
 import deleteStaleDownloadsAsync from './deleteStaleDownloadsAsync';
 import getAssetFileStatusAsync, { type AssetFileAsset, type AssetFileLocation } from './getAssetFileStatusAsync';
+import isUnavailableStatus from './isUnavailableStatus';
 import withAssetFileAsync from './withAssetFileAsync';
 
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
@@ -82,7 +83,7 @@ async function alertIfUnavailableAsync(
 ): Promise<boolean> {
   for (const asset of assets) {
     const status = await getAssetFileStatusAsync(asset, options);
-    const unavailable = status === 'local' || status === 'remote' ? null : assetFileUnavailableMessages[status];
+    const unavailable = isUnavailableStatus(status) ? assetFileUnavailableMessages[status] : null;
     if (unavailable) {
       Alert.alert(unavailable.title, unavailable.message);
       return true;

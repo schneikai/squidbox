@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { libraryPaths } from '../src/library/libraryPaths';
+
 // The file-system calls made, and how the download and the `use` step end.
 const fs: string[] = [];
 const outcome: { download: 'ok' | Error; use: 'ok' | Error } = { download: 'ok', use: 'ok' };
@@ -24,12 +26,16 @@ vi.mock('../src/utils/getNewItemId', () => ({ default: () => 'uuid' }));
 
 const { default: withAssetFileAsync } = await import('../src/utils/assets/files/withAssetFileAsync');
 
-const library = { downloadsDir: 'downloads/abc/' };
+const library = libraryPaths('abc');
 const run = (keepDownloads = false) =>
-  withAssetFileAsync({ filename: 'a.jpg' }, { library, onProgress: () => {}, keepDownloads }, async (uri: string) => {
-    if (outcome.use !== 'ok') throw outcome.use;
-    fs.push(`use ${uri}`);
-  });
+  withAssetFileAsync(
+    { filename: 'a.jpg', isFileSynced: true },
+    { isAuthenticated: true, library, onProgress: () => {}, signal: new AbortController().signal, keepDownloads },
+    async (uri: string) => {
+      if (outcome.use !== 'ok') throw outcome.use;
+      fs.push(`use ${uri}`);
+    },
+  );
 
 describe('withAssetFileAsync', () => {
   beforeEach(() => {

@@ -59,3 +59,5 @@ export default function useAssetTags(assets: readonly Pick<AssetRecord, 'id'>[])
     return { rows, attempts, isTagging, untagged, taggingAsync, retry };
   }, [ids, rows, allAttempts, deps, isAvailable]);
 }
+
+export type AssetTagging = ReturnType<typeof useAssetTags>;

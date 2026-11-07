@@ -1,21 +1,26 @@
-import type { ChatReply } from '@squidbox/shared';
+import type { ChatContext, ChatRequest, ChatResponse } from '@squidbox/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 import chatSessions from '../src/features/post-chat/chatSessions';
+import type chatAsync from '../src/utils/cloud-api/ai/chatAsync';
 
 // The card's tag edits stay in the chat: nothing writes a photo's tags.
 const setTags = vi.hoisted(() => vi.fn());
 vi.mock('../src/sync/assetsRepository', () => ({ setTags }));
 
-const context = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
-const REPLY: ChatReply = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
+const context: ChatContext = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
+const REPLY: ChatResponse = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
 
 // A request whose answers the test settles by hand, in order.
 function deferredRequest() {
-  const calls: { body: any; signal: AbortSignal; resolve: (v: ChatReply) => void; reject: (e: unknown) => void }[] = [];
-  const request = vi.fn(
-    (body: any, { signal }: { signal: AbortSignal }) =>
-      new Promise<ChatReply>((resolve, reject) => calls.push({ body, signal, resolve, reject })),
+  const calls: {
+    body: ChatRequest;
+    signal: AbortSignal | undefined;
+    resolve: (v: ChatResponse) => void;
+    reject: (e: unknown) => void;
+  }[] = [];
+  const request = vi.fn<typeof chatAsync>(
+    (body, { signal } = {}) => new Promise((resolve, reject) => calls.push({ body, signal, resolve, reject })),
   );
   return { request, calls };
 }
@@ -95,7 +100,7 @@ describe('chatSessions', () => {
     expect(session.send({ content: 'First' }, context, request)).toBeInstanceOf(Promise);
     expect(session.send({ content: 'Again' }, context, request)).toBeNull();
     expect(request).toHaveBeenCalledTimes(1);
-    expect(session.getState().messages.filter((m: any) => m.status === 'loading')).toHaveLength(1);
+    expect(session.getState().messages.filter((m) => m.role === 'assistant' && m.status === 'loading')).toHaveLength(1);
     expect(session.getState().messages).toHaveLength(2);
   });
 
@@ -186,8 +191,10 @@ describe('chatSessions', () => {
     sending = session.send({ content: 'Second' }, context, request);
     calls[1]!.resolve(REPLY);
     await sending;
-    const replies = session.getState().messages.filter((message: any) => message.role === 'assistant');
-    expect(replies.map((reply: any) => reply.systemMessage)).toEqual(['You are a writing assistant.', null]);
+    expect(session.getState().messages.filter((message) => message.role === 'assistant')).toMatchObject([
+      { systemMessage: 'You are a writing assistant.' },
+      { systemMessage: null },
+    ]);
   });
 
   it('sends one chatId all chat long, and a new one after New chat', async () => {
@@ -211,7 +218,7 @@ describe('chatSessions', () => {
     const { request, calls } = deferredRequest();
     const sending = session.send({ content: 'First' }, context, request);
     session.reset();
-    expect(calls[0]!.signal.aborted).toBe(true);
+    expect(calls[0]!.signal?.aborted).toBe(true);
     expect(session.getState()).toMatchObject({ messages: [], isSending: false });
     calls[0]!.resolve(REPLY);
     await sending;
@@ -228,7 +235,7 @@ describe('chatSessions', () => {
     listener.mockClear();
     chatSessions.close(id);
     expect(chatSessions.get(id)).toBeUndefined();
-    expect(calls[0]!.signal.aborted).toBe(true);
+    expect(calls[0]!.signal?.aborted).toBe(true);
     calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState()).toBe(before);

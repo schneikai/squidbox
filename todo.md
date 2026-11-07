@@ -215,9 +215,8 @@ and mainClient.e2e no longer covers it: a migration can drop the column once no 
 ### [ ] Widen what CI checks
 
 `.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
-ESLint setup. The mobile tests aren't typechecked (`tsconfig.typecheck.json` leaves out `test/`,
-which already has type errors, e.g. `twoDevice.e2e.test.ts`). Nothing bundles the app, so a wrong
-named import in JS passes until a build (`npx expo export` would catch it).
+ESLint setup. Nothing bundles the app, so a wrong named import in JS passes until a build
+(`npx expo export` would catch it).
 
 ### [ ] Match the test Postgres to production
 
@@ -234,12 +233,10 @@ gestures, which only a phone can test. Revisit only if the two drift apart.
 
 ### [ ] Rewrite the app in TypeScript
 
-`npm run typecheck` checks every `.ts`/`.tsx` in `src` strictly. Still JavaScript: the features
-posts (next: it types against post-list's rows), album-list, album-detail, asset-detail, post-chat,
-prompt-buttons, model-compare and model-verify, `app/_layout.jsx` and those features' routes.
-Convert them feature by feature, then add `test/` to the check and turn `allowJs` off. `PostView.jsx`
-and `PromptButtonRow.jsx` hold JSDoc `@param` stand-ins for their props' types (allowJs reads their
-optional props as required): drop them when those files convert.
+Left: convert `app/_layout.jsx`, then turn `allowJs` off in `apps/mobile/tsconfig.json`, so no app
+code can be JavaScript. `sync/db/migrations/migrations.js` (drizzle-kit's output) is typed by the
+`.d.ts` beside it, and the test program keeps its own `allowJs` for the two scripts the UI flows
+import.
 
 ### [ ] Add UI tests
 

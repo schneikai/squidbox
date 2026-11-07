@@ -11,13 +11,15 @@ export const ONE_LIST_PLACEMENT: PromptButtonPlacement = 'post';
 // `prompt_buttons` — the chat's one-tap prompts (Settings → Assistant → Prompt buttons), one list
 // under the post editor's caption and over the chat's message box. `position` is a fractional-index
 // key ordering them, by `(position, id)`. Deletion is a tombstone. `icon` is an Icon name or null.
+export const PROMPT_BUTTON_LIMITS = { name: 60, prompt: 2000, icon: 40 } as const;
+
 export const promptButtonCollection = defineCollection({
   name: 'prompt_buttons',
   schema: baseRecordSchema.extend({
-    name: textSchema.min(1).max(60),
-    prompt: textSchema.min(1).max(2000),
+    name: textSchema.min(1).max(PROMPT_BUTTON_LIMITS.name),
+    prompt: textSchema.min(1).max(PROMPT_BUTTON_LIMITS.prompt),
     placement: promptButtonPlacementSchema.default(ONE_LIST_PLACEMENT),
-    icon: textSchema.max(40).nullable(),
+    icon: textSchema.max(PROMPT_BUTTON_LIMITS.icon).nullable(),
     position: textSchema,
   }),
 });

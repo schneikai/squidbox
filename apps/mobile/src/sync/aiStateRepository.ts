@@ -89,7 +89,7 @@ export async function removeYourModel(db: SyncDb, kind: AiModelKind, modelId: st
 export async function readRemovedModels(
   db: SyncDb,
   kind: AiModelKind,
-): Promise<Map<string, { note: string | null; score: number | null }>> {
+): Promise<Map<string, Pick<ModelListEntry, 'note' | 'score'>>> {
   const rows = await db
     .select({ id: aiModels.modelId, note: aiModels.note, score: aiScores.score })
     .from(aiModels)

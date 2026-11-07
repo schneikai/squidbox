@@ -6,7 +6,7 @@ import { serverCollections } from '../../../server/src/sync/collections.js';
 import { sentFields } from '../../../server/src/sync/sentFields.js';
 
 /** The server's rows of `collection` with these ids, by id, as the wire carries them. */
-type ServerRows = (collection: string, ids: string[]) => Promise<Map<string, Record<string, any>>>;
+type ServerRows = (collection: string, ids: string[]) => Promise<Map<string, Record<string, unknown>>>;
 
 /**
  * The invariants one push's results must keep (sync-design §6), checked against the server's rows
@@ -20,7 +20,7 @@ export async function pushViolations(
   serverRows: ServerRows,
 ): Promise<string[]> {
   const violations: string[] = [];
-  const rows = new Map<string, Map<string, Record<string, any>>>();
+  const rows = new Map<string, Map<string, Record<string, unknown>>>();
   for (const collection of new Set(mutations.map((mutation) => mutation.collection)))
     rows.set(
       collection,

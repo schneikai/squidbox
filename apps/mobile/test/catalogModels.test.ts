@@ -1,21 +1,14 @@
+import type { AiModelKind } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
+import { makeApiModel } from './helpers/makeApiModel';
 import searchModels from '../src/features/model-compare/searchModels';
 import joinYourModels from '../src/utils/ai/joinYourModels';
 import modelsOfKind from '../src/utils/ai/modelsOfKind';
 import seedModels from '../src/utils/ai/seedModels';
 
-const model = (id: string, name: string, supportsVision = true, verifiedKinds: string[] = []) => ({
-  id,
-  name,
-  supportsVision,
-  isUncensored: false,
-  isVeniceUncensored: false,
-  verifiedKinds,
-  uncensoredOverride: null,
-  costPerReplyUsd: 0.001,
-  costPer100PhotosUsd: supportsVision ? 0.02 : null,
-});
+const model = (id: string, name: string, supportsVision = true, verifiedKinds: AiModelKind[] = []) =>
+  makeApiModel({ id, name, supportsVision, verifiedKinds, costPer100PhotosUsd: supportsVision ? 0.02 : null });
 
 const catalog = [
   model('kimi-k3', 'Kimi K3', true, ['writing']),

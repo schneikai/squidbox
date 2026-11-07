@@ -48,12 +48,17 @@ export const MODEL_LABEL_NAMES = {
   uncensoredDefault: 'Uncensored default',
 } as const;
 export type ModelLabel = keyof typeof MODEL_LABEL_NAMES;
+/** Every label, in MODEL_LABEL_NAMES' order. */
+export const MODEL_LABEL_KEYS = Object.keys(MODEL_LABEL_NAMES) as ModelLabel[];
 
 // The labels that are a kind's defaults, by their variant.
 export const MODEL_DEFAULT_LABELS = {
   default: 'regular',
   uncensoredDefault: 'unrestricted',
 } as const satisfies Partial<Record<ModelLabel, ModelDefaultVariant>>;
+export type ModelDefaultLabel = keyof typeof MODEL_DEFAULT_LABELS;
+/** The labels that are a kind's defaults, by key. */
+export const MODEL_DEFAULT_LABEL_KEYS = Object.keys(MODEL_DEFAULT_LABELS) as ModelDefaultLabel[];
 
 // A kind's two defaults, by variant: model ids.
 const modelDefaultVariantsSchema = z.object({ regular: z.string().min(1), unrestricted: z.string().min(1) });

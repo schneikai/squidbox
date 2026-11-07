@@ -141,7 +141,7 @@ describe('watchQuery', () => {
 
   it('reuses nested rows and a { rows, count } result', async () => {
     await repo.createMany(db, [makeAssetRecord({ id: 'a' }), makeAssetRecord({ id: 'b' })]);
-    const read = async (db: AppDb) => {
+    const read = async (db: SyncDb) => {
       const rows = await readAssets(db);
       return {
         count: rows.length,

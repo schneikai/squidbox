@@ -1,0 +1,47 @@
+import { memo } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import useCopyText from './useCopyText';
+
+import Button from '@/components/Button';
+import MenuButton from '@/components/MenuButton';
+import OptionCard from '@/components/OptionCard';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
+
+// Memoized: a new reply renders only its own options.
+export default memo(ChatOptionCard);
+
+export type ChatOptionCardProps = {
+  text: string;
+  onMoreLikeThis: (text: string) => void;
+  onUse: ((text: string) => void) | null;
+};
+
+/**
+ * One option of the chat's reply: its text with ⋯ → More like this (`onMoreLikeThis(text)`), and Use
+ * (`onUse(text)`, when given) or else Copy.
+ */
+function ChatOptionCard({ text, onMoreLikeThis, onUse }: ChatOptionCardProps) {
+  const copy = useCopyText();
+
+  return (
+    <OptionCard text={text}>
+      <MenuButton accessibilityLabel="More for this suggestion">
+        <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
+      </MenuButton>
+      <View style={styles.action}>
+        {onUse ? (
+          <Button label="Use" size="small" onPress={() => onUse(text)} />
+        ) : (
+          <Button label="Copy" icon="copy" size="small" onPress={() => copy(text)} />
+        )}
+      </View>
+    </OptionCard>
+  );
+}
+
+const styles = StyleSheet.create({
+  action: {
+    marginLeft: 'auto',
+  },
+});
