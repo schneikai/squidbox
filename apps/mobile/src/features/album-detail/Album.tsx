@@ -169,7 +169,12 @@ export default function Album({ album }: AlbumProps) {
           ) : (
             // Normal toolbar
             <>
-              <MoreAction album={album} afterDelete={() => navigation.goBack()} onSelect={toggleSelectMode} />
+              <MoreAction
+                album={album}
+                hasPhotos={!!count}
+                afterDelete={() => navigation.goBack()}
+                onSelect={toggleSelectMode}
+              />
               {!isSmart && <AddAssetAction album={album} />}
             </>
           )
