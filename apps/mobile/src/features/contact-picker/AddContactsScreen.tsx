@@ -120,7 +120,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
         ListHeaderComponent={
           <SearchInput
             variant="field"
-            placeholder="Name, handle or place"
+            placeholder="Name, handle or location"
             accessibilityLabel="Search contacts"
             value={typedText}
             onChangeText={setTypedText}

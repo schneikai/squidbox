@@ -17,15 +17,11 @@ import useHasFeature from '@/hooks/useHasFeature';
 import { layout } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// What a fill's note says: by whom it was filled, and to check the marked fields when it marked any
-// (the name and the handles carry marks; the photo, notes and places don't).
-const MARKED_FIELDS = new Set<keyof ContactDraft>(['name', ...HANDLE_FIELDS.map(({ field }) => field)]);
+// What a fill's note says: what it was filled from, and to check the marked fields when it marked any
+// (the name, the handles and the place carry marks; the photo and notes don't).
+const MARKED_FIELDS = new Set<keyof ContactDraft>(['name', 'places', ...HANDLE_FIELDS.map(({ field }) => field)]);
 function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
-  const isAssisted = Object.values(fill.fieldSources).includes('assistant');
-  const from =
-    fill.source === 'assistant'
-      ? 'Filled from your screenshot.'
-      : `Filled from the X profile${isAssisted ? ' and by the assistant' : ''}.`;
+  const from = fill.source === 'assistant' ? 'Filled from the screenshot.' : 'Filled from the link.';
   return fill.fields.some((field) => MARKED_FIELDS.has(field)) ? `${from} Check the marked fields.` : from;
 }
 

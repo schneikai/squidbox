@@ -1,5 +1,6 @@
 import {
   type ContactFromXProfileResponse,
+  type ContactRead,
   emptyContactRead,
   imageDataUrl,
   OTHER_HANDLE_FIELDS,
@@ -27,13 +28,14 @@ function isNamedIn(handle: string, read: ContactFromXProfileResponse): boolean {
 }
 
 /**
- * New contact's From link, an assistant feature (the `ai` one): the X profile link on the clipboard
- * fills the X handle at once, then the name and photo the public profile shows, as one fill with
- * Undo; the assistant then reads the handles and the place from the profile's text (never the
- * notes), as From screenshot reads a picture: in the background, into the same fill, marked as the
- * assistant's. A profile X hides alerts so and offers `onScreenshot` (From screenshot), a missing one alerts so,
- * and a read that fails fills the handle only. Without a name from the profile, the contact is named
- * after the handle, only while the draft has no name when the read lands. The web build takes no
+ * New contact's From link, an assistant feature (the `ai` one): reads the X profile the link on the
+ * clipboard points at, the assistant reading the handles and the place from its text (never the
+ * notes), as From screenshot reads a picture, and fills it all at once, once everything is in, as one
+ * fill with Undo: the X handle, the name and photo the public profile shows, and the assistant's
+ * fields, marked as its. The card shows its spinner till then. A profile X hides alerts so and offers
+ * `onScreenshot` (From screenshot), a missing one alerts so, and a read that fails fills the handle
+ * only (an assistant's read that fails, the profile's fields only). Without a name from the profile,
+ * the contact is named after the handle, only while the draft has no name. The web build takes no
  * photo (it can't make a contact photo; the photo picker's web twin says so).
  */
 export default function useFillFromLink(onScreenshot: () => void): {
@@ -44,7 +46,8 @@ export default function useFillFromLink(onScreenshot: () => void): {
   const { readAsync } = useClipboardXLink();
   const [isReading, setIsReading] = useState(false);
 
-  async function readWithAssistantAsync(id: number, read: ContactFromXProfileResponse) {
+  // The handles and the place the assistant reads in the profile, or null when it can't.
+  async function readWithAssistantAsync(read: ContactFromXProfileResponse): Promise<Partial<ContactRead> | null> {
     try {
       const found = await readXProfileWithAssistantAsync({
         handle: read.xHandle,
@@ -57,13 +60,11 @@ export default function useFillFromLink(onScreenshot: () => void): {
       const handles = Object.fromEntries(
         OTHER_HANDLE_FIELDS.map((field) => [field, isNamedIn(found[field], read) ? found[field] : '']),
       );
-      const place = { city: found.city, state: found.state, country: found.country };
-      extendFill(id, 'assistant', (draft) => filledFrom({ ...emptyContactRead(), ...handles, ...place }, draft), {
-        onlyIntoEmpty: true,
-      });
+      return { ...handles, city: found.city, state: found.state, country: found.country };
     } catch (error) {
-      // The name and photo stand.
+      // The profile's fields stand.
       console.warn('From link: the assistant could not read the X profile', error);
+      return null;
     }
   }
 
@@ -79,13 +80,14 @@ export default function useFillFromLink(onScreenshot: () => void): {
       return;
     }
     const { handle } = pasted;
-    const id = fillFields('link', (draft) => filledFrom({ ...emptyContactRead(), xHandle: handle }, draft));
-    // The handle as the name, while the draft has none when this lands.
+    // The handle as the name, while the draft has none.
     const nameAfterHandle = (draft: ContactDraft): Partial<ContactDraft> => (draft.name.trim() ? {} : { name: handle });
     setIsReading(true);
     let read: ContactFromXProfileResponse | null = null;
+    let assistantRead: Partial<ContactRead> | null = null;
     try {
       read = await readXProfileAsync(handle);
+      if (read.status === 'found' && hasTextToRead(read)) assistantRead = await readWithAssistantAsync(read);
     } catch (error) {
       console.warn('From link: the X profile could not be read', error);
     } finally {
@@ -95,17 +97,23 @@ export default function useFillFromLink(onScreenshot: () => void): {
       const found = read;
       const shown = { ...emptyContactRead(), xHandle: found.xHandle, name: found.name };
       const photoUri = found.avatar && Platform.OS !== 'web' ? imageDataUrl(found.avatar) : undefined;
-      extendFill(
-        id,
+      const id = fillFields(
         'link',
         (draft) => ({ ...filledFrom(shown, draft), ...(found.name ? {} : nameAfterHandle(draft)) }),
-        { photoUri },
+        photoUri,
       );
-      // In the background, the card free again: its answer extends the fill when it lands (it never throws).
-      if (hasTextToRead(found)) readWithAssistantAsync(id, found);
+      if (assistantRead) {
+        const fields = assistantRead;
+        extendFill(id, 'assistant', (draft) => filledFrom({ ...emptyContactRead(), ...fields }, draft), {
+          onlyIntoEmpty: true,
+        });
+      }
       return;
     }
-    extendFill(id, 'link', nameAfterHandle);
+    fillFields('link', (draft) => ({
+      ...filledFrom({ ...emptyContactRead(), xHandle: handle }, draft),
+      ...nameAfterHandle(draft),
+    }));
     if (read?.status === 'notFound')
       Alert.alert(
         `No profile @${handle} on X`,

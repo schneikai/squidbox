@@ -113,11 +113,13 @@ export default function NewContactScreen() {
       <ScreenSectionHeader title="Notes" />
       <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} />
 
-      <ScreenSectionHeader title="Places" />
+      <ScreenSectionHeader title="Locations" />
       <PlacesField
         places={draft.places}
         onEdit={(index) => router.navigate({ pathname: '/new-contact/place', params: { index } })}
         onAdd={() => router.navigate('/new-contact/place')}
+        // A fill puts the place it read first.
+        filledIndex={fill?.fieldSources.places ? 0 : undefined}
       />
 
       {/* The lists step is pushed inside the sheet. */}

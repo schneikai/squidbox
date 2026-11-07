@@ -1,19 +1,22 @@
 import { CONTACT_LIMITS, type ContactPlace, formatPlace, placeParts } from '@squidbox/shared';
 
+import FillMark from './FillMark';
 import IconRowsCard from './IconRowsCard';
 
 /**
  * A contact's places as a card: each place one row, its city over "State, Country" (what it has
- * when it has no city), opening it with `onEdit(index)`; "Add place" at the card's end calls
- * `onAdd()` until it holds CONTACT_LIMITS.places. The places are edited in a sheet (PlaceEditor).
+ * when it has no city), opening it with `onEdit(index)`; "Add location" at the card's end calls
+ * `onAdd()` until it holds CONTACT_LIMITS.places. `filledIndex` is a place filled in for the user,
+ * marked with the sparkle (FillMark). The places are edited in a sheet (PlaceEditor).
  */
 type PlacesFieldProps = {
   places: readonly (ContactPlace | string)[];
   onEdit: (index: number) => void;
   onAdd: () => void;
+  filledIndex?: number;
 };
 
-export default function PlacesField({ places, onEdit, onAdd }: PlacesFieldProps) {
+export default function PlacesField({ places, onEdit, onAdd, filledIndex }: PlacesFieldProps) {
   return (
     <IconRowsCard
       icon="map-pin"
@@ -27,11 +30,12 @@ export default function PlacesField({ places, onEdit, onAdd }: PlacesFieldProps)
           detail: place.city ? [place.state, place.country].filter(Boolean).join(', ') : '',
           onPress: () => onEdit(index),
           accessibilityLabel: formatPlace(place),
-          accessibilityHint: 'Edits the place',
+          accessibilityHint: 'Edits the location',
           trailing: 'chevron',
+          mark: index === filledIndex ? <FillMark /> : undefined,
         };
       })}
-      addLabel={places.length < CONTACT_LIMITS.places ? 'Add place' : undefined}
+      addLabel={places.length < CONTACT_LIMITS.places ? 'Add location' : undefined}
       onAdd={onAdd}
     />
   );

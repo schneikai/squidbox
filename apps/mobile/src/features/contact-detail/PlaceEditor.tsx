@@ -19,11 +19,11 @@ const PARTS: { part: keyof ContactPlace; label: string; placeholder: string }[] 
 ];
 
 /**
- * One place of a contact as a draft sheet: New place (Add) without a `place`, else Edit place (Save),
+ * One place of a contact as a draft sheet: New location (Add) without a `place`, else Edit location (Save),
  * both on once the place has a part set and, for Save, changed. Its City, State and Country offer
  * what the user's contacts have (usePlaceSuggestions), and a known city or state fills the empty
  * parts it implies (autofillPlace). `onSave(place, from)` gets it trimmed, with the place as the sheet
- * opened with it (null for a new one); Remove place, for one being edited, asks first and calls
+ * opened with it (null for a new one); Remove location, for one being edited, asks first and calls
  * `onRemove(from)`. Both write what the screen around it holds and ask for a sync if that needs one:
  * the sheet asks for none.
  */
@@ -59,14 +59,14 @@ export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEdit
       action: 'Remove',
       destructive: true,
     });
-    if (isConfirmed) await finish(async () => onRemove(initial), "Couldn't remove the place");
+    if (isConfirmed) await finish(async () => onRemove(initial), "Couldn't remove the location");
   }
 
   return (
     <EditSheet
       {...sheetProps}
-      title={initial ? 'Edit place' : 'New place'}
-      actions={initial ? [{ label: 'Remove place', colorPalette: 'danger', onPress: handleRemove }] : []}
+      title={initial ? 'Edit location' : 'New location'}
+      actions={initial ? [{ label: 'Remove location', colorPalette: 'danger', onPress: handleRemove }] : []}
     >
       <Card>
         {PARTS.map(({ part, label, placeholder }, index) => (
