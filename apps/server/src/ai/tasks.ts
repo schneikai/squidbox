@@ -127,7 +127,7 @@ function checkContactFields<T extends Partial<Record<keyof ContactRead, string>>
 }
 
 // A contact read from a profile screenshot or an X profile's text (POST /ai/contact-from-screenshot,
-// /ai/contact-from-x-profile).
+// /ai/contact-from-link).
 export const contactReadTask: AiTask<ContactRead> = { schema: contactSchema, check: checkContactFields };
 
 // The model check's judge: whether a chat turn's reply answered the request, and why in one line.

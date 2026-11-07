@@ -26,30 +26,26 @@ export function emptyContactRead(): ContactRead {
 // The characters of an X handle (older handles can be longer than 15), without anchors.
 export const X_HANDLE_PATTERN = /[A-Za-z0-9_]{1,50}/;
 
-// POST /contacts/x-profile — the X handle of a profile link.
-export const contactFromXProfileRequestSchema = z.object({
+// POST /ai/contact-from-link — From link on a New contact, an assistant feature: the X handle of a
+// profile link. Only X links for now.
+export const contactFromLinkRequestSchema = z.object({
   handle: z.string().regex(new RegExp(`^${X_HANDLE_PATTERN.source}$`), 'an X handle'),
 });
-export type ContactFromXProfileRequest = z.infer<typeof contactFromXProfileRequestSchema>;
+export type ContactFromLinkRequest = z.infer<typeof contactFromLinkRequestSchema>;
 
-// What x.com showed: `found` a profile with its fields (a protected one too: X shows its name, bio,
-// place and photo); `unavailable` a profile X hides from signed-out readers; `notFound` no such
-// handle; `failed` a page the server couldn't fetch or read. The last three carry empty fields.
+// What x.com showed: `found` a profile (a protected one too: X shows its name, bio, place and photo);
+// `unavailable` a profile X hides from signed-out readers; `notFound` no such handle; `failed` a page
+// the server couldn't fetch or read.
 export const X_PROFILE_STATUSES = ['found', 'unavailable', 'notFound', 'failed'] as const;
 export const xProfileStatusSchema = z.enum(X_PROFILE_STATUSES);
 export type XProfileStatus = z.infer<typeof xProfileStatusSchema>;
 
-// Its answer, for an account with the assistant, which then reads the handles and the place from it
-// (POST /ai/contact-from-x-profile): `xHandle` is the request's handle normalized; `name`,
-// `location` and `website` as X shows them; `bio` with its t.co links expanded; `avatar` the 400 px
-// profile photo, null without one.
-export const contactFromXProfileResponseSchema = z.object({
+// Its answer: `contact` what the user's writing model read in the profile, as From screenshot's
+// read (the X handle always the link's); nothing but the X handle unless `found`. `avatar` the
+// profile photo the server downloaded, null without one.
+export const contactFromLinkResponseSchema = z.object({
   status: xProfileStatusSchema,
-  xHandle: z.string(),
-  name: z.string(),
-  location: z.string(),
-  bio: z.string(),
-  website: z.string(),
+  contact: contactReadSchema,
   avatar: imageSchema.nullable(),
 });
-export type ContactFromXProfileResponse = z.infer<typeof contactFromXProfileResponseSchema>;
+export type ContactFromLinkResponse = z.infer<typeof contactFromLinkResponseSchema>;

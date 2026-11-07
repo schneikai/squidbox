@@ -7,7 +7,6 @@ import {
   type ChatContext,
   type ChatReply,
   type ChatTurn,
-  type ContactFromXProfileAiRequest,
   type ContactRead,
   type Instructions,
   type PersonaFields,
@@ -241,6 +240,10 @@ export function writingBriefingText(
   });
 }
 
+// An X profile's fields as From link reads them from the page: the handle normalized, the bio with
+// its t.co links expanded.
+export type XProfileText = { handle: string; name: string; bio: string; location: string; website: string };
+
 /**
  * From link's question about an X profile: `template` (instructions.contactXProfile) with
  * `{fields}` (CONTACT_FIELDS_FORMAT) and `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
@@ -248,7 +251,7 @@ export function writingBriefingText(
  * behind Venice refuses a request with only a system message). The model gets these lines, never
  * the page.
  */
-export function xProfileMessages(template: string, profile: ContactFromXProfileAiRequest): ChatMessage[] {
+export function xProfileMessages(template: string, profile: XProfileText): ChatMessage[] {
   const lines: [string, string][] = [
     ['Handle', profile.handle && `@${profile.handle}`],
     ['Name', profile.name],

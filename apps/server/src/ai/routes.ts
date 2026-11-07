@@ -11,8 +11,8 @@ import {
   compareWritingRequestSchema,
   compareWritingResponseSchema,
   contactFromScreenshotRequestSchema,
-  contactFromXProfileAiRequestSchema,
-  contactFromXProfileAiResponseSchema,
+  contactFromLinkRequestSchema,
+  contactFromLinkResponseSchema,
   contactReadSchema,
   imageDataUrl,
   modelDefaultRequestSchema,
@@ -39,7 +39,7 @@ import { catalogAsync, findModel, toApiModel, type CatalogEntry } from './catalo
 import { chatAsync } from './chat.js';
 import { compareModels } from './compare.js';
 import { readContactScreenshotAsync } from './contactFromScreenshot.js';
-import { readXProfileWithAssistantAsync } from './xProfileAssistant.js';
+import { readContactFromLinkAsync } from './contactFromLink.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
 import { compareVisionMessages, writingMessages } from './prompts.js';
 import { tagPhotoAsync } from './tagging.js';
@@ -171,20 +171,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         }),
     });
 
-    // POST /ai/contact-from-x-profile — From link's assistant pass (after POST /contacts/x-profile):
-    // the user's writing model reads the profile's fields for the handles they name and the place
-    // split. Nothing is stored.
+    // POST /ai/contact-from-link — From link on a New contact: the public X profile of a handle,
+    // read by the user's writing model for the name, handles and place, with its photo
+    // (readContactFromLinkAsync). Each request is one fetch of x.com. Nothing is stored.
     r.route({
       method: 'POST',
-      url: '/ai/contact-from-x-profile',
-      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
-      schema: { body: contactFromXProfileAiRequestSchema, response: { 200: contactFromXProfileAiResponseSchema } },
+      url: '/ai/contact-from-link',
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+      schema: { body: contactFromLinkRequestSchema, response: { 200: contactFromLinkResponseSchema } },
       handler: async (request, reply) =>
-        readXProfileWithAssistantAsync({
+        readContactFromLinkAsync({
           db: getDb(),
           user: requireUser(request),
-          profile: request.body,
+          handle: request.body.handle,
           signal: untilClientLeaves(reply),
+          log: request.log,
         }),
     });
 

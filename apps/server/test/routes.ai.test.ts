@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => {} }));
@@ -74,6 +75,7 @@ import {
   CHAT_LIMITS,
   CONTACT_HANDLES,
   DEFAULT_INSTRUCTIONS,
+  emptyContactRead,
   INSTRUCTION_LIMITS,
   type ChatReply,
 } from '@squidbox/shared';
@@ -107,6 +109,7 @@ function veniceAnswers({
   posts = ['one', 'two', 'three'],
   contact = CONTACT_READ,
   rawContent,
+  web = {},
 }: {
   catalogStatus?: number;
   balanceStatus?: number;
@@ -116,8 +119,18 @@ function veniceAnswers({
   posts?: string[];
   contact?: unknown;
   rawContent?: string;
+  // x.com and its photos, by URL prefix over X_PAGES' answers.
+  web?: Record<string, () => Promise<Response> | Response>;
 } = {}) {
   fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    const override = Object.entries(web).find(([prefix]) => url.startsWith(prefix));
+    if (override) return override[1]();
+    if (url.startsWith('https://x.com/')) {
+      const page = X_PAGES[url.slice('https://x.com/'.length).toLowerCase()]!;
+      return new Response(page.body, { status: page.status, headers: { 'content-type': 'text/html' } });
+    }
+    if (url.startsWith('https://pbs.twimg.com/'))
+      return new Response(JPEG, { headers: { 'content-type': 'image/jpeg' } });
     if (url.endsWith('/api_keys/rate_limits')) {
       const body = {
         data: { balances: { USD: 4.58689693, DIEM: 0 }, nextEpochBegins: '2026-10-26T00:00:00.000Z', rateLimits: [] },
@@ -138,7 +151,6 @@ function veniceAnswers({
       posts: { posts },
       chat_reply: chatReply,
       contact,
-      x_profile_contact: contact,
     }[response_format.json_schema.name as string];
     return new Response(
       JSON.stringify({
@@ -166,14 +178,22 @@ const CONTACT_READ = {
   state: '',
   country: 'Canada',
 };
-// What From link sends its assistant pass: the profile POST /contacts/x-profile read.
-const xProfileRequest = {
-  handle: 'mayal',
-  name: 'Maya Lindqvist',
-  bio: 'Trail runs and tide pools <3 🦋 maya.studio',
-  location: 'Squamish, BC',
-  website: '',
+// x.com's pages for From link: synthetic, built to x.com's structure, never a real person's.
+const xFixture = (name: string) => readFileSync(new URL(`./fixtures/x-profile/${name}`, import.meta.url), 'utf8');
+const AVAILABLE = xFixture('available.html');
+const X_PAGES: Record<string, { status: number; body: string }> = {
+  mayal: { status: 200, body: AVAILABLE },
+  // Its photo on a host the server doesn't download from.
+  elsewhere: {
+    status: 200,
+    body: AVAILABLE.replace('https://pbs.twimg.com/profile_images/1/abc_normal.jpg', 'https://evil.test/a.jpg'),
+  },
+  hidden: { status: 200, body: xFixture('unavailable.html') },
+  nobody: { status: 404, body: '' },
 };
+// A JPEG's first bytes stand in for the photo: the server never decodes it.
+const JPEG = Buffer.from('ffd8ffe000104a464946', 'hex');
+const linkRequest = { handle: 'mayal' };
 const chatRequest = {
   context: {
     kind: 'draft',
@@ -225,7 +245,7 @@ describe('without VENICE_API_KEY', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
-      ['POST', '/ai/contact-from-x-profile', xProfileRequest],
+      ['POST', '/ai/contact-from-link', linkRequest],
       ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
@@ -248,7 +268,7 @@ describe('account features', () => {
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
       ['POST', '/ai/contact-from-screenshot', tagRequest],
-      ['POST', '/ai/contact-from-x-profile', xProfileRequest],
+      ['POST', '/ai/contact-from-link', linkRequest],
       ['POST', '/ai/chat', chatRequest],
     ] as const) {
       const res = await call(method, url, body);
@@ -551,32 +571,29 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
   });
 });
 
-describe('POST /api/v1/ai/contact-from-x-profile', () => {
-  it("reads the profile with the user's From link instructions on their writing model, handles normalized", async () => {
-    veniceAnswers({
+describe('POST /api/v1/ai/contact-from-link', () => {
+  const requested = () => fetchMock.mock.calls.map(([url]) => String(url));
+
+  it("reads the X profile's fields with the user's From link instructions on their writing model, with its photo", async () => {
+    veniceAnswers({ contact: { ...CONTACT_READ, name: 'Maya Lindqvist', blueskyHandle: 'maya.bsky.social' } });
+    const res = await call('POST', '/ai/contact-from-link', { handle: 'MayaL' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      status: 'found',
       contact: {
-        blueskyHandle: '@Maya.Studio',
+        name: 'Maya Lindqvist',
+        xHandle: 'mayal',
+        blueskyHandle: 'maya.bsky.social',
         onlyFansHandle: '',
         jffHandle: '',
         instagramHandle: '',
-        city: ' Squamish ',
+        city: 'Squamish',
         state: '',
         country: 'Canada',
       },
+      avatar: { base64: JPEG.toString('base64'), mimeType: 'image/jpeg' },
     });
-    const res = await call('POST', '/ai/contact-from-x-profile', xProfileRequest);
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({
-      name: '',
-      xHandle: '',
-      blueskyHandle: 'maya.studio',
-      onlyFansHandle: '',
-      jffHandle: '',
-      instagramHandle: '',
-      city: 'Squamish',
-      state: '',
-      country: 'Canada',
-    });
+    expect(requested()).toContain('https://pbs.twimg.com/profile_images/1/abc_400x400.jpg');
     const [body] = chatBodies();
     expect(readChosenModelId).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'u1' }), 'writing');
     expect(body.messages).toEqual([
@@ -588,18 +605,95 @@ describe('POST /api/v1/ai/contact-from-x-profile', () => {
             '{profile}',
             [
               'Handle: @mayal',
-              'Name: Maya Lindqvist',
-              'Bio: Trail runs and tide pools <3 🦋 maya.studio',
+              'Name: Maya Lindqvist 🌲',
+              "Bio: Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
               'Location: Squamish, BC',
+              'Website: https://onlyfans.com/mayal/c17',
             ].join('\n'),
           ),
       },
     ]);
   });
 
+  it("keeps the link's X handle, and only the handles the profile's text names", async () => {
+    veniceAnswers({
+      contact: { ...CONTACT_READ, xHandle: 'someoneelse', onlyFansHandle: 'mayal', jffHandle: 'madeup' },
+    });
+    const { contact } = (await call('POST', '/ai/contact-from-link', linkRequest)).json();
+    expect(contact).toMatchObject({ xHandle: 'mayal', onlyFansHandle: 'mayal', jffHandle: '' });
+  });
+
+  it.each([
+    ['hidden', 'unavailable'],
+    ['nobody', 'notFound'],
+  ])('answers @%s as %s with only the handle, and asks no model', async (handle, status) => {
+    veniceAnswers();
+    const res = await call('POST', '/ai/contact-from-link', { handle });
+    expect(res.json()).toEqual({ status, contact: { ...emptyContactRead(), xHandle: handle }, avatar: null });
+    expect(requested()).toEqual([`https://x.com/${handle}`]);
+  });
+
+  it('answers a fetch of x.com that fails as failed, and logs it', async () => {
+    veniceAnswers({ web: { 'https://x.com/': () => Promise.reject(new TypeError('fetch failed')) } });
+    const logs: { msg?: string; reason?: string }[] = [];
+    const app = await buildApp({
+      logger: { level: 'info', stream: { write: (line: string) => void logs.push(JSON.parse(line)) } },
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/ai/contact-from-link',
+      headers: auth,
+      payload: linkRequest,
+    });
+    expect(res.json()).toMatchObject({ status: 'failed', contact: { xHandle: 'mayal', name: '' } });
+    expect(logs).toContainEqual(
+      expect.objectContaining({ msg: 'From link: x.com gave no readable profile', reason: 'fetch failed' }),
+    );
+  });
+
+  it('answers without the photo when it does not download, or is larger than the cap', async () => {
+    veniceAnswers({ web: { 'https://pbs.twimg.com/': () => new Response('gone', { status: 404 }) } });
+    expect((await call('POST', '/ai/contact-from-link', linkRequest)).json()).toMatchObject({
+      status: 'found',
+      avatar: null,
+    });
+    veniceAnswers({
+      web: {
+        'https://pbs.twimg.com/': () =>
+          new Response(JPEG, { headers: { 'content-type': 'image/jpeg', 'content-length': String(1024 * 1024) } }),
+      },
+    });
+    expect((await call('POST', '/ai/contact-from-link', linkRequest)).json().avatar).toBeNull();
+  });
+
+  it('takes a photo whose content-type has parameters', async () => {
+    veniceAnswers({
+      web: {
+        'https://pbs.twimg.com/': () =>
+          new Response(JPEG, { headers: { 'content-type': 'image/jpeg; charset=binary' } }),
+      },
+    });
+    expect((await call('POST', '/ai/contact-from-link', linkRequest)).json().avatar).toEqual({
+      base64: JPEG.toString('base64'),
+      mimeType: 'image/jpeg',
+    });
+  });
+
+  it('never fetches a profile photo on another host', async () => {
+    veniceAnswers();
+    expect((await call('POST', '/ai/contact-from-link', { handle: 'elsewhere' })).json().status).toBe('found');
+    expect(requested().some((url) => url.startsWith('https://evil.test/'))).toBe(false);
+  });
+
+  it('refuses a handle that is not an X handle, with nothing fetched', async () => {
+    veniceAnswers();
+    expect((await call('POST', '/ai/contact-from-link', { handle: 'mayal/status' })).statusCode).toBe(400);
+    expect(requested().some((url) => url.startsWith('https://x.com/'))).toBe(false);
+  });
+
   it('502 ai_unavailable when the answer is not JSON', async () => {
     veniceAnswers({ rawContent: 'Maya lives in Squamish.' });
-    const res = await call('POST', '/ai/contact-from-x-profile', xProfileRequest);
+    const res = await call('POST', '/ai/contact-from-link', linkRequest);
     expect(res.statusCode).toBe(502);
     expect(res.json().error.code).toBe('ai_unavailable');
   });

@@ -77,7 +77,7 @@ export default function NewContactScreen() {
   }
 
   function fieldProps(field: HandleFormField | 'name') {
-    return { filledBy: fill?.fieldSources[field], isDuplicate: sharedFields.has(field) };
+    return { filledBy: fill?.fields.includes(field) ? fill.source : undefined, isDuplicate: sharedFields.has(field) };
   }
 
   // Opening a duplicate leaves the draft, after asking when it has changes.
@@ -119,7 +119,7 @@ export default function NewContactScreen() {
         onEdit={(index) => router.navigate({ pathname: '/new-contact/place', params: { index } })}
         onAdd={() => router.navigate('/new-contact/place')}
         // A fill puts the place it read first.
-        filledIndex={fill?.fieldSources.places ? 0 : undefined}
+        filledIndex={fill?.fields.includes('places') ? 0 : undefined}
       />
 
       {/* The lists step is pushed inside the sheet. */}
