@@ -313,25 +313,6 @@ export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotR
 
 // Its answer is a ContactRead (contactReadSchema).
 
-// POST /ai/contact-from-x-profile — From link's assistant pass, after POST /contacts/x-profile: the
-// user's writing model reads the profile's fields, as instructions.contactXProfile says, for the
-// Bluesky, OnlyFans and JFF handles they name and the location split into its city, state and
-// country. Each field of the answer is empty when the profile doesn't show it; the handles come
-// normalized. Nothing is stored.
-export const X_PROFILE_FIELD_MAX_LENGTH = 2000;
-const profileFieldSchema = z.string().max(X_PROFILE_FIELD_MAX_LENGTH);
-export const contactFromXProfileAiRequestSchema = z.object({
-  handle: z.string().max(X_PROFILE_FIELD_MAX_LENGTH),
-  name: profileFieldSchema,
-  bio: profileFieldSchema,
-  location: profileFieldSchema,
-  website: profileFieldSchema,
-});
-export type ContactFromXProfileAiRequest = z.infer<typeof contactFromXProfileAiRequestSchema>;
-
-export const contactFromXProfileAiResponseSchema = contactReadSchema.omit({ name: true, xHandle: true });
-export type ContactFromXProfileAiResponse = z.infer<typeof contactFromXProfileAiResponseSchema>;
-
 // POST /ai/chat — the assistant chat: the writing model answers the transcript as the creator's
 // collaborator, with post options only when asked, briefed by instructions.writing filled with
 // their persona, a sample of their posts and the post. Nothing is stored: the app sends the whole chat each time.

@@ -100,6 +100,8 @@ function describe(
     }
     case 'contact_links':
       return `Contact on ${LINK_TARGETS[String(payload.targetType)] ?? 'a photo'}`;
+    case 'contact_settings':
+      return 'Pinned list on Contacts';
     default:
       return `${collection} ${recordId}`;
   }

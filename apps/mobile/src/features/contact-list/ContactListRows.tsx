@@ -1,58 +1,68 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { builtInContactList } from './builtInContactLists';
 import type { ContactListSummary } from './contactListQuery';
 
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, sizes, space, textStyles } from '@/styles/designTokens';
+import ContactListMenu from '@/features/contact-list-detail/ContactListMenu';
+import { space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 
-const STACK_SIZE = sizes.avatar.row;
 const OVERLAP = -space.xxl;
 
+type ListSummary = Pick<ContactListSummary, 'id' | 'name' | 'memberCount' | 'firstMembers'>;
+
 /**
- * The contact lists (contactListQuery's rows) in one section: each list's name and count, the
- * avatars of its first members overlapping with "+N" for the rest, opening the list.
+ * The contact lists (contactListQuery's rows and the built-in ones) in one section: each list's name
+ * and number of contacts, the avatars of its first members overlapping on the right (an empty one
+ * shows Row's chevron instead), opening the list. A long press on a list of the user's opens its menu (Edit list, Delete list), as its ⋯ does
+ * on its screen; a built-in one has none, it can't be edited or deleted.
  */
-type ContactListRowsProps = { lists: ContactListSummary[] };
+type ContactListRowsProps = { lists: ListSummary[] };
 
 export default function ContactListRows({ lists }: ContactListRowsProps) {
   return (
     <Section>
-      {lists.map(({ firstMembers = [], ...list }) => (
-        <Row
-          key={list.id}
-          label={
-            <View style={styles.labels}>
-              <Text style={listTextStyles.name}>{list.name}</Text>
-              <Text style={listTextStyles.detail}>
-                {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
-              </Text>
-            </View>
-          }
-          onPress={() => router.navigate(`/contact-list/${list.id}`)}
-          hasChevron
-        >
-          <View style={styles.stack}>
-            {firstMembers.map((member, i) => (
-              <ContactAvatar key={member.id} contact={member} size="row" isStacked style={i > 0 && styles.overlapped} />
-            ))}
-            {list.memberCount > firstMembers.length && <MoreDisc count={list.memberCount - firstMembers.length} />}
-          </View>
-        </Row>
-      ))}
+      {lists.map((list) =>
+        builtInContactList(list.id) ? (
+          <ListRow key={list.id} list={list} />
+        ) : (
+          <ContactListMenu
+            key={list.id}
+            list={list}
+            trigger={({ openFromLongPress }) => <ListRow list={list} onLongPress={openFromLongPress} />}
+          />
+        ),
+      )}
     </Section>
   );
 }
 
-// "+N", the members the stack leaves out.
-function MoreDisc({ count }: { count: number }) {
+function ListRow({ list, onLongPress }: { list: ListSummary; onLongPress?: () => void }) {
+  const members = list.firstMembers ?? [];
   return (
-    <View style={[styles.more, styles.overlapped]}>
-      <Text style={[textStyles.footnoteBold, styles.moreText]}>+{count}</Text>
-    </View>
+    <Row
+      label={
+        <View style={styles.labels}>
+          <Text style={listTextStyles.name}>{list.name}</Text>
+          <Text style={listTextStyles.detail}>{pluralizeText('1 contact', '%{count} contacts', list.memberCount)}</Text>
+        </View>
+      }
+      onPress={() => router.navigate(`/contact-list/${list.id}`)}
+      onLongPress={onLongPress}
+      hasChevron
+    >
+      {members.length > 0 && (
+        <View style={styles.stack}>
+          {members.map((member, i) => (
+            <ContactAvatar key={member.id} contact={member} size="row" isStacked style={i > 0 && styles.overlapped} />
+          ))}
+        </View>
+      )}
+    </Row>
   );
 }
 
@@ -65,18 +75,5 @@ const styles = StyleSheet.create({
   },
   overlapped: {
     marginLeft: OVERLAP,
-  },
-  more: {
-    width: STACK_SIZE,
-    height: STACK_SIZE,
-    borderRadius: STACK_SIZE / 2,
-    borderWidth: 2,
-    borderColor: colors.background.surface,
-    backgroundColor: colors.background.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moreText: {
-    color: colors.text.muted,
   },
 });

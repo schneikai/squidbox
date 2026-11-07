@@ -6,7 +6,8 @@ import type { SyncDb } from '@/sync/db/types';
 const l = schema.contactLists;
 const m = schema.contactListMembers;
 const c = schema.contacts;
-const STACK = 3;
+/** How many of a list's first members its row's avatar stack shows. */
+export const LIST_STACK = 3;
 
 /** One of a list's first members, for its row's avatar stack. */
 export type ListMember = Pick<schema.ContactRow, 'id' | 'name' | 'avatarFilename'>;
@@ -15,10 +16,10 @@ export type ContactListSummary = schema.ContactListRow & { memberCount: number; 
 
 /**
  * The contact lists, by name, as SQL: `read(db)` → every live list with `memberCount` (its live
- * contacts, each once) and, `withMembers`, `firstMembers` (the first three of them by name: `id`,
+ * contacts, each once) and, `withMembers`, `firstMembers` (the first LIST_STACK of them by name: `id`,
  * `name`, `avatarFilename`, for the row's avatar stack), from one transaction; `tables` → what a
  * live read watches. SQL counts and ranks the members (in one windowed pass `withMembers`), so it
- * reads lists × 3 rows, not every member.
+ * reads lists × LIST_STACK rows, not every member.
  */
 export default function contactListQuery({ withMembers = true }: { withMembers?: boolean } = {}) {
   return {
@@ -59,7 +60,7 @@ export default function contactListQuery({ withMembers = true }: { withMembers?:
           const first = await tx
             .select()
             .from(ranked)
-            .where(lte(ranked.rank, STACK))
+            .where(lte(ranked.rank, LIST_STACK))
             .orderBy(asc(ranked.listId), asc(ranked.rank));
           for (const { listId, rank: _rank, total, ...member } of first) {
             memberCounts.set(listId, total);

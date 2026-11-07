@@ -17,27 +17,24 @@ import useHasFeature from '@/hooks/useHasFeature';
 import { layout } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// What a fill's note says: by whom it was filled, and to check the marked fields when it marked any
-// (the name and the handles carry marks; the photo, notes and places don't).
-const MARKED_FIELDS = new Set<keyof ContactDraft>(['name', ...HANDLE_FIELDS.map(({ field }) => field)]);
+// What a fill's note says: what it was filled from, and to check the marked fields when it marked any
+// (the name, the handles and the place carry marks; the photo and notes don't).
+const MARKED_FIELDS = new Set<keyof ContactDraft>(['name', 'places', ...HANDLE_FIELDS.map(({ field }) => field)]);
 function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
-  const isAssisted = Object.values(fill.fieldSources).includes('assistant');
-  const from =
-    fill.source === 'assistant'
-      ? 'Filled from your screenshot.'
-      : `Filled from the X profile${isAssisted ? ' and by the assistant' : ''}.`;
+  const from = fill.source === 'assistant' ? 'Filled from the screenshot.' : 'Filled from the link.';
   return fill.fields.some((field) => MARKED_FIELDS.has(field)) ? `${from} Check the marked fields.` : from;
 }
 
 /**
- * The New contact sheet's quick adds, side by side as cards: From link, which fills what the public
- * X profile on the clipboard shows (useFillFromLink); and with the `ai` feature From screenshot,
- * which fills what the assistant read. A fill says so in a note with Undo, and marks the fields: the
- * link icon for From link, the sparkle for From screenshot (FillMark).
+ * The New contact sheet's quick adds, both the assistant's (the `ai` feature; nothing without it), side
+ * by side as cards: From link, which fills what the X profile on the clipboard shows and the assistant
+ * reads from it (useFillFromLink); and From screenshot, which fills what the assistant read in a
+ * picture (the image icon on its card). A fill says so in a note with
+ * Undo and marks the fields it filled, both with the sparkle (FillMark).
  */
 export default function QuickAddBar() {
   const { fillFields, fill, undoFill } = useNewContactDraft();
-  const canReadScreenshots = useHasFeature('ai');
+  const hasAssistant = useHasFeature('ai');
   const [isReading, setIsReading] = useState(false);
   const { isReading: isReadingLink, fillFromLinkAsync } = useFillFromLink(handleScreenshot);
 
@@ -58,26 +55,16 @@ export default function QuickAddBar() {
     }
   }
 
+  if (!hasAssistant) return null;
+
   return (
     <View style={styles.bar}>
       <View style={styles.cards}>
         <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={fillFromLinkAsync} />
-        {canReadScreenshots && (
-          <QuickAddCard
-            icon="sparkle"
-            title="From screenshot"
-            isAssistant
-            loading={isReading}
-            onPress={handleScreenshot}
-          />
-        )}
+        <QuickAddCard icon="image" title="From screenshot" loading={isReading} onPress={handleScreenshot} />
       </View>
       {fill && (fill.fields.length > 0 || fill.photoUri) && (
-        <Note
-          tone="card"
-          leading={<FillMark source={fill.source} />}
-          trailing={<Button label="Undo" size="small" onPress={undoFill} />}
-        >
+        <Note tone="card" leading={<FillMark />} trailing={<Button label="Undo" size="small" onPress={undoFill} />}>
           <Text size="small">{noteText(fill)}</Text>
         </Note>
       )}

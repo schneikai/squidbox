@@ -36,19 +36,9 @@ describe('filledFrom', () => {
     expect(filledFrom(read(squamish), draft({ places: [squamish] })).places).toBeUndefined();
   });
 
-  it('fills the bio and the website as the notes, on their own lines', () => {
-    expect(filledFrom(read({ bio: 'Trail runs <3', website: 'https://onlyfans.com/mayal' }), draft()).notes).toBe(
-      'Trail runs <3\nhttps://onlyfans.com/mayal',
-    );
-  });
-
-  it('fills the website alone as the notes', () => {
-    expect(filledFrom(read({ website: 'https://onlyfans.com/mayal' }), draft()).notes).toBe(
-      'https://onlyfans.com/mayal',
-    );
-  });
-
-  it('leaves notes the draft already has', () => {
-    expect(filledFrom(read({ bio: 'Trail runs' }), draft({ notes: 'Met at Squamish' })).notes).toBeUndefined();
+  it('leaves the notes to the user, whatever the bio and website say', () => {
+    expect(
+      filledFrom(read({ bio: 'Trail runs <3', website: 'https://onlyfans.com/mayal' }), draft()).notes,
+    ).toBeUndefined();
   });
 });

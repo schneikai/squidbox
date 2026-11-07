@@ -232,6 +232,27 @@
       "when": 1793964365672,
       "tag": "0032_contact_x_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1793977282112,
+      "tag": "0033_contact_list_pinned",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1794045562934,
+      "tag": "0034_contact_instagram",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1794052282696,
+      "tag": "0035_contact_settings",
+      "breakpoints": true
     }
   ]
 }

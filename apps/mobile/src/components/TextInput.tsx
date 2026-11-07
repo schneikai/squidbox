@@ -13,6 +13,7 @@ export type TextInputProps = ComponentProps<typeof RNTextInput> & {
   variant?: 'inline' | 'field' | 'title';
   minHeight?: number;
   isFilling?: boolean;
+  isUncapped?: boolean;
 };
 
 /**
@@ -21,7 +22,8 @@ export type TextInputProps = ComponentProps<typeof RNTextInput> & {
  *            style is the input's own box: padding, flex, sizes
  *   field  — a field of its own on a Card, inset like a list row's text. A multiline one grows up
  *            to MAX_FIELD_HEIGHT; `isFilling` makes it fill the space its parent gives the card,
- *            scrolling its text inside, as in Notes (TextEditSheet). style is for layout only
+ *            scrolling its text inside, as in Notes (TextEditSheet); `isUncapped` lets it grow as
+ *            long as its text, the screen scrolling instead (a contact's notes). style is for layout only
  *   title  — an item's name as the big bold heading of its own screen, edited in place (a contact's),
  *            centered, without a card. style is for layout only
  * `multiline` takes many lines at the reading line height (`minHeight` sets its height). The other
@@ -35,6 +37,7 @@ export default function TextInput({
   multiline = false,
   minHeight,
   isFilling = false,
+  isUncapped = false,
   style,
   ...rest
 }: TextInputProps) {
@@ -52,9 +55,9 @@ export default function TextInput({
             textStyle,
             styles.field,
             minHeight != null && { minHeight },
-            multiline && (isFilling ? styles.filling : styles.capped),
+            multiline && !isUncapped && (isFilling ? styles.filling : styles.capped),
           ]}
-          scrollEnabled={isLaidOut}
+          scrollEnabled={isLaidOut && !isUncapped}
           onLayout={isLaidOut ? undefined : () => setIsLaidOut(true)}
           {...rest}
         />

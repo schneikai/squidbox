@@ -8,7 +8,7 @@ async function editFirstPost(page: Page) {
   await openTab(page, 'Posts');
   await postCards(page.getByTestId('posts-screen')).first().click();
   const post = page.getByTestId('post-screen');
-  await button(post, 'More options').click();
+  await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   const editor = page.getByTestId('post-editor');
   const field = editor.getByPlaceholder("What's new?").first();

@@ -7,8 +7,10 @@ import assetQuery from '../src/features/asset-list/assetQuery';
 import { EMPTY_PLACE } from '../src/features/contact-detail/contactFields';
 import contactListQuery from '../src/features/contact-list/contactListQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
+import pinnedList from '../src/features/contact-list/pinnedList';
 import * as assets from '../src/sync/assetsRepository';
 import * as lists from '../src/sync/contactListsRepository';
+import { readContactSettings } from '../src/sync/contactSettingsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -41,6 +43,39 @@ beforeEach(async () => {
 const ids = (query: ReturnType<typeof contactQuery>) => query.ids(db);
 
 describe('contactQuery', () => {
+  it('withLists names the live lists each contact is in, by name', async () => {
+    const list = (id: string, name: string, deletedAt: number | null = null) =>
+      lists.create(db, { id, createdAt: 1, updatedAt: 1, deletedAt, name, notes: null });
+    await list('l1', 'Print buyers');
+    await list('l2', 'hiking crew');
+    await list('l3', 'Gone', 5);
+    await contactListMembers.addToEach(db, [{ listId: 'l1' }, { listId: 'l2' }, { listId: 'l3' }], ['maya'], newId);
+    const { rows } = await contactQuery({ withLists: true }).read(db);
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.listNames]))).toEqual({
+      ana: [],
+      ben: [],
+      maya: ['hiking crew', 'Print buyers'],
+    });
+  });
+
+  it('Tagged lists the contacts on any photo, album or post still there, once each', async () => {
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya'], newId);
+    // Only on a deleted photo: not tagged.
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'gone' }, ['ben'], newId);
+    expect(await ids(contactQuery({ scope: 'tagged' }))).toEqual(['ana', 'maya']);
+  });
+
+  it('Deleted lists only the deleted contacts, the latest deleted first, until one is restored', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'old', name: 'Old', deletedAt: 5 }));
+    await contacts.create(db, makeContactRecord({ id: 'new', name: 'New', deletedAt: 9 }));
+    expect(await ids(contactQuery({ scope: 'deleted' }))).toEqual(['new', 'old']);
+    await contacts.update(db, 'new', { deletedAt: null });
+    expect(await ids(contactQuery({ scope: 'deleted' }))).toEqual(['old']);
+    expect(await ids(contactQuery({}))).toContain('new');
+  });
+
   it('lists the live contacts by name, ignoring case', async () => {
     await contacts.create(db, makeContactRecord({ id: 'gone', name: 'Zed', deletedAt: 9 }));
     expect(await ids(contactQuery({}))).toEqual(['ana', 'ben', 'maya']);
@@ -172,5 +207,65 @@ describe('contactListQuery', () => {
     const [counted] = await contactListQuery({ withMembers: false }).read(db);
     expect(counted).toMatchObject({ id: 'l1', memberCount: 3 });
     expect(counted).not.toHaveProperty('firstMembers');
+  });
+});
+
+describe('pinned list', () => {
+  const USER_ID = '00000000-0000-4000-8000-000000000001';
+  const makeList = (id: string, fields: Partial<schema.ContactListRow> = {}) =>
+    lists.create(db, { id, createdAt: 1, updatedAt: 1, deletedAt: null, name: id, notes: null, ...fields });
+  const pinnedId = async () =>
+    pinnedList(await contactListQuery({ withMembers: false }).read(db), await readContactSettings(db, USER_ID))?.id ??
+    null;
+
+  it('pinning a list unpins the one pinned before, and pinning Favorites unpins every list', async () => {
+    await makeList('hiking');
+    await makeList('brands');
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    await lists.pin(db, { listId: 'brands' }, USER_ID);
+    expect(await pinnedId()).toBe('brands');
+    expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(1);
+    await lists.pin(db, null, USER_ID);
+    expect(await pinnedId()).toBeNull();
+  });
+
+  it('pins Tagged in the contact settings, in place of a pinned list, and a list in place of it', async () => {
+    await makeList('hiking');
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    await lists.pin(db, { builtInId: 'tagged' }, USER_ID);
+    expect(await pinnedId()).toBe('tagged');
+    expect((await db.select().from(schema.contactLists)).filter((l) => l.pinnedAt != null)).toHaveLength(0);
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    expect(await pinnedId()).toBe('hiking');
+    // Pinning the list already pinned again changes nothing.
+    await lists.pin(db, { listId: 'hiking' }, USER_ID);
+    expect(await pinnedId()).toBe('hiking');
+  });
+
+  it('shows Favorites when it was picked after another device pinned Tagged', () => {
+    expect(pinnedList([], { pinnedListId: 'tagged', pinnedAt: 20 })?.id).toBe('tagged');
+    expect(
+      pinnedList([{ id: 'hiking', name: 'hiking', pinnedAt: 10 }], { pinnedListId: 'favorites', pinnedAt: 30 }),
+    ).toBeNull();
+  });
+
+  it('shows Tagged or a list, whichever two devices pinned last', async () => {
+    await makeList('hiking', { pinnedAt: 10 });
+    expect(
+      pinnedList([{ id: 'hiking', name: 'hiking', pinnedAt: 10 }], { pinnedListId: 'tagged', pinnedAt: 20 })?.id,
+    ).toBe('tagged');
+    expect(
+      pinnedList([{ id: 'hiking', name: 'hiking', pinnedAt: 30 }], { pinnedListId: 'tagged', pinnedAt: 20 })?.id,
+    ).toBe('hiking');
+  });
+
+  it('shows the list pinned last when two devices pinned one each, and Favorites once it is deleted', async () => {
+    await makeList('hiking', { pinnedAt: 10 });
+    await makeList('brands', { pinnedAt: 20 });
+    expect(await pinnedId()).toBe('brands');
+    await lists.remove(db, ['brands']);
+    expect(await pinnedId()).toBe('hiking');
+    await lists.remove(db, ['hiking']);
+    expect(await pinnedId()).toBeNull();
   });
 });

@@ -38,9 +38,11 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
  *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
  *   last message), `{reply}`;
- * - `contactScreenshot`, the system message of a New contact's From screenshot: no placeholders;
+ * - `contactScreenshot`, the system message of a New contact's From screenshot: `{fields}`, the
+ *   fields to return and how (CONTACT_FIELDS_FORMAT on the server, not editable: the owner's call);
  * - `contactXProfile`, what a New contact's From link asks the writing model about the X profile the
- *   server read: `{profile}`, the profile's fields as labelled lines.
+ *   server read: `{fields}` as `contactScreenshot` has it, and `{profile}`, the profile's fields as
+ *   labelled lines.
  */
 export const INSTRUCTION_KINDS = [
   'writing',
@@ -59,8 +61,8 @@ export const INSTRUCTION_PLACEHOLDERS: Readonly<Record<InstructionKind, readonly
   visionTagging: ['themes'],
   moreLikeThis: [],
   modelCheckJudge: [...CREATOR_AND_POST, 'transcript', 'request', 'reply'],
-  contactScreenshot: [],
-  contactXProfile: ['profile'],
+  contactScreenshot: ['fields'],
+  contactXProfile: ['fields', 'profile'],
 });
 
 /** The placeholders of `kind` that `text` lacks, as INSTRUCTION_PLACEHOLDERS orders them. */
@@ -168,15 +170,15 @@ Write handles exactly as given.`,
   ].join('\n'),
   // From screenshot (New contact): what to read from a profile screenshot.
   contactScreenshot: [
-    "Extract the profile's name, X handle, Bluesky handle, OnlyFans handle, JFF handle and location from this social media profile screenshot. Look for every username, handle or profile link visible in it: in the bio, the links and the header.",
+    "Extract the profile's name, handles and location from this social media profile screenshot. Look for every username, handle or profile link visible in it: in the bio, the links and the header.",
     '',
-    'Return only a JSON object with the keys "name", "xHandle", "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the screenshot doesn\'t show. Handles without @ and without a URL. The location as its "city", "state" (the state or province, only in the US) and "country", with official English names; always try to name the country, even when only the city is shown. No commentary or Markdown.',
+    '{fields}',
   ].join('\n'),
   // From link (New contact): what to read from the X profile the server fetched.
   contactXProfile: [
-    "A content creator is adding this X profile as a contact. Below are the profile's fields as X shows them (the handle is known; the bio and the website may name their other profiles). Find their Bluesky handle, OnlyFans handle and JFF handle in the bio and the website, and split the location into its city, state (the state or province, only in the US) and country, with official English names; always try to name the country, even when only a city is given.",
+    'A content creator is adding this X profile as a contact. Below are the profile\'s fields as X shows them. The bio and the website may name their other profiles, in any form (a link, an @, "OF: name"), and the location may be written any way.',
     '',
-    'Return only a JSON object with the keys "blueskyHandle", "onlyFansHandle", "jffHandle", "city", "state" and "country", each a string, and an empty string for what the profile doesn\'t show. Handles without @ and without a URL. No commentary or Markdown.',
+    '{fields}',
     '',
     '# The profile',
     '{profile}',

@@ -16,9 +16,8 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
 - **Sync:** `/sync/pull` and `/sync/push`.
 - **AI:** `/ai/models` (Venice's live model list, cached 5 minutes), the blind model compare
   `/ai/compare/writing` and `/ai/compare/vision`, `POST /ai/contact-from-screenshot` (a New
-  contact's From screenshot: the name, handles, phone and places read from an X profile
-  screenshot, the handles normalized) and `POST /ai/contact-from-x-profile` (From link's assistant
-  pass: the handles an X profile's fields name and its location split), behind Venice's chat API
+  contact's From screenshot: the name, handles and place read from a profile screenshot, the
+  handles normalized) and `POST /ai/contact-from-link` (From link, below), behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
   Only accounts with the `ai` feature may use them (others get 403 `ai_not_allowed`), and the
@@ -27,16 +26,14 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
   Locally, export the key in the shell that runs `npm run dev:local` (never in `.env.docker`); on
   Fly it is a secret (`fly secrets set VENICE_API_KEY=…`). Node's built-in `fetch` ignores
   `HTTPS_PROXY`: behind a proxy run Node ≥ 22.21 with `NODE_USE_ENV_PROXY=1`.
-- **Contacts:** `POST /contacts/x-profile` (a New contact's From link, every signed-in account):
-  the name, bio, website, place, photo and the Bluesky, OnlyFans and JFF handles of a public X
-  profile (`src/contacts/`). An anonymous GET of `x.com/<handle>` with the app's own User-Agent, no
-  X API or keys, read from the page without running it; the HTML is never stored. When the bio
-  names a Bluesky handle, its public profile fills what X didn't show. No assistant here: for
-  accounts with the `ai` feature the app then asks `POST /ai/contact-from-x-profile` (the
-  `contactXProfile` instructions) for the handles the regexes miss and the place split. A profile X hides from
-  signed-out readers answers `unavailable`, a missing one `notFound`, and a page it can't read
-  `failed` (logged as `From link: …`). Its fetches use Node's `fetch` too: behind a proxy they need
-  `NODE_USE_ENV_PROXY=1`, as for Venice.
+- **From link:** `POST /ai/contact-from-link` (a New contact's From link, an `ai` route like the
+  others): an anonymous GET of `x.com/<handle>` with the app's own User-Agent, no X API or keys,
+  read from the page without running it (`src/contacts/`); the HTML is never stored. The user's
+  writing model reads the name, handles and place in the profile's fields (the `contactXProfile`
+  instructions; a handle counts only where the profile names it), and the server downloads the
+  photo. A profile X hides from signed-out readers answers `unavailable`, a missing one `notFound`,
+  and a page it can't read `failed` (logged as `From link: …`). Its fetches use Node's `fetch` too:
+  behind a proxy they need `NODE_USE_ENV_PROXY=1`, as for Venice.
 
 Everything is scoped per user.
 

@@ -1,13 +1,14 @@
-import { Children, isValidElement, type ReactElement, type ReactNode, useRef, useState } from 'react';
+import { Children, isValidElement, type ReactElement, type ReactNode, useCallback, useRef, useState } from 'react';
 import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 import Button, { type ButtonProps } from '@/components/Button';
 import Divider from '@/components/Divider';
 import MenuOption, { type MenuOptionProps } from '@/components/popup-menu-options/MenuOption';
+import useHaptics from '@/hooks/useHaptics';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
-  trigger?: (menu: { toggle: () => void; isOpen: boolean }) => ReactNode;
+  trigger?: (menu: { toggle: () => void; openFromLongPress: () => void; isOpen: boolean }) => ReactNode;
   children: ReactNode;
 };
 
@@ -17,7 +18,9 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  *
  * Without `trigger` it is a Button and takes Button's props: the ⋯ icon (`icon="menu"`) and "More
  * options" unless told otherwise. `trigger` draws another one instead: a render prop that receives
- * `{ toggle, isOpen }`, so it can show that its menu is open.
+ * `{ toggle, openFromLongPress, isOpen }`, so it can show that its menu is open; a row that opens its
+ * menu on a long press passes `openFromLongPress`, which gives the peek tap and opens it. Both stay
+ * the same function across renders, so a memo row isn't redrawn for them.
  *
  * Callers inside a React Native Modal must still wrap their content in
  * <MenuProvider skipInstanceCheck>. This component does not manage that.
@@ -41,20 +44,28 @@ export default function MenuButton({
 }: MenuButtonProps) {
   const menuRef = useRef<Menu>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const isOpenRef = useRef(false);
+  const haptics = useHaptics();
 
-  function toggle() {
-    if (isOpen) {
-      menuRef.current?.close();
-    } else {
-      menuRef.current?.open();
-    }
+  const toggle = useCallback(() => {
+    if (isOpenRef.current) menuRef.current?.close();
+    else menuRef.current?.open();
+  }, []);
+  const openFromLongPress = useCallback(() => {
+    haptics.peek();
+    menuRef.current?.open();
+  }, [haptics]);
+
+  function handleOpenChange(open: boolean) {
+    isOpenRef.current = open;
+    setIsOpen(open);
   }
 
   return (
-    <Menu ref={menuRef} onOpen={() => setIsOpen(true)} onClose={() => setIsOpen(false)} style={style}>
+    <Menu ref={menuRef} onOpen={() => handleOpenChange(true)} onClose={() => handleOpenChange(false)} style={style}>
       <MenuTrigger disabled>
         {trigger ? (
-          trigger({ toggle, isOpen })
+          trigger({ toggle, openFromLongPress, isOpen })
         ) : (
           <Button {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
         )}

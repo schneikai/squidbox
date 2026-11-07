@@ -1,0 +1,1 @@
+ALTER TABLE "contact_lists" ADD COLUMN "pinned_at" bigint;
