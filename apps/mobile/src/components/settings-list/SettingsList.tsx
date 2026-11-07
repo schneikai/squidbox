@@ -12,6 +12,7 @@ import type { Palette } from '@/components/Button';
 import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import Icon from '@/components/Icon';
+import { LIST_INDICATOR_SIZE } from '@/components/SelectIndicator';
 import Text from '@/components/Text';
 import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
@@ -69,7 +70,9 @@ export type RowProps = {
 // `label` is its text, or a component that takes the label's place (a model's summary). `leading`
 // goes before it (an icon), `description` is secondary text under it. `hasChevron` ends it with a
 // chevron (it opens a screen) while nothing else is at its end: `children` (a list's avatars) take
-// the chevron's place, a value keeps it beside it, `isSelected` with the accent check (the current one).
+// the chevron's place, a value keeps it beside it, `isSelected` makes it a row
+// of a pick-one list: the accent check in front when it is the current one, an empty slot as wide as
+// SelectIndicator's circle when not, so the names line up as in a pick-several list.
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
 // long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
 // (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
@@ -85,7 +88,7 @@ export function Row({
   disabled = false,
   colorPalette,
   hasChevron,
-  isSelected = false,
+  isSelected,
   size = 'regular',
   accessibilityRole = 'button',
   accessibilityState,
@@ -94,7 +97,16 @@ export function Row({
   const hasTrailing = Children.toArray(children).length > 0;
   const content = (
     <View style={[styles.row, size === 'small' && styles.rowSmall]}>
-      {leading != null && <View style={styles.rowLeading}>{leading}</View>}
+      {(leading != null || isSelected !== undefined) && (
+        <View style={styles.rowLeading}>
+          {isSelected !== undefined && (
+            <View style={styles.pickSlot}>
+              {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
+            </View>
+          )}
+          {leading}
+        </View>
+      )}
       <View style={value ? styles.rowTextKept : styles.rowText}>
         {typeof label === 'string' ? (
           <RNText style={[styles.rowLabel, colorPalette === 'danger' && styles.rowLabelDanger]}>{label}</RNText>
@@ -106,7 +118,6 @@ export function Row({
       <View style={[styles.rowRight, value && styles.rowRightFilling]}>
         {value ? <RNText style={styles.rowValue}>{value}</RNText> : null}
         {children}
-        {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
         {hasChevron && !hasTrailing && (
           <Icon
             name="chevron-right"
@@ -126,7 +137,7 @@ export function Row({
         onLongPress={onLongPress}
         disabled={disabled}
         accessibilityRole={accessibilityRole}
-        accessibilityState={{ disabled, selected: isSelected, ...accessibilityState }}
+        accessibilityState={{ disabled, selected: !!isSelected, ...accessibilityState }}
         style={({ pressed }) => pressed && !disabled && press.flat}
       >
         {content}
@@ -160,6 +171,10 @@ const styles = StyleSheet.create({
   // A value's chevron a little apart from it; a bare label's sits at rowRight's gap, like ThumbnailRow's.
   chevronAfterValue: {
     marginLeft: space.xs,
+  },
+  pickSlot: {
+    width: LIST_INDICATOR_SIZE,
+    alignItems: 'center',
   },
   rowLeading: {
     flexDirection: 'row',

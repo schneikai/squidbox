@@ -6,6 +6,9 @@ import { colors, radii, scale } from '@/styles/designTokens';
 
 const SIZE = { list: scale(26), media: 22 };
 
+/** The circle's size on a list, for a slot that lines up with it (Row's check for a pick-one row). */
+export const LIST_INDICATOR_SIZE = SIZE.list;
+
 export type SelectIndicatorProps = { isSelected?: boolean; isOnMedia?: boolean; style?: StyleProp<ViewStyle> };
 
 // A selection circle: a check on the accent's gradient when selected, an empty ring when not. The

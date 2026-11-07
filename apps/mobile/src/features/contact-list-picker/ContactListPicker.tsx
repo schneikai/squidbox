@@ -23,7 +23,7 @@ import toggleItem from '@/utils/toggleItem';
  * The contact lists to choose from, under a search field that narrows them by name and a sort menu
  * beside it (the Lists tab's: shownContactLists, useContactListSort), with "New list" at the end (a
  * new list is chosen too). `selectedIds` are the chosen lists' ids; `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
- * the accent check instead of the selection circles. `leadingRows` go before the lists while
+ * the accent check in front, where the selection circles are otherwise. `leadingRows` go before the lists while
  * nothing is searched for (Favorites, on the pin).
  */
 type ContactListPickerProps = {
@@ -84,7 +84,7 @@ export default function ContactListPicker({
                 key={list.id}
                 label={list.name}
                 leading={isSingle ? undefined : <SelectIndicator isSelected={isSelected} />}
-                isSelected={isSingle && isSelected}
+                isSelected={isSingle ? isSelected : undefined}
                 onPress={() => handlePress(list.id)}
               >
                 <Text style={listTextStyles.subtitle}>
