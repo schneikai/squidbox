@@ -20,6 +20,9 @@ type PostListProps = {
   listRef?: RefObject<ScrollableList | null>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   onScroll?: ScrollHandlerProcessed;
+  // Whether a long press opens a post's menu (MoreAction); not in a sheet, where Edit and Repost
+  // would open a second one.
+  hasMenu?: boolean;
 };
 
 /**
@@ -38,6 +41,7 @@ export default function PostList({
   listRef,
   contentContainerStyle,
   onScroll,
+  hasMenu = true,
 }: PostListProps) {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
 
@@ -66,12 +70,13 @@ export default function PostList({
       <PostListItem
         post={post}
         renderPostActions={renderPostActions}
+        hasMenu={hasMenu}
         isExpanded={expandedThreadIds.includes(post.id)}
         onToggleThread={toggleThread}
         unfoldedPosts={unfoldedPosts}
       />
     ),
-    [renderPostActions, expandedThreadIds, toggleThread, unfoldedPosts],
+    [renderPostActions, expandedThreadIds, toggleThread, unfoldedPosts, hasMenu],
   );
 
   if (!rows) return null;

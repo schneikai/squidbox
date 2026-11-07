@@ -57,9 +57,12 @@ describe('contactQuery', () => {
     });
   });
 
-  it('Tagged lists the contacts on any photo, album or post, once each', async () => {
+  it('Tagged lists the contacts on any photo, album or post still there, once each', async () => {
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
-    await contactLinks.add(db, { targetType: 'post', targetId: 'p1' }, ['maya'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya'], newId);
+    // Only on a deleted photo: not tagged.
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'gone' }, ['ben'], newId);
     expect(await ids(contactQuery({ scope: 'tagged' }))).toEqual(['ana', 'maya']);
   });
 

@@ -83,12 +83,18 @@ export default function contactQuery({
   const target = typeof scope === 'object' && 'targetType' in scope ? scope : null;
   const tables: SQLiteTable[] = [schema.contacts];
   if (listId) tables.push(schema.contactListMembers);
-  if (target || scope === 'tagged') tables.push(schema.contactLinks);
+  if (target) tables.push(schema.contactLinks);
+  if (scope === 'tagged') tables.push(schema.contactLinks, schema.assets, schema.albums, schema.posts);
   if (withLists) tables.push(schema.contactLists, ...(listId ? [] : [schema.contactListMembers]));
 
   const scopeCondition = ((): SQL | undefined => {
     if (scope === 'favorites') return eq(c.isFavorite, true);
-    if (scope === 'tagged') return sql`${c.id} in (select contact_id from contact_links where deleted_at is null)`;
+    // On something still there: deleting a photo, album or post leaves its links be.
+    if (scope === 'tagged')
+      return sql`${c.id} in (select l.contact_id from contact_links l where l.deleted_at is null and exists (
+        select 1 from assets a where l.target_type = 'asset' and a.id = l.target_id and a.deleted_at is null
+        union all select 1 from albums b where l.target_type = 'album' and b.id = l.target_id and b.deleted_at is null
+        union all select 1 from posts p where l.target_type = 'post' and p.id = l.target_id and p.deleted_at is null))`;
     if (listId) {
       return sql`${c.id} in (select contact_id from contact_list_members where list_id = ${listId} and deleted_at is null)`;
     }

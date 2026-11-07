@@ -563,6 +563,16 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
     for (const { field } of CONTACT_HANDLES) expect(CONTACT_FIELDS_FORMAT).toContain(`"${field}"`);
   });
 
+  it('adds the fields to instructions written before they had {fields}', async () => {
+    veniceAnswers();
+    vi.mocked(readInstructions).mockResolvedValueOnce({
+      ...DEFAULT_INSTRUCTIONS,
+      contactScreenshot: 'Read the profile.',
+    });
+    expect((await call('POST', '/ai/contact-from-screenshot', tagRequest)).statusCode).toBe(200);
+    expect(chatBodies()[0].messages[0].content).toBe(`Read the profile.\n\n${CONTACT_FIELDS_FORMAT}`);
+  });
+
   it('502 ai_unavailable when the answer is not JSON', async () => {
     veniceAnswers({ rawContent: 'I see a profile of a woman named Maya.' });
     const res = await call('POST', '/ai/contact-from-screenshot', tagRequest);
@@ -691,11 +701,15 @@ describe('POST /api/v1/ai/contact-from-link', () => {
     expect(requested().some((url) => url.startsWith('https://x.com/'))).toBe(false);
   });
 
-  it('502 ai_unavailable when the answer is not JSON', async () => {
+  it("fills the profile's name and photo when the model's answer is not JSON", async () => {
     veniceAnswers({ rawContent: 'Maya lives in Squamish.' });
     const res = await call('POST', '/ai/contact-from-link', linkRequest);
-    expect(res.statusCode).toBe(502);
-    expect(res.json().error.code).toBe('ai_unavailable');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      status: 'found',
+      contact: { ...emptyContactRead(), xHandle: 'mayal', name: 'Maya Lindqvist 🌲' },
+      avatar: { base64: JPEG.toString('base64'), mimeType: 'image/jpeg' },
+    });
   });
 });
 

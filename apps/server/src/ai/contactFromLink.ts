@@ -39,8 +39,8 @@ function checkedRead(read: ContactRead, profile: XProfileText): ContactRead {
 
 /**
  * What From link fills for `handle`: the profile's status, the contact the model read in it (nothing
- * but the X handle unless `found`) and its photo (null when it doesn't download). 502 ai_unavailable
- * when the model's read fails (runChosenModelTask). `signal` stops it all.
+ * but the X handle unless `found`; the profile's name and the X handle when the model's read fails,
+ * logged) and its photo (null when it doesn't download). `signal` stops it all.
  */
 export async function readContactFromLinkAsync({
   db,
@@ -71,7 +71,7 @@ export async function readContactFromLinkAsync({
     location: page.location,
     website: page.website,
   };
-  const [read, avatar] = await Promise.all([
+  const [contact, avatar] = await Promise.all([
     runChosenModelTask({
       db,
       user,
@@ -79,8 +79,16 @@ export async function readContactFromLinkAsync({
       task: contactReadTask,
       messagesAsync: instructions.then(({ contactXProfile }) => xProfileMessages(contactXProfile, profile)),
       signal,
-    }),
+    }).then(
+      (read) => checkedRead(read, profile),
+      (error: unknown) => {
+        if (signal?.aborted) throw error;
+        // The profile's own name and the photo still fill.
+        log.warn({ err: error }, 'From link: the model could not read the profile');
+        return { ...emptyContactRead(), xHandle, name: profile.name };
+      },
+    ),
     page.avatarUrl ? fetchAvatarAsync(page.avatarUrl, { signal: budget, log }) : null,
   ]);
-  return { status: 'found', contact: checkedRead(read, profile), avatar };
+  return { status: 'found', contact, avatar };
 }

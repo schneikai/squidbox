@@ -245,6 +245,16 @@ export function writingBriefingText(
 export type XProfileText = { handle: string; name: string; bio: string; location: string; website: string };
 
 /**
+ * A contact read's instructions (contactScreenshot, contactXProfile) with `{fields}` filled by
+ * CONTACT_FIELDS_FORMAT, and `values` as fillTemplate does; a text without `{fields}` (one published
+ * or tried before it had one) gets it at its end, so the reply's keys always follow the contact's.
+ */
+export function contactReadPrompt(template: string, values: Record<string, string> = {}): string {
+  const withFields = template.includes('{fields}') ? template : `${template.trimEnd()}\n\n{fields}`;
+  return fillTemplate(withFields, { ...values, fields: CONTACT_FIELDS_FORMAT });
+}
+
+/**
  * From link's question about an X profile: `template` (instructions.contactXProfile) with
  * `{fields}` (CONTACT_FIELDS_FORMAT) and `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
  * "Location: …", "Website: …"; an empty field's line left out), as the one user message (a model
@@ -263,7 +273,7 @@ export function xProfileMessages(template: string, profile: XProfileText): ChatM
     .filter(([, value]) => value.trim())
     .map(([label, value]) => `${label}: ${value.trim()}`)
     .join('\n');
-  return [{ role: 'user', content: fillTemplate(template, { fields: CONTACT_FIELDS_FORMAT, profile: text }) }];
+  return [{ role: 'user', content: contactReadPrompt(template, { profile: text }) }];
 }
 
 /**

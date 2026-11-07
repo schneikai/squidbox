@@ -13,6 +13,7 @@ import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContacts from '@/features/contacts-context/useContacts';
 import useHaptics from '@/hooks/useHaptics';
+import longPressAccessibility from '@/lib/longPressAccessibility';
 import { colors, layout, press, radii, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -63,6 +64,7 @@ function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFir
         style={({ pressed }) => pressed && press.flat}
         onPress={handlePress}
         onLongPress={onLongPress}
+        {...longPressAccessibility(onLongPress)}
         accessibilityRole="button"
         accessibilityState={canFavorite ? undefined : { selected: isSelected }}
       >

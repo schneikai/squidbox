@@ -13,6 +13,7 @@ import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
+import longPressAccessibility from '@/lib/longPressAccessibility';
 import { colors, layout, press, space, textStyles } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
@@ -114,6 +115,7 @@ export function Row({
       <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
+        {...longPressAccessibility(onLongPress)}
         disabled={disabled}
         accessibilityRole={accessibilityRole}
         accessibilityState={{ disabled, selected: !!isSelected, ...accessibilityState }}
