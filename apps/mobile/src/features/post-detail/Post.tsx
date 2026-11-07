@@ -48,9 +48,9 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         )}
       />
 
-      <TargetContactsSection targetType="post" targetId={post.id} isFlush />
-
       <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
+
+      <TargetContactsSection targetType="post" targetId={post.id} isFlush />
 
       <View style={styles.related}>
         <ScreenSectionHeader title="Posted Albums" isFlush />

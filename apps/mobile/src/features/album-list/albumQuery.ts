@@ -9,6 +9,7 @@ import {
   assetScopeWhere,
   type AssetScope,
   type AssetSort,
+  contactPhotoIds,
   contactTargetIds,
   fromScope,
   isIdScope,
@@ -20,7 +21,7 @@ import { readByIdMap } from '@/sync/readByIds';
 
 const al = alias(schema.albums, 'al');
 
-/** Albums holding any of these assets, each with `heldCount`, how many of them it holds; or the albums a contact is on. */
+/** Albums holding any of these assets, each with `heldCount`, how many of them it holds; or the albums a contact is on, and those holding a photo it is on. */
 export type AlbumSubsetScope = { assetIds: string[] } | { contactId: string };
 
 export type AlbumQueryScope = 'all' | AlbumSubsetScope;
@@ -83,7 +84,11 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: Album
   >`case when al.smart_album_type is null then ${albumLastPostedAt(thisAlbum.albumId)} end`;
   const inScope = (() => {
     if (scope === 'all') return undefined;
-    if (isIdScope(scope, 'contactId')) return sql`al.id in ${contactTargetIds(scope.contactId, 'album')}`;
+    if (isIdScope(scope, 'contactId')) {
+      // The albums it is on, and those holding a photo it is on.
+      const { contactId } = scope;
+      return sql`(al.id in ${contactTargetIds(contactId, 'album')} or al.id in (select album_id from album_assets where deleted_at is null and asset_id in ${contactPhotoIds(contactId)}))`;
+    }
     return albumHoldsAny(sql.raw('al.id'), scope.assetIds);
   })();
   // Under another scope there is nothing to hold: null.

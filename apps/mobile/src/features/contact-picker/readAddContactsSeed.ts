@@ -9,6 +9,7 @@ import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { readByIds } from '@/sync/readByIds';
+import pluralizeText from '@/utils/pluralizeText';
 
 type TargetType = ContactLinkRecord['targetType'];
 
@@ -18,8 +19,9 @@ const TABLES = { asset: schema.assets, album: schema.albums, post: schema.posts 
 >;
 const TITLES: Record<TargetType, string> = { asset: 'On this photo', album: 'On this album', post: 'On this post' };
 
-/** What Add contacts adds to: a photo, album or post, or a list. */
-export type AddContactsTarget = { targetType: TargetType; targetId: string } | { listId: string };
+/** What Add contacts adds to: a photo, album or post, a list, or every photo of an album. */
+export type AddContactsTarget =
+  { targetType: TargetType; targetId: string } | { listId: string } | { photosOfAlbumId: string };
 
 /** A section of contacts Add contacts offers: a title and the contacts' ids, in order. */
 export type ContactSection = { title: string; ids: string[] };
@@ -44,12 +46,27 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       const linked = await contactQuery({ scope: { listId } }).ids(tx);
       return { title: `to ${list.name}`, linkedTitle: 'In this list', linked, related: [] };
     }
+    if ('photosOfAlbumId' in target) {
+      const albumId = target.photosOfAlbumId;
+      const [album] = await readByIds(tx, schema.albums, [albumId]);
+      if (!album || album.deletedAt || album.smartAlbumType) return null;
+      const assetIds = await assetQuery({ scope: { albumId } }).ids(tx);
+      const related = [
+        {
+          title: 'On this album',
+          ids: await contactQuery({ scope: { targetType: 'album', targetId: albumId } }).ids(tx),
+        },
+        { title: 'On its photos', ids: assetIds.length ? await onAny(tx, 'asset', assetIds) : [] },
+      ];
+      const title = pluralizeText('to its photo', `to all ${assetIds.length.toLocaleString()} photos`, assetIds.length);
+      return { title, linkedTitle: '', linked: [], related: related.filter((section) => section.ids.length) };
+    }
     const { targetType, targetId } = target;
     const [record] = await readByIds(tx, TABLES[targetType], [targetId]);
     if (!record || record.deletedAt) return null;
     const linked = await contactQuery({ scope: { targetType, targetId } }).ids(tx);
     const onTargets = async (type: TargetType, ids: string[]): Promise<string[]> =>
-      ids.length ? contactQuery({ scope: { targetType: type, targetId: ids } }).ids(tx) : [];
+      ids.length ? onAny(tx, type, ids) : [];
     const related: ContactSection[] = [];
 
     if (targetType === 'asset') {
@@ -79,6 +96,11 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
     ];
     return { title, linkedTitle: TITLES[targetType], linked, related: related.filter((section) => section.ids.length) };
   });
+}
+
+// The live contacts on any of these photos, albums or posts, by name.
+function onAny(tx: SyncDb, targetType: TargetType, targetIds: string[]): Promise<string[]> {
+  return contactQuery({ scope: { targetType, targetId: targetIds } }).ids(tx);
 }
 
 // The live albums holding any of these assets (a smart album has no edges), by name: id and name.

@@ -9,6 +9,7 @@ import { type ReactNode, useMemo } from 'react';
 
 import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 
+import assetQuery from '@/features/asset-list/assetQuery';
 import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
 import { placesChanged } from '@/features/contact-detail/contactFields';
 import { builtInContactList } from '@/features/contact-list/builtInContactLists';
@@ -157,10 +158,20 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       // the others stay as they are. The only way a link is removed.
       changeTargetContacts: ({ targetType, targetId }, change) =>
         written((tx) => contactLinks.change(tx, { targetType, targetId }, change, getNewItemId)),
+      // Puts the contacts on every one of the photos; those already on one stay as they are.
+      addContactsToPhotos: (assetIds, contactIds) => written((tx) => addToPhotos(tx, assetIds, contactIds)),
+      // Puts the contacts on every photo the album shows, as it holds them when this writes.
+      addContactsToAlbumPhotos: (albumId, contactIds) =>
+        written(async (tx) => addToPhotos(tx, await assetQuery({ scope: { albumId } }).ids(tx), contactIds)),
     };
   }, [library, userId]);
 
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
+}
+
+function addToPhotos(tx: SyncDb, assetIds: string[], contactIds: string[]): Promise<void> {
+  const photos = assetIds.map((targetId) => ({ targetType: 'asset', targetId }));
+  return contactLinks.addToEach(tx, photos, contactIds, getNewItemId);
 }
 
 // A contact's photo's name, new for every photo: `avatar-<contactId>-<new id>.jpg`.

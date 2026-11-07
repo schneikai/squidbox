@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useIsFocused, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Keyboard, StatusBar, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -77,7 +77,8 @@ export default function AssetScreen() {
   // One player, for the current asset while it is a video, once the pager (which shows it) is up.
   const video = useAssetVideo(assetIds ? asset : undefined);
   const details = useDetailsPanel();
-  const { closeIfOpen, reset: resetDetails } = details;
+  const { closeIfOpen } = details;
+  const isFocused = useIsFocused();
 
   // Taken once the tapped asset's row has landed, so the database reads that row first and the asset
   // paints before the whole scope's ids are read.
@@ -111,8 +112,9 @@ export default function AssetScreen() {
   // A zoomed photo's pan owns the swipe, so the swipe back is locked with the pager, and so is the
   // swipe down that dismisses the sheet this screen may be in (New post, say): a native-stack
   // modal can't be swiped away without `gestureEnabled`. While the details show, a swipe down closes
-  // them, so the sheet's swipe is locked then too. The sheet's swipe comes back on unmount.
-  const isSheetLocked = isPagerLocked || details.isShown;
+  // them, so the sheet's swipe is locked then too, while this screen shows. The sheet's swipe comes
+  // back on unmount, and while a screen opened from here shows.
+  const isSheetLocked = (isPagerLocked || details.isShown) && isFocused;
   useEffect(() => {
     navigation.setOptions({ gestureEnabled: !isPagerLocked });
   }, [navigation, isPagerLocked]);
@@ -127,9 +129,9 @@ export default function AssetScreen() {
     if (details.isShown) setIsFullscreen(false);
   }, [details.isShown]);
 
-  // The details close when the screen is left (a row opened an album or a post), releasing the
-  // sheet. Paging while they show keeps them open, showing the next asset's.
-  useEffect(() => navigation.addListener('blur', resetDetails), [navigation, resetDetails]);
+  // The details stay open while a screen opened from them shows (a contact, an album or a post), so
+  // going back finds them as they were. Paging while they show keeps them open, showing the next
+  // asset's.
 
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {

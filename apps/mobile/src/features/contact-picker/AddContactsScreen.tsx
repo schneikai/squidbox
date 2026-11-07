@@ -30,15 +30,23 @@ const isTargetType = (type: string | undefined): type is ContactLinkRecord['targ
 /**
  * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
  * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
- * with a search. Save adds the ones picked here and removes the ones unpicked here.
+ * with a search. Save adds the ones picked here and removes the ones unpicked here. For every photo
+ * of an album (`?photosOfAlbumId=`) nothing starts picked, and Add puts the picked ones on each photo.
  */
 export default function AddContactsScreen() {
-  const params = useLocalSearchParams<{ listId?: string; targetType?: string; targetId?: string }>();
+  const params = useLocalSearchParams<{
+    listId?: string;
+    targetType?: string;
+    targetId?: string;
+    photosOfAlbumId?: string;
+  }>();
   const target: AddContactsTarget | null = params.listId
     ? { listId: params.listId }
-    : isTargetType(params.targetType) && params.targetId
-      ? { targetType: params.targetType, targetId: params.targetId }
-      : null;
+    : params.photosOfAlbumId
+      ? { photosOfAlbumId: params.photosOfAlbumId }
+      : isTargetType(params.targetType) && params.targetId
+        ? { targetType: params.targetType, targetId: params.targetId }
+        : null;
   // A link to a target this app doesn't know closes the sheet, as a deleted one does.
   const seed = useSeedOrClose(
     async (db) => (target ? readAddContactsSeed(db, target) : null),
@@ -53,7 +61,7 @@ type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const padding = useScreenPadding('sheet');
-  const { changeTargetContacts, changeListContacts } = useContacts();
+  const { changeTargetContacts, changeListContacts, addContactsToAlbumPhotos } = useContacts();
   const [selectedIds, setSelectedIds] = useState(seed.linked);
   const [typedText, setTypedText] = useState('');
   const searchText = useDeferredValue(typedText).trim().toLowerCase();
@@ -73,12 +81,20 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const linked = useMemo(() => new Set(seed.linked), [seed.linked]);
   const sections = useMemo(() => (contacts ? toSections(contacts, seed) : []), [contacts, seed]);
 
+  const isToAlbumPhotos = 'photosOfAlbumId' in target;
   const isDirty = selected.size !== linked.size || selectedIds.some((id) => !linked.has(id));
-  const { sheetProps } = useEditSheet({ isDirty, save, syncsItself: true });
+  const { sheetProps } = useEditSheet({
+    isDirty,
+    save,
+    syncsItself: true,
+    isNew: isToAlbumPhotos,
+    isValid: !isToAlbumPhotos || selected.size > 0,
+  });
 
   // Writes only what was picked or unpicked here, so a contact another device added or removed
   // while the sheet was open keeps that change.
   function save() {
+    if ('photosOfAlbumId' in target) return addContactsToAlbumPhotos(target.photosOfAlbumId, selectedIds);
     const change = {
       added: selectedIds.filter((id) => !linked.has(id)),
       removed: seed.linked.filter((id) => !selected.has(id)),
