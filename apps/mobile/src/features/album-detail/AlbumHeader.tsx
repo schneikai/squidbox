@@ -27,8 +27,8 @@ type AlbumHeaderProps = {
 /**
  * The top of an album, over its grid: its name, how many assets and when it was last posted, the
  * Archived badge and its notes, then, on one line, a chip with the faces of the contacts in it (useAlbumPeople),
- * which opens them in a bottom sheet, and one with its posts, which pushes them. A smart album has no
- * contacts of its own, so no contacts chip.
+ * which opens them in a bottom sheet, and one with its posts, which pushes them, each only when it has
+ * some. A smart album has no contacts of its own, so no contacts chip.
  */
 export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const people = useAlbumPeople(album.id);
@@ -37,6 +37,8 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
 
   const isSmart = isSmartAlbum(album);
   const hasPhotos = !!assetCount;
+  // Contacts are added from the ⋯ menu (Add contacts to photos), so none shows no chip.
+  const hasPeople = !isSmart && !!people?.length;
   const lastPostedAt = posts.rows?.[0]?.postedAt ?? null;
   const details = [
     pluralizeText('1 Asset', '%{count} Assets', assetCount ?? 0),
@@ -60,10 +62,9 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
           <Text variant="hint">{album.notes}</Text>
         </Pressable>
       )}
-      <View style={styles.chips}>
-        {!isSmart &&
-          !!people &&
-          (people.length ? (
+      {(hasPeople || !!posts.count) && (
+        <View style={styles.chips}>
+          {hasPeople && (
             <View style={styles.people}>
               <Chip
                 label={peopleNames(people.map((contact) => contact.name))}
@@ -75,7 +76,6 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
                         key={contact.id}
                         contact={contact}
                         size="chip"
-                        isStacked
                         style={i > 0 && styles.overlapped}
                       />
                     ))}
@@ -85,24 +85,16 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
                 onPress={() => setIsPeopleShown(true)}
               />
             </View>
-          ) : (
-            hasPhotos && (
-              <Chip
-                variant="add"
-                size="large"
-                label="Add contacts"
-                onPress={() => router.navigate({ pathname: '/add-contacts', params: { photosOfAlbumId: album.id } })}
-              />
-            )
-          ))}
-        {!!posts.count && (
-          <Chip
-            label={pluralizeText('1 post', '%{count} posts', posts.count)}
-            size="large"
-            onPress={() => router.navigate(`/album/${album.id}/posts`)}
-          />
-        )}
-      </View>
+          )}
+          {!!posts.count && (
+            <Chip
+              label={pluralizeText('1 post', '%{count} posts', posts.count)}
+              size="large"
+              onPress={() => router.navigate(`/album/${album.id}/posts`)}
+            />
+          )}
+        </View>
+      )}
       {!!people && (
         <AlbumPeopleSheet
           albumId={album.id}
