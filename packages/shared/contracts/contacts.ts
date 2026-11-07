@@ -36,9 +36,7 @@ export type ContactFromLinkRequest = z.infer<typeof contactFromLinkRequestSchema
 // What x.com showed: `found` a profile (a protected one too: X shows its name, bio, place and photo);
 // `unavailable` a profile X hides from signed-out readers; `notFound` no such handle; `failed` a page
 // the server couldn't fetch or read.
-export const X_PROFILE_STATUSES = ['found', 'unavailable', 'notFound', 'failed'] as const;
-export const xProfileStatusSchema = z.enum(X_PROFILE_STATUSES);
-export type XProfileStatus = z.infer<typeof xProfileStatusSchema>;
+const xProfileStatusSchema = z.enum(['found', 'unavailable', 'notFound', 'failed']);
 
 // Its answer: `contact` what the user's writing model read in the profile, as From screenshot's
 // read (the X handle always the link's); nothing but the X handle unless `found`. `avatar` the

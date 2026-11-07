@@ -13,7 +13,6 @@ import FadeView from '@/components/FadeView';
 import SuperPressable from '@/components/SuperPressable';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
 import PostView from '@/features/posts/PostView';
-import useHaptics from '@/hooks/useHaptics';
 import { layout, space } from '@/styles/designTokens';
 
 // One stack edge per following post, at most this many.
@@ -43,7 +42,6 @@ function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unf
   // A cell that comes back on screen unfolded shows its following posts at once; once folded, the
   // next unfold animates.
   const [isUnfoldAnimated, setIsUnfoldAnimated] = useState(!isExpanded);
-  const haptics = useHaptics();
   if (!isExpanded && !isUnfoldAnimated) setIsUnfoldAnimated(true);
 
   const isThread = post.threadCount > 0;
@@ -69,13 +67,10 @@ function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unf
   return (
     <MoreAction
       post={post}
-      trigger={({ toggle }) => (
+      trigger={({ openFromLongPress }) => (
         <SuperPressable
           onPress={openPost}
-          onLongPress={() => {
-            haptics.peek();
-            toggle();
-          }}
+          onLongPress={openFromLongPress}
           style={styles.post}
           accessibilityActions={threadActions}
           onAccessibilityAction={isThread ? handleAccessibilityAction : undefined}

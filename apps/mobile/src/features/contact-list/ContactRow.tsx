@@ -23,14 +23,13 @@ const AVATAR_INSET = layout.rowInset + sizes.avatar.row + layout.rowLeadingGap;
  * A contact in a list of contacts: its avatar (with the favorite's heart), name, place (wrapping
  * onto more lines rather than cut off) and, when the row has them (contactQuery's `withLists`), its
  * lists as pills (ContactListPills), and `trailing` at its end, beside the row's press area (a
- * Restore button); without one, a row that opens the contact ends with Row's chevron. `onLongPress` opens its menu (ContactRowMenu's trigger), with a peek tap. The rows of one list
+ * Restore button); without one, a row that opens the contact ends with Row's chevron. `onLongPress` opens its menu (ContactRowMenu's `openFromLongPress`). The rows of one list
  * read as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates
- * the rest. `subtitle` replaces the place line. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
+ * the rest. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
  * a row to pick, with a selection circle at its end.
  */
 type ContactRowProps = {
   contact: Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | 'isFavorite' | 'places' | 'listNames'>;
-  subtitle?: string | null;
   trailing?: ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -39,19 +38,10 @@ type ContactRowProps = {
   isLast?: boolean;
 };
 
-function ContactRow({
-  contact,
-  subtitle: givenSubtitle,
-  trailing,
-  onPress,
-  onLongPress,
-  isSelected,
-  isFirst,
-  isLast,
-}: ContactRowProps) {
+function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFirst, isLast }: ContactRowProps) {
   const { toggleFavoriteContact } = useContacts();
   const haptics = useHaptics();
-  const subtitle = givenSubtitle === undefined ? contactPlace(contact) : givenSubtitle;
+  const subtitle = contactPlace(contact);
   // A picker's row (isSelected given) only picks; a browsing row's avatar favorites on a double tap.
   const canFavorite = isSelected === undefined;
 
@@ -59,13 +49,6 @@ function ContactRow({
     if (onPress) onPress();
     else router.navigate(`/contact/${contact.id}`);
   }
-
-  const handleLongPress =
-    onLongPress &&
-    (() => {
-      haptics.peek();
-      onLongPress();
-    });
 
   function handleToggleFavorite() {
     haptics.selection();
@@ -79,7 +62,7 @@ function ContactRow({
       <Pressable
         style={({ pressed }) => pressed && press.flat}
         onPress={handlePress}
-        onLongPress={handleLongPress}
+        onLongPress={onLongPress}
         accessibilityRole="button"
         accessibilityState={canFavorite ? undefined : { selected: isSelected }}
       >
@@ -89,7 +72,7 @@ function ContactRow({
               <SuperPressable
                 onPress={handlePress}
                 onDoublePress={handleToggleFavorite}
-                onLongPress={handleLongPress}
+                onLongPress={onLongPress}
                 accessibilityRole="button"
                 accessibilityLabel={contact.name}
                 accessibilityHint={

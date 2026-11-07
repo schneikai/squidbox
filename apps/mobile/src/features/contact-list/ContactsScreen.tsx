@@ -5,8 +5,7 @@ import Animated from 'react-native-reanimated';
 
 import ContactAvatarRow from './ContactAvatarRow';
 import ContactListRows from './ContactListRows';
-import ContactRow from './ContactRow';
-import ContactRowMenu from './ContactRowMenu';
+import ContactMenuRow from './ContactMenuRow';
 import contactQuery, { type ContactSummary } from './contactQuery';
 import contactSortOptions from './contactSortOptions';
 import pinnedList from './pinnedList';
@@ -14,7 +13,6 @@ import shownContactLists from './shownContactLists';
 import useAddListAction from './useAddListAction';
 import useBuiltInContactListRows from './useBuiltInContactListRows';
 import useContactListRows from './useContactListRows';
-import useContactListSort from './useContactListSort';
 import useContactRows from './useContactRows';
 import useContactSort from './useContactSort';
 
@@ -48,8 +46,8 @@ const keyExtractor = (contact: ContactSummary) => contact.id;
 export default function ContactsScreen() {
   const [segment, setSegment] = useState<Segment>('contacts');
   const { paddingTop, paddingBottom } = useScreenPadding('main');
-  const { sortOrder: contactSortOrder, sortContacts } = useContactSort();
-  const { sortOrder: listSortOrder, sortLists } = useContactListSort();
+  const { sortOrder: contactSortOrder, setSortOrder: sortContacts } = useContactSort('contacts');
+  const { sortOrder: listSortOrder, setSortOrder: sortLists } = useContactSort('lists');
   const isContacts = segment === 'contacts';
   const sortOrder = isContacts ? contactSortOrder : listSortOrder;
   const { listRef, sort, searchBar, searchText } = useListControls({ onSort: isContacts ? sortContacts : sortLists });
@@ -58,8 +56,9 @@ export default function ContactsScreen() {
   const promptAddList = useAddListAction();
 
   const isSearching = !!searchText.trim();
-  // Trimmed, so a trailing space doesn't read the list again.
-  const query = contactQuery({ scope: 'all', search: searchText.trim(), sort: contactSortOrder, withLists: true });
+  // Trimmed, so a trailing space doesn't read the list again; the Lists tab's search leaves it be.
+  const contactSearch = isContacts ? searchText.trim() : '';
+  const query = contactQuery({ scope: 'all', search: contactSearch, sort: contactSortOrder, withLists: true });
   // Each stays live only while it shows.
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE, { isLive: isContacts });
   const lists = useContactListRows({ isLive: segment === 'lists' });
@@ -82,12 +81,7 @@ export default function ContactsScreen() {
   // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
   const renderItem = useCallback(
     ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
-      <ContactRowMenu
-        contact={contact}
-        trigger={({ toggle }) => (
-          <ContactRow contact={contact} onLongPress={toggle} isFirst={index === 0} isLast={index === lastIndex} />
-        )}
-      />
+      <ContactMenuRow contact={contact} isFirst={index === 0} isLast={index === lastIndex} />
     ),
     [lastIndex],
   );

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import Divider from '@/components/Divider';
 import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import type { PostListRow, PostWithAssets } from '@/features/post-list/postQuery';
+import type { PostListRow } from '@/features/post-list/postQuery';
 import readPost from '@/features/post-list/readPost';
 import usePosts from '@/features/posts-context/usePosts';
 import { getDb } from '@/sync/db/client';
@@ -11,14 +11,14 @@ import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibr
 import confirmAsync from '@/utils/confirmAsync';
 
 export type MoreActionProps = {
-  post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount'> & { threadPosts?: Pick<PostWithAssets, 'postAssets'>[] };
+  post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount'>;
   afterDelete?: () => void;
   trigger?: MenuButtonProps['trigger'];
 };
 
 // The post's menu: Download assets, Edit, Repost and Delete (all of a thread's posts; then
 // `afterDelete`). Its ⋯ on the post screen, or `trigger` (MenuButton's): its card in a list of posts,
-// on a long press. A list's post comes without its following posts: Download reads them then.
+// on a long press. Download reads a thread's following posts when tapped.
 export default function MoreAction({ post, afterDelete, trigger }: MoreActionProps) {
   const { deletePost } = usePosts();
   const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
@@ -41,8 +41,7 @@ export default function MoreAction({ post, afterDelete, trigger }: MoreActionPro
   }
 
   async function handleDownloadAssets() {
-    const threadPosts =
-      post.threadPosts ?? (post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : []);
+    const threadPosts = post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : [];
     await saveAssetsToMediaLibraryAsync(
       [post, ...threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset)),
     );

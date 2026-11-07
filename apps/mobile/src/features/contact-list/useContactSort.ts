@@ -6,11 +6,19 @@ const DEFAULT_SORT: ContactSort = 'name:asc';
 
 const isContactSort = (key: string): key is ContactSort => contactSortOptions.some((option) => option.key === key);
 
-// The contacts' sort, remembered across launches (contactListSortOrder) and shared by the Contacts
-// tab and a list's screen; a stored key no longer offered falls back to Name.
-export default function useContactSort(): { sortOrder: ContactSort; sortContacts: (key: ContactSort) => void } {
-  const { contactListSortOrder, setContactListSortOrder } = useAppSettings();
-  const sortOrder = isContactSort(contactListSortOrder) ? contactListSortOrder : DEFAULT_SORT;
+/**
+ * A sort from the contacts' choices (Name, Recently added), remembered across launches: of the
+ * `contacts` (contactListSortOrder; the Contacts tab and a list's screen) or of the `lists`
+ * (listsSortOrder; the Lists tab and the list picker). A stored key no longer offered falls back to
+ * Name.
+ */
+export default function useContactSort(of: 'contacts' | 'lists' = 'contacts'): {
+  sortOrder: ContactSort;
+  setSortOrder: (key: ContactSort) => void;
+} {
+  const { contactListSortOrder, setContactListSortOrder, listsSortOrder, setListsSortOrder } = useAppSettings();
+  const [stored, setSortOrder] =
+    of === 'lists' ? [listsSortOrder, setListsSortOrder] : [contactListSortOrder, setContactListSortOrder];
 
-  return { sortOrder, sortContacts: setContactListSortOrder };
+  return { sortOrder: isContactSort(stored) ? stored : DEFAULT_SORT, setSortOrder };
 }

@@ -14,7 +14,7 @@ import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import shownContactLists from '@/features/contact-list/shownContactLists';
 import useAddListAction from '@/features/contact-list/useAddListAction';
 import useContactListRows from '@/features/contact-list/useContactListRows';
-import useContactListSort from '@/features/contact-list/useContactListSort';
+import useContactSort from '@/features/contact-list/useContactSort';
 import { layout } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
@@ -22,7 +22,7 @@ import toggleItem from '@/utils/toggleItem';
 
 /**
  * The contact lists to choose from, under a search field that narrows them by name and a sort menu
- * beside it (the Lists tab's: shownContactLists, useContactListSort), with "New list" at the end (a
+ * beside it (the Lists tab's: shownContactLists, useContactSort('lists')), with "New list" at the end (a
  * new list is chosen too). `selectedIds` are the chosen lists' ids; `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
  * the accent check in front, where the selection circles are otherwise. `builtIns` are built-in lists
  * to offer among them, searched and sorted with them (Favorites, on the pin), as the Lists tab does.
@@ -41,7 +41,7 @@ export default function ContactListPicker({
   builtIns,
 }: ContactListPickerProps) {
   const lists = useContactListRows({ withMembers: false });
-  const { sortOrder, sortLists } = useContactListSort();
+  const { sortOrder, setSortOrder: sortLists } = useContactSort('lists');
   const [typedText, setTypedText] = useState('');
   const searchText = useDeferredValue(typedText).trim();
   const promptAddList = useAddListAction({

@@ -7,13 +7,15 @@ import type { SyncDb } from '@/sync/db/types';
 /**
  * The lists the app keeps itself, like the built-in albums: Favorites, Tagged (the contacts on a
  * photo, album or post) and Deleted. Each opens at `/contact-list/<id>`; no list record has these ids
- * (theirs are uuids).
+ * (theirs are uuids). `emptyTitle` is its screen's empty state; `isSortable` whether it takes the
+ * contacts' sort (Favorites keep the order they were favorited in, Deleted the order they were
+ * deleted in, newest first).
  */
 export const BUILT_IN_CONTACT_LISTS = [
-  { id: 'favorites', name: 'Favorites', scope: 'favorites' },
-  { id: 'tagged', name: 'Tagged', scope: 'tagged' },
-  { id: 'deleted', name: 'Deleted', scope: 'deleted' },
-] as const satisfies { id: string; name: string; scope: ContactScope }[];
+  { id: 'favorites', name: 'Favorites', scope: 'favorites', emptyTitle: 'No favorites yet', isSortable: false },
+  { id: 'tagged', name: 'Tagged', scope: 'tagged', emptyTitle: 'No one is tagged yet', isSortable: true },
+  { id: 'deleted', name: 'Deleted', scope: 'deleted', emptyTitle: 'No deleted contacts', isSortable: false },
+] as const satisfies { id: string; name: string; scope: ContactScope; emptyTitle: string; isSortable: boolean }[];
 
 export type BuiltInContactList = (typeof BUILT_IN_CONTACT_LISTS)[number];
 
@@ -30,8 +32,7 @@ export type BuiltInContactListSummary = Pick<
 
 /**
  * The built-in lists, each with its count and first LIST_STACK contacts (its scope's order), and `createdAt` 0, so
- * Recently added puts them last,, read in one
- * transaction; `tables` → what a live read watches.
+ * Recently added puts them last, read in one transaction; `tables` → what a live read watches.
  */
 export const builtInContactListsQuery = {
   descriptor: {},

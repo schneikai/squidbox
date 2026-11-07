@@ -1,6 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import BuiltInContactList from './BuiltInContactList';
 import ContactList from './ContactList';
 
 import { builtInContactList } from '@/features/contact-list/builtInContactLists';
@@ -11,7 +10,7 @@ import { useLiveRecord } from '@/sync/useLiveRecord';
 export default function ContactListScreen() {
   const { listId } = useLocalSearchParams<{ listId: string }>();
   const builtIn = builtInContactList(listId);
-  if (builtIn) return <BuiltInContactList list={builtIn} />;
+  if (builtIn) return <ContactList builtIn={builtIn} />;
   return <UserContactListScreen listId={listId} />;
 }
 

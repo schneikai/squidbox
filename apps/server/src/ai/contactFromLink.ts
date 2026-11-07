@@ -57,6 +57,9 @@ export async function readContactFromLinkAsync({
 }): Promise<ContactFromLinkResponse> {
   const xHandle = normalizeHandle(handle);
   const budget = withTimeout(X_PROFILE_READ_BUDGET_MS, signal);
+  // Read while x.com answers; unused (and its failure ignored) when there is no profile to read.
+  const instructions = readInstructions(db, user);
+  instructions.catch(() => {});
   const page = await fetchXProfileAsync(handle, { signal: budget, log });
   if (page.status !== 'found')
     return { status: page.status, contact: { ...emptyContactRead(), xHandle }, avatar: null };
@@ -74,9 +77,7 @@ export async function readContactFromLinkAsync({
       user,
       kind: 'writing',
       task: contactReadTask,
-      messagesAsync: readInstructions(db, user).then((instructions) =>
-        xProfileMessages(instructions.contactXProfile, profile),
-      ),
+      messagesAsync: instructions.then(({ contactXProfile }) => xProfileMessages(contactXProfile, profile)),
       signal,
     }),
     page.avatarUrl ? fetchAvatarAsync(page.avatarUrl, { signal: budget, log }) : null,

@@ -60,8 +60,8 @@ export default function QuickAddBar() {
   return (
     <View style={styles.bar}>
       <View style={styles.cards}>
-        <QuickAddCard icon="link" title="From link" isAssistant loading={isReadingLink} onPress={fillFromLinkAsync} />
-        <QuickAddCard icon="image" title="From screenshot" isAssistant loading={isReading} onPress={handleScreenshot} />
+        <QuickAddCard icon="link" title="From link" loading={isReadingLink} onPress={fillFromLinkAsync} />
+        <QuickAddCard icon="image" title="From screenshot" loading={isReading} onPress={handleScreenshot} />
       </View>
       {fill && (fill.fields.length > 0 || fill.photoUri) && (
         <Note tone="card" leading={<FillMark />} trailing={<Button label="Undo" size="small" onPress={undoFill} />}>

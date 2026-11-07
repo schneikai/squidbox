@@ -77,7 +77,7 @@ export default function NewContactScreen() {
   }
 
   function fieldProps(field: HandleFormField | 'name') {
-    return { filledBy: fill?.fields.includes(field) ? fill.source : undefined, isDuplicate: sharedFields.has(field) };
+    return { isFilled: !!fill?.fields.includes(field), isDuplicate: sharedFields.has(field) };
   }
 
   // Opening a duplicate leaves the draft, after asking when it has changes.

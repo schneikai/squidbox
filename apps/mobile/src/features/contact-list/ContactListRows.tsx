@@ -7,7 +7,6 @@ import type { ContactListSummary } from './contactListQuery';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import ContactListMenu from '@/features/contact-list-detail/ContactListMenu';
-import useHaptics from '@/hooks/useHaptics';
 import { space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
@@ -25,8 +24,6 @@ type ListSummary = Pick<ContactListSummary, 'id' | 'name' | 'memberCount' | 'fir
 type ContactListRowsProps = { lists: ListSummary[] };
 
 export default function ContactListRows({ lists }: ContactListRowsProps) {
-  const haptics = useHaptics();
-
   return (
     <Section>
       {lists.map((list) =>
@@ -36,15 +33,7 @@ export default function ContactListRows({ lists }: ContactListRowsProps) {
           <ContactListMenu
             key={list.id}
             list={list}
-            trigger={({ toggle }) => (
-              <ListRow
-                list={list}
-                onLongPress={() => {
-                  haptics.peek();
-                  toggle();
-                }}
-              />
-            )}
+            trigger={({ openFromLongPress }) => <ListRow list={list} onLongPress={openFromLongPress} />}
           />
         ),
       )}
