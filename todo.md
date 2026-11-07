@@ -22,6 +22,14 @@ account's library open without them, so its photos, albums, posts and contacts s
 anyone holding the phone. Signed out should show the device's own library (or nothing) and park or
 remove the account's copy; unsynced changes need a warning first so nothing is lost.
 
+### [ ] Restoring a contact can lose a photo that never synced
+
+A contact made with a photo and deleted before any sync pushes a tombstone naming a file the
+storage lacks (`docs/sync-design.md`, file uploads). `restoreContact` (`ContactsProvider`) clears
+only `deletedAt`, so nothing uploads the photo and other devices get a photo that's missing for
+good. A restore should re-upload the photo when this device has it, or drop `avatarFilename` when it
+doesn't.
+
 ## Features
 
 ### [ ] Search suggestions as you type, like Apple Photos
@@ -103,16 +111,27 @@ Best run on the server (a daily job purging assets deleted 30+ days ago, then th
 it works with no device open and can't clash with a restore made on another device.
 Possible paid tier later: 3 days' retention by default, 30 days for paying users.
 
-### [ ] Context menus on long press (photo, album, post)
+### [ ] Context menus on long press (photo, album, post, contact, list)
 
-Apple-Photos-style menu on long press: a preview with actions such as Share, Save, Add to album,
-Favorite, Delete. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
+Apple-Photos-style menu on long press, the same everywhere: a preview with actions such as Share,
+Save, Add to album, Favorite, Delete. For now a long press on a contact, list or post row opens a
+plain anchored menu (`ContactRowMenu`, `ContactListMenu`), photos only peek and albums only drag;
+this replaces all three. Build it in JS: the existing quick view (`QuickViewHost`) with a menu from
 `components/popup-menu-options` under it, opened from the grids' "hold still" step (`onPeek` in
 `components/sortable-grid/useDragReorder.ts`), so moving the finger still closes it and drags, as in
 Photos, and it works on web. Unlike today's quick view, the menu stays open after the finger lifts.
 Native menus were checked: `@expo/ui` `ContextMenu` ships with the SDK but is iOS only and takes the
 touch, so drag-to-reorder can't follow it (fine later for screens that don't drag, like a post);
 `zeego` and `react-native-ios-context-menu` would make SDK upgrades harder.
+
+### [ ] From link for any profile link, not only X
+
+From link reads only X links today (`useClipboardXLink`, `fetchXProfileAsync`, `POST
+/ai/contact-from-link`). Any https profile link should work: fetch the page on the server, hand its
+title, og:description/og:image and visible text to the writing model with the URL, and let it say
+which handle the link itself is. Needs SSRF guards for user-given URLs (no private addresses, size
+and time caps) and a photo from any host. Pages behind a login wall (Instagram, OnlyFans, X's hidden
+profiles) get the "try From screenshot" alert. X may keep its own page read, as its data is cleaner.
 
 ### [ ] Saved assistant chats
 

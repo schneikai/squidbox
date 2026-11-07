@@ -941,6 +941,12 @@ had restores its newest tombstone instead of inserting another, and `change` add
 the given contacts (Add contacts writes what was picked and unpicked there, so another device's
 change meanwhile stays). Server 0031, app 0031.
 
+**contact_settings** (how the user set up their contacts). Synced: `pinnedListId` (a built-in
+list pinned to the top of Contacts in place of Favorites, say `tagged`; a list of the user's is
+pinned on its own record's `pinnedAt`) and `pinnedAt`, one field group. One record per user, whose
+id is the user's id; the latest pin of either kind shows (`pinnedList`), and pinning one unpins the
+others in the same write (`contactListsRepository.pin`). Server 0035, app 0035.
+
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks
 the default writing model while none is chosen, `resolveModelId` on the server and in the app;

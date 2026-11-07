@@ -1,27 +1,23 @@
 // A profile photo From link brings: the server downloads it, so the device never contacts X.
 import type { FastifyBaseLogger } from 'fastify';
-import { IMAGE_MIME_TYPES, type ContactFromXProfileResponse } from '@squidbox/shared';
+import { IMAGE_MIME_TYPES, type ContactFromLinkResponse } from '@squidbox/shared';
 import { withTimeout } from '../withTimeout.js';
 import { readCappedBody } from './readCappedBody.js';
 import { USER_AGENT } from './userAgent.js';
 
 const AVATAR_TIMEOUT_MS = 8_000;
-// X's 400 px avatars are ~25 KB, Bluesky's thumbnails smaller; the app makes a 512 px photo of it.
+// X's 400 px avatars are ~25 KB; the app makes a 512 px photo of it.
 const AVATAR_MAX_BYTES = 256 * 1024;
-export type AvatarImage = NonNullable<ContactFromXProfileResponse['avatar']>;
+export type AvatarImage = NonNullable<ContactFromLinkResponse['avatar']>;
 
 const X_AVATAR = 'https://pbs.twimg.com/profile_images/';
-const BLUESKY_AVATAR = 'https://cdn.bsky.app/img/avatar/';
-const BLUESKY_THUMBNAIL = 'https://cdn.bsky.app/img/avatar_thumbnail/';
 
 /**
  * The URL to download for a profile photo at `url`: an X one as its 400 px size (`_normal` →
- * `_400x400`, the extension kept), a Bluesky one as its thumbnail; null for any other host.
+ * `_400x400`, the extension kept); null for any other host.
  */
 function avatarDownloadUrl(url: string): string | null {
   if (url.startsWith(X_AVATAR)) return url.replace(/_normal(\.\w+)?$/, '_400x400$1');
-  if (url.startsWith(BLUESKY_AVATAR)) return BLUESKY_THUMBNAIL + url.slice(BLUESKY_AVATAR.length);
-  if (url.startsWith(BLUESKY_THUMBNAIL)) return url;
   return null;
 }
 

@@ -11,7 +11,9 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import FadeView from '@/components/FadeView';
 import SuperPressable from '@/components/SuperPressable';
+import MoreAction from '@/features/post-detail/actions/MoreAction';
 import PostView from '@/features/posts/PostView';
+import longPressAccessibility from '@/lib/longPressAccessibility';
 import { layout, space } from '@/styles/designTokens';
 
 // One stack edge per following post, at most this many.
@@ -23,11 +25,13 @@ export type PostListItemProps = {
   isExpanded: boolean;
   onToggleThread: (postId: string) => void;
   unfoldedPosts: Map<string, PostDetailRow>;
+  hasMenu: boolean;
 };
 
 /**
  * A post in the posts list, as a card (PostView) that opens the post, with `renderPostActions(post)`
- * (buttons for this post, e.g. the Ignored sheet's Restore) in it. A thread (a post with following posts) sits on
+ * (buttons for this post, e.g. the Ignored sheet's Restore) in it; with `hasMenu` a long press opens
+ * the post's menu (MoreAction, as its ⋯ on the post screen). A thread (a post with following posts) sits on
  * one or two card edges peeking out below (one per following post), a stack, and shows "Thread · N" in its Posted row: a tap on it
  * (or the item's accessibility action) calls `onToggleThread(post.id)`, and while `isExpanded` the
  * thread is unfolded in place: the following posts come out of the stack (ThreadFollowingPosts) as
@@ -36,7 +40,14 @@ export type PostListItemProps = {
  * postQuery row: it carries its `postAssets` and `threadCount`; the following posts are read only
  * while unfolded, and kept in `unfoldedPosts` (the list's) so the cell comes back on screen with them.
  */
-function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unfoldedPosts }: PostListItemProps) {
+function PostListItem({
+  post,
+  renderPostActions,
+  isExpanded,
+  onToggleThread,
+  unfoldedPosts,
+  hasMenu,
+}: PostListItemProps) {
   // A cell that comes back on screen unfolded shows its following posts at once; once folded, the
   // next unfold animates.
   const [isUnfoldAnimated, setIsUnfoldAnimated] = useState(!isExpanded);
@@ -62,12 +73,16 @@ function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unf
     if (event.nativeEvent.actionName === 'toggleThread') toggleThread();
   }
 
-  return (
+  const card = (openFromLongPress?: () => void) => (
     <SuperPressable
       onPress={openPost}
+      onLongPress={openFromLongPress}
       style={styles.post}
-      accessibilityActions={threadActions}
-      onAccessibilityAction={isThread ? handleAccessibilityAction : undefined}
+      {...longPressAccessibility(openFromLongPress, {
+        label: 'Post options',
+        actions: threadActions,
+        onOtherAction: handleAccessibilityAction,
+      })}
     >
       <View style={styles.firstCard} collapsable={false}>
         <PostView
@@ -112,6 +127,8 @@ function PostListItem({ post, renderPostActions, isExpanded, onToggleThread, unf
       )}
     </SuperPressable>
   );
+
+  return hasMenu ? <MoreAction post={post} trigger={({ openFromLongPress }) => card(openFromLongPress)} /> : card();
 }
 
 export default memo(PostListItem);

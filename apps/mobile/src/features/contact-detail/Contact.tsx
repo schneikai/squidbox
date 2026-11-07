@@ -158,7 +158,7 @@ export default function Contact({ contact }: ContactProps) {
         <ScreenSectionHeader title="Notes" />
         <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} onBlur={() => flush()} />
 
-        <ScreenSectionHeader title="Places" />
+        <ScreenSectionHeader title="Locations" />
         <PlacesField
           places={draft.places}
           onEdit={(index) => router.navigate({ pathname: `/contact/${contact.id}/place`, params: { index } })}

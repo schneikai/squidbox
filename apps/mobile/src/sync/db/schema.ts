@@ -248,6 +248,7 @@ export const contacts = sqliteTable(
     blueskyHandle: text('bluesky_handle'),
     onlyFansHandle: text('only_fans_handle'),
     jffHandle: text('jff_handle'),
+    instagramHandle: text('instagram_handle'),
     phoneNumber: text('phone_number'),
     places: text('places', { mode: 'json' }).$type<ContactPlace[]>().notNull(),
     avatarFilename: text('avatar_filename'),
@@ -268,8 +269,21 @@ export const contactLists = sqliteTable('contact_lists', {
   deletedAt: integer('deleted_at'),
   name: text('name').notNull(),
   notes: text('notes'),
+  pinnedAt: integer('pinned_at'),
 });
 export type ContactListRow = typeof contactLists.$inferSelect;
+
+// One record per user (its id is the user's id): the built-in list pinned to the top of Contacts
+// (`pinnedListId`) and when (mirror @squidbox/shared contact_settings).
+export const contactSettings = sqliteTable('contact_settings', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  pinnedListId: text('pinned_list_id'),
+  pinnedAt: integer('pinned_at'),
+});
+export type ContactSettingRow = typeof contactSettings.$inferSelect;
 
 export const contactListMembers = sqliteTable(
   'contact_list_members',

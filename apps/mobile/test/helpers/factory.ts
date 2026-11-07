@@ -63,6 +63,7 @@ export function makeContactRecord(over: Partial<ContactRecord> = {}): ContactRec
     blueskyHandle: null,
     onlyFansHandle: null,
     jffHandle: null,
+    instagramHandle: null,
     phoneNumber: null,
     places: [],
     avatarFilename: null,

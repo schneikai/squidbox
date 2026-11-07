@@ -19,6 +19,8 @@ type IconRow = {
   accessibilityHint?: string;
   /** 'chevron' for a row that opens, or a button (like ×) that sits in a 44 pt slot. */
   trailing: 'chevron' | ReactNode;
+  /** A mark before the trailing chevron or button (the assistant's sparkle on a place it filled). */
+  mark?: ReactNode;
 };
 
 /**
@@ -62,6 +64,7 @@ export default function IconRowsCard({ icon, rows, twoLine = false, addLabel, on
                 </Text>
                 {!!row.detail && <Text style={listTextStyles.detail}>{row.detail}</Text>}
               </View>
+              {row.mark}
               {hasButton ? (
                 <IconSlotContext.Provider value>{row.trailing}</IconSlotContext.Provider>
               ) : (

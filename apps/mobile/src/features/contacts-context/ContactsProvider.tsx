@@ -12,6 +12,7 @@ import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 import assetQuery from '@/features/asset-list/assetQuery';
 import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
 import { placesChanged } from '@/features/contact-detail/contactFields';
+import { builtInContactList } from '@/features/contact-list/builtInContactLists';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
@@ -43,7 +44,7 @@ type ContactsProviderProps = { children: ReactNode };
 // that writes a record and its edges commits once. Screens read through their own live queries
 // (contactQuery, contactListQuery).
 export default function ContactsProvider({ children }: ContactsProviderProps) {
-  const { paths: library } = useOpenLibrary();
+  const { paths: library, userId } = useOpenLibrary();
   const value = useMemo<ContactsContextValue>(() => {
     const db = getDb();
     async function written<T>(write: (tx: SyncDb) => Promise<T>): Promise<T> {
@@ -125,6 +126,9 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           await contactListMembers.tombstoneWhere(tx, { contactId: id });
           await contactLinks.tombstoneWhere(tx, { contactId: id });
         }),
+      // Brings a deleted contact back (Deleted's rows), with its photo; the lists and the photos,
+      // albums and posts it left when it was deleted stay as they are now.
+      restoreContact: (id) => written((tx) => contacts.update(tx, id, { deletedAt: null })),
       addList: (name) => written((tx) => lists.create(tx, newRecord(contactListCollection, LIST_DEFAULTS, { name }))),
       updateList: (id, fields) => written((tx) => lists.update(tx, id, fields)),
       setListDeleted: (id) =>
@@ -132,6 +136,11 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           await lists.remove(tx, [id]);
           await contactListMembers.tombstoneWhere(tx, { listId: id });
         }),
+      pinList: (id) => {
+        const builtIn = builtInContactList(id ?? undefined);
+        const target = !id || builtIn?.id === 'favorites' ? null : builtIn ? { builtInId: id } : { listId: id };
+        return written((tx) => lists.pin(tx, target, userId));
+      },
       addToLists: (contactIds, listIds) =>
         written((tx) =>
           contactListMembers.addToEach(
@@ -155,7 +164,7 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       addContactsToAlbumPhotos: (albumId, contactIds) =>
         written(async (tx) => addToPhotos(tx, await assetQuery({ scope: { albumId } }).ids(tx), contactIds)),
     };
-  }, [library]);
+  }, [library, userId]);
 
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
 }

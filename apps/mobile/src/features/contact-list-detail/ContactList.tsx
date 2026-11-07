@@ -11,10 +11,13 @@ import Page from '@/components/Page';
 import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
+import ContactMenuRow from '@/features/contact-list/ContactMenuRow';
 import ContactRow from '@/features/contact-list/ContactRow';
+import type { BuiltInContactList } from '@/features/contact-list/builtInContactLists';
 import contactQuery, { type ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
+import useContacts from '@/features/contacts-context/useContacts';
 import useListControls from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
@@ -25,30 +28,54 @@ import pluralizeText from '@/utils/pluralizeText';
 
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
-type ContactListProps = { list: schema.ContactListRow };
+type ContactListProps = { list: schema.ContactListRow } | { builtIn: BuiltInContactList };
 
-// A contact list: its description (edited in Edit list, from the ⋯ menu), then its contacts by name or
-// by when they joined it (the Contacts tab's sort).
-// Add contacts sits in the header's pill, and is where a contact is taken out of the list too.
-export default function ContactList({ list }: ContactListProps) {
+/**
+ * A contact list's screen, searchable: a list of the user's (`list`) with its description (edited in
+ * Edit list, from the ⋯ menu) and its contacts by name or by when they joined it (the Contacts tab's
+ * sort), Add contacts in the header's pill, which is where a contact is taken out of it too; or a
+ * built-in one (`builtIn`: Favorites, Tagged, Deleted), its contacts with their lists' pills, sorted
+ * as its entry says, where a deleted contact's row restores it.
+ */
+export default function ContactList(props: ContactListProps) {
   const navigation = useNavigation();
+  const { restoreContact } = useContacts();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
-  const { sortOrder, sortContacts } = useContactSort();
-  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: sortContacts });
-  // Trimmed, so a trailing space doesn't read the list again.
-  const query = contactQuery({ scope: { listId: list.id }, search: searchText.trim(), sort: sortOrder });
-  const { rows, count, loadMore } = usePagedQuery(query, 100);
-  const lastIndex = (rows?.length ?? 0) - 1;
-  // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
-  const renderItem = useCallback(
-    ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) => (
-      <ContactRow contact={contact} isFirst={index === 0} isLast={index === lastIndex} />
-    ),
-    [lastIndex],
-  );
+  const { sortOrder, setSortOrder } = useContactSort();
+  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
+  const builtIn = 'builtIn' in props ? props.builtIn : undefined;
+  const list = 'list' in props ? props.list : undefined;
+  const isDeleted = builtIn?.scope === 'deleted';
+  // Trimmed, so a trailing space doesn't read the list again.
+  const search = searchText.trim();
+  const query = contactQuery({
+    scope: builtIn ? builtIn.scope : { listId: list!.id },
+    search,
+    sort: sortOrder,
+    withLists: !!builtIn,
+  });
+  const { rows, count, loadMore } = usePagedQuery(query, 100);
 
-  const header = list.notes ? (
+  const lastIndex = (rows?.length ?? 0) - 1;
+  // Stable while the rows' count is, so a keystroke doesn't re-render every row (they are memo).
+  const renderItem = useCallback(
+    ({ item: contact, index }: ListRenderItemInfo<ContactSummary>) =>
+      isDeleted ? (
+        <ContactRow
+          contact={contact}
+          onPress={() => restoreContact(contact.id)}
+          trailing={<Button label="Restore" size="small" onPress={() => restoreContact(contact.id)} />}
+          isFirst={index === 0}
+          isLast={index === lastIndex}
+        />
+      ) : (
+        <ContactMenuRow contact={contact} isFirst={index === 0} isLast={index === lastIndex} />
+      ),
+    [lastIndex, isDeleted, restoreContact],
+  );
+
+  const header = list?.notes ? (
     <Text variant="status" style={styles.description}>
       {list.notes}
     </Text>
@@ -57,19 +84,21 @@ export default function ContactList({ list }: ContactListProps) {
   return (
     <Page>
       <FloatingDetailHeader
-        title={list.name}
+        title={(builtIn ?? list!).name}
         subtitle={pluralizeText('1 contact', '%{count} contacts', count ?? 0)}
         onBack={() => navigation.goBack()}
         menuSlot={
-          <>
-            <ContactListMenu list={list} afterDelete={() => navigation.goBack()} />
-            <Button
-              variant="primary"
-              icon="add"
-              onPress={() => router.navigate({ pathname: '/add-contacts', params: { listId: list.id } })}
-              accessibilityLabel="Add contacts"
-            />
-          </>
+          list && (
+            <>
+              <ContactListMenu list={list} afterDelete={() => navigation.goBack()} />
+              <Button
+                variant="primary"
+                icon="add"
+                onPress={() => router.navigate({ pathname: '/add-contacts', params: { listId: list.id } })}
+                accessibilityLabel="Add contacts"
+              />
+            </>
+          )
         }
       />
       <Animated.FlatList
@@ -81,8 +110,8 @@ export default function ContactList({ list }: ContactListProps) {
         ListEmptyComponent={
           rows ? (
             <EmptyState
-              icon={searchText.trim() ? 'search' : 'contacts'}
-              title={searchText.trim() ? 'No contacts match' : 'No contacts in this list yet'}
+              icon={search ? 'search' : 'contacts'}
+              title={search ? 'No contacts match' : (builtIn?.emptyTitle ?? 'No contacts in this list yet')}
             />
           ) : undefined
         }
@@ -95,7 +124,7 @@ export default function ContactList({ list }: ContactListProps) {
         search={searchBar}
         placeholder="Search contacts…"
         sortOrder={sortOrder}
-        sortOptions={contactSortOptions}
+        sortOptions={!builtIn || builtIn.isSortable ? contactSortOptions : []}
         onSort={sort}
       />
     </Page>

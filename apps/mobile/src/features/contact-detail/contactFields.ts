@@ -16,7 +16,7 @@ import noteText from '@/utils/noteText';
 /** A row of a contact's form that holds a handle or the phone number. */
 export type HandleFormField = ContactHandleField | 'phoneNumber';
 
-/** Who filled a form's fields, for their mark: the assistant (From screenshot) or a link (From link). */
+/** What filled a form's fields, for the fill's note: a screenshot (From screenshot, `assistant`) or a link (From link). */
 export type FillSource = 'assistant' | 'link';
 
 /** A contact's form as typed (contactDraft). */

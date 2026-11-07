@@ -17,9 +17,13 @@ export type ContactsContextValue = {
   removeAvatar: (id: string) => Promise<void>;
   changePlace: (id: string, from: ContactPlace | null, to: ContactPlace | null) => Promise<void>;
   setContactDeleted: (id: string) => Promise<void>;
+  restoreContact: (id: string) => Promise<void>;
   addList: (name: string) => Promise<ContactListRecord>;
   updateList: (id: string, fields: Partial<ContactListRecord>) => Promise<void>;
   setListDeleted: (id: string) => Promise<void>;
+  // Pins a list of the user's or a built-in one (by id) to the top of Contacts; null or Favorites'
+  // id for Favorites again.
+  pinList: (id: string | null) => Promise<void>;
   addToLists: (contactIds: string[], listIds: string[]) => Promise<void>;
   changeListContacts: (listId: string, change: MembershipChange) => Promise<void>;
   changeTargetContacts: (target: ContactTarget, change: MembershipChange) => Promise<void>;

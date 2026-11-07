@@ -54,6 +54,7 @@ export default function IgnoredPostsScreen() {
         />
       ) : (
         <PostList
+          hasMenu={false}
           rows={rows}
           loadMore={loadMore}
           contentContainerStyle={padding}

@@ -8,7 +8,6 @@ import { authRoutes } from './auth/routes.js';
 import { assetRoutes } from './storage/routes.js';
 import { syncRoutes } from './sync/routes.js';
 import { aiRoutes } from './ai/routes.js';
-import { contactRoutes } from './contacts/routes.js';
 import { devRoutes } from './dev/routes.js';
 
 // Strip a `token` query param so access tokens sent via ?token= (iOS background uploads)
@@ -50,7 +49,6 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
       await assetRoutes(api);
       await syncRoutes(api);
       await aiRoutes(api);
-      await contactRoutes(api);
       if (loadConfig().LIBRARY_COPY_EMAIL) await devRoutes(api);
     },
     { prefix: '/api/v1' },

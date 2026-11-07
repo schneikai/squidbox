@@ -298,6 +298,7 @@ export const contacts = pgTable(
     blueskyHandle: text('bluesky_handle'),
     onlyFansHandle: text('only_fans_handle'),
     jffHandle: text('jff_handle'),
+    instagramHandle: text('instagram_handle'),
     phoneNumber: text('phone_number'),
     places: jsonb('places').$type<ContactPlace[]>().notNull(),
     avatarFilename: text('avatar_filename'),
@@ -312,10 +313,23 @@ export const contactLists = pgTable(
     ...syncableBase(),
     name: text('name').notNull(),
     notes: text('notes'),
+    pinnedAt: bigint('pinned_at', { mode: 'number' }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_lists_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 export type ContactListRow = typeof contactLists.$inferSelect;
+
+// One contact_settings record per user: its id is the user's id. The built-in list pinned to the
+// top of Contacts (`pinned_list_id`, say `tagged`) and when it was pinned.
+export const contactSettings = pgTable(
+  'contact_settings',
+  {
+    ...syncableBase(),
+    pinnedListId: text('pinned_list_id'),
+    pinnedAt: bigint('pinned_at', { mode: 'number' }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_settings_user_seq_idx').on(t.userId, t.serverSeq)],
+);
 
 export const contactListMembers = pgTable(
   'contact_list_members',

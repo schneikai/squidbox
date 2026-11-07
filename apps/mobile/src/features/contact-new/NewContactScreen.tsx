@@ -43,17 +43,18 @@ export default function NewContactScreen() {
   const allContacts = useContactRows({ scope: 'all' });
   const lists = useContactListRows({ withMembers: false });
   // Rescanned only when the contacts or what the check reads change, not on every keystroke in the notes.
-  const { name, xHandle, blueskyHandle, onlyFansHandle, jffHandle } = draft;
+  const { name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle } = draft;
   const { matches, sharedFields } = useMemo(() => {
     const typed: Pick<ContactDraft, 'name' | ContactHandleField> = {
       name,
       xHandle,
+      instagramHandle,
       blueskyHandle,
       onlyFansHandle,
       jffHandle,
     };
     return findDuplicates(storedContactFields({ ...EMPTY_DRAFT, ...typed }), allContacts ?? []);
-  }, [allContacts, name, xHandle, blueskyHandle, onlyFansHandle, jffHandle]);
+  }, [allContacts, name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle]);
   const fields = storedContactFields(draft);
   const selectedLists = (lists ?? []).filter((list) => listIds.includes(list.id));
   const isDirty = JSON.stringify(fields) !== EMPTY || !!avatarUri || listIds.length > 0;
@@ -76,7 +77,7 @@ export default function NewContactScreen() {
   }
 
   function fieldProps(field: HandleFormField | 'name') {
-    return { filledBy: fill?.fieldSources[field], isDuplicate: sharedFields.has(field) };
+    return { isFilled: !!fill?.fields.includes(field), isDuplicate: sharedFields.has(field) };
   }
 
   // Opening a duplicate leaves the draft, after asking when it has changes.
@@ -112,11 +113,13 @@ export default function NewContactScreen() {
       <ScreenSectionHeader title="Notes" />
       <NotesField value={draft.notes} onChangeText={(text) => setField('notes', text)} />
 
-      <ScreenSectionHeader title="Places" />
+      <ScreenSectionHeader title="Locations" />
       <PlacesField
         places={draft.places}
         onEdit={(index) => router.navigate({ pathname: '/new-contact/place', params: { index } })}
         onAdd={() => router.navigate('/new-contact/place')}
+        // A fill puts the place it read first.
+        filledIndex={fill?.fields.includes('places') ? 0 : undefined}
       />
 
       {/* The lists step is pushed inside the sheet. */}
