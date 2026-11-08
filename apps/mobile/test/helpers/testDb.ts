@@ -7,7 +7,7 @@ import journal from '../../src/sync/db/migrations/meta/_journal.json';
 
 // An in-memory SQLite "device" for tests: better-sqlite3 behind the app's own driver (createDb, so
 // the same queue and transactions), with the same generated migrations the app ships.
-const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrations', import.meta.url));
+export const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrations', import.meta.url));
 
 /**
  * Runs the client migrations from index `from` up to (not including) `to` on `sqlite`: by default
