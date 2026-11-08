@@ -6,6 +6,9 @@ import { colors, layout, press, space, textStyles } from '@/styles/designTokens'
 
 type ScreenSectionHeaderSize = 'small' | 'regular';
 
+// A tapped title's reach: wide, but not down into the row under it.
+const TITLE_HIT_SLOP = { top: space.md, bottom: space.xs, left: space.md, right: space.md };
+
 export type ScreenSectionHeaderProps = {
   title: string;
   onTitlePress?: () => void;
@@ -50,7 +53,7 @@ export default function ScreenSectionHeader({
         onPress={onTitlePress}
         accessibilityRole="button"
         accessibilityHint={titleHint}
-        hitSlop={space.md}
+        hitSlop={TITLE_HIT_SLOP}
         style={({ pressed }) => [styles.titleButton, pressed && press.flat]}
       >
         <Text style={label}>{title}</Text>

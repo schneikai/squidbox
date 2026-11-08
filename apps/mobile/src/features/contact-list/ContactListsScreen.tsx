@@ -59,7 +59,7 @@ export default function ContactListsScreen() {
     <Page>
       <FloatingDetailHeader
         title="Lists"
-        subtitle={allLists && pluralizeText('1 list', '%{count} lists', allLists.length)}
+        subtitle={shownLists && pluralizeText('1 list', '%{count} lists', shownLists.length)}
         onBack={() => navigation.goBack()}
         menuSlot={<Button variant="primary" icon="add" onPress={promptAddList} accessibilityLabel="Add list" />}
       />

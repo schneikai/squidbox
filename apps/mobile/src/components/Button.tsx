@@ -287,7 +287,9 @@ function combinationProblem({
   if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
   if (iconCount === 2 && label) return 'Button: a doubled icon has no label';
   if (size === 'caption' && !(variant === 'tertiary' && label)) return 'Button: only a link comes in caption size';
-  if (hasChevron && !(variant === 'tertiary' && label)) return 'Button: only a link ends in a chevron';
+  if (hasChevron && !(variant === 'tertiary' && label && size !== 'caption')) {
+    return 'Button: only a regular or small link ends in a chevron';
+  }
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
   if (variant === 'secondary' && (palette === 'danger' || isInverse) && (label?.length ?? 0) > MAX_DISC_LABEL) {
     return 'Button: a red or inverse secondary is a disc; its label must fit in it';
