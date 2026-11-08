@@ -18,13 +18,14 @@ import EmptyState from '@/components/EmptyState';
 import Field from '@/components/Field';
 import Icon, { ICON_NAMES } from '@/components/Icon';
 import IntroText from '@/components/IntroText';
+import ModalHeader from '@/components/ModalHeader';
 import Note from '@/components/Note';
 import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
 import ProgressRing from '@/components/ProgressRing';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import SearchInput from '@/components/SearchInput';
 import SelectIndicator from '@/components/SelectIndicator';
+import SheetSearchField from '@/components/SheetSearchField';
 import Switch from '@/components/Switch';
 import Text from '@/components/Text';
 import TextInput from '@/components/TextInput';
@@ -80,6 +81,7 @@ export default function ComponentGalleryScreen() {
   const [isOn, setIsOn] = useState(true);
   const [tags, setTags] = useState(GALLERY_TAGS);
   const [text, setText] = useState('');
+  const [search, setSearch] = useState('');
 
   function renderToolbars() {
     return (
@@ -275,8 +277,15 @@ export default function ComponentGalleryScreen() {
         <Field label="Multiline" onInfo={noop}>
           <TextInput variant="field" multiline placeholder="A longer text" />
         </Field>
-        <Field label="Search">
-          <SearchInput variant="field" placeholder="Search models" />
+        <Field label="SheetSearchField, under a sheet's ModalHeader">
+          {/* The top of a picker sheet, edge to edge: the field places itself under the header. */}
+          <View style={styles.sheetTop}>
+            <ModalHeader
+              leading={<Button icon="close" accessibilityLabel="Close" onPress={noop} />}
+              title="Add models"
+            />
+            <SheetSearchField value={search} onChangeText={setSearch} placeholder="Search models…" />
+          </View>
         </Field>
         <Specimen name="Switch">
           <Switch value={isOn} onValueChange={setIsOn} accessibilityLabel="On" />
@@ -431,6 +440,9 @@ const styles = StyleSheet.create({
   fields: {
     width: '100%',
     gap: space.xl,
+  },
+  sheetTop: {
+    marginHorizontal: -layout.sideGutter,
   },
   scrim: {
     padding: space.xxl,

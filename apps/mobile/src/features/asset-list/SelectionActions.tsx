@@ -7,7 +7,7 @@ export type SelectionActionsProps = {
   onClose: () => void;
 };
 
-// The buttons of select mode, for a floating pill: select all, download, add to album, post, delete
+// The buttons of select mode, for a floating pill: select all, download, Add to Album, post, delete
 // (when `onDelete` is given) and close. `actions` comes from useAssetSelectionActions.
 export default function SelectionActions({ actions, onDelete, onClose }: SelectionActionsProps) {
   const disabled = !actions.hasSelection;
@@ -24,7 +24,7 @@ export default function SelectionActions({ actions, onDelete, onClose }: Selecti
         icon="library"
         onPress={actions.addSelectedToAlbum}
         disabled={disabled}
-        accessibilityLabel="Add to album"
+        accessibilityLabel="Add to Album"
       />
       <Button icon="share" onPress={actions.postSelected} disabled={disabled} accessibilityLabel="Post" />
       {onDelete && (

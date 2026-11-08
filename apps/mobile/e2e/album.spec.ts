@@ -117,3 +117,22 @@ test('the Starred row lists the last starred album first', async ({ page }) => {
 
   await expect(row.getByRole('button').first()).toHaveAccessibleName(first);
 });
+
+test('Add to Album finds an album by search and adds the photo to it', async ({ page }) => {
+  const name = uniqueName('Tarn camp');
+  await createAlbum(page, name);
+  await openTab(page, 'Library');
+  const library = page.getByTestId('library-screen');
+
+  await button(library, 'Select').click();
+  await assetCells(library).first().click();
+  await button(library, 'Add to Album').click();
+  const sheet = page.getByTestId('add-to-album-sheet');
+  await sheet.getByPlaceholder('Search albums…').fill(name);
+  await sheet.getByText(name, { exact: true }).click();
+
+  await expect(sheet).toBeHidden();
+  await openTab(page, 'Albums');
+  await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
+  await expect(page.getByTestId('album-screen').getByText(/^1 Asset · /)).toBeVisible();
+});

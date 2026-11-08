@@ -17,30 +17,21 @@ import { layout, press } from '@/styles/designTokens';
 
 type AlbumPickerProps = {
   onPick: (album: AlbumListRow) => void;
-  showSmartAlbums?: boolean;
-  paddingTop: number;
   onScroll?: ScrollHandlerProcessed;
   expandProgress?: SharedValue<number>;
 };
 
-// The albums of a modal to pick one from, with search, sort and filter; a tap hands the album to
-// `onPick`. Smart albums show with `showSmartAlbums` (to pick assets from Favorites, not to add to
-// it), but never Deleted: nothing is picked from the trash. `onScroll` and `expandProgress` let the
-// modal animate its header and a segment pill.
-export default function AlbumPicker({
-  onPick,
-  showSmartAlbums = false,
-  paddingTop,
-  onScroll,
-  expandProgress,
-}: AlbumPickerProps) {
+// The photo picker's albums to pick one from, with search, sort and filter; a tap hands the album to
+// `onPick`. Smart albums show (to pick assets from Favorites), but never Deleted: nothing is picked
+// from the trash. `onScroll` and `expandProgress` let the modal animate its header and a segment pill.
+export default function AlbumPicker({ onPick, onScroll, expandProgress }: AlbumPickerProps) {
   const { bottom } = useSafeAreaInsets();
 
   const { sortOrder, sortAlbums } = useSortAlbumsAction();
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
     onSort: sortAlbums,
   });
-  const { albums } = usePreparedAlbums({ sortOrder, activeFilter, searchText, showSmartAlbums, showDeleted: false });
+  const { albums } = usePreparedAlbums({ sortOrder, activeFilter, searchText, showDeleted: false });
 
   return (
     <>
@@ -48,7 +39,7 @@ export default function AlbumPicker({
         listRef={listRef}
         albums={albums}
         contentContainerStyle={{
-          paddingTop,
+          paddingTop: layout.sheetContentTop,
           paddingBottom: bottom + layout.barClearance,
         }}
         onScroll={onScroll}

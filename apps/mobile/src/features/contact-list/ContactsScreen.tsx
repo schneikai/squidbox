@@ -34,12 +34,11 @@ const keyExtractor = (contact: ContactSummary) => contact.id;
 export default function ContactsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
   const { sortOrder, setSortOrder } = useContactSort('contacts');
-  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: setSortOrder });
+  const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
   const scrollHandler = useFloatingBarScrollHandler();
 
   // Trimmed, so a trailing space doesn't read the list again.
-  const search = searchText.trim();
   const isSearching = !!search;
   const query = contactQuery({ scope: 'all', search, sort: sortOrder, withLists: true });
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
