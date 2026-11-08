@@ -6,7 +6,7 @@ import useMentionContacts from './useMentionContacts';
 import Divider from '@/components/Divider';
 import Text from '@/components/Text';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { layout, press, sizes, space } from '@/styles/designTokens';
+import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
 type MentionSuggestionsProps = { query: string; onPick: (handle: string) => void };
@@ -60,9 +60,13 @@ function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: Su
 }
 
 const styles = StyleSheet.create({
-  // Under the text at the card's gap, the rows starting where the text does.
+  // A grey panel under the text at the card's gap, so the suggestions read apart from what is
+  // written, rounded like a list row's thumbnail.
   list: {
-    marginTop: layout.cardGap - space.sm,
+    marginTop: layout.cardGap,
+    paddingHorizontal: space.md,
+    borderRadius: radii.cover,
+    backgroundColor: colors.background.muted,
   },
   row: {
     flexDirection: 'row',
