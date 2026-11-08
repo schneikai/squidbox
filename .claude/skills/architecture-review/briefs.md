@@ -1,6 +1,6 @@
 # Briefs
 
-One prompt per subagent. Fill the brackets. Every reviewer is read-only and report-only, gets a fresh context, and is told nothing beyond its brief, the scope and (except the task agents) the map. The four angle briefs (Homes and boundaries, Duplication and depth, Data integrity, UX parity) end with the common tail at the bottom of this file; paste it in. The map writer, the task agents and the TL;DR checker do not get it.
+One prompt per subagent. Fill the brackets. Every reviewer is read-only and report-only, gets a fresh context, and is told nothing beyond its brief, the scope and (except the task agents) the map. The three angle briefs (Homes and boundaries, Data integrity, UX parity) end with the common tail at the bottom of this file; paste it in. The map writer, the task agents and the TL;DR checker do not get it.
 
 ## Map
 
@@ -15,7 +15,7 @@ No judgements, no findings: what is, in one page. Return the file path.
 ## Homes and boundaries
 
 ```
-You review [SCOPE] in the repo at [ROOT] for one thing: does each kind of thing have one obvious home, and are the boundaries between folders the ones the code's changes need? Read CLAUDE.md "Code layout", the map at [MAP_FILE], and then the code. Write your findings to [REPORT_FILE]; change nothing else.
+You review [SCOPE] in the repo at [ROOT] for one thing: does each kind of thing have one obvious home, are the boundaries between folders the ones the code's changes need, and where does the same code live twice because the home was not obvious? Read CLAUDE.md "Code layout", the map at [MAP_FILE], and then the code. Write your findings to [REPORT_FILE]; change nothing else.
 
 First, the recent changes in the map are real evidence: for each, read its diff (git show --stat and the files), and ask where the structure made it cost more than it had to: a folder it touched for no reason of its own, code it copied because the home was not obvious, ownership it misread (a fix-up tells you), a boundary it crossed that is not one. Each such place is a finding; name the structural change that would have made that PR smaller or safer.
 
@@ -34,21 +34,9 @@ Then flag:
 - A feature importing another feature's internals (a file that is not its screen, hook or context). Count the pairs; propose the rule CLAUDE.md should have (what a feature may import from another) and the eslint restriction that would enforce it, with today's hit count.
 - For each folder CLAUDE.md does not name and each layout rule the tree no longer follows (the map lists them): propose the rule change or the code change, not both.
 - A route file in app/ that holds logic, a file with two exported components, a hand-written type the schema, a repository or @squidbox/shared already gives.
+- Duplication, only when the copies must change together (a fix one copy got and the other needs, a rule both follow) or there are three or more: name the one to keep and the callers to move. Two copies in independent features may stand. Web and native pairs (x.ts and x.web.ts) are not duplicates; flag a pair whose two sides differ in interface or behaviour.
+- A pass-through wrapper, or a lib/ or utils/ entry with one caller: apply the deletion test (would deleting it and inlining its callers be smaller and clearer?) and flag it only when the answer is yes.
 You may propose moving the furniture. Say what moves, where, and what gets simpler.
-```
-
-## Duplication and depth
-
-```
-You review [SCOPE] in the repo at [ROOT] for duplication and shallow modules. Read the map at [MAP_FILE], then the code. Write your findings to [REPORT_FILE]; change nothing else.
-
-Duplication is a finding only when the copies must change together: a fix one copy got and the other needs, or a rule both must follow. Two independent features that look alike are cheaper apart than coupled. Flag:
-- Near-copies that must change together across modules; name the one to keep and the callers to move. Check the recent changes in the map for a fix that landed in one copy only.
-- lib/ or utils/ entries with one caller: they belong next to that caller.
-- Pass-through wrappers and shallow modules: an interface as wide as its body. Apply the deletion test: would deleting it and inlining its callers be smaller and clearer? If yes, it is a finding.
-- Data clumps (the same three fields travelling together), repeated switches on the same type, speculative abstractions no caller needs, stringly-typed values where a type or constant exists.
-- Web and native pairs (x.ts and x.web.ts) are not duplicates. Flag a pair whose two sides differ in interface or behaviour, and a platform branch inside a file where a variant pair is the project's pattern.
-For every flag, name the existing code to extend instead of writing new.
 ```
 
 ## Data integrity
@@ -83,7 +71,7 @@ Only when the scope has screens.
 ```
 You review [SCOPE] in the repo at [ROOT] for consistency across features in UI and UX. Read CLAUDE.md "UI / Components", the squidbox-ui skill (its conflicts table and "Checks before calling a screen done"), the map at [MAP_FILE], then the code. Write your findings to [REPORT_FILE]; change nothing else.
 
-Build two inventories first and put them in the report: every button, menu and alert label in scope, grouped by verb; and, for each item kind (asset, album, post, contact, list, prompt, rule), how it is created, edited, deleted, restored and confirmed, and with which components.
+Build two inventories first and put them in the report: every button, menu and alert label in scope, grouped by verb; and, for each item kind the map lists, how it is created, edited, deleted, restored and confirmed, and with which components.
 
 Then flag:
 - The same job done differently across item kinds: two verbs for one act (Delete and Remove), two capitalisations, a question mark on one confirm and not another, an edit screen for one kind and in-place editing for another, without a reason in the rules.
@@ -95,12 +83,12 @@ Then flag:
 ## TL;DR check
 
 ```
-Your job is to break this TL;DR before the owner reads it. Read [TLDR_FILE], the findings in [REPORTS_DIR], CLAUDE.md, docs/sync-design.md §12, and the code each claim rests on. For every claim: does it follow from a finding and the code, or is it asserted? Is the maintainability gain concrete (fewer places to change, one home instead of two, a lint instead of a rule) or a slogan? Would the changes together leave fewer places to change, or just different ones? Does each change say what the next run can count to see it worked? Does it contradict CLAUDE.md or a recorded decision? Write [REPORT_FILE]: one line per claim, "holds" or "does not hold: why", blunt, no praise. Return the counts.
+Your job is to break this TL;DR before the owner reads it. Read [TLDR_FILE], the findings in [REPORTS_DIR], CLAUDE.md, docs/sync-design.md §12, and the code each claim rests on. For every claim: does it follow from a finding and the code, or is it asserted? Is the maintainability gain concrete (fewer places to change, one home instead of two, a lint instead of a rule) or a slogan? Would the changes together leave fewer places to change, or just different ones? Does each change say what the next run can count to see it worked? Read the code behind every claim; a claim you cannot trace to a file does not hold. Does it contradict CLAUDE.md or a recorded decision? Write [REPORT_FILE]: one line per claim, "holds" or "does not hold: why", blunt, no praise. Return the counts.
 ```
 
 ## Common tail for every reviewer
 
 ```
-Rules: the repo's own rules (CLAUDE.md, the design docs) win over any general principle; when they conflict, say so and propose which should change. Skip anything the lint, the typecheck or knip already enforces. At most 10 findings, ranked by cost. Each finding, one line per field: location (file:line, or a count with the command that produced it); the rule or principle; the evidence (what the code does, quoted or counted); the cost (what gets harder or breaks because of this, in one sentence, tied where you can to a recent change or a scenario; no cost, no finding); the fix as a target shape in one line; the prediction (the count the fix moves and to what: folders a change touches, files an agent reads, hits of a lint, or the test that would have caught a past fix-up); the files a fix would touch; size S (under an hour), M (half a day), L (a day or more); the test that covers the behaviour, or "none". Then a short "Checked and sound" list: what you looked at and found fine, so nobody looks again. Write it to the report file and return one line: finding count, report path.
+Rules: the repo's own rules (CLAUDE.md, the design docs) win over any general principle; when they conflict, say so and propose which should change. Skip anything the lint, the typecheck or knip already enforces. Before you keep a finding, check it: the code does what you say (open the file); it is not a choice CLAUDE.md, docs/sync-design.md §12, docs/library-ownership-plan.md or an earlier report in docs/reviews/ made on purpose; a caller has the case; deleting the thing and inlining its callers would not be smaller and clearer; crossing folders costs only when a folder is not a boundary the change needs. At most 10 findings, ranked by cost. Each finding, one line per field: location (file:line, or a count with the command that produced it); the rule or principle; the evidence (what the code does, quoted or counted); the cost (what gets harder or breaks because of this, in one sentence, tied where you can to a recent change or a scenario; no cost, no finding); the fix as a target shape in one line; the prediction (the count the fix moves and to what: folders a change touches, files an agent reads, hits of a lint, or the test that would have caught a past fix-up); the files a fix would touch; size S (under an hour), M (half a day), L (a day or more); the test that covers the behaviour, or the test the fix must add (an M or L fix without a test is not done). Where a lint or a one-line check would keep the finding from coming back, name it with today's hit count. Write it to the report file and return one line: finding count, report path.
 [ADDITIONAL_FOCUS]
 ```

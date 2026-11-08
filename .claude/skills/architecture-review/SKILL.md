@@ -1,13 +1,13 @@
 ---
 name: architecture-review
-description: Use when the owner asks to review the architecture, structure or consistency of the app or a part of it against software design best practices, or to find cleanup and alignment work. Review only, no code changes: a map, parallel single-angle reviewers, a checked TL;DR, and a report PR whose findings are ready-made requests for the build skill.
+description: Use when the owner asks to review the architecture, structure or consistency of the app or a part of it against software design best practices, or to find cleanup and alignment work. Changes no feature code: a map, parallel single-angle reviewers, a checked TL;DR, and one PR with the report and the lint rules that keep its findings from coming back; the findings are ready-made requests for the build skill.
 ---
 
 # Review the architecture
 
-You are the **coordinator**, the top-level session. You write the map, launch the reviewers as subagents (Claude Code: the Agent tool, all in one message), verify what they return, write the TL;DR and have it checked, and open the report as a PR. You change no code. The prompts for every subagent are in [briefs.md](briefs.md). Project rules come from CLAUDE.md.
+You are the **coordinator**, the top-level session. You write the map, launch the reviewers as subagents (Claude Code: the Agent tool, all in one message), merge and check what they return, write the TL;DR and have it checked, add the enforcement, and open the PR. The prompts for every subagent are in [briefs.md](briefs.md). Project rules come from CLAUDE.md.
 
-The code is written and maintained by agents, so the review optimises for the cost and risk of the next agent change, not for how the code looks. In order: an agent finds the right code (one obvious home per kind of thing, names it would grep for, CLAUDE.md as the routing table, not the encyclopedia); a typical change touches little unrelated code; contracts are enforced by types, lints and schemas rather than remembered; tests catch the regression; a bad change fails visibly and close to its cause. Duplication is a finding only when the copies must change together; a small file is a proxy, not a goal; an extension point counts only where a change has already asked for it.
+The code is written and maintained by agents, so the review optimises for the cost and risk of the next agent change, not for how the code looks. An agent has no memory between sessions, a bounded context, strong grep, and copies the nearest pattern. So, in order: a rule holds only when a lint, the typecheck or a test enforces it, and CLAUDE.md is the routing table, not the rule book; an agent finds the right code (one obvious home per kind of thing, names it would grep for); a typical change touches little unrelated code; checks are fast and deterministic, or agents skip them; a bad change fails loudly and close to its cause, never behind a fallback; tests are the contract, since nobody reads the code, and the owner reads only the TL;DR in the thread, never the PR; one wrong example gets copied twenty times, so consistency beats cleverness. Duplication is a finding only when the copies must change together or a third copy appears; a small file is a proxy, not a goal; an extension point counts only where a change has already asked for it.
 
 ## Scope
 
@@ -21,7 +21,7 @@ The owner names the scope when starting the run: the whole app, an area (`apps/m
 
 ### 1. Map
 
-Read CLAUDE.md, `docs/sync-design.md` §8 and §12, `docs/library-ownership-plan.md`, the `squidbox-ui` skill's conflicts table, and every earlier report in `docs/reviews/`. Run the three counts over the scope; each goes into the map with the command that produced it:
+Read CLAUDE.md, `docs/sync-design.md` §8 and §12, `docs/library-ownership-plan.md`, the `squidbox-ui` skill's conflicts table, and every earlier report in `docs/reviews/`. Run the counts over the scope; each goes into the map with the command that produced it:
 
 - the import matrix between top-level folders (feature → feature, `utils`/`hooks`/`components` → `features`, `utils` → `library`), aggregated per folder pair;
 - `catch` sites per folder;
@@ -32,25 +32,15 @@ Dispatch the map writer ([briefs.md](briefs.md), "Map") for the whole scope, or 
 
 ### 2. Review
 
-Launch the reviewers together, in one message, each with a fresh context, read-only: **Homes and boundaries**, **Duplication and depth**, **Data integrity**, **Discoverability by task** (three task agents, see the brief), and **UX parity** when the scope has screens. Each gets the scope, `map.md` and its brief. If the owner named an extra focus when starting the run, put it in the common tail's `[ADDITIONAL_FOCUS]`. Each reviewer writes `reports/<angle>.md` and returns one line.
+Launch the reviewers together, in one message, each with a fresh context, read-only: **Homes and boundaries**, **Data integrity**, **Discoverability by task** (three task agents, see the brief), and **UX parity** when the scope has screens. Each gets the scope, `map.md` and its brief; the brief's common tail carries the verify criteria, so each reviewer checks its own findings before it returns. If the owner named an extra focus when starting the run, put it in the common tail's `[ADDITIONAL_FOCUS]`. Each reviewer writes `reports/<angle>.md` and returns one line.
 
-### 3. Verify
+### 3. Merge and check
 
-Check every finding against the code before you keep it. Each of these is a reason to drop:
-
-- **Grounded**: the code does what the finding says. Open the file.
-- **Deliberate**: not something CLAUDE.md, `docs/sync-design.md` §12, `docs/library-ownership-plan.md`, the `squidbox-ui` conflicts table or an earlier report decided on purpose.
-- **Needed**: a caller has the case; the fix is not for a situation nobody has.
-- **Better**: deleting the abstraction and inlining its callers would not be smaller and clearer; the fix leaves fewer places to change, not different ones. Crossing folders is not a cost by itself: it is one when the folders are not boundaries a change needs.
-- **Predicted**: it names the change that gets cheaper (a recent PR or a scenario) and what the next run can count to see it: folders that change touches, files a task agent reads, hits of a lint, or the test that would have caught a past fix-up.
-- **Costed**: it names what gets harder or breaks.
-- **Not enforced**: no lint, the typecheck or knip already catches it.
-
-Merge duplicates across angles. Write dropped findings to `dropped.md`, one line each; do not argue with them. Turn each task agent's stalls into findings in the common tail's shape (a missing pointer in CLAUDE.md, a name nobody would grep for, two homes for one thing, a file too long to read).
+Merge duplicates across angles (Homes and Discoverability both find two homes for one thing). Rank what is left by cost, keep at most ten, and check each kept finding against the code yourself: open the file, then apply the criteria from the common tail. Drop a finding that fails one; write it to `dropped.md`, one line, and do not argue with it. Turn each task agent's stalls into findings in the common tail's shape (a missing pointer in CLAUDE.md, a name nobody would grep for, two homes for one thing, a file too long to read).
 
 ### 4. TL;DR, and its check
 
-Write `tldr.md`, half a page: what the review wants to change, in order, and why each change makes the code easier for an agent to maintain, with the evidence each claim rests on. Then dispatch the TL;DR checker ([briefs.md](briefs.md), "TL;DR check"); it returns one line per claim, holds or not and why. Rewrite or drop what did not hold, and note the ruling in `dropped.md`. One agent, one round.
+Write `tldr.md`, half a page, for an owner who reads no code: what the review wants to change, in order, numbered like the findings, why each change makes the code easier for an agent to maintain, what it costs (size, what could break), the evidence each claim rests on and the count it predicts, and what now gets enforced. No file paths in the TL;DR; those are in the findings. Then dispatch the TL;DR checker ([briefs.md](briefs.md), "TL;DR check"); it reads the code behind each claim and returns one line per claim, holds or not and why. Rewrite or drop what did not hold, and note the ruling in `dropped.md`. One agent, one round.
 
 ### 5. Report
 
@@ -58,21 +48,25 @@ Write `docs/reviews/<date>-<slug>.md` in this order:
 
 1. **TL;DR**, as checked.
 2. **Map**, from `map.md`, baseline counts included.
-3. **Findings**, one ordered list, most valuable first, each with the fields of the common tail in [briefs.md](briefs.md). Each is a build request and can be pasted into a build thread unchanged. A finding that must land before another says so in its text.
-4. **Enforce**: the lints and checks that would prevent a class of finding. Each entry has the eslint rule or one-line command, how many hits it has today, and whether it is an S finding of its own or needs the owner's decision first (a boundary rule CLAUDE.md does not have yet). A rule no lint can carry goes here too, marked as a CLAUDE.md candidate for the `add-rule` skill; the owner decides.
-5. **Outcomes**, when an earlier report exists: each of its findings that was built, the count it predicted, and the count today. A prediction that did not hold is a lesson for the next run's verify step, written in one line.
-6. **Checked and sound**: what was tested against which scenario or rule and found fine, with the files it covered. The next run skips an entry only when those files did not change since; it is a note, not an exemption.
+3. **Findings**, one numbered list, most valuable first, each with the fields of the common tail in [briefs.md](briefs.md). Each is a complete build request. A finding that must land before another says so in its text.
+4. **Enforce**: the lints and checks that keep a class of finding from coming back. Each entry has the eslint rule or one-line check, how many hits it has today, and whether it shipped in step 6. A rule the run is not sure of (it would conflict with a recorded decision, or its hit count says the code disagrees) is listed as a question for the owner, in plain words, and goes into the TL;DR.
+5. **Outcomes**, when an earlier report exists: each of its findings that was built, the count it predicted, and the count today. A prediction that did not hold is a lesson for the next run's check step, written in one line.
 
-### 6. Ship
+### 6. Enforce
 
-Commit the report on a branch `review-<slug>` (unless the environment already put you on a branch for this work), push it and open the PR with the TL;DR as its body. Tell the owner: the PR link, the TL;DR, and the question which findings to build. Then stop; this is the one place the run asks.
+Add every Enforce entry the run is sure of, the way the repo does it: a rule in `apps/mobile/.eslintrc.js` (`no-restricted-syntax`, `no-restricted-imports`) or a script beside `scripts/checkNewFiles.mjs` that `npm run check` and CI run. Fix today's hits when that is under an hour in total; otherwise mark each kept hit with an `eslint-disable-next-line` comment that says why, as the spacing rule does, so the count cannot grow unseen. A new rule CLAUDE.md does not state yet gets its one line there through the `add-rule` skill. Run `npm run check`. This is the run's only change to code; feature code is for the build skill.
 
-### 7. Hand off
+### 7. Ship
 
-Each finding the owner picks is a build request: the finding's text, plus a `Context:` line naming the report's path in the repo.
+Commit the report and the enforcement on a branch `review-<slug>` (unless the environment already put you on a branch for this work), push it and open the PR with the TL;DR as its body. Tell the owner: the TL;DR in full (it is the only thing they read), the PR link, and the question which numbers to build. Then stop; this is the one place the run asks.
+
+### 8. Hand off
+
+The owner answers with numbers. Each becomes a build thread whose request is one line: "Build finding N of docs/reviews/<date>-<slug>.md"; the build skill reads the finding there.
 
 ## Rules
 
 - Thorough model (`fable` in Claude Code today) for every subagent; set it on each dispatch.
-- The report records nothing in `todo.md` or CLAUDE.md on its own; those are the owner's calls, through the Enforce list.
+- The run never writes `todo.md`; CLAUDE.md only through `add-rule`, for a rule it also enforces.
+- The briefs name folders, item kinds, scenarios and tasks as they are today; the map is the truth. Swap a scenario or task that no longer fits the map and say so in the report.
 - Narrate at most one line between tool calls; post the owner a short status after the map, the reviews, the TL;DR check and the PR.
