@@ -26,11 +26,12 @@ type AlbumHeaderProps = {
 };
 
 /**
- * The top of an album, over its grid: its name, how many assets and when it was last posted (after a star when
- * it is starred), its
- * notes (the name and the notes open Edit album, a double-tap on the name or the line under it stars or unstars it), the Archived badge, then, on one line, a chip with the faces of the contacts on its
- * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
- * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
+ * The top of an album, over its grid: its name, how many assets and when it was last posted (after a star
+ * when it is starred), its notes, the Archived badge, then, on one line, a chip with the faces of the
+ * contacts on its photos, which opens the album's Contacts sheet (AddContactsScreen), and one with its
+ * posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no
+ * contacts chip. The name, the line under it and the notes open Edit album; a double-tap on the name or
+ * the line under it stars or unstars it.
  */
 export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const { toggleFavoriteAlbum } = useAlbums();
@@ -58,27 +59,22 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
     router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
   }
 
+  // The name and the line under it.
+  const nameTaps = {
+    onPress: () => openEdit(),
+    onDoublePress: () => toggleFavoriteAlbum(album),
+    accessibilityHint: 'Edit album',
+  };
+
   return (
     <View style={styles.header}>
       <View>
-        <SuperPressable
-          style={({ pressed }) => pressed && press.flat}
-          onPress={() => openEdit()}
-          onDoublePress={() => toggleFavoriteAlbum(album)}
-          accessibilityRole="header"
-          accessibilityHint="Edit album"
-        >
+        <SuperPressable {...nameTaps} style={({ pressed }) => pressed && press.flat} accessibilityRole="header">
           <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
             {album.name}
           </NativeText>
         </SuperPressable>
-        {/* Taps like the name: it opens Edit, a double-tap stars, as the star it shows says. */}
-        <SuperPressable
-          style={({ pressed }) => [styles.details, pressed && press.flat]}
-          onPress={() => openEdit()}
-          onDoublePress={() => toggleFavoriteAlbum(album)}
-          accessibilityHint="Edit album"
-        >
+        <SuperPressable {...nameTaps} style={({ pressed }) => [styles.details, pressed && press.flat]}>
           {!!album.isFavorite && <Icon name="star" filled size={sizes.iconSmall} color={colors.text.secondary} />}
           <Text variant="status">{details}</Text>
         </SuperPressable>

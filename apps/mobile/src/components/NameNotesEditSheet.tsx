@@ -89,11 +89,11 @@ export default function NameNotesEditSheet({
             minHeight={scale(120)}
           />
         </Field>
-        {draft.starred !== undefined && (
+        {starred !== undefined && (
           <Section>
             <Row label="Starred">
               <Switch
-                value={draft.starred}
+                value={!!draft.starred}
                 onValueChange={(value) => setDraft((current) => ({ ...current, starred: value }))}
                 accessibilityLabel="Starred"
               />

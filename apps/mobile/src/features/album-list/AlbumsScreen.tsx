@@ -18,13 +18,14 @@ import albumFilterOptions from '@/features/album-list/actions/filter-albums-acti
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
-import prepareAlbums, { type AlbumFilter } from '@/features/album-list/prepareAlbums';
+import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
+import starredAlbums from '@/features/album-list/starredAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
+import isBlank from '@/utils/isBlank';
 import pluralizeText from '@/utils/pluralizeText';
 
 // The Albums tab: the starred albums first as a row of small covers, the last starred first (none starred, no row), then every
@@ -42,21 +43,9 @@ export default function AlbumsScreen() {
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
-  // The last starred first, whatever the grid's sort (those starred before that was recorded after them,
-  // newest first); archived ones stay out, as they do in the grid. Searching or filtering shows only the grid.
-  const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
-  const starred = useMemo(
-    () =>
-      isNarrowed
-        ? []
-        : prepareAlbums({
-            albums: rows ?? [],
-            sortOrder: 'createdAt:desc',
-            activeFilter: ['starred'],
-            searchText: '',
-          }).sort(byLastStarred),
-    [isNarrowed, rows],
-  );
+  // Searching or filtering shows only the grid.
+  const isNarrowed = activeFilter.length > 0 || !isBlank(searchText);
+  const starred = useMemo(() => (isNarrowed ? [] : starredAlbums(rows ?? [])), [isNarrowed, rows]);
 
   const renderItem = useCallback<AlbumListProps['renderItem']>(
     ({ album, elementWidth }) => (
@@ -71,7 +60,7 @@ export default function AlbumsScreen() {
   );
 
   // Dragging arranges the whole list, so it runs unfiltered and unsearched only.
-  const reorderEnabled = activeFilter.length === 0 && !searchText.trim();
+  const reorderEnabled = !isNarrowed;
 
   // A drag under another sort makes the order on screen the custom one (reorderUnderSort).
   function handleReorder(change: ReorderChange) {
@@ -82,16 +71,21 @@ export default function AlbumsScreen() {
     });
   }
 
-  const header = starred.length ? (
-    <View style={styles.header}>
-      <ScreenSectionHeader title="Starred" size="small" isFirst />
-      <StarredAlbumRow albums={starred} />
-      <ScreenSectionHeader
-        title={pluralizeText('1 album', `${albums.length.toLocaleString()} albums`, albums.length)}
-        size="small"
-      />
-    </View>
-  ) : undefined;
+  // The same element while its inputs are, so the grid doesn't re-measure it on every render.
+  const header = useMemo(
+    () =>
+      starred.length ? (
+        <View style={styles.header}>
+          <ScreenSectionHeader title="Starred" size="small" isFirst />
+          <StarredAlbumRow albums={starred} />
+          <ScreenSectionHeader
+            title={pluralizeText('1 album', `${albums.length.toLocaleString()} albums`, albums.length)}
+            size="small"
+          />
+        </View>
+      ) : undefined,
+    [starred, albums.length],
+  );
 
   return (
     <View testID="albums-screen" style={{ flex: 1 }}>
@@ -120,11 +114,6 @@ export default function AlbumsScreen() {
       />
     </View>
   );
-}
-
-// The last starred first; a stable sort keeps the rest (starred before favoritedAt) in their order.
-function byLastStarred(a: AlbumListRow, b: AlbumListRow) {
-  return (b.favoritedAt ?? 0) - (a.favoritedAt ?? 0);
 }
 
 const styles = StyleSheet.create({

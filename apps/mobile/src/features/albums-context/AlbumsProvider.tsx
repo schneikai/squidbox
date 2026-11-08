@@ -10,6 +10,7 @@ import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { makeRepository } from '@/sync/repository';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
+import getTimestamp from '@/utils/date-time/getTimestamp';
 import getNewItemId from '@/utils/getNewItemId';
 import newRecord from '@/utils/newRecord';
 
@@ -39,8 +40,11 @@ export default function AlbumsProvider({ children }: AlbumsProviderProps) {
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo<AlbumsContextValue>(() => {
     const db = getDb();
+    // A starring records when (favoritedAt), an unstarring clears it, as the toggle does.
     async function updateAlbum(id: string, updates: Partial<AlbumRecord>) {
-      await repo.update(db, id, updates);
+      const starring =
+        updates.isFavorite === undefined ? {} : { favoritedAt: updates.isFavorite ? getTimestamp() : null };
+      await repo.update(db, id, { ...updates, ...starring });
       requestSync();
     }
     return {
