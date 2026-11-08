@@ -350,9 +350,9 @@ goes through, compares each record with the stored row its caller read and names
 that changed, widened to their field group, at the record's new `updatedAt`; a new record names
 every field. A record that changes no synced field is neither written nor enqueued. An editor seeded
 when it opens saves only the fields that differ from its seed, so a field another device changed
-meanwhile isn't sent back with a fresh clock: the single-field editors (an album's name or notes, an
-asset's note) compare their value with the seed's, and the post editor, which edits several fields,
-uses `changedValues`.
+meanwhile isn't sent back with a fresh clock: a single-field editor (an asset's note) compares its
+value with the seed's, and the editors of several fields (the post editor, NameNotesEditSheet for an
+album or a contact list) use `changedValues`.
 
 **Outbox coalescing.** The outbox holds at most one row per `(collection, record_id)`; a newer
 write replaces the payload, and its `fields` are merged into the row's with `json_patch`, so each

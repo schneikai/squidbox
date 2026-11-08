@@ -1,5 +1,12 @@
 import { router } from 'expo-router';
-import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
+import {
+  Pressable,
+  type PressableProps,
+  type PressableStateCallbackType,
+  Text as NativeText,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
@@ -23,8 +30,8 @@ type AlbumHeaderProps = {
 };
 
 /**
- * The top of an album, over its grid: its name, how many assets and when it was last posted, its notes, the
- * Archived badge (the name and the notes open Edit album), then, on one line, a chip with the faces of the contacts on its
+ * The top of an album, over its grid: its name, how many assets and when it was last posted, its
+ * notes (the name and the notes open Edit album), the Archived badge, then, on one line, a chip with the faces of the contacts on its
  * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
  * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
@@ -44,9 +51,13 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
     ...(posts.rows ? [albumLastPostedText({ lastPostedAt })] : []),
   ].join(' · ');
 
-  function openEdit() {
-    router.navigate(`/album/${album.id}/edit`);
-  }
+  // The name and the note each open Edit album.
+  const editPress = {
+    style: ({ pressed }: PressableStateCallbackType) => pressed && press.flat,
+    onPress: () => router.navigate(`/album/${album.id}/edit`),
+    accessibilityRole: 'button',
+    accessibilityHint: 'Edit album',
+  } satisfies PressableProps;
 
   function openContacts() {
     router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
@@ -55,12 +66,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   return (
     <View style={styles.header}>
       <View>
-        <Pressable
-          style={({ pressed }) => pressed && press.flat}
-          onPress={openEdit}
-          accessibilityRole="button"
-          accessibilityHint="Edit album"
-        >
+        <Pressable {...editPress}>
           <NativeText style={[textStyles.title1, styles.name]} accessibilityRole="header" numberOfLines={2}>
             {album.name}
           </NativeText>
@@ -68,9 +74,11 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
         <Text variant="status">{details}</Text>
         {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
         {!!album.notes && (
-          <Pressable style={({ pressed }) => [styles.notes, pressed && press.flat]} onPress={openEdit}>
-            <Text variant="hint">{album.notes}</Text>
-          </Pressable>
+          <View style={styles.notes}>
+            <Pressable {...editPress}>
+              <Text variant="hint">{album.notes}</Text>
+            </Pressable>
+          </View>
         )}
       </View>
       {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
