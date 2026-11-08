@@ -32,7 +32,7 @@ export default function ChatComposer({ seed, placeholder, disabled, isWaiting, o
   const [label, setLabel] = useState(seed?.label ?? null);
 
   const content = text.trim();
-  const canSend = Boolean(content) && !disabled && !isWaiting;
+  const canSend = Boolean(content) && !disabled;
 
   function handleChangeText(next: string) {
     setText(next);

@@ -2,8 +2,8 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { useMemo } from 'react';
 
 import chatContextReader from './chatContextReader';
-import chatMentions from './chatMentions';
 import type { UserTurn } from './chatSessions';
+import sentMentions from './sentMentions';
 import useChatSession from './useChatSession';
 import useLatestRef from './useLatestRef';
 import useMentions from './useMentions';
@@ -33,9 +33,9 @@ export default function usePostChat(sessionId: string) {
   const tagging = useAssetTags(assets);
   const found = useMentions(assetIds);
   const mentionEdits = chat?.mentionEdits;
-  // The handles the chat may mention and sends: chatMentions'.
+  // The handles the chat may mention and sends: sentMentions'.
   const mentions = useMemo(
-    () => found && mentionEdits && { handles: chatMentions(found.handles, mentionEdits), fromAlbum: found.fromAlbum },
+    () => found && mentionEdits && { handles: sentMentions(found, mentionEdits), fromAlbum: found.fromAlbum },
     [found, mentionEdits],
   );
   // Read when a turn goes, so the sends don't change with the photos' tags or the mentions.

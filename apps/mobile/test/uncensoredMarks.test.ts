@@ -68,7 +68,7 @@ describe('uncensoredMarks', () => {
     ]);
   });
 
-  it('a tap made during a write that lands has its own write after it', async () => {
+  it('a tap made during a write that lands has its own write after it, unless it came back to that mark', async () => {
     const first = deferred();
     const second = deferred();
     setUncensored.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
@@ -90,6 +90,18 @@ describe('uncensoredMarks', () => {
 
     second.resolve(answer([]));
     await settle();
+    expect(uncensoredMarks.wanted.get()).not.toHaveProperty('tapped-twice');
+
+    // Taps that come back to the mark being written need no write of their own.
+    const third = deferred();
+    setUncensored.mockReturnValueOnce(third.promise);
+    uncensoredMarks.set(tapped, true, () => {});
+    await settle();
+    uncensoredMarks.set(tapped, false, () => {});
+    uncensoredMarks.set(tapped, true, () => {});
+    third.resolve(answer([]));
+    await settle();
+    expect(setUncensored).toHaveBeenCalledTimes(3);
     expect(uncensoredMarks.wanted.get()).not.toHaveProperty('tapped-twice');
   });
 

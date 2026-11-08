@@ -1,11 +1,13 @@
 import type { ChatContext } from '@squidbox/shared';
 import { describe, expect, it, vi } from 'vitest';
 
+import { makeAssetRecord } from './helpers/factory';
 import chatContextReader from '../src/features/post-chat/chatContextReader';
 import chatSessions from '../src/features/post-chat/chatSessions';
 
-// The photos' rows are read again after a tagging landed: none here.
-vi.mock('../src/sync/aiStateRepository', () => ({ readLiveAssets: async () => [] }));
+// The photos' rows as saved: none unless a test says so.
+const readLiveAssets = vi.hoisted(() => vi.fn(async (): Promise<{ tags: string[] | null }[]> => []));
+vi.mock('../src/sync/aiStateRepository', () => ({ readLiveAssets }));
 vi.mock('../src/sync/db/client', () => ({ getDb: () => null }));
 
 describe('chatContextReader', () => {
@@ -19,7 +21,7 @@ describe('chatContextReader', () => {
       return true;
     };
     const read = chatContextReader(session, () => ({
-      tagging: { taggingAsync, rows: [] },
+      tagging: { taggingAsync },
       found: { handles: ['@trailmike'], fromAlbum: true },
     }));
 
@@ -27,6 +29,19 @@ describe('chatContextReader', () => {
     session.editMentions({ add: ['@corntwee'] });
     tagged();
     expect((await reading).mentions).toEqual(['@corntwee', '@trailmike']);
+    chatSessions.close(id);
+  });
+
+  it("takes the tags as saved, not the last render's, when no tagging was under way", async () => {
+    const id = chatSessions.open({ kind: 'draft' });
+    const session = chatSessions.get(id)!;
+    session.setDraft({ text: '', assets: [makeAssetRecord({ id: 'ridge' })] });
+    readLiveAssets.mockResolvedValueOnce([{ tags: ['ridge', 'fog'] }]);
+    // The last render read the row before its tags were saved.
+    const tagging = { taggingAsync: async () => false, rows: [{ id: 'ridge', tags: null }] };
+    const read = chatContextReader(session, () => ({ tagging, found: undefined }));
+
+    expect((await read(new AbortController().signal, () => {})).tags).toEqual(['ridge', 'fog']);
     chatSessions.close(id);
   });
 });

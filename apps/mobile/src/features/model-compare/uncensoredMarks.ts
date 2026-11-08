@@ -12,7 +12,8 @@ const wanted = createStore<Partial<Record<string, boolean>>>({});
 // One write at a time, for every model: each answer is the whole catalog, so a later write's answer
 // is always the newer one.
 let queue: Promise<void> = Promise.resolve();
-// The last tap on each model, by model id: a write forgets the mark only while it is the tap it sent.
+// The last tap on each model, by model id: a failed write puts the mark back only while it is the
+// tap it sent.
 const lastTaps = new Map<string, number>();
 let tapCount = 0;
 
@@ -36,12 +37,13 @@ function set(
     try {
       // Back to following Venice when it agrees.
       applyAiCatalog(await setUncensoredAsync(model.id, next === model.isVeniceUncensored ? null : next));
+      // The server has it now, also for taps made meanwhile that came back to it.
+      if (wanted.get()[model.id] === next) forget(model.id);
     } catch (error) {
-      // A tap made meanwhile has its own write, which reports for itself.
-      if (lastTaps.get(model.id) === tap) onError(error);
-    } finally {
-      // A tap made meanwhile keeps its mark and has its own write queued after this one.
-      if (lastTaps.get(model.id) === tap) forget(model.id);
+      // A tap made meanwhile keeps its mark and has its own write, which reports for itself.
+      if (lastTaps.get(model.id) !== tap) return;
+      forget(model.id);
+      onError(error);
     }
   });
   // A job that throws (an onError that fails, say) doesn't stop the writes after it.
