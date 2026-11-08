@@ -5,7 +5,7 @@ import useAlbum from '@/features/album-detail/useAlbum';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 
-// Edit album, from the album's ⋯ menu, its name or its note: its name and note as a draft sheet,
+// Edit album, from the album's ⋯ menu, its name or its note: its name, note and star as a draft sheet,
 // with the cursor in the note when its note opened it (`focus=notes`).
 export default function AlbumEditScreen() {
   const { albumId, focus } = useLocalSearchParams<{ albumId: string; focus?: 'notes' }>();
@@ -19,13 +19,16 @@ export default function AlbumEditScreen() {
     <NameNotesEditSheet
       name={album.name}
       notes={album.notes}
+      starred={album.isFavorite}
       title="Edit album"
       namePlaceholder="Album name"
       notesLabel="Note"
       notesPlaceholder="Add a note…"
       focus={focus}
       testID="album-edit-sheet"
-      onSave={(changes) => updateAlbum(album.id, changes)}
+      onSave={({ starred, ...changes }) =>
+        updateAlbum(album.id, starred === undefined ? changes : { ...changes, isFavorite: starred })
+      }
     />
   );
 }

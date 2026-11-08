@@ -84,3 +84,19 @@ test("tapping the album's name opens Edit, which saves its name and note togethe
   await expect(album.getByText(renamed, { exact: true })).toBeVisible();
   await expect(album.getByText('Fog until nine', { exact: true })).toBeVisible();
 });
+
+test('Starred in Edit album puts the album in the Starred row atop Albums', async ({ page }) => {
+  const name = uniqueName('Coastal trail');
+  await createAlbum(page, name);
+  await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
+  const album = page.getByTestId('album-screen');
+
+  await album.getByRole('heading', { name, exact: true }).click();
+  const sheet = page.getByTestId('album-edit-sheet');
+  await sheet.getByRole('switch', { name: 'Starred' }).click();
+  await button(sheet, 'Save').click();
+  await expect(sheet).toBeHidden();
+  await page.goBack();
+
+  await expect(page.getByTestId('starred-albums').getByText(name, { exact: true })).toBeVisible();
+});

@@ -16,6 +16,7 @@ const keyExtractor = (album: AlbumListRow) => album.id;
 export default function StarredAlbumRow({ albums }: StarredAlbumRowProps) {
   return (
     <FlatList
+      testID="starred-albums"
       horizontal
       data={albums}
       renderItem={renderItem}

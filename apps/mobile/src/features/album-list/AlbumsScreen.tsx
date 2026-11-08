@@ -26,7 +26,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
-// The Albums tab: the starred albums first as a row of small covers (none starred, no row), then every
+// The Albums tab: the starred albums first as a row of small covers, newest first (none starred, no row), then every
 // album in a grid, searched, sorted and filtered in the floating bar. Double-tap stars an album, + adds one.
 export default function AlbumsScreen() {
   const { toggleFavoriteAlbum, moveAlbum } = useAlbums();
@@ -41,12 +41,15 @@ export default function AlbumsScreen() {
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
-  // In the grid's order; archived ones stay out, as they do in the grid. Searching or filtering shows only the grid.
+  // Newest first, whatever the grid's sort; archived ones stay out, as they do in the grid. Searching or
+  // filtering shows only the grid.
   const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
   const starred = useMemo(
     () =>
-      isNarrowed ? [] : prepareAlbums({ albums: rows ?? [], sortOrder, activeFilter: ['starred'], searchText: '' }),
-    [isNarrowed, rows, sortOrder],
+      isNarrowed
+        ? []
+        : prepareAlbums({ albums: rows ?? [], sortOrder: 'createdAt:desc', activeFilter: ['starred'], searchText: '' }),
+    [isNarrowed, rows],
   );
 
   const renderItem = useCallback<AlbumListProps['renderItem']>(
