@@ -1,6 +1,6 @@
 import { useNavigation } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import ContactListRows from './ContactListRows';
@@ -39,28 +39,27 @@ export default function ContactListsScreen() {
   const lists = useContactListRows();
   const builtInLists = useBuiltInContactListRows();
 
+  const allLists = useMemo(() => lists && builtInLists && [...builtInLists, ...lists], [lists, builtInLists]);
   const shownLists = useMemo(
-    () => lists && builtInLists && shownContactLists([...builtInLists, ...lists], searchText, sortOrder),
-    [lists, builtInLists, searchText, sortOrder],
+    () => allLists && shownContactLists(allLists, searchText, sortOrder),
+    [allLists, searchText, sortOrder],
   );
 
-  const header = shownLists && (
-    <View>
-      {shownLists.length > 0 ? (
-        <ContactListRows lists={shownLists} />
-      ) : (
-        <EmptyState icon="search" title="No lists match" />
-      )}
-    </View>
-  );
+  // The lists are one card (ContactListRows), so the list has no rows of its own: it is a FlatList for the
+  // scrollToOffset that a new sort calls (useListControls).
+  const header =
+    shownLists &&
+    (shownLists.length > 0 ? (
+      <ContactListRows lists={shownLists} />
+    ) : (
+      <EmptyState icon="search" title="No lists match" />
+    ));
 
   return (
     <Page>
       <FloatingDetailHeader
         title="Lists"
-        subtitle={
-          lists && builtInLists && pluralizeText('1 list', '%{count} lists', lists.length + builtInLists.length)
-        }
+        subtitle={allLists && pluralizeText('1 list', '%{count} lists', allLists.length)}
         onBack={() => navigation.goBack()}
         menuSlot={<Button variant="primary" icon="add" onPress={promptAddList} accessibilityLabel="Add list" />}
       />

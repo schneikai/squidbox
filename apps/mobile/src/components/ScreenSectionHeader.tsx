@@ -10,12 +10,12 @@ export type ScreenSectionHeaderProps = {
   title: string;
   onTitlePress?: () => void;
   titleHint?: string;
-  trailing?: ReactNode;
-  link?: { label: string; onPress: () => void };
   isFlush?: boolean;
   isFirst?: boolean;
   size?: ScreenSectionHeaderSize;
-};
+} & ( // One thing at the row's end: a control, or the section's link.
+  { trailing?: ReactNode; link?: undefined } | { link?: { label: string; onPress: () => void }; trailing?: undefined }
+);
 
 /**
  * A section label above grouped rows or content: Settings and its screens, the asset's details,

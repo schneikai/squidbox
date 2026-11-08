@@ -129,7 +129,7 @@ export default function Button({
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
-  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette }));
+  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette, hasChevron }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
   const iconSize = ICON_SIZES[shape][size];
@@ -275,7 +275,8 @@ function combinationProblem({
   iconCount,
   isInverse,
   palette,
-}: Pick<ButtonProps, 'icon' | 'label'> & {
+  hasChevron,
+}: Pick<ButtonProps, 'icon' | 'label' | 'hasChevron'> & {
   variant: ButtonVariant;
   size: ButtonSize;
   iconCount: 1 | 2;
@@ -286,6 +287,7 @@ function combinationProblem({
   if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
   if (iconCount === 2 && label) return 'Button: a doubled icon has no label';
   if (size === 'caption' && !(variant === 'tertiary' && label)) return 'Button: only a link comes in caption size';
+  if (hasChevron && !(variant === 'tertiary' && label)) return 'Button: only a link ends in a chevron';
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
   if (variant === 'secondary' && (palette === 'danger' || isInverse) && (label?.length ?? 0) > MAX_DISC_LABEL) {
     return 'Button: a red or inverse secondary is a disc; its label must fit in it';
