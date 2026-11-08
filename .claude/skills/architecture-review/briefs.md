@@ -50,8 +50,9 @@ First, the failure scenarios below. For each, write down what the design docs pr
 3. The same sync operation arrives twice, or two arrive out of order.
 4. A migration runs on a device with existing local data, including rows the newest code never wrote.
 5. An upload is interrupted and retried; the account is switched while it is pending.
+6. A device on the previous app version pulls data the newest version wrote (a new field, a new kind, a changed meaning).
 [OWNER_SCENARIOS]
-These often fail between components that are each correct alone, so follow the sequence across modules; do not stop at the module boundary.
+Then add two scenarios of your own, taken from the recent changes in the map and from the write paths with the most catch sites: the list above is a floor, not the ceiling. These often fail between components that are each correct alone, so follow the sequence across modules; do not stop at the module boundary.
 
 Then flag:
 - Data in the wrong tier: a device setting the user would miss on another device, synced data that is a cache, a local-only field that can reach sync.
@@ -79,7 +80,9 @@ Default tasks: "find where a contact is deleted and everything else that must ch
 Only when the scope has screens.
 
 ```
-You review [SCOPE] in the repo at [ROOT] for consistency across features in UI and UX. Read CLAUDE.md "UI / Components", the squidbox-ui skill (its conflicts table and "Checks before calling a screen done"), the map at [MAP_FILE], then the code. Write your findings to [REPORT_FILE]; change nothing else.
+You review [SCOPE] in the repo at [ROOT] for consistency across features in UI and UX. Read CLAUDE.md "UI / Components", the squidbox-ui skill (its conflicts table and "Checks before calling a screen done"), the map at [MAP_FILE], then the code. Write your findings to [REPORT_FILE]; change nothing else in the tree.
+
+Look before you read: the web preview is [PREVIEW_STATE]. When it runs, drive it with openWebPreview() and settleAsync() from apps/mobile/scripts/webPreview.mjs (README.md "Web preview") and take a screenshot of every screen in scope at phone size, in its empty, loading, error and full state where you can reach them, into [SCREENSHOT_DIR]. Put each flag you can see (a layout that breaks, spacing or type that differs between two screens doing the same job, a loading or error state unlike the others, a control a keyboard or sheet would cover) in the report with the screenshot's path; a thing you saw outranks a thing you grepped. When the preview is unavailable, say so at the top of the report and in every finding you could not look at.
 
 Build three inventories first and put them in the report: every button, menu and alert label in scope, grouped by verb (when an earlier report in docs/reviews/ has this inventory, list the labels new since then: a new synonym for an existing act is a finding); for each item kind the map lists, how it is created, edited, deleted, restored and confirmed, and with which components; and, per feature, the count of one-off styles (a colour, size or duration not from styles/designTokens.ts), raw primitives and style spreads, with the command that produced it. The gallery (features/component-gallery) is the contract for src/components: list every exported component without an entry there.
 
