@@ -38,8 +38,10 @@ test('Add in Albums creates an album with the given name', async ({ page }) => {
 
   await createAlbum(page, name);
 
+  // Its asset count sits on the cover; when it was last posted, under its name.
   const tile = page.getByTestId('albums-screen').getByTestId('album-tile').filter({ hasText: name });
-  await expect(tile.getByText('0 Assets', { exact: true })).toBeVisible();
+  await expect(tile.getByText('0', { exact: true })).toBeVisible();
+  await expect(tile.getByText('Never posted', { exact: true })).toBeVisible();
 });
 
 test('From Squidbox adds the picked photos to the album', async ({ page }) => {

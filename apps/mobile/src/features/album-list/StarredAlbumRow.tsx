@@ -1,64 +1,36 @@
 import { router } from 'expo-router';
-import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import CoverImage from '@/components/CoverImage';
-import Text from '@/components/Text';
+import PictureRow from '@/components/PictureRow';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
-import { layout, press, sizes, space } from '@/styles/designTokens';
+import { sizes } from '@/styles/designTokens';
 
 /**
  * The starred albums atop the Albums tab: each one's cover, small and square, with its name, side by
- * side, opening the album. Sized and spaced like the Contacts tab's pinned row (ContactAvatarRow).
+ * side, opening the album.
  */
 type StarredAlbumRowProps = { albums: AlbumListRow[] };
 
-const keyExtractor = (album: AlbumListRow) => album.id;
-
 export default function StarredAlbumRow({ albums }: StarredAlbumRowProps) {
   return (
-    <FlatList
+    <PictureRow
       testID="starred-albums"
-      horizontal
-      data={albums}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroller}
-      contentContainerStyle={styles.row}
+      items={albums}
+      keyOf={albumId}
+      picture={cover}
+      label={albumName}
+      onPress={openAlbum}
     />
   );
 }
 
-function renderItem({ item: album }: ListRenderItemInfo<AlbumListRow>) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.item, pressed && press.flat]}
-      onPress={() => router.navigate(`/album/${album.id}`)}
-      accessibilityRole="button"
-      accessibilityLabel={album.name}
-    >
-      <CoverImage asset={album.cover} style={styles.cover} />
-      <Text variant="hint" tone="primary" numberOfLines={1}>
-        {album.name}
-      </Text>
-    </Pressable>
-  );
-}
+const albumId = (album: AlbumListRow) => album.id;
+const albumName = (album: AlbumListRow) => album.name;
+const cover = (album: AlbumListRow) => <CoverImage asset={album.cover} style={styles.cover} />;
+const openAlbum = (album: AlbumListRow) => router.navigate(`/album/${album.id}`);
 
 const styles = StyleSheet.create({
-  // Reaches the screen's edges, so it scrolls edge to edge, with the first cover on the grid's edge.
-  scroller: {
-    marginHorizontal: -layout.sideGutter,
-  },
-  row: {
-    gap: space.xl,
-    paddingHorizontal: layout.sideGutter,
-  },
-  item: {
-    width: sizes.avatar.medium,
-    alignItems: 'center',
-    gap: space.sm,
-  },
   cover: {
     width: sizes.avatar.medium,
     height: sizes.avatar.medium,
