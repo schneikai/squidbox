@@ -44,7 +44,7 @@ export async function deleteAppDb(dbName: string): Promise<void> {
 
 // The open library's database (library/current.ts opens and closes it).
 export function getDb(): AppDb {
-  if (!db) throw new Error('No library is open (see LibraryGate in app/_layout.jsx).');
+  if (!db) throw new Error('No library is open (see LibraryGate in app/_layout.tsx).');
   return db;
 }
 

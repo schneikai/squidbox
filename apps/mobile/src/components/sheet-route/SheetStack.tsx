@@ -6,7 +6,7 @@ import { STACK_SCREEN_OPTIONS } from '@/components/sheet-route/stackScreenOption
 export type SheetStackProps = { children?: ReactNode };
 
 /**
- * The layout of a sheet with steps (`app/(group)/_layout.jsx`): its screens push inside the sheet,
+ * The layout of a sheet with steps (`app/(group)/_layout.tsx`): its screens push inside the sheet,
  * with Back, and never open behind it or as a second sheet. `children` are the stack's
  * `Stack.Screen`s that need options of their own.
  */
