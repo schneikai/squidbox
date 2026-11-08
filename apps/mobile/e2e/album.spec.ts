@@ -66,3 +66,21 @@ test("dragging a photo onto another's slot reorders the album", async ({ page })
   await expect(page.getByTestId('asset-screen')).not.toBeVisible();
   await expect.poll(() => cellAssetIds(album)).toEqual([b, c, a]);
 });
+
+test("tapping the album's name opens Edit, which saves its name and note together", async ({ page }) => {
+  const name = uniqueName('Ridge loop');
+  await createAlbum(page, name);
+  await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
+  const album = page.getByTestId('album-screen');
+  const renamed = uniqueName('Ridge loop at dawn');
+
+  await album.getByRole('heading', { name, exact: true }).click();
+  const sheet = page.getByTestId('album-edit-sheet');
+  await sheet.getByPlaceholder('Album name').fill(renamed);
+  await sheet.getByPlaceholder('Add a note…').fill('Fog until nine');
+  await button(sheet, 'Save').click();
+
+  await expect(sheet).toBeHidden();
+  await expect(album.getByText(renamed, { exact: true })).toBeVisible();
+  await expect(album.getByText('Fog until nine', { exact: true })).toBeVisible();
+});

@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { Alert } from 'react-native';
 
 import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
@@ -21,20 +20,8 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
     if (afterDelete) afterDelete();
   }
 
-  async function handleRenameAlbum() {
-    Alert.prompt(
-      'Album name',
-      '',
-      async (name) => {
-        if (name !== album.name) await updateAlbum(album.id, { name });
-      },
-      'plain-text',
-      album.name,
-    );
-  }
-
-  function handleEditNotes() {
-    router.navigate(`/album/${album.id}/notes`);
+  function handleEdit() {
+    router.navigate(`/album/${album.id}/edit`);
   }
 
   function handleAddContactsToPhotos() {
@@ -52,10 +39,9 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
   return (
     <MenuButton>
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
-      <MenuOption label={album.notes ? 'Edit note' : 'Add note'} icon="document" onPress={handleEditNotes} />
-      <MenuOption label="Rename" icon="edit" onPress={handleRenameAlbum} />
+      <MenuOption label="Edit" icon="edit" onPress={handleEdit} />
       {hasPhotos && !isSmartAlbum(album) && (
-        <MenuOption label="Add contacts to photos" icon="contacts" onPress={handleAddContactsToPhotos} />
+        <MenuOption label="Add contacts" icon="contacts" onPress={handleAddContactsToPhotos} />
       )}
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
       {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
