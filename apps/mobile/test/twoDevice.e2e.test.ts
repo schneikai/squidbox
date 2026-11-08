@@ -170,7 +170,14 @@ describe('two devices and a whole-record app on one server', () => {
         await edit(B, S + 600, () => albumRepo.update(B, id, { archivedAt: 222 }));
         await edit(A, S + 700, () => albumRepo.toggle(A, id, 'isFavorite'));
         const [pendingA] = await A.select().from(clientSchema.outbox);
-        expect(pendingA!.fields).toEqual({ name: S + 100, notes: S + 300, archivedAt: S + 500, isFavorite: S + 700 });
+        // isFavorite sends its group: favoritedAt with its clock.
+        expect(pendingA!.fields).toEqual({
+          name: S + 100,
+          notes: S + 300,
+          archivedAt: S + 500,
+          isFavorite: S + 700,
+          favoritedAt: S + 700,
+        });
         await sync(order[0]!);
         await sync(order[1]!);
         await settle();

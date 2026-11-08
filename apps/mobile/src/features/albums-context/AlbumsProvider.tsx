@@ -10,6 +10,7 @@ import { makeEdgeRepository } from '@/sync/edgesRepository';
 import { makeRepository } from '@/sync/repository';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';
+import getTimestamp from '@/utils/date-time/getTimestamp';
 import getNewItemId from '@/utils/getNewItemId';
 import newRecord from '@/utils/newRecord';
 
@@ -24,6 +25,7 @@ const ALBUM_DEFAULTS: Partial<AlbumRecord> = {
   name: 'New Album',
   isFavorite: false,
   archivedAt: null,
+  favoritedAt: null,
   showInPostSuggestionsAfter: null,
   oldCollectionName: null,
   notes: null,
@@ -38,8 +40,11 @@ export default function AlbumsProvider({ children }: AlbumsProviderProps) {
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo<AlbumsContextValue>(() => {
     const db = getDb();
+    // A starring records when (favoritedAt), an unstarring clears it, as the toggle does.
     async function updateAlbum(id: string, updates: Partial<AlbumRecord>) {
-      await repo.update(db, id, updates);
+      const starring =
+        updates.isFavorite === undefined ? {} : { favoritedAt: updates.isFavorite ? getTimestamp() : null };
+      await repo.update(db, id, { ...updates, ...starring });
       requestSync();
     }
     return {
@@ -65,7 +70,10 @@ export default function AlbumsProvider({ children }: AlbumsProviderProps) {
         return writtenAt;
       },
       toggleFavoriteAlbum: async (album) => {
-        await repo.toggle(db, album.id, 'isFavorite');
+        // favoritedAt is the time of the starring, null once unstarred.
+        await repo.toggle(db, album.id, 'isFavorite', (row) => ({
+          favoritedAt: row.isFavorite ? row.updatedAt : null,
+        }));
         requestSync();
       },
       // Both take the batch options of writeInBatches ({ onProgress, signal }) and resolve to whether

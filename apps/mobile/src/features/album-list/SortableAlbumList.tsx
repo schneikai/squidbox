@@ -11,15 +11,16 @@ const ESTIMATED_INFO_HEIGHT = 36;
 
 type SortableAlbumListProps = Pick<
   SortableGridProps<AlbumListRow>,
-  'rowsReadAt' | 'listRef' | 'paddingTop' | 'paddingBottom' | 'onScroll' | 'reorderEnabled' | 'onReorder'
+  'rowsReadAt' | 'header' | 'listRef' | 'paddingTop' | 'paddingBottom' | 'onScroll' | 'reorderEnabled' | 'onReorder'
 > &
   Pick<AlbumListProps, 'albums' | 'renderItem'>;
 
 // AlbumList's grid as a SortableGrid, so albums can be dragged into a new order. `albums` are
-// albumQuery rows; `onScroll` (optional) gets the list's scroll events too.
+// albumQuery rows; `header` scrolls above them; `onScroll` (optional) gets the list's scroll events too.
 export default function SortableAlbumList({
   albums,
   rowsReadAt,
+  header,
   renderItem,
   listRef,
   paddingTop,
@@ -42,6 +43,7 @@ export default function SortableAlbumList({
     <SortableGrid
       rows={albums}
       rowsReadAt={rowsReadAt}
+      header={header}
       renderItem={renderCell}
       numColumns={numColumns}
       gap={gap}

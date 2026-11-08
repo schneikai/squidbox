@@ -3,12 +3,15 @@ import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
 
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
+import Icon from '@/components/Icon';
+import SuperPressable from '@/components/SuperPressable';
 import Text from '@/components/Text';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
+import useAlbums from '@/features/albums-context/useAlbums';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
 import postQuery from '@/features/post-list/postQuery';
-import { colors, press, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 import type { AlbumRow } from '@/sync/db/schema';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
@@ -23,12 +26,15 @@ type AlbumHeaderProps = {
 };
 
 /**
- * The top of an album, over its grid: its name, how many assets and when it was last posted, its
- * notes (the name and the notes open Edit album), the Archived badge, then, on one line, a chip with the faces of the contacts on its
- * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
- * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
+ * The top of an album, over its grid: its name, how many assets and when it was last posted (after a star
+ * when it is starred), its notes, the Archived badge, then, on one line, a chip with the faces of the
+ * contacts on its photos, which opens the album's Contacts sheet (AddContactsScreen), and one with its
+ * posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no
+ * contacts chip. The name, the line under it and the notes open Edit album; a double-tap on the name or
+ * the line under it stars or unstars it.
  */
 export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
+  const { toggleFavoriteAlbum } = useAlbums();
   const isSmart = isSmartAlbum(album);
   // A smart album has no contacts of its own: read once, not kept live.
   const people = useContactRows({ scope: { photosOf: { albumId: album.id } } }, { isLive: !isSmart });
@@ -53,20 +59,30 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
     router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
   }
 
+  // The name and the line under it.
+  const nameTaps = {
+    onPress: () => openEdit(),
+    onDoublePress: () => toggleFavoriteAlbum(album),
+    accessibilityHint: 'Edit album',
+  };
+
   return (
     <View style={styles.header}>
       <View>
-        <Pressable
-          style={({ pressed }) => pressed && press.flat}
-          onPress={() => openEdit()}
-          accessibilityRole="header"
-          accessibilityHint="Edit album"
-        >
+        <SuperPressable {...nameTaps} style={({ pressed }) => pressed && press.flat} accessibilityRole="header">
           <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
             {album.name}
           </NativeText>
-        </Pressable>
-        <Text variant="status">{details}</Text>
+        </SuperPressable>
+        <SuperPressable
+          {...nameTaps}
+          style={({ pressed }) => [styles.details, pressed && press.flat]}
+          accessibilityRole="button"
+          accessibilityLabel={album.isFavorite ? `Starred, ${details}` : details}
+        >
+          {!!album.isFavorite && <Icon name="star" filled size={sizes.iconSmall} color={colors.text.secondary} />}
+          <Text variant="status">{details}</Text>
+        </SuperPressable>
         {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
         {!!album.notes && (
           <View style={styles.notes}>
@@ -132,6 +148,11 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text.primary,
+  },
+  details: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.iconGapSmall,
   },
   notes: {
     marginTop: space.sm,

@@ -253,6 +253,13 @@
       "when": 1794051468739,
       "tag": "0035_contact_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794134995022,
+      "tag": "0036_album_favorited_at",
+      "breakpoints": true
     }
   ]
 }

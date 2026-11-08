@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import prepareAlbums, { type PrepareAlbumsOptions } from '@/features/album-list/prepareAlbums';
 import useAlbumRows from '@/features/album-list/useAlbumRows';
 
-/** Every album, filtered, searched and sorted (prepareAlbums), with the rows' `readAt`. */
+/** Every album, filtered, searched and sorted (prepareAlbums), with the rows as read (`rows`) and their `readAt`. */
 export default function usePreparedAlbums({
   sortOrder,
   activeFilter,
@@ -16,5 +16,5 @@ export default function usePreparedAlbums({
     () => prepareAlbums({ albums: rows ?? [], sortOrder, activeFilter, searchText, showSmartAlbums, showDeleted }),
     [rows, sortOrder, activeFilter, searchText, showSmartAlbums, showDeleted],
   );
-  return { albums, readAt };
+  return { albums, rows, readAt };
 }

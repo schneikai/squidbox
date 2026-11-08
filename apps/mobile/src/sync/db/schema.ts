@@ -78,6 +78,7 @@ export const albums = sqliteTable('albums', {
   name: text('name').notNull(),
   isFavorite: integer('is_favorite', { mode: 'boolean' }).notNull(),
   archivedAt: integer('archived_at'),
+  favoritedAt: integer('favorited_at'),
   showInPostSuggestionsAfter: integer('show_in_post_suggestions_after'),
   oldCollectionName: text('old_collection_name'),
   notes: text('notes'),

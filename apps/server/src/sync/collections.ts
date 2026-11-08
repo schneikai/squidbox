@@ -56,7 +56,12 @@ export interface ServerCollection {
 function serverCollection(table: PgTable, descriptor: CollectionDescriptor): ServerCollection {
   const schema = descriptor.schema as z.ZodObject<z.ZodRawShape>;
   const columns = getTableColumns(table);
-  const wireColumns = Object.fromEntries(Object.entries(columns).filter(([key]) => key in schema.shape));
+  // In the schema's order, so a record reads the same whether it came from the table or a push.
+  const wireColumns = Object.fromEntries(
+    Object.keys(schema.shape)
+      .filter((key) => key in columns)
+      .map((key) => [key, columns[key]!]),
+  );
   const restoredDeletions = descriptor.finalField ? columns.restoredDeletions : undefined;
   const written = { ...wireColumns, fieldClock: columns.fieldClock!, ...(restoredDeletions && { restoredDeletions }) };
   const stored = (key: string) => sql`${sql.identifier(getTableName(table))}.${sql.identifier(columns[key]!.name)}`;
