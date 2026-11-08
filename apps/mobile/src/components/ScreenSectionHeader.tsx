@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, type TextStyle, View } from 'react-native';
 
 import Button from '@/components/Button';
-import Icon, { type IconName } from '@/components/Icon';
-import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, press, space, textStyles } from '@/styles/designTokens';
 
 type ScreenSectionHeaderSize = 'small' | 'regular';
 
@@ -12,7 +11,6 @@ const TITLE_HIT_SLOP = { top: space.md, bottom: space.xs, left: space.md, right:
 
 export type ScreenSectionHeaderProps = {
   title: string;
-  icon?: { name: IconName; filled?: boolean };
   onTitlePress?: () => void;
   titleHint?: string;
   isFlush?: boolean;
@@ -33,14 +31,12 @@ export type ScreenSectionHeaderProps = {
  * their edge; `isFlush` lines it up with content that has no card around it.
  * `onTitlePress` makes the title itself a button (the Contacts tab's pinned list's name, which picks
  * what to pin), `titleHint` telling VoiceOver what it does.
- * `icon` leads a plain title (no link, trailing or press), in its color (the Albums tab's Starred row's star).
  * `isFirst` drops its top margin, for the first thing under a screen's content top (the Contacts tab's).
  * `size` is `regular` (the default, also for the sections of one item's screen) or `small` (a count
  * or a group over a long list: the contacts, the lists).
  */
 export default function ScreenSectionHeader({
   title,
-  icon,
   onTitlePress,
   titleHint,
   trailing,
@@ -76,15 +72,6 @@ export default function ScreenSectionHeader({
     );
   }
 
-  if (!trailing && !onTitlePress && icon) {
-    return (
-      <View style={[styles.iconTitle, !isFlush && styles.inset, spacing]}>
-        <Icon name={icon.name} filled={icon.filled} size={sizes.iconSmall} color={colors.text.secondary} />
-        <Text style={LABEL_STYLES[size]}>{title}</Text>
-      </View>
-    );
-  }
-
   if (!trailing && !onTitlePress) {
     return <Text style={[label, spacing]}>{title}</Text>;
   }
@@ -102,16 +89,8 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginLeft: layout.rowInset, // over the rows' text
   },
-  inset: {
-    marginLeft: layout.rowInset,
-  },
-  iconTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.iconGapSmall,
-  },
-  label_small: { ...textStyles.subheadlineBold, color: colors.text.secondary },
-  label_regular: { ...textStyles.bodyBold, color: colors.text.secondary },
+  label_small: textStyles.subheadlineBold,
+  label_regular: textStyles.bodyBold,
   spacing: {
     marginTop: layout.sectionGap,
     marginBottom: space.sm,
