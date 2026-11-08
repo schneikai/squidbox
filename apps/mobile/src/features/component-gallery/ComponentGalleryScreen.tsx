@@ -23,7 +23,6 @@ import OptionCard from '@/components/OptionCard';
 import Page from '@/components/Page';
 import ProgressRing from '@/components/ProgressRing';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import SearchInput from '@/components/SearchInput';
 import SelectIndicator from '@/components/SelectIndicator';
 import Switch from '@/components/Switch';
 import Text from '@/components/Text';
@@ -274,9 +273,6 @@ export default function ComponentGalleryScreen() {
         </Field>
         <Field label="Multiline" onInfo={noop}>
           <TextInput variant="field" multiline placeholder="A longer text" />
-        </Field>
-        <Field label="Search">
-          <SearchInput variant="field" placeholder="Search models" />
         </Field>
         <Specimen name="Switch">
           <Switch value={isOn} onValueChange={setIsOn} accessibilityLabel="On" />
