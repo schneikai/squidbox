@@ -23,7 +23,7 @@ type ChatComposerProps = {
 /**
  * Where the user writes to the assistant: a text field, one line while not typing, seeded with `seed` (`{ label, content }`, a
  * prompt button's, whose name goes with it until the text is edited), and Send, which hands
- * `onSend({ label, content })` the trimmed text and empties the field once it was sent. Send waits
+ * `onSend({ label, content })` the trimmed text and empties the field once the turn is in the chat. Send waits
  * while `disabled`, and shows a spinner while `isWaiting` (the send waits for the photos' tags).
  */
 export default function ChatComposer({ seed, placeholder, disabled, isWaiting, onSend }: ChatComposerProps) {
@@ -38,10 +38,8 @@ export default function ChatComposer({ seed, placeholder, disabled, isWaiting, o
     setLabel(null);
   }
 
-  async function handleSend() {
-    if (!canSend) return;
-    const isSent = await onSend({ label, content });
-    if (!isSent) return;
+  function handleSend() {
+    if (!canSend || !onSend({ label, content })) return;
     setText('');
     setLabel(null);
   }
