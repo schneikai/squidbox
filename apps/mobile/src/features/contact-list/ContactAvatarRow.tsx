@@ -48,17 +48,17 @@ function renderItem({ item: contact }: ListRenderItemInfo<ContactSummary>) {
 }
 
 const styles = StyleSheet.create({
-  // Reaches the screen's edges, so it scrolls edge to edge, with the first avatar under the
-  // row's label (a section header's inset in from the gutter).
+  // Reaches the screen's edges, so it scrolls edge to edge, with the first avatar on the list's edge,
+  // as on Albums (StarredAlbumRow).
   scroller: {
     marginHorizontal: -layout.sideGutter,
   },
   row: {
     gap: space.xl,
-    paddingHorizontal: layout.sideGutter + layout.rowInset,
+    paddingHorizontal: layout.sideGutter,
   },
   item: {
-    width: sizes.avatar.medium + 4,
+    width: sizes.avatar.medium,
     alignItems: 'center',
     gap: space.sm,
   },
