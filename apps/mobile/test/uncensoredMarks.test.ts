@@ -93,6 +93,33 @@ describe('uncensoredMarks', () => {
     expect(uncensoredMarks.wanted.get()).not.toHaveProperty('tapped-twice');
   });
 
+  it('a tap made during a write that fails has its own write after it', async () => {
+    const first = deferred();
+    const second = deferred();
+    setUncensored.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const tapped = model('fails-then-tapped');
+    const failure = new Error('offline');
+    const onFirstError = vi.fn();
+
+    uncensoredMarks.set(tapped, true, onFirstError);
+    await settle();
+    uncensoredMarks.set(tapped, false, () => {});
+    await settle();
+
+    first.reject(failure);
+    await settle();
+    expect(onFirstError).toHaveBeenCalledWith(failure);
+    expect(uncensoredMarks.wanted.get()['fails-then-tapped']).toBe(false);
+    expect(setUncensored.mock.calls).toEqual([
+      ['fails-then-tapped', true],
+      ['fails-then-tapped', null],
+    ]);
+
+    second.resolve(answer([]));
+    await settle();
+    expect(uncensoredMarks.wanted.get()).not.toHaveProperty('fails-then-tapped');
+  });
+
   it('puts the mark back and reports a failed write', async () => {
     const failure = new Error('offline');
     setUncensored.mockRejectedValueOnce(failure);

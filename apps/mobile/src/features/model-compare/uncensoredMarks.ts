@@ -15,7 +15,8 @@ let queue: Promise<void> = Promise.resolve();
 
 /**
  * Marks the catalog model `model` uncensored or not (`isOn`) at once, before the server has it.
- * `onError` runs when the write failed, the mark back as it was.
+ * `onError` runs when the write failed, the mark back as it was unless the mark now differs from what
+ * was written (a later tap's, which has its own write).
  */
 function set(
   model: Pick<ApiAiModel, 'id' | 'isVeniceUncensored'>,
@@ -29,11 +30,11 @@ function set(
     try {
       // Back to following Venice when it agrees.
       applyAiCatalog(await setUncensoredAsync(model.id, next === model.isVeniceUncensored ? null : next));
-      // A tap made meanwhile has its own write queued after this one.
-      if (wanted.get()[model.id] === next) forget(model.id);
     } catch (error) {
-      forget(model.id);
       onError(error);
+    } finally {
+      // A tap made meanwhile keeps its mark and has its own write queued after this one.
+      if (wanted.get()[model.id] === next) forget(model.id);
     }
   });
 }
