@@ -44,17 +44,16 @@ function renderItem({ item: album }: ListRenderItemInfo<AlbumListRow>) {
 }
 
 const styles = StyleSheet.create({
-  // Reaches the screen's edges, so it scrolls edge to edge, with the first cover under the row's
-  // label (a section header's inset in from the gutter).
+  // Reaches the screen's edges, so it scrolls edge to edge, with the first cover on the grid's edge.
   scroller: {
     marginHorizontal: -layout.sideGutter,
   },
   row: {
     gap: space.xl,
-    paddingHorizontal: layout.sideGutter + layout.rowInset,
+    paddingHorizontal: layout.sideGutter,
   },
   item: {
-    width: sizes.avatar.medium + 4,
+    width: sizes.avatar.medium,
     alignItems: 'center',
     gap: space.sm,
   },
