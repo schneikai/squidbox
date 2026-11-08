@@ -12,8 +12,7 @@ import { layout, space } from '@/styles/designTokens';
 
 type AlbumListItemProps = { album: AlbumListRow; elementWidth: number };
 
-// `album` is an albumQuery row: it carries its cover and stats. Its asset count sits on the cover,
-// when it was last posted under its name.
+// `album` is an albumQuery row: it carries its cover and stats.
 export default function AlbumListItem({ album, elementWidth }: AlbumListItemProps) {
   return (
     <View testID="album-tile" style={{ width: elementWidth }}>
@@ -28,7 +27,7 @@ export default function AlbumListItem({ album, elementWidth }: AlbumListItemProp
       <Text variant="label" tone="primary" numberOfLines={1} style={styles.albumTitle}>
         {album.name}
       </Text>
-      <AlbumLastPostedAt album={album} numberOfLines={1} />
+      <AlbumLastPostedAt album={album} />
     </View>
   );
 }
