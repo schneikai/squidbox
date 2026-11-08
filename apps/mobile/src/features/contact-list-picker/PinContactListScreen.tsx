@@ -34,7 +34,7 @@ export default function PinContactListScreen() {
     <ModalSheet>
       <ModalHeader
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
-        title="Pin to Contacts"
+        title="Pin a list"
       />
       <ContactListPicker
         isSingle
