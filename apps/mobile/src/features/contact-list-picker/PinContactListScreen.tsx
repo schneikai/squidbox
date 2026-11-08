@@ -14,7 +14,7 @@ import useContacts from '@/features/contacts-context/useContacts';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
 
-// The pen on the Contacts tab's pinned row: Favorites, Tagged (in an account's library) or one of the
+// The Contacts tab's pinned row's name, tapped: Favorites, Tagged (in an account's library) or one of the
 // lists to show there, the shown one checked. A tap pins it and closes the sheet, as Add to Album does.
 // Deleted isn't offered: the top of Contacts is for the people one works with.
 const PINNABLE: string[] = ['favorites', 'tagged'];

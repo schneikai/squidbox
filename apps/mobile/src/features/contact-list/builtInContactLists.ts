@@ -24,7 +24,7 @@ export function builtInContactList(id: string | undefined): BuiltInContactList |
   return BUILT_IN_CONTACT_LISTS.find((list) => list.id === id);
 }
 
-/** A built-in list as its row in the Lists tab shows it (ContactListRows). */
+/** A built-in list as its row in the Lists screen shows it (ContactListRows). */
 export type BuiltInContactListSummary = Pick<
   ContactListSummary,
   'id' | 'name' | 'createdAt' | 'memberCount' | 'firstMembers'

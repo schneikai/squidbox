@@ -22,10 +22,10 @@ import toggleItem from '@/utils/toggleItem';
 
 /**
  * The contact lists to choose from, under a search field that narrows them by name and a sort menu
- * beside it (the Lists tab's: shownContactLists, useContactSort('lists')), with "New list" at the end (a
+ * beside it (the Lists screen's: shownContactLists, useContactSort('lists')), with "New list" at the end (a
  * new list is chosen too). `selectedIds` are the chosen lists' ids; `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen one has
  * the accent check in front, where the selection circles are otherwise. `builtIns` are built-in lists
- * to offer among them, searched and sorted with them (Favorites, on the pin), as the Lists tab does.
+ * to offer among them, searched and sorted with them (Favorites, on the pin), as the Lists screen does.
  */
 type ContactListPickerProps = {
   selectedIds: string[];

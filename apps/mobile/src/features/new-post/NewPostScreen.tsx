@@ -70,7 +70,7 @@ export default function NewPostScreen() {
             <NewPostCard onPress={handleCreateNewPost} />
             <ScreenSectionHeader
               title="Repost something"
-              trailing={<Button label="Ignored" size="small" onPress={() => router.navigate('/new-post/ignored')} />}
+              link={{ label: 'Ignored', onPress: () => router.navigate('/new-post/ignored') }}
             />
           </View>
         }

@@ -71,6 +71,7 @@ export type ButtonProps = Pick<PressableProps, 'onPress' | 'disabled' | 'accessi
   isSwitch?: boolean;
   filled?: boolean;
   iconCount?: 1 | 2;
+  hasChevron?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
@@ -86,7 +87,8 @@ export type ButtonProps = Pick<PressableProps, 'onPress' | 'disabled' | 'accessi
  *               icon (the pen on the assistant's tray; a pill stays grey); `isInverse` makes it
  *               dark and translucent with a white icon, over a picture (× on a photo tile).
  *   tertiary  — no fill (the default): a bare `icon` (a toolbar's, a row's), or with a `label` a
- *               text link (an icon may lead it).
+ *               text link (an icon may lead it; `hasChevron` follows it with › when it goes on to
+ *               another screen, as a section's link does).
  * `size` is `regular` (44 pt tall, discs and pills alike) or `small` (28 pt), so a pill and a disc
  * of one size line up; a bare icon is as tall as its size and only as wide as the icon. Whatever
  * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) or a picker
@@ -115,6 +117,7 @@ export default function Button({
   isSwitch = false,
   filled,
   iconCount = 1,
+  hasChevron = false,
   disabled = false,
   loading = false,
   accessibilityLabel,
@@ -126,14 +129,16 @@ export default function Button({
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
-  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette }));
+  if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette, hasChevron }));
 
   const color = contentColor({ variant, palette, isSelected, isInverse });
   const iconSize = ICON_SIZES[shape][size];
   const box = boxFor(shape, size, iconSize, hasIconSlot);
   const fill = fillFor({ shape, variant, palette, isSelected, isInverse });
   const pillFill = shape === 'pill' && [styles.pillFill, PILL_FILL_SIZE_STYLES[size]];
-  const content = <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, shape, size }} />;
+  const content = (
+    <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, hasChevron, shape, size }} />
+  );
 
   return (
     <Pressable
@@ -198,7 +203,7 @@ function targetSlop(size: ButtonSize, box: Box | null) {
   return { top: vertical, bottom: vertical, left: horizontal, right: horizontal };
 }
 
-type ContentProps = Pick<ButtonProps, 'icon' | 'label' | 'filled'> & {
+type ContentProps = Pick<ButtonProps, 'icon' | 'label' | 'filled' | 'hasChevron'> & {
   loading: boolean;
   color: string | undefined;
   iconSize: number | undefined;
@@ -206,7 +211,7 @@ type ContentProps = Pick<ButtonProps, 'icon' | 'label' | 'filled'> & {
   shape: Shape;
   size: ButtonSize;
 };
-function Content({ icon, label, loading, color, iconSize, filled, iconCount, shape, size }: ContentProps) {
+function Content({ icon, label, loading, color, iconSize, filled, iconCount, hasChevron, shape, size }: ContentProps) {
   // A link keeps its label and swaps its icon for the spinner; every other button shows only the spinner.
   const spinner = <ActivityIndicator size="small" color={color} />;
   if (loading && shape !== 'link') return spinner;
@@ -231,6 +236,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, sha
       <Text style={[LABEL_SIZE_STYLES[shape]?.[size], size === 'caption' && listTextStyles.caption, { color }]}>
         {label}
       </Text>
+      {hasChevron && shape === 'link' && <Icon name="chevron-right" size={iconSize} color={color} />}
     </>
   );
 }
@@ -269,7 +275,8 @@ function combinationProblem({
   iconCount,
   isInverse,
   palette,
-}: Pick<ButtonProps, 'icon' | 'label'> & {
+  hasChevron,
+}: Pick<ButtonProps, 'icon' | 'label' | 'hasChevron'> & {
   variant: ButtonVariant;
   size: ButtonSize;
   iconCount: 1 | 2;
@@ -280,6 +287,9 @@ function combinationProblem({
   if (!VARIANTS.includes(variant)) return `Button: no variant "${variant}"`;
   if (iconCount === 2 && label) return 'Button: a doubled icon has no label';
   if (size === 'caption' && !(variant === 'tertiary' && label)) return 'Button: only a link comes in caption size';
+  if (hasChevron && !(variant === 'tertiary' && label && size !== 'caption')) {
+    return 'Button: only a regular or small link ends in a chevron';
+  }
   if (variant === 'secondary' && icon && label) return 'Button: a secondary shows an icon or a label, not both';
   if (variant === 'secondary' && (palette === 'danger' || isInverse) && (label?.length ?? 0) > MAX_DISC_LABEL) {
     return 'Button: a red or inverse secondary is a disc; its label must fit in it';
