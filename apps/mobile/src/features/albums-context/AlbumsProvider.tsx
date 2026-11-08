@@ -24,6 +24,7 @@ const ALBUM_DEFAULTS: Partial<AlbumRecord> = {
   name: 'New Album',
   isFavorite: false,
   archivedAt: null,
+  favoritedAt: null,
   showInPostSuggestionsAfter: null,
   oldCollectionName: null,
   notes: null,
@@ -65,7 +66,10 @@ export default function AlbumsProvider({ children }: AlbumsProviderProps) {
         return writtenAt;
       },
       toggleFavoriteAlbum: async (album) => {
-        await repo.toggle(db, album.id, 'isFavorite');
+        // favoritedAt is the time of the starring, null once unstarred.
+        await repo.toggle(db, album.id, 'isFavorite', (row) => ({
+          favoritedAt: row.isFavorite ? row.updatedAt : null,
+        }));
         requestSync();
       },
       // Both take the batch options of writeInBatches ({ onProgress, signal }) and resolve to whether

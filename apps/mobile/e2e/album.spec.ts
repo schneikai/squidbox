@@ -100,3 +100,18 @@ test('Starred in Edit album puts the album in the Starred row atop Albums', asyn
 
   await expect(page.getByTestId('starred-albums').getByText(name, { exact: true })).toBeVisible();
 });
+
+test('the Starred row lists the last starred album first', async ({ page }) => {
+  const first = uniqueName('Larch valley');
+  const second = uniqueName('Scree gully');
+  await createAlbum(page, first);
+  await createAlbum(page, second);
+  const screen = page.getByTestId('albums-screen');
+  const row = page.getByTestId('starred-albums');
+
+  await screen.getByTestId('album-tile').filter({ hasText: second }).dblclick();
+  await expect(row.getByText(second, { exact: true })).toBeVisible();
+  await screen.getByTestId('album-tile').filter({ hasText: first }).dblclick();
+
+  await expect(row.getByRole('button').first()).toHaveAccessibleName(first);
+});

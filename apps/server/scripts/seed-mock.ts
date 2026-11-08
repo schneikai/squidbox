@@ -297,6 +297,7 @@ const albums: AlbumRecord[] = ALBUMS.map((album, index) => ({
   name: album.name,
   isFavorite: index === 2,
   archivedAt: null,
+  favoritedAt: index === 2 ? now : null,
   showInPostSuggestionsAfter: null,
   oldCollectionName: null,
   notes: null,

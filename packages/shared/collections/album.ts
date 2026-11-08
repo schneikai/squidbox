@@ -19,7 +19,12 @@ export const albumCollection = defineCollection({
     // albums never placed. Optional because older app versions don't send it; the server then
     // leaves the stored value alone.
     position: textSchema.nullable().optional(),
+    // When it was last starred, null once unstarred or when unknown (starred before it was recorded):
+    // the Starred row's order. Optional: older apps don't send it.
+    favoritedAt: timestampSchema.nullable().optional(),
   }),
+  // favoritedAt follows isFavorite: the two merge as one (sync-design §7).
+  fieldGroups: [['isFavorite', 'favoritedAt']],
 });
 
 export type AlbumRecord = z.infer<typeof albumCollection.schema>;

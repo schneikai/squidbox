@@ -39,6 +39,7 @@ export function makeAlbumRecord(over: Partial<AlbumRecord> = {}) {
     name: 'Album',
     isFavorite: false,
     archivedAt: null,
+    favoritedAt: null,
     showInPostSuggestionsAfter: null,
     oldCollectionName: null,
     notes: null,

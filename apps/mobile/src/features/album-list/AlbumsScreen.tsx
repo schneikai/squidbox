@@ -18,6 +18,7 @@ import albumFilterOptions from '@/features/album-list/actions/filter-albums-acti
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
+import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import prepareAlbums, { type AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
@@ -26,7 +27,7 @@ import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
 import pluralizeText from '@/utils/pluralizeText';
 
-// The Albums tab: the starred albums first as a row of small covers, newest first (none starred, no row), then every
+// The Albums tab: the starred albums first as a row of small covers, the last starred first (none starred, no row), then every
 // album in a grid, searched, sorted and filtered in the floating bar. Double-tap stars an album, + adds one.
 export default function AlbumsScreen() {
   const { toggleFavoriteAlbum, moveAlbum } = useAlbums();
@@ -41,14 +42,19 @@ export default function AlbumsScreen() {
   const scrollHandler = useFloatingBarScrollHandler();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
-  // Newest first, whatever the grid's sort; archived ones stay out, as they do in the grid. Searching or
-  // filtering shows only the grid.
+  // The last starred first, whatever the grid's sort (those starred before that was recorded after them,
+  // newest first); archived ones stay out, as they do in the grid. Searching or filtering shows only the grid.
   const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
   const starred = useMemo(
     () =>
       isNarrowed
         ? []
-        : prepareAlbums({ albums: rows ?? [], sortOrder: 'createdAt:desc', activeFilter: ['starred'], searchText: '' }),
+        : prepareAlbums({
+            albums: rows ?? [],
+            sortOrder: 'createdAt:desc',
+            activeFilter: ['starred'],
+            searchText: '',
+          }).sort(byLastStarred),
     [isNarrowed, rows],
   );
 
@@ -114,6 +120,11 @@ export default function AlbumsScreen() {
       />
     </View>
   );
+}
+
+// The last starred first; a stable sort keeps the rest (starred before favoritedAt) in their order.
+function byLastStarred(a: AlbumListRow, b: AlbumListRow) {
+  return (b.favoritedAt ?? 0) - (a.favoritedAt ?? 0);
 }
 
 const styles = StyleSheet.create({

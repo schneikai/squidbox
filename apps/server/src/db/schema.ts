@@ -145,6 +145,7 @@ export const albums = pgTable(
     name: text('name').notNull(),
     isFavorite: boolean('is_favorite').notNull(),
     archivedAt: bigint('archived_at', { mode: 'number' }),
+    favoritedAt: bigint('favorited_at', { mode: 'number' }),
     showInPostSuggestionsAfter: bigint('show_in_post_suggestions_after', { mode: 'number' }),
     oldCollectionName: text('old_collection_name'),
     notes: text('notes'),
