@@ -46,3 +46,4 @@ export * from './contracts/ai';
 export * from './contracts/contacts';
 export * from './contracts/image';
 export * from './contracts/server';
+export * from './contracts/client';
