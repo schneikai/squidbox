@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
@@ -8,12 +8,15 @@ import { EMPTY_PLACE } from '../src/features/contact-detail/contactFields';
 import contactListQuery from '../src/features/contact-list/contactListQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
 import pinnedList from '../src/features/contact-list/pinnedList';
+import postQuery from '../src/features/post-list/postQuery';
+import type { PhotosOf } from '../src/sync/assetSql';
 import * as assets from '../src/sync/assetsRepository';
 import * as lists from '../src/sync/contactListsRepository';
 import { readContactSettings } from '../src/sync/contactSettingsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
+import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
 import { makeRepository } from '../src/sync/repository';
 import { upsertRows } from '../src/sync/upsertRows';
@@ -58,7 +61,7 @@ describe('contactQuery', () => {
     });
   });
 
-  it('Tagged lists the contacts on any photo, album or post still there, once each', async () => {
+  it('Tagged lists the contacts on any photo still there, once each', async () => {
     await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya'], newId);
@@ -159,10 +162,9 @@ describe('contactQuery', () => {
   });
 
   it('a deleted contact leaves the photo it was on', async () => {
-    const target = { targetType: 'asset' as const, targetId: 'a1' };
-    await contactLinks.add(db, target, ['maya', 'ana'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
     await contacts.remove(db, ['maya']);
-    expect(await ids(contactQuery({ scope: target }))).toEqual(['ana']);
+    expect(await ids(contactQuery({ scope: { photoIds: ['a1'] } }))).toEqual(['ana']);
   });
 });
 
@@ -175,13 +177,24 @@ describe("a contact's photos and albums", () => {
     expect(await assetQuery({ scope: { contactId: 'maya' } }).ids(db)).toEqual(['a1']);
   });
 
-  it("the album scope is the albums the contact is on, not another's", async () => {
-    await contactLinks.add(db, { targetType: 'album', targetId: 'al1' }, ['maya'], newId);
-    await contactLinks.add(db, { targetType: 'album', targetId: 'al2' }, ['ben'], newId);
+  it("a contact's albums and posts include those holding a photo it is on, not a trashed one, and they list it", async () => {
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a2' }, ['maya'], newId);
+    await assets.remove(db, ['a2']);
     const albums = makeRepository('albums', schema.albums);
     await albums.createMany(db, [makeAlbumRecord({ id: 'al1' }), makeAlbumRecord({ id: 'al2' })]);
+    const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
+    await albumEdges.createFromRefs(db, 'al1', [{ id: 'ae1', assetId: 'a1' }]);
+    await albumEdges.createFromRefs(db, 'al2', [{ id: 'ae2', assetId: 'a2' }]);
+    await createPost(db, { id: 'p1' }, ['a1']);
+    await createPost(db, { id: 'p2' }, ['a2']);
     const rows = await albumQuery({ scope: { contactId: 'maya' } }).read(db);
     expect(rows.map((row: { id: string }) => row.id)).toEqual(['al1']);
+    expect((await postQuery({ scope: { contactId: 'maya' } }).read(db)).rows.map((row) => row.id)).toEqual(['p1']);
+    const listed = async (photosOf: PhotosOf) => contactQuery({ scope: { photosOf } }).ids(db);
+    expect([await listed({ albumId: 'al1' }), await listed({ postId: 'p1' })]).toEqual([['maya'], ['maya']]);
+    expect([await listed({ albumId: 'al2' }), await listed({ postId: 'p2' })]).toEqual([[], []]);
   });
 });
 

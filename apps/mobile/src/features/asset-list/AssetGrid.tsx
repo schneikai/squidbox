@@ -11,6 +11,7 @@ type AssetGridProps = Pick<
   | 'listRef'
   | 'paddingTop'
   | 'paddingBottom'
+  | 'header'
   | 'onScroll'
   | 'scrollY'
   | 'selectedAssetIds'
@@ -29,7 +30,7 @@ type AssetGridProps = Pick<
 // and the asset picker. In select mode a tap goes to `onPressAsset` and a drag selects (with
 // `selectAssets`). `onScroll` gets the grid's scroll events and `scrollY` is the offset it writes,
 // which the drag-select then reads. A grid that is a sheet's own screen passes `isSheet`, so a
-// drag-select leaves the sheet's swipe down on.
+// drag-select leaves the sheet's swipe down on. `header` scrolls with the cells, above them.
 export default function AssetGrid({
   rows,
   rowsReadAt,
@@ -41,6 +42,7 @@ export default function AssetGrid({
   listRef,
   paddingTop,
   paddingBottom,
+  header,
   onScroll,
   scrollY,
   selectAssets,
@@ -67,6 +69,7 @@ export default function AssetGrid({
       loadMore={loadMore}
       paddingTop={paddingTop}
       paddingBottom={paddingBottom}
+      header={header}
       onScroll={onScroll}
       scrollY={scrollY}
       dragSelectEnabled={isSelectMode}

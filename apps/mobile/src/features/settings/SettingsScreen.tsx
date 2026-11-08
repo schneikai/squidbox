@@ -16,6 +16,7 @@ import useCloud from '@/features/cloud/useCloud';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useCloudSync from '@/features/cloud-sync/useCloudSync';
+import useTagPhotosFromMentions from '@/features/contact-mentions/useTagPhotosFromMentions';
 import DevAccountsSection from '@/features/dev-accounts/DevAccountsSection';
 import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
 import useHasFeature from '@/hooks/useHasFeature';
@@ -43,6 +44,7 @@ export default function SettingsScreen() {
 
   const { showBlocking, hide } = useProgressOverlay();
   const resortAlbumsByNameAsync = useResortAlbumsByName();
+  const tagPhotosFromMentionsAsync = useTagPhotosFromMentions();
 
   // An account library shows its backup whether or not its owner is signed in right now.
   const isAccountLibrary = library.owner.kind === 'account';
@@ -181,6 +183,7 @@ export default function SettingsScreen() {
               <Row label="API URL" value={SERVER_URL} />
               <Row label="Check API" onPress={handleCheckApi} hasChevron />
               <Row label="Sort albums by name" onPress={handleResortAlbums} hasChevron />
+              <Row label="Tag photos from mentions" onPress={tagPhotosFromMentionsAsync} hasChevron />
               <Row label="Features" onPress={() => router.navigate('/settings/features')} hasChevron />
               <Row label="Components" onPress={() => router.navigate('/settings/components')} hasChevron />
             </Section>

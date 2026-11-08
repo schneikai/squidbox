@@ -933,8 +933,11 @@ transaction (`setContactDeleted`).
 shown by name. Deleting a list
 tombstones it and its members.
 
-**contact_list_members** (list membership) and **contact_links** (the contacts on a photo, album or
-post: `targetType` `asset` | `album` | `post` and `targetId`). Synced: `listId` / the target, and
+**contact_list_members** (list membership) and **contact_links** (the contacts on a photo:
+`targetType` `asset` and `targetId`; an album or post lists the contacts on its photos, and its
+Contacts sheet writes to every one of them, `sync/photoContacts.ts`). `album` and `post` targets
+are what older builds wrote: the schema still accepts them, and the app neither writes nor shows
+them. Synced: `listId` / the target, and
 `contactId`, plus the base columns. One live record per pair. Both are written through one membership
 repository (`makeMembershipRepository` in `sync/membershipRepository.ts`): adding a pair the parent
 had restores its newest tombstone instead of inserting another, and `change` adds and removes only

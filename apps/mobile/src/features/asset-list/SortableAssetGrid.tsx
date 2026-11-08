@@ -20,6 +20,7 @@ export default function SortableAssetGrid({
   renderListItem,
   paddingTop,
   paddingBottom,
+  header,
   listRef,
   onScroll,
   selectedAssetIds,
@@ -41,6 +42,7 @@ export default function SortableAssetGrid({
       cellPadding={layout.gridGutter}
       paddingTop={paddingTop}
       paddingBottom={paddingBottom}
+      header={header}
       listRef={listRef}
       onScroll={onScroll}
       dragSelectEnabled={dragSelectEnabled}

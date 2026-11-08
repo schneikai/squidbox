@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generic over any membership table */
+import { chunk } from '@squidbox/shared';
 import { and, eq, isNull, or, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -9,6 +10,9 @@ import { inJson } from './inJson';
 import { saveRecords } from './saveRecords';
 
 type Parent = Record<string, string>;
+
+// How many parents addToEach reads the edges of in one statement.
+const PARENTS_PER_READ = 200;
 
 /**
  * Repository for an unordered membership edge collection: one record per (parent, child) pair, the
@@ -71,17 +75,37 @@ export function makeMembershipRepository(
     await saveRecords(tx, collection, table, created, { isNew: true });
   }
 
-  /** Puts these children in every one of the parents, in one transaction and one read. */
+  /**
+   * Puts these children in every one of the parents, in one transaction. The parents' edges are read
+   * PARENTS_PER_READ parents at a time: an album's every photo is one `or` per photo, and SQLite
+   * refuses an expression deeper than 1000.
+   */
   async function addToEach(db: SyncDb, parents: Parent[], childIds: string[], newId: () => string): Promise<void> {
     if (childIds.length === 0 || parents.length === 0) return;
     await db.transaction(async (tx) => {
-      const edges = await read(tx, and(or(...parents.map(isParent)), inJson(t[childField], childIds)));
+      const edges: any[] = [];
+      for (const some of chunk(parents, PARENTS_PER_READ))
+        edges.push(...(await read(tx, and(or(...some.map(isParent)), inJson(t[childField], childIds)))));
       await write(tx, parents, edges, { added: childIds }, newId);
+    });
+  }
+
+  /** Takes these children out of every one of the parents, in one transaction (read as addToEach). */
+  async function removeFromEach(db: SyncDb, parents: Parent[], childIds: string[]): Promise<void> {
+    if (childIds.length === 0 || parents.length === 0) return;
+    await db.transaction(async (tx) => {
+      const edges: any[] = [];
+      for (const some of chunk(parents, PARENTS_PER_READ))
+        edges.push(
+          ...(await read(tx, and(or(...some.map(isParent)), inJson(t[childField], childIds), isNull(t.deletedAt)))),
+        );
+      await tombstoneAll(tx, edges);
     });
   }
 
   return {
     addToEach,
+    removeFromEach,
 
     /** Puts these children in the parent (one transaction, one read of its edges). */
     add: (db: SyncDb, parent: Parent, childIds: string[], newId: () => string) =>

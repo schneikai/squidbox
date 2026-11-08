@@ -34,7 +34,7 @@ export default function PromptButtonRow({ buttons, onPress, inset, children }: P
       contentContainerStyle={[styles.content, padding]}
     >
       {buttons.map((button) => (
-        <PromptButtonChip key={button.id} button={button} variant="raised" onPress={onPress} />
+        <PromptButtonChip key={button.id} button={button} onPress={onPress} />
       ))}
       {children}
     </ScrollView>
