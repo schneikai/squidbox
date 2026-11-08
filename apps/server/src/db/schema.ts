@@ -145,13 +145,14 @@ export const albums = pgTable(
     name: text('name').notNull(),
     isFavorite: boolean('is_favorite').notNull(),
     archivedAt: bigint('archived_at', { mode: 'number' }),
-    favoritedAt: bigint('favorited_at', { mode: 'number' }),
     showInPostSuggestionsAfter: bigint('show_in_post_suggestions_after', { mode: 'number' }),
     oldCollectionName: text('old_collection_name'),
     notes: text('notes'),
     sortOrder: text('sort_order'),
     smartAlbumType: text('smart_album_type'),
     position: text('position'),
+    // Last, as migration 0036 added it: a batched push's rows list the table's columns in its order.
+    favoritedAt: bigint('favorited_at', { mode: 'number' }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('albums_user_seq_idx').on(t.userId, t.serverSeq)],
 );

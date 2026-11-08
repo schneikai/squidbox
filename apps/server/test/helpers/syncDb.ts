@@ -116,6 +116,7 @@ export function albumRecord(over: Record<string, unknown> = {}) {
     name: 'A',
     isFavorite: false,
     archivedAt: null,
+    favoritedAt: null,
     showInPostSuggestionsAfter: null,
     oldCollectionName: null,
     notes: null as string | null,
