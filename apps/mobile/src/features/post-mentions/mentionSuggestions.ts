@@ -7,8 +7,9 @@ export type MentionHandleField = (typeof MENTION_HANDLES)[number]['field'];
 // The rows shown at most.
 const MAX_SUGGESTIONS = 4;
 
+// `isOnPhotos`: the contact is on one of the post's photos.
 export type MentionContact = Pick<ContactRecord, 'id' | 'name' | 'isFavorite' | 'avatarFilename'> &
-  Partial<Record<MentionHandleField, string | null>>;
+  Partial<Record<MentionHandleField, string | null>> & { isOnPhotos?: boolean };
 
 // One handle of a contact to mention, with the networks it is theirs on ('X', 'Bluesky').
 export type MentionSuggestion = { key: string; contact: MentionContact; handle: string; networks: string[] };
@@ -16,7 +17,8 @@ export type MentionSuggestion = { key: string; contact: MentionContact; handle: 
 /**
  * The contacts' handles that `query` (what follows the @, mentionAt) may mean, best first, at most
  * MAX_SUGGESTIONS: one per distinct handle of a contact (without case), naming the networks it is on.
- * A handle starting with the query comes first, then one whose contact has a name word starting with
+ * The contacts on the post's photos (`isOnPhotos`) come first, whichever way they match. Then a
+ * handle starting with the query comes first, then one whose contact has a name word starting with
  * it, then one where either holds it anywhere, all without case; among those, favorites first, then by
  * name. An empty query (just the @) takes every handle.
  */
@@ -32,6 +34,7 @@ export default function mentionSuggestions(contacts: readonly MentionContact[], 
   return ranked
     .sort(
       (a, b) =>
+        Number(Boolean(b.suggestion.contact.isOnPhotos)) - Number(Boolean(a.suggestion.contact.isOnPhotos)) ||
         a.rank - b.rank ||
         Number(b.suggestion.contact.isFavorite) - Number(a.suggestion.contact.isFavorite) ||
         a.suggestion.contact.name.localeCompare(b.suggestion.contact.name, undefined, { sensitivity: 'base' }) ||

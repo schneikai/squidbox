@@ -31,6 +31,7 @@ type PostCardProps = {
   card: PostCardData;
   isFirst: boolean;
   isActive: boolean;
+  autoFocus?: boolean;
   onChange: (key: string, changes: PostCardChange) => void;
   onActivate: (key: string) => void;
   onRemove?: (key: string) => void;
@@ -39,16 +40,18 @@ type PostCardProps = {
 /**
  * One post of the post editor (`card`: { key, text, postAssets }): its text, the contacts an @handle
  * being typed may mean while it `isActive` (MentionSuggestions, a tap writes the handle), its photos
- * once it has any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose chat's Use
- * fills this card. `onChange(key, changes)` and `onActivate(key)` report to the editor; the first
- * card (`isFirst`) has the thread's time (`postedAt`, as text once `isPostedAtShown`,
- * `onChangePostedAt`), a following one × (`onRemove(key)`), the last ⊕ (`onAddToThread`).
+ * once it has any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose
+ * chat's Use fills this card. `autoFocus` puts the cursor in its text as it opens. `onChange(key,
+ * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
+ * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
+ * (`onRemove(key)`), the last ⊕ (`onAddToThread`).
  */
 export default function PostCard({
   kind,
   card,
   isFirst,
   isActive,
+  autoFocus = false,
   postedAt,
   isPostedAtShown,
   onChangePostedAt,
@@ -62,8 +65,9 @@ export default function PostCard({
   const sessionId = useSubjectChat({ kind, text, postAssets, setText });
   const autocomplete = useMentionAutocomplete(text, setText);
 
-  // The first card leaves room to write until photos come in under the text.
-  const isRoomy = isFirst && postAssets.length === 0;
+  // The first card leaves room to write until photos come in under the text, or the suggestions of a
+  // handle being typed, which follow the text closely.
+  const isRoomy = isFirst && postAssets.length === 0 && !(isActive && autocomplete.mention);
 
   function activate() {
     onActivate(key);
@@ -81,6 +85,7 @@ export default function PostCard({
           placeholder="What's new?"
           minHeight={isRoomy ? scale(84) : scale(48)}
           onChangeText={setText}
+          autoFocus={autoFocus}
           onFocus={activate}
           value={text}
           {...autocomplete.inputProps}
@@ -97,7 +102,11 @@ export default function PostCard({
         )}
       </View>
       {isActive && autocomplete.mention && (
-        <MentionSuggestions query={autocomplete.mention.query} onPick={autocomplete.pick} />
+        <MentionSuggestions
+          query={autocomplete.mention.query}
+          assetIds={postAssets.map((postAsset) => postAsset.asset.id)}
+          onPick={autocomplete.pick}
+        />
       )}
       <PostAssetsEditor
         postAssets={postAssets}

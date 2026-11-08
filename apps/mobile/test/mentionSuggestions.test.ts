@@ -35,6 +35,16 @@ describe('mentionSuggestions', () => {
     expect(shown(mentionSuggestions(contacts, ''))).toEqual(['b3 X', 'b2 X', 'b1 X']);
   });
 
+  it("puts the contacts on the post's photos first, however they match", () => {
+    const contacts = [
+      contact({ name: 'Theo', xHandle: 'theo' }),
+      contact({ name: 'Sam Theodor', xHandle: 'samt', isOnPhotos: true }),
+      contact({ name: 'Al', xHandle: 'al' }),
+    ];
+    expect(shown(mentionSuggestions(contacts, 'theo'))).toEqual(['samt X', 'theo X']);
+    expect(shown(mentionSuggestions(contacts, ''))).toEqual(['samt X', 'al X', 'theo X']);
+  });
+
   it('leaves out contacts without a handle and those that match nothing', () => {
     const contacts = [contact({ name: 'Fan' }), contact({ name: 'Zed', xHandle: 'zed' })];
     expect(shown(mentionSuggestions(contacts, 'fa'))).toEqual([]);

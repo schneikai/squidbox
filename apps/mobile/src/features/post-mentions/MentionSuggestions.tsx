@@ -9,15 +9,16 @@ import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
-type MentionSuggestionsProps = { query: string; onPick: (handle: string) => void };
+type MentionSuggestionsProps = { query: string; assetIds: string[]; onPick: (handle: string) => void };
 
 /**
- * The contacts the @handle being typed may mean (`query`, without the @; mentionSuggestions), each
+ * The contacts the @handle being typed may mean (`query`, without the @; mentionSuggestions), those on
+ * the post's photos (`assetIds`) first, each
  * with its avatar, name, handle and networks; a tap hands the handle to `onPick`. Only text: nothing
  * is linked to the contact. Nothing shows while reading or when no contact matches.
  */
-export default function MentionSuggestions({ query, onPick }: MentionSuggestionsProps) {
-  const contacts = useMentionContacts();
+export default function MentionSuggestions({ query, assetIds, onPick }: MentionSuggestionsProps) {
+  const contacts = useMentionContacts(assetIds);
 
   const suggestions = contacts ? mentionSuggestions(contacts, query) : [];
 
@@ -60,10 +61,10 @@ function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: Su
 }
 
 const styles = StyleSheet.create({
-  // A grey panel under the text at the card's gap, so the suggestions read apart from what is
-  // written, rounded like a list row's thumbnail.
+  // A grey panel right under the text, so the suggestions read apart from what is written, rounded
+  // like a list row's thumbnail.
   list: {
-    marginTop: layout.cardGap,
+    marginTop: space.sm,
     paddingHorizontal: space.md,
     borderRadius: radii.cover,
     backgroundColor: colors.background.muted,
