@@ -16,8 +16,7 @@ export type TypedMention = { start: number; end: number; query: string };
  * one.
  */
 export default function mentionAt(text: string, cursor: number): TypedMention | null {
-  const before = text.slice(0, cursor);
-  const typed = TYPED.exec(before);
+  const typed = TYPED.exec(text.slice(0, cursor));
   if (!typed || typed[1].length > MAX_QUERY) return null;
   const [rest] = REST.exec(text.slice(cursor)) as RegExpExecArray;
   return { start: typed.index, end: cursor + rest.length, query: typed[1] };

@@ -1,5 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
@@ -64,10 +64,13 @@ export default function PostCard({
   const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
   const sessionId = useSubjectChat({ kind, text, postAssets, setText });
   const autocomplete = useMentionAutocomplete(text, setText);
+  // The handle being typed in the card being edited, whose suggestions show.
+  const mention = isActive ? autocomplete.mention : null;
+  const assetIds = useMemo(() => postAssets.map((postAsset) => postAsset.asset.id), [postAssets]);
 
   // The first card leaves room to write until photos come in under the text, or the suggestions of a
   // handle being typed, which follow the text closely.
-  const isRoomy = isFirst && postAssets.length === 0 && !(isActive && autocomplete.mention);
+  const isRoomy = isFirst && postAssets.length === 0 && !mention;
 
   function activate() {
     onActivate(key);
@@ -101,13 +104,7 @@ export default function PostCard({
           />
         )}
       </View>
-      {isActive && autocomplete.mention && (
-        <MentionSuggestions
-          query={autocomplete.mention.query}
-          assetIds={postAssets.map((postAsset) => postAsset.asset.id)}
-          onPick={autocomplete.pick}
-        />
-      )}
+      {mention && <MentionSuggestions query={mention.query} assetIds={assetIds} onPick={autocomplete.pick} />}
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
@@ -115,7 +112,7 @@ export default function PostCard({
       />
       <PostCardToolbar
         isFirst={isFirst}
-        exclude={postAssets.map((postAsset) => postAsset.asset.id)}
+        exclude={assetIds}
         onAddMedia={addPostAssets}
         postedAt={postedAt}
         isPostedAtShown={isPostedAtShown}

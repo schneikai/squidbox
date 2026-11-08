@@ -25,7 +25,7 @@ const GERMAN_UMLAUTS: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue' };
  * German spelling too ("mueller"). A search matches when any form of it is in any form of the text,
  * so each of "Müller", "Muller" and "Mueller" finds the others.
  */
-function searchForms(text: string): string[] {
+export function searchForms(text: string): string[] {
   const lower = text.normalize('NFC').toLowerCase();
   const base = foldMarks(lower);
   if (!/[äöü]/.test(lower)) return [base];

@@ -1,11 +1,12 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 
 import mentionSuggestions, { type MentionSuggestion } from './mentionSuggestions';
-import useMentionContacts from './useMentionContacts';
 
 import Divider from '@/components/Divider';
 import Text from '@/components/Text';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
+import useContactRows from '@/features/contact-list/useContactRows';
 import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -18,9 +19,13 @@ type MentionSuggestionsProps = { query: string; assetIds: string[]; onPick: (han
  * is linked to the contact. Nothing shows while reading or when no contact matches.
  */
 export default function MentionSuggestions({ query, assetIds, onPick }: MentionSuggestionsProps) {
-  const contacts = useMentionContacts(assetIds);
+  const contacts = useContactRows({});
+  const onPhotos = useContactRows({ scope: { targetType: 'asset', targetId: assetIds } });
 
-  const suggestions = contacts ? mentionSuggestions(contacts, query) : [];
+  const suggestions = useMemo(
+    () => (contacts && onPhotos ? mentionSuggestions(contacts, new Set(onPhotos.map(({ id }) => id)), query) : []),
+    [contacts, onPhotos, query],
+  );
 
   if (suggestions.length === 0) return null;
 

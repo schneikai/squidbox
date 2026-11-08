@@ -10,7 +10,7 @@ export default function insertMention(
   handle: string,
 ): { text: string; cursor: number } {
   const after = text.slice(mention.end);
-  const inserted = `@${handle}${/^\s/.test(after) ? '' : ' '}`;
-  const next = text.slice(0, mention.start) + inserted + after;
-  return { text: next, cursor: mention.start + `@${handle} `.length };
+  const written = `@${handle}`;
+  const next = text.slice(0, mention.start) + written + (/^\s/.test(after) ? '' : ' ') + after;
+  return { text: next, cursor: mention.start + written.length + 1 };
 }
