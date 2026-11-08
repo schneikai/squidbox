@@ -15,6 +15,7 @@ const MERGE_TARGET_KEY = 'mergedInto'; // the merge marker: the library (and acc
 const MARKS_KEY = 'mergeMarks:'; // + a source library's database name (getMergeMarks)
 const COMMITTED_KEY = 'mergeCommitted:'; // + a source library's database name (getMergeCommit)
 const KEPT_FOR_KEY = 'keptFor'; // the library a kept source library joined (getKeptFor)
+const PULLED_SHAPE_KEY = 'pulledShape'; // the collections and fields the cursor's pulls filled (pullCursor)
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -44,6 +45,27 @@ async function setMeta(db: SyncDb, key: string, value: string): Promise<void> {
 
 export async function getCursor(db: SyncDb): Promise<number> {
   return Number((await getMeta(db, CURSOR_KEY)) ?? 0);
+}
+
+/**
+ * Where a pull of `shape` (clientCollections pulledShape) starts: the stored cursor while the shape is
+ * the one stored with it, else the beginning, with the new shape stored (sync-design §15): the records
+ * pulled before were stored without the fields or collections this build learned. `restarted` only
+ * when a cursor above 0 was dropped, with the stored shape (null for an install from before the shape
+ * was kept) to name what is new.
+ */
+export async function pullCursor(
+  db: SyncDb,
+  shape: string,
+): Promise<{ cursor: number; restarted: boolean; storedShape: string | null }> {
+  const storedShape = await getMeta(db, PULLED_SHAPE_KEY);
+  const cursor = await getCursor(db);
+  if (storedShape === shape) return { cursor, restarted: false, storedShape };
+  await db.transaction(async (tx) => {
+    await setCursor(tx, 0);
+    await setMeta(tx, PULLED_SHAPE_KEY, shape);
+  });
+  return { cursor: 0, restarted: cursor > 0, storedShape };
 }
 
 // First-sync flag: the initial full pull (the big one after first login) has fully drained. Used to

@@ -9,7 +9,7 @@ import {
 } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
-import { clientCollectionTables } from './clientCollections';
+import { clientCollectionTables, pulledShape } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { FileUploadRefusedError } from './fileUploadErrors';
@@ -26,7 +26,7 @@ import {
 import { planPushOutcome } from './pushPlan';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
-import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import { pullCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
 import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
@@ -84,6 +84,7 @@ export async function runSyncOnce(
     else {
       const pull = await pullPhase(db, transport, signal);
       pulled = pull.pulled;
+      notes.push(...pull.notes);
       if (pull.stopped) notes.push('stopped during pull');
     }
     // The purges this run confirmed, and any a sweep left; a file that can't go is noted, not a failed run.
@@ -339,15 +340,23 @@ function pushTo<K, V>(lists: Map<K, V[]>, key: K, value: V): void {
 }
 
 // Downloads the next batch while applying one; a stop ends the run after the batch at hand, which
-// commits with its cursor.
+// commits with its cursor. A build that learned collections or fields pulls from the beginning once
+// (status.ts pullCursor), noted in the sync log.
 async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
-): Promise<{ pulled: number; stopped: boolean }> {
+): Promise<{ pulled: number; stopped: boolean; notes: string[] }> {
   await patchStatus(db, { phase: 'pulling' });
-  if (signal.aborted) return { pulled: 0, stopped: true };
-  let cursor = await getCursor(db);
+  if (signal.aborted) return { pulled: 0, stopped: true, notes: [] };
+  const shape = pulledShape();
+  const start = await pullCursor(db, shape);
+  const notes = start.restarted
+    ? [
+        `pull restarted from the beginning: new synced fields or collections (${newInShape(start.storedShape, shape)})`,
+      ]
+    : [];
+  let cursor = start.cursor;
   let pulled = 0;
   // Ends a download ahead once the run stops or an apply fails.
   let ended = false;
@@ -360,7 +369,7 @@ async function pullPhase(
       next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
       if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
       cursor = batch.cursor;
-      if (batch.hasMore && signal.aborted) return { pulled, stopped: true };
+      if (batch.hasMore && signal.aborted) return { pulled, stopped: true, notes };
     }
   } finally {
     ended = true;
@@ -369,7 +378,22 @@ async function pullPhase(
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
   await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
-  return { pulled, stopped: false };
+  return { pulled, stopped: false, notes };
+}
+
+// The collections and fields of `shape` that `stored` lacks, like `assets.tags, favorites`; every
+// collection when nothing was stored (a build from before the shape was kept).
+function newInShape(stored: string | null, shape: string): string {
+  const columnsOf = (text: string) =>
+    new Map(text.split(';').map((line) => [line.split(':')[0]!, (line.split(':')[1] ?? '').split(',')]));
+  if (stored === null) return [...columnsOf(shape).keys()].join(', ');
+  const before = columnsOf(stored);
+  return [...columnsOf(shape)]
+    .flatMap(([name, columns]) => {
+      const had = before.get(name);
+      return had ? columns.filter((column) => !had.includes(column)).map((column) => `${name}.${column}`) : [name];
+    })
+    .join(', ');
 }
 
 interface PulledBatch {

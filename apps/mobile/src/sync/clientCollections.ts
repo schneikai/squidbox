@@ -1,4 +1,7 @@
+import { getTableColumns } from 'drizzle-orm';
+
 import * as schema from './db/schema';
+import { localOnlyKeys } from './localOnlyKeys';
 
 const tables = {
   assets: schema.assets,
@@ -37,3 +40,22 @@ export type InsertOf<T extends CollectionTable> = T['$inferInsert'];
 // Client-side registry: collection name → its local SQLite table. The Inspector and full-resync
 // iterate this, so every registered collection is covered with no per-collection rework.
 export const clientCollectionTables: Record<string, CollectionTable> = tables;
+
+/**
+ * What a pull fills, as one sorted text: each collection and its synced columns
+ * (`albums:created_at,…;assets:…`). A pull restarts from the beginning when it changes (status.ts
+ * pullCursor): the records pulled before were stored without the new fields or collections.
+ */
+export function pulledShape(): string {
+  return Object.entries(clientCollectionTables)
+    .map(([name, table]) => {
+      const localOnly = localOnlyKeys(name);
+      const columns = Object.entries(getTableColumns(table))
+        .filter(([key]) => !localOnly.has(key))
+        .map(([, column]) => column.name)
+        .sort();
+      return `${name}:${columns.join(',')}`;
+    })
+    .sort()
+    .join(';');
+}
