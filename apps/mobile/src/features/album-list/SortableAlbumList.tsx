@@ -6,7 +6,7 @@ import type { AlbumListProps } from '@/features/album-list/AlbumList';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import useAlbumGrid from '@/features/album-list/useAlbumGrid';
 
-// Below the cover: the name and the count lines, until an item has been measured.
+// Below the cover: the name and when it was last posted, until an item has been measured.
 const ESTIMATED_INFO_HEIGHT = 36;
 
 type SortableAlbumListProps = Pick<

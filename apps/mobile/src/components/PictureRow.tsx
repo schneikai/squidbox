@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { FlatList, Pressable, StyleSheet } from 'react-native';
+import { type ReactNode, useCallback } from 'react';
+import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet } from 'react-native';
 
 import Text from '@/components/Text';
 import { layout, press, sizes, space } from '@/styles/designTokens';
@@ -33,25 +33,32 @@ export default function PictureRow<T>({
   onEndReached,
   testID,
 }: PictureRowProps<T>) {
+  // Stable while its inputs are (the rows pass module-level functions), so a parent's re-render
+  // doesn't re-render every item.
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<T>) => (
+      <Pressable
+        style={({ pressed }) => [styles.item, pressed && press.flat]}
+        onPress={() => onPress(item)}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel(item)}
+      >
+        {picture(item)}
+        <Text variant="hint" tone="primary" numberOfLines={1}>
+          {label(item)}
+        </Text>
+      </Pressable>
+    ),
+    [onPress, accessibilityLabel, picture, label],
+  );
+
   return (
     <FlatList
       testID={testID}
       horizontal
       data={items}
       keyExtractor={keyOf}
-      renderItem={({ item }) => (
-        <Pressable
-          style={({ pressed }) => [styles.item, pressed && press.flat]}
-          onPress={() => onPress(item)}
-          accessibilityRole="button"
-          accessibilityLabel={accessibilityLabel(item)}
-        >
-          {picture(item)}
-          <Text variant="hint" tone="primary" numberOfLines={1}>
-            {label(item)}
-          </Text>
-        </Pressable>
-      )}
+      renderItem={renderItem}
       onEndReached={onEndReached}
       onEndReachedThreshold={2}
       showsHorizontalScrollIndicator={false}
