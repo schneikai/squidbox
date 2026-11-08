@@ -1,6 +1,6 @@
 import StatusScreen from '@/components/StatusScreen';
 
-// Shown while one library closes and another opens (LibraryGate in app/_layout.jsx): nothing of the app is
+// Shown while one library closes and another opens (LibraryGate in app/_layout.tsx): nothing of the app is
 // mounted meanwhile, so no screen reads across the switch.
 export default function SwitchingScreen() {
   return <StatusScreen busy title="Opening your library…" />;

@@ -1,9 +1,9 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import * as Sentry from '@sentry/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider, type SingularOptions } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use } from 'react';
+import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -57,23 +57,27 @@ Menu.setDefaultRenderer(BlurPopoverRenderer);
 // The native splash stays up until BootScreen, which looks just like it, is on screen.
 SplashScreen.preventAutoHideAsync();
 
+type BootErrorBoundaryProps = { children: ReactNode };
+// A flag, not the thrown value: anything can be thrown, `undefined` too.
+type BootErrorBoundaryState = { hasError: boolean };
+
 // Catches render-time throws during boot (e.g. a failed DB migration) that would otherwise unmount
 // the tree to a blank root behind the still-visible native splash — a silent dead-end in a release
 // build. Lifts the splash and shows a recoverable message instead.
-class BootErrorBoundary extends Component {
-  state = { error: null };
+class BootErrorBoundary extends Component<BootErrorBoundaryProps, BootErrorBoundaryState> {
+  state: BootErrorBoundaryState = { hasError: false };
 
-  static getDerivedStateFromError(error) {
-    return { error };
+  static getDerivedStateFromError(): BootErrorBoundaryState {
+    return { hasError: true };
   }
 
-  componentDidCatch(error) {
+  componentDidCatch(error: unknown) {
     Sentry.captureException(error);
     SplashScreen.hideAsync().catch(() => {}); // never leave the splash up on a crash
   }
 
   render() {
-    if (this.state.error) {
+    if (this.state.hasError) {
       return (
         <StatusScreen title="Something went wrong">
           <Text variant="status" style={styles.bootErrorText}>
@@ -115,12 +119,14 @@ function RootLayout() {
 // Called by AppGate once it shows a screen (FirstSyncScreen or the app): the boot screen's cue to go.
 const AppShownContext = createContext(() => {});
 
+type AppInitProps = { children: ReactNode };
+
 // One-time app init: the boot screen (the native splash's twin, with the octopus moving) until the
 // boot (LibraryProvider: the library open and the cloud session check, side by side) is through and
 // the gates below show a screen, which the boot screen then fades out over; and the
 // foreground/interval sync triggers. Lives ABOVE the gates so it runs exactly once and keeps the sync
 // running whether the setup screen or the main app is showing.
-function AppInit({ children }) {
+function AppInit({ children }: AppInitProps) {
   const { isAuthenticated } = useCloud();
   const { booted } = useLibrary();
   const [appIsReady, setAppIsReady] = useState(false);
@@ -154,11 +160,13 @@ function AppInit({ children }) {
   );
 }
 
+type LibraryGateProps = { children: ReactNode };
+
 // Everything that queries SQLite (including the firstSyncDone probe in AppGate) mounts under the
 // open library, keyed by it, so another library means a fresh tree. Renders nothing while the boot
 // library opens and migrates (brief; longer on a first launch), and the switching screen while one
 // library closes and another opens, so no screen reads across the switch.
-function LibraryGate({ children }) {
+function LibraryGate({ children }: LibraryGateProps) {
   const { library, switching } = useLibrary();
   if (switching) return <SwitchingScreen />;
   if (!library) return null;
@@ -239,12 +247,21 @@ const MainApp = memo(function MainApp() {
   );
 });
 
+// A `dangerouslySingular` that keys a screen by one of its path params: the screens with the same
+// value are one screen. A param that isn't one string keys nothing.
+function singularByParam(param: string): Exclude<SingularOptions, boolean> {
+  return (name, params) => {
+    const value = params[param];
+    return typeof value === 'string' ? value : undefined;
+  };
+}
+
 // One editor per post: editing the post again goes back to its editor. A group route gets only the
 // URL's path params, so a new post's editor (`?assetIds`, `?rePostId`) is always a new one.
-const editorId = (name, params) => params.postId;
+const editorId = singularByParam('postId');
 
 // One compare per kind of model.
-const modelKind = (name, params) => params.kind;
+const modelKind = singularByParam('kind');
 
 // The main stack: the tabs, the screens pushed over them, and the sheets. `(main)` holds what opens
 // from the app itself; the top-level groups are sheets with steps that hold their own copies of

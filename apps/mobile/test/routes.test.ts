@@ -11,12 +11,12 @@ const { getRoutes } = require('expo-router/build/getRoutesCore');
 type State = { routes: { name: string; state?: State }[]; index?: number };
 
 const appDir = new URL('../src/app/', import.meta.url);
-const files = readdirSync(appDir, { recursive: true, encoding: 'utf8' }).filter((file) => /\.(jsx|tsx)$/.test(file));
+const files = readdirSync(appDir, { recursive: true, encoding: 'utf8' }).filter((file) => /\.tsx?$/.test(file));
 
 // Each file as the routes it makes: an array group (`(main,new-post)`) makes one per group.
 const routes = files
-  .filter((file) => !/_layout\.(jsx|tsx)$/.test(file))
-  .flatMap((file) => expandGroups(file.replace(/\.(jsx|tsx)$/, '')));
+  .filter((file) => !/_layout\.tsx?$/.test(file))
+  .flatMap((file) => expandGroups(file.replace(/\.tsx?$/, '')));
 
 const context = Object.assign(() => ({ default: () => null }), {
   keys: () => files.map((file) => `./${file}`),

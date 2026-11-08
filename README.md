@@ -152,7 +152,7 @@ Sentry handles error tracking. Configure it for your own account:
 
 - `app.config.js`: specify organization and project in the Sentry Plugin section
 - `SENTRY_AUTH_TOKEN`: a secret stored in EAS (see [Environment & secrets](#environment--secrets))
-- `apps/mobile/src/app/_layout.jsx`: set the DSN in the `Sentry.init` call
+- `apps/mobile/src/app/_layout.tsx`: set the DSN in the `Sentry.init` call
 
 ## Caveats
 

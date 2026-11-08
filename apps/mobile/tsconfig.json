@@ -1,7 +1,9 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "allowJs": true,
+    // No JavaScript in the app (expo/tsconfig.base turns it on). migrations.js, drizzle-kit's output,
+    // is typed by the migrations.d.ts beside it.
+    "allowJs": false,
     "strict": true,
     "paths": {
       "@/*": [
@@ -14,9 +16,7 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
-    "**/*.js",
-    "**/*.jsx"
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules"

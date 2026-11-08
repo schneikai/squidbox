@@ -8,7 +8,7 @@ import { requestSync, retryFailuresAndSync } from './worker';
 // requestSync after each write). This is ordinary JS — the opportunistic background top-up
 // (expo-background-task) is a later, device-gated addition.
 //
-// The LAUNCH pull is not fired here: app/_layout.jsx sets the sync target (setSyncTarget) once init is done and
+// The LAUNCH pull is not fired here: app/_layout.tsx sets the sync target (setSyncTarget) once init is done and
 // someone is signed in, which kicks it. requestSync() is a no-op without one. That gate lives in
 // the worker so every requestSync caller is covered at once.
 const INTERVAL_MS = 30_000;

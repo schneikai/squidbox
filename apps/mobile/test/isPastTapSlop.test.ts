@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import isPastTapSlop from '../src/components/sortable-grid/isPastTapSlop';
 
-// constants.js takes SCREEN_PADDING from the design tokens, which load React Native.
+// constants.ts takes SCREEN_PADDING from the design tokens, which load React Native.
 vi.mock('@/styles/designTokens', () => ({ layout: { sideGutter: 16 } }));
 
 const lift = { x: 100, y: 100 };
