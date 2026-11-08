@@ -150,7 +150,7 @@ writing one tag to every photo is wrong.
 ### [ ] Tag each photo once at upload, on the server
 
 Wanted by the owner. Photos are tagged on the phone when a chat opens or from the photo's details
-(`features/photo-tags/tagAssetOnce.js`, `useAssetTags.js`), so "It sees" waits on a vision call the
+(`features/photo-tags/tagAssetOnce.ts`, `useAssetTags.ts`), so "It sees" waits on a vision call the
 first time. Tagging every photo once on the server after its upload would make it instant and work
 for photos added on another device.
 
@@ -205,7 +205,7 @@ so a better wording can be tried and published.
 - **Dark mode.** The tokens are ready for it (`colors` are semantic roles over a private `palette`
   in `styles/designTokens.ts`), but there is no dark set yet: add one and pick it with
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
-- **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.js`, an
+- **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.ts`, an
   alias of `layout.sideGutter`) still stands in 19 files, to become `layout.sideGutter` once the TS
   migration is done with them; and `QuickViewHost`'s `paddingVertical: 50`
   (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.

@@ -15,7 +15,7 @@
  * file, in any app (`vitest related`), or the app's whole suite when its config, package, test
  * helpers or setup, or the files its tests read from disk changed, or a file was deleted or moved.
  * A packages/shared change counts for both apps. No DB suites: README says when to run those. new
- * files: no .js/.jsx added to apps/mobile/src (checkNewFiles.mjs).
+ * files: no .js/.jsx in apps/mobile/src (checkNewFiles.mjs).
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

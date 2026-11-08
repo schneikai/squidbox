@@ -1108,7 +1108,7 @@ lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cur
 
 Settings' "Library sync" row reads "N errors" while outbox rows have failed (and "Photo backup"
 counts the assets whose upload failed). The sync error viewer
-(`features/cloud-sync/cloud-sync-control/SyncErrorViewer.jsx`) lists either kind with what failed
+(`features/cloud-sync/cloud-sync-control/SyncErrorViewer.tsx`) lists either kind with what failed
 and why, with Retry All: from the Library sync screen the failed pushes (`readPushFailures`, named
 after the record: `Album "Trips"`, `Post "First words…"`, `Photo in album "Trips"`), from the Backup
 screen the failed uploads. A contact's failed row (`Contact "Maya"`, its photo's upload refused)
@@ -1121,7 +1121,7 @@ puts their edits back, so they still wait.
 
 ### Sync Inspector
 
-The "Library sync" screen (`apps/mobile/src/features/sync-status/SyncScreen.jsx`) shows:
+The "Library sync" screen (`apps/mobile/src/features/sync-status/SyncScreen.tsx`) shows:
 
 - **Status:** current status, last sync time, **View errors** (above, while pushes have failed)
   and **Sync now**.
