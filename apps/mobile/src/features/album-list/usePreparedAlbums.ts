@@ -6,7 +6,8 @@ import matchedAlbumIds from '@/features/album-list/matchedAlbumIds';
 import prepareAlbums, { type PrepareAlbumsOptions } from '@/features/album-list/prepareAlbums';
 import useAlbumRows from '@/features/album-list/useAlbumRows';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import isBlank from '@/utils/isBlank';
+
+const NO_IDS: string[] = [];
 
 type UsePreparedAlbumsProps = Omit<PrepareAlbumsOptions, 'matchedIds'> & { searchText: string };
 
@@ -27,12 +28,12 @@ export default function usePreparedAlbums({
   const contactSearch = useLiveQuery(query.read, query.tables, [query.descriptor], {
     minInterval: MIN_REREAD_INTERVAL,
   });
-  const isSearching = !isBlank(searchText);
-  // A cleared search shows every album at once; a new one keeps the previous search's albums until
-  // its contacts' albums are read (a few ms), so the list never flashes empty.
+  // Names and notes match the current search at once; its contacts' albums join once read for it
+  // (a few ms), so a keystroke never waits for the db, nor shows an earlier search's contacts.
+  const contactAlbumIds = contactSearch?.search === searchText.trim() ? contactSearch.contactAlbumIds : NO_IDS;
   const matchedIds = useMemo(
-    () => (isSearching && contactSearch ? matchedAlbumIds(rows ?? [], contactSearch) : null),
-    [isSearching, contactSearch, rows],
+    () => matchedAlbumIds(rows ?? [], searchText, contactAlbumIds),
+    [rows, searchText, contactAlbumIds],
   );
   const albums = useMemo(
     () => prepareAlbums({ albums: rows ?? [], sortOrder, activeFilter, matchedIds, showSmartAlbums, showDeleted }),

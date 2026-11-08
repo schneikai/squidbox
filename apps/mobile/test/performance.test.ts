@@ -314,12 +314,10 @@ describe('plan guard', () => {
       ({ contactAlbumIds: found } = await albumSearchQuery('anna').read(db));
     });
     expect(found).toEqual([AL]);
-    expect(
-      work.fullScans.filter(
-        (line) => line !== 'SCAN al' && line !== CONTACT_NAMES_SCAN && !line.startsWith('SCAN json_each'),
-      ),
-    ).toEqual([]);
+    // Neither the albums nor the assets: the contacts, then their links, edges and photos by key.
+    expect(work.fullScans.filter((line) => !line.startsWith('SCAN json_each'))).toEqual([CONTACT_NAMES_SCAN]);
     expect(work.plans).toContain('SEARCH l USING INDEX contact_links_contact_idx (contact_id=? AND target_type=?)');
+    expect(work.plans).toContain('SEARCH album_assets USING INDEX album_assets_asset_idx (asset_id=?)');
     expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
   });
 

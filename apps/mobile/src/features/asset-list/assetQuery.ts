@@ -1,6 +1,7 @@
-import { and, count, eq, getTableColumns, isNotNull, not, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, not, or, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import { matchingContactIds } from '@/features/contact-list/contactQuery';
 import isOneOf from '@/lib/isOneOf';
 import {
   a,
@@ -18,14 +19,12 @@ import * as schema from '@/sync/db/schema';
 import type { AssetRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { matchingContactIds } from '@/sync/matchingContactIds';
 import { matchingIds } from '@/sync/matchingIds';
 import type { PagedQuery } from '@/sync/usePagedQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 
-// The rows the search reads: those with notes or tags ("No tags", [], has none). assets_search_idx
-// keeps the same rows, so keep the two predicates in step.
-const hasSearchText = or(isNotNull(a.notes), sql`${a.tags} != '[]'`);
+// The rows the search reads, as assets_search_idx keeps them (with the scope's deletion).
+const isSearchable = schema.hasSearchText(a);
 
 const ASSET_FILTERS = ['favorites', 'images', 'videos'] as const;
 export type AssetFilter = (typeof ASSET_FILTERS)[number];
@@ -94,21 +93,21 @@ export default function assetQuery({
 
   // The search, once per read for rows and count alike: the notes and tags of the scope's rows that
   // have them (a post's few through its edges, any other scope's through the covering index
-  // assets_search_idx), matched in JS, and the photos of the contacts whose name matches, by SQL.
-  // Once every photo carries tags (todo.md: tagging at upload) that is every live asset, JSON-parsed
-  // and folded per keystroke, and the pre-folded search column of docs/paged-reads-plan.md §2
-  // becomes due.
+  // assets_search_idx), matched in JS, and the photos of the contacts it finds (matchingContactIds,
+  // the Contacts tab's search), by SQL through their links. Once every photo carries tags (todo.md:
+  // tagging at upload) that is every live asset, JSON-parsed and folded per keystroke, and the
+  // pre-folded search column of docs/paged-reads-plan.md §2 becomes due.
   async function matchedWhere(tx: SyncDb): Promise<SQL | undefined> {
     if (!searchText) return undefined;
     const select = tx.select({ id: a.id, notes: a.notes, tags: a.tags });
     const searchable = await (isPost
-      ? fromScope(select, scope, sort).where(and(hasSearchText, assetScopeWhere(scope, sort)))
-      : select.from(a).where(and(hasSearchText, assetDeletionWhere(scope))));
-    // Tags are matched as words, one per line, not as their JSON.
-    const rows = searchable.flatMap(({ id, notes, tags }) => [
-      ...(notes === null ? [] : [{ id, text: notes }]),
-      ...(tags?.length ? [{ id, text: tags.join('\n') }] : []),
-    ]);
+      ? fromScope(select, scope, sort).where(and(isSearchable, assetScopeWhere(scope, sort)))
+      : select.from(a).where(and(isSearchable, assetDeletionWhere(scope))));
+    // One text per line, as contactSearchText: the tags match as words, not as their JSON.
+    const rows = searchable.map(({ id, notes, tags }) => ({
+      id,
+      text: [notes, ...(tags ?? [])].filter(Boolean).join('\n'),
+    }));
     const contactIds = await matchingContactIds(tx, searchText);
     // The scope keeps its own photos of them by their deletion (contactLinkedPhotoIds).
     const ofContacts = contactIds.length ? sql`a.id in ${contactLinkedPhotoIds(contactIds)}` : undefined;

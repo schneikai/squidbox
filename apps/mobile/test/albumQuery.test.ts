@@ -166,21 +166,23 @@ describe('album search', () => {
     ]);
     await albumEdges.add(db, 'Portraits', ['asset-1'], newId);
     await albumEdges.add(db, 'Old', ['asset-4'], newId);
-    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller' }));
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller', xHandle: 'annashoots' }));
     await contactLinks.add(db, { targetType: 'asset', targetId: 'asset-1' }, ['anna'], newId);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'asset-4' }, ['anna'], newId);
     return albumQuery({ scope: 'all' }).read(db);
   }
 
   async function found(rows: AlbumListRow[], search: string) {
-    const ids = matchedAlbumIds(rows, await albumSearchQuery(search).read(db));
+    const ids = matchedAlbumIds(rows, search, (await albumSearchQuery(search).read(db)).contactAlbumIds);
     return ids && [...ids].sort();
   }
 
-  it('albumSearchQuery finds the live albums holding a live photo of a contact the search matches, as matchingIds does', async () => {
+  it('albumSearchQuery finds the albums holding a live photo of a contact the search finds, by any text the Contacts tab searches', async () => {
     await searchLibrary();
-    const { contactAlbumIds } = await albumSearchQuery('mueller').read(db);
-    expect(contactAlbumIds.sort()).toEqual(['Portraits', 'regular']);
+    for (const search of ['mueller', 'annashoots']) {
+      const { contactAlbumIds } = await albumSearchQuery(search).read(db);
+      expect(contactAlbumIds.sort(), search).toEqual(['Portraits', 'regular']);
+    }
   });
 
   it('albumSearchQuery reads and watches nothing without a search', async () => {

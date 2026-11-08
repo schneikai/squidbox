@@ -148,7 +148,12 @@ export function contactLinkedPhotoIds(contactIds: string[]): SQL {
 
 /** The ids of the albums holding a live photo a contact (or any of several) is on, through live edges. */
 export function contactAlbumIds(contactIds: string | string[]): SQL {
-  return sql`(select album_id from album_assets where deleted_at is null and asset_id in ${contactPhotoIds(contactIds)})`;
+  return sql`(select album_id from album_assets where ${contactAlbumEdges(contactIds)})`;
+}
+
+/** The live `album_assets` edges to a live photo a contact (or any of several) is on, as a WHERE over that table. */
+export function contactAlbumEdges(contactIds: string | string[]): SQL {
+  return sql`deleted_at is null and asset_id in ${contactPhotoIds(contactIds)}`;
 }
 
 // The live links `l` of these contacts to photos.

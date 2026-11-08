@@ -107,7 +107,7 @@ describe('assetQuery', () => {
       {},
       {},
     ]);
-    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller' }));
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller', xHandle: 'annashoots' }));
     await contacts.create(db, makeContactRecord({ id: 'gone', name: 'Anna Gone', deletedAt: 5 }));
     await tagContact('anna', 'asset-7');
     await tagContact('gone', 'asset-8');
@@ -124,6 +124,7 @@ describe('assetQuery', () => {
     expect(await search('[').ids(db)).toEqual([]); // tags are matched as words, not as their JSON
     expect(await search('mueller').ids(db)).toEqual(['asset-7']);
     expect(await search('anna').ids(db)).toEqual(['asset-7']);
+    expect(await search('annashoots').ids(db)).toEqual(['asset-7']); // as the Contacts tab finds her
 
     const work = await measure(() => search('n').read(db, { limit: 10 }));
     expect(work.plans.filter((line) => line.includes('assets_search_idx'))).toHaveLength(1); // once per read
