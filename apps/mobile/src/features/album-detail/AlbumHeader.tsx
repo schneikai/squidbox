@@ -6,7 +6,7 @@ import Chip from '@/components/Chip';
 import Text from '@/components/Text';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import useTargetContacts from '@/features/contact-links/useTargetContacts';
+import useContactRows from '@/features/contact-list/useContactRows';
 import postQuery from '@/features/post-list/postQuery';
 import { colors, press, space, textStyles } from '@/styles/designTokens';
 import type { AlbumRow } from '@/sync/db/schema';
@@ -25,13 +25,13 @@ type AlbumHeaderProps = {
 /**
  * The top of an album, over its grid: its name, how many assets and when it was last posted, the
  * Archived badge and its notes, then, on one line, a chip with the faces of the contacts on its
- * photos or on the album (useTargetContacts), which opens the album's Contacts sheet (AddContactsScreen), and one
+ * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
  * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
 export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const isSmart = isSmartAlbum(album);
   // A smart album has no contacts of its own: read once, not kept live.
-  const people = useTargetContacts('album', album.id, { isLive: !isSmart })?.contacts;
+  const people = useContactRows({ scope: { photosOf: { albumId: album.id } } }, { isLive: !isSmart });
   const posts = usePagedQuery(postQuery({ scope: { albumId: album.id }, sort: 'postedAt:desc' }), 1);
 
   // Contacts are added from the ⋯ menu (Add contacts to photos), so none shows no chip.
@@ -45,7 +45,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   ].join(' · ');
 
   function openContacts() {
-    router.navigate({ pathname: '/add-contacts', params: { photosOfAlbumId: album.id } });
+    router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
   }
 
   return (

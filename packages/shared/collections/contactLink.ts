@@ -3,9 +3,11 @@ import { baseRecordSchema, defineCollection } from './define';
 
 export const CONTACT_LINK_TARGETS = ['asset', 'album', 'post'] as const;
 
-// `contact_links` — an edge collection: a contact on a photo, album or post (its Contacts section).
-// One collection for the three targets, read by (targetType, targetId) and by contactId. Removal is
+// `contact_links` — an edge collection: a contact on a photo (its Contacts section); an album or
+// post lists the contacts on its photos. Read by (targetType, targetId) and by contactId. Removal is
 // a tombstone; adding again restores it. A link to a deleted item stays and is hidden with it.
+// `album` and `post` are what older builds wrote: the app moves them onto the photos and tombstones
+// them (moveGroupLinksToPhotos), and they stay valid so those builds still sync.
 export const contactLinkCollection = defineCollection({
   name: 'contact_links',
   schema: baseRecordSchema.extend({

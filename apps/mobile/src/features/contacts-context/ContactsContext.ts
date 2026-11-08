@@ -1,8 +1,7 @@
-import type { ContactLinkRecord, ContactListRecord, ContactPlace, ContactRecord } from '@squidbox/shared';
+import type { ContactListRecord, ContactPlace, ContactRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
-// The contacts on one photo, album or post (contact_links' parent).
-export type ContactTarget = Pick<ContactLinkRecord, 'targetType' | 'targetId'>;
+import type { PhotosOf } from '@/sync/assetSql';
 
 // The children that join a parent and those that leave it (membershipRepository's `change`).
 export type MembershipChange = { added: string[]; removed: string[] };
@@ -26,13 +25,9 @@ export type ContactsContextValue = {
   pinList: (id: string | null) => Promise<void>;
   addToLists: (contactIds: string[], listIds: string[]) => Promise<void>;
   changeListContacts: (listId: string, change: MembershipChange) => Promise<void>;
-  changeTargetContacts: (target: ContactTarget, change: MembershipChange) => Promise<void>;
+  changePhotoContacts: (assetId: string, change: MembershipChange) => Promise<void>;
   addContactsToPhotos: (assetIds: string[], contactIds: string[]) => Promise<void>;
-  changeAlbumPhotosContacts: (albumId: string, change: MembershipChange) => Promise<void>;
-  removeContactsFromPhotosOf: (
-    target: { targetType: 'album' | 'post'; targetId: string },
-    contactIds: string[],
-  ) => Promise<void>;
+  changeContactsOnPhotosOf: (of: PhotosOf, change: MembershipChange) => Promise<void>;
 };
 
 const ContactsContext = createContext<ContactsContextValue | null>(null);

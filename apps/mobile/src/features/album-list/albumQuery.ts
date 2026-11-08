@@ -10,7 +10,6 @@ import {
   type AssetScope,
   type AssetSort,
   contactPhotoIds,
-  contactTargetIds,
   fromScope,
   isIdScope,
 } from '@/sync/assetSql';
@@ -85,9 +84,8 @@ export default function albumQuery({ scope = 'all', oldestFirstIds = [] }: Album
   const inScope = (() => {
     if (scope === 'all') return undefined;
     if (isIdScope(scope, 'contactId')) {
-      // The albums it is on, and those holding a photo it is on.
-      const { contactId } = scope;
-      return sql`(al.id in ${contactTargetIds(contactId, 'album')} or al.id in (select album_id from album_assets where deleted_at is null and asset_id in ${contactPhotoIds(contactId)}))`;
+      // The albums holding a photo it is on.
+      return sql`al.id in (select album_id from album_assets where deleted_at is null and asset_id in ${contactPhotoIds(scope.contactId)})`;
     }
     return albumHoldsAny(sql.raw('al.id'), scope.assetIds);
   })();

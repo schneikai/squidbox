@@ -1,4 +1,3 @@
-import { CONTACT_LINK_TARGETS, type ContactLinkRecord } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { SectionList, type SectionListRenderItemInfo, StyleSheet, View } from 'react-native';
@@ -13,47 +12,45 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import { SCREEN_PADDING } from '@/constants';
 import confirmRemoveFromPhotos from '@/features/contact-links/confirmRemoveFromPhotos';
+import { contactsOfName } from '@/features/contact-links/contactsOf';
 import ContactRow from '@/features/contact-list/ContactRow';
 import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSearchText from '@/features/contact-list/contactSearchText';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useContactSort from '@/features/contact-list/useContactSort';
+import type { MembershipChange } from '@/features/contacts-context/ContactsContext';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useListControls from '@/hooks/useListControls';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { layout } from '@/styles/designTokens';
+import type { PhotosOf } from '@/sync/assetSql';
 import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
 
 type ContactSectionData = { title: string; data: ContactSummary[] };
 
-const isTargetType = (type: string | undefined): type is ContactLinkRecord['targetType'] =>
-  CONTACT_LINK_TARGETS.some((target) => target === type);
-
 /**
- * The contacts of a photo, album or post (`?targetType=&targetId=`) or of a list (`?listId=`), to
- * pick: the ones it has now (picked), the ones on what it is part of or holds, then everyone else,
- * with search and the Contacts tab's sort (useContactSort) in the floating bar at the bottom left. Save adds the ones picked
- * here and removes the ones unpicked here. For every photo of an album (`?photosOfAlbumId=`) it is
- * the album's Contacts: the ones on all its photos start ticked, those on some with a dash; Save
- * puts the ticked ones on every photo and, once confirmed, takes the emptied ones off all of them.
+ * The contacts of a photo (`?assetId=`) or of a list (`?listId=`), to pick: the ones it has now
+ * (picked), the ones on the photos of the albums it is in, then everyone else, with search and the
+ * Contacts tab's sort (useContactSort) in the floating bar at the bottom left. Save adds the ones
+ * picked here and removes the ones unpicked here. For an album's or post's photos (`?albumId=`,
+ * `?postId=`) it is its Contacts: the ones on all its photos start ticked, those on some with a
+ * dash; Save puts the ticked ones on every photo and, once confirmed, takes the emptied ones off all
+ * of them.
  */
 export default function AddContactsScreen() {
-  const params = useLocalSearchParams<{
-    listId?: string;
-    targetType?: string;
-    targetId?: string;
-    photosOfAlbumId?: string;
-  }>();
+  const params = useLocalSearchParams<{ listId?: string; assetId?: string; albumId?: string; postId?: string }>();
   const target: AddContactsTarget | null = params.listId
     ? { listId: params.listId }
-    : params.photosOfAlbumId
-      ? { photosOfAlbumId: params.photosOfAlbumId }
-      : isTargetType(params.targetType) && params.targetId
-        ? { targetType: params.targetType, targetId: params.targetId }
-        : null;
+    : params.assetId
+      ? { assetId: params.assetId }
+      : params.albumId
+        ? { albumId: params.albumId }
+        : params.postId
+          ? { postId: params.postId }
+          : null;
   // A link to a target this app doesn't know closes the sheet, as a deleted one does.
   const seed = useSeedOrClose(
     async (db) => (target ? readAddContactsSeed(db, target) : null),
@@ -68,7 +65,7 @@ type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const { bottom } = useSafeAreaInsets();
-  const { changeTargetContacts, changeListContacts, changeAlbumPhotosContacts } = useContacts();
+  const { changePhotoContacts, changeListContacts, changeContactsOnPhotosOf } = useContacts();
   // The ones on only some of an album's photos start with a dash (`mixed`), the rest of `linked` ticked.
   const partial = useMemo(() => new Set(seed.partial), [seed.partial]);
   const initialIds = useMemo(() => seed.linked.filter((id) => !partial.has(id)), [seed.linked, partial]);
@@ -115,18 +112,19 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
       added: selectedIds.filter((id) => !linked.has(id)),
       removed: seed.linked.filter((id) => !selected.has(id) && !mixed.has(id)),
     };
-    if ('photosOfAlbumId' in target) return saveToAlbumPhotos(target.photosOfAlbumId, change);
-    return 'listId' in target ? changeListContacts(target.listId, change) : changeTargetContacts(target, change);
+    if ('listId' in target) return changeListContacts(target.listId, change);
+    if ('assetId' in target) return changePhotoContacts(target.assetId, change);
+    return saveToPhotosOf(target, change);
   }
 
-  async function saveToAlbumPhotos(albumId: string, change: { added: string[]; removed: string[] }) {
+  async function saveToPhotosOf(of: PhotosOf, change: MembershipChange) {
     if (change.removed.length) {
       const byId = new Map(allContacts?.map((contact) => [contact.id, contact.name]));
       const names = change.removed.map((id) => byId.get(id) ?? 'A contact');
       // An empty refusal keeps the sheet open as it is.
-      if (!(await confirmRemoveFromPhotos(names, 'album'))) return { refused: '' };
+      if (!(await confirmRemoveFromPhotos(names, contactsOfName(of)))) return { refused: '' };
     }
-    await changeAlbumPhotosContacts(albumId, change);
+    await changeContactsOnPhotosOf(of, change);
     return undefined;
   }
 
@@ -163,11 +161,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
 
   return (
     <ModalSheet>
-      <EditSheetHeader
-        {...sheetProps}
-        title={'photosOfAlbumId' in target ? 'Contacts' : 'Add contacts'}
-        subtitle={seed.title || undefined}
-      />
+      <EditSheetHeader {...sheetProps} title="Add contacts" subtitle={seed.subtitle} />
       <SectionList
         ref={attachList}
         sections={sections}

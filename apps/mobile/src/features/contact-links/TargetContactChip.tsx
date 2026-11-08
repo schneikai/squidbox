@@ -1,6 +1,5 @@
-import type { ContactLinkRecord } from '@squidbox/shared';
-
 import confirmRemoveFromPhotos from './confirmRemoveFromPhotos';
+import { contactsOfName, type ContactsOf } from './contactsOf';
 
 import Chip from '@/components/Chip';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
@@ -8,47 +7,33 @@ import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import useContacts from '@/features/contacts-context/useContacts';
 import confirmAsync from '@/utils/confirmAsync';
 
-const TARGET_NAMES: Record<ContactLinkRecord['targetType'], string> = {
-  asset: 'photo',
-  album: 'album',
-  post: 'post',
-};
-
 type TargetContactChipProps = {
   contact: ContactSummary;
-  targetType: ContactLinkRecord['targetType'];
-  targetId: string;
+  of: ContactsOf;
   onOpen: () => void;
-  isOnPhotos?: boolean;
 };
 
 /**
- * A contact on a photo, album or post: a tap opens the contact (`onOpen`), its × takes it off, as a
- * list's × does on the contact screen, once confirmed. `isOnPhotos`: it is on some of an album's or
- * post's photos, so the × takes it off all of them and off the album or post.
+ * A contact on a photo, or on an album's or post's photos (`of`): a tap opens the contact
+ * (`onOpen`), its × takes it off the photo, or off every photo of the album or post, once confirmed.
  */
-export default function TargetContactChip({
-  contact,
-  targetType,
-  targetId,
-  onOpen,
-  isOnPhotos = false,
-}: TargetContactChipProps) {
-  const { changeTargetContacts, removeContactsFromPhotosOf } = useContacts();
+export default function TargetContactChip({ contact, of, onOpen }: TargetContactChipProps) {
+  const { changePhotoContacts, changeContactsOnPhotosOf } = useContacts();
+  const name = contactsOfName(of);
 
   async function handleRemove() {
-    const isFromPhotos = isOnPhotos && targetType !== 'asset';
-    const isConfirmed = isFromPhotos
-      ? await confirmRemoveFromPhotos([contact.name], TARGET_NAMES[targetType])
-      : await confirmAsync({
-          title: `Remove ${contact.name}?`,
-          message: `${contact.name} comes off this ${TARGET_NAMES[targetType]}.`,
-          action: 'Remove',
-          destructive: true,
-        });
-    if (!isConfirmed) return;
-    if (isFromPhotos) await removeContactsFromPhotosOf({ targetType, targetId }, [contact.id]);
-    else await changeTargetContacts({ targetType, targetId }, { added: [], removed: [contact.id] });
+    const change = { added: [], removed: [contact.id] };
+    if ('assetId' in of) {
+      const isConfirmed = await confirmAsync({
+        title: `Remove ${contact.name}?`,
+        message: `${contact.name} comes off this photo.`,
+        action: 'Remove',
+        destructive: true,
+      });
+      if (isConfirmed) await changePhotoContacts(of.assetId, change);
+    } else if (await confirmRemoveFromPhotos([contact.name], name)) {
+      await changeContactsOnPhotosOf(of, change);
+    }
   }
 
   return (
@@ -57,7 +42,7 @@ export default function TargetContactChip({
       leading={<ContactAvatar contact={contact} size="chip" />}
       onPress={onOpen}
       onRemove={handleRemove}
-      removeLabel={`Remove ${contact.name} from this ${TARGET_NAMES[targetType]}`}
+      removeLabel={`Remove ${contact.name} from this ${name}`}
     />
   );
 }

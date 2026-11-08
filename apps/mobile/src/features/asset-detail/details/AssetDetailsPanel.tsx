@@ -96,13 +96,7 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }: A
 
       <PhotoTagsSection asset={asset} guardPress={guardPress} />
 
-      <TargetContactsSection
-        targetType="asset"
-        targetId={asset.id}
-        guardPress={guardPress}
-        isLive={isCurrent}
-        isFlush
-      />
+      <TargetContactsSection of={{ assetId: asset.id }} guardPress={guardPress} isLive={isCurrent} isFlush />
 
       <ScreenSectionHeader title="Albums" isFlush />
       <AssetAlbums

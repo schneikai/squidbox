@@ -38,7 +38,7 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
   }
 
   function handleAddContactsToPhotos() {
-    router.navigate({ pathname: '/add-contacts', params: { photosOfAlbumId: album.id } });
+    router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
   }
 
   async function handleArchiveAlbum() {

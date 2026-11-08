@@ -5,24 +5,23 @@ import {
   type ContactListRecord,
   type ContactRecord,
 } from '@squidbox/shared';
-import { sql } from 'drizzle-orm';
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useEffect, useMemo } from 'react';
 
 import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 
-import assetQuery from '@/features/asset-list/assetQuery';
 import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
 import { placesChanged } from '@/features/contact-detail/contactFields';
 import { builtInContactList } from '@/features/contact-list/builtInContactLists';
 import useOpenLibrary from '@/library/useOpenLibrary';
-import { postThreadAssetIds } from '@/sync/assetSql';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
+import { addToPhotos, moveGroupLinksToPhotos, readPhotoIdsOf, removeFromPhotos } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
+import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 import { deleteAvatar } from '@/utils/assets/assetStorage';
 import getNewItemId from '@/utils/getNewItemId';
@@ -42,11 +41,21 @@ const LIST_DEFAULTS: Partial<ContactListRecord> = { notes: null };
 type ContactsProviderProps = { children: ReactNode };
 
 // The contact and contact list writes. Membership lives in the contact_list_members edge collection
-// and the contacts on a photo, album or post in contact_links (membershipRepository); a user action
+// and the contacts on a photo in contact_links (membershipRepository, photoContacts); a user action
 // that writes a record and its edges commits once. Screens read through their own live queries
 // (contactQuery, contactListQuery).
 export default function ContactsProvider({ children }: ContactsProviderProps) {
   const { paths: library, userId } = useOpenLibrary();
+  const isFirstSyncDone = useFirstSyncDone();
+
+  // Contacts an older build put on an album or post move onto its photos: on opening the library,
+  // and again once its first pull has brought another device's.
+  useEffect(() => {
+    moveGroupLinksToPhotos(getDb(), getNewItemId).then(
+      (isMoved) => isMoved && requestSync(),
+      (error) => console.error('Moving contacts onto photos failed', error),
+    );
+  }, [library, isFirstSyncDone]);
   const value = useMemo<ContactsContextValue>(() => {
     const db = getDb();
     async function written<T>(write: (tx: SyncDb) => Promise<T>): Promise<T> {
@@ -156,50 +165,25 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       // stay as they are, so another device's change meanwhile is kept.
       changeListContacts: (listId, change) =>
         written((tx) => contactListMembers.change(tx, { listId }, change, getNewItemId)),
-      // `{ added, removed }`: the contacts put on the photo, album or post and those taken off it;
-      // the others stay as they are. The only way a link is removed.
-      changeTargetContacts: ({ targetType, targetId }, change) =>
-        written((tx) => contactLinks.change(tx, { targetType, targetId }, change, getNewItemId)),
+      // `{ added, removed }`: the contacts put on the photo and those taken off it; the others stay
+      // as they are. The only way a link is removed.
+      changePhotoContacts: (assetId, change) =>
+        written((tx) => contactLinks.change(tx, { targetType: 'asset', targetId: assetId }, change, getNewItemId)),
       // Puts the contacts on every one of the photos; those already on one stay as they are.
-      addContactsToPhotos: (assetIds, contactIds) => written((tx) => addToPhotos(tx, assetIds, contactIds)),
-      // Puts the added contacts on every photo the album shows, as it holds them when this writes, and
-      // takes the removed ones off them all (removeFromPhotosOf), in one write.
-      changeAlbumPhotosContacts: (albumId, { added, removed }) =>
+      addContactsToPhotos: (assetIds, contactIds) =>
+        written((tx) => addToPhotos(tx, assetIds, contactIds, getNewItemId)),
+      // Puts the added contacts on every photo of the album or post, as it holds them when this
+      // writes, and takes the removed ones off them all, in one write.
+      changeContactsOnPhotosOf: (of, { added, removed }) =>
         written(async (tx) => {
-          if (removed.length) await removeFromPhotosOf(tx, { targetType: 'album', targetId: albumId }, removed);
-          if (added.length) await addToPhotos(tx, await assetQuery({ scope: { albumId } }).ids(tx), added);
+          const photoIds = await readPhotoIdsOf(tx, of);
+          await removeFromPhotos(tx, photoIds, removed);
+          await addToPhotos(tx, photoIds, added, getNewItemId);
         }),
-      removeContactsFromPhotosOf: (target, contactIds) => written((tx) => removeFromPhotosOf(tx, target, contactIds)),
     };
   }, [library, userId]);
 
   return <ContactsContext.Provider value={value}>{children}</ContactsContext.Provider>;
-}
-
-// The photos of a post and of its thread's posts, through live edges.
-async function postPhotoIds(tx: SyncDb, postId: string): Promise<string[]> {
-  const rows = await tx.all<{ asset_id: string }>(sql`select distinct asset_id from ${postThreadAssetIds(postId)}`);
-  return rows.map((row) => row.asset_id);
-}
-
-// Takes the contacts off every photo of the album or post (a thread's posts too), and off the album
-// or post itself (a link from before only photos were tagged).
-async function removeFromPhotosOf(
-  tx: SyncDb,
-  target: { targetType: 'album' | 'post'; targetId: string },
-  contactIds: string[],
-): Promise<void> {
-  const photoIds =
-    target.targetType === 'album'
-      ? await assetQuery({ scope: { albumId: target.targetId } }).ids(tx)
-      : await postPhotoIds(tx, target.targetId);
-  const photos = photoIds.map((targetId) => ({ targetType: 'asset', targetId }));
-  await contactLinks.removeFromEach(tx, [...photos, target], contactIds);
-}
-
-function addToPhotos(tx: SyncDb, assetIds: string[], contactIds: string[]): Promise<void> {
-  const photos = assetIds.map((targetId) => ({ targetType: 'asset', targetId }));
-  return contactLinks.addToEach(tx, photos, contactIds, getNewItemId);
 }
 
 // A contact's photo's name, new for every photo: `avatar-<contactId>-<new id>.jpg`.

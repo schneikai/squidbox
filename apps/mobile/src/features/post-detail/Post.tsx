@@ -50,7 +50,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 
       <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
 
-      <TargetContactsSection targetType="post" targetId={post.id} isFlush />
+      <TargetContactsSection of={{ postId: post.id }} isFlush />
 
       <ScreenSectionHeader title="Posted Albums" isFlush />
       <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />

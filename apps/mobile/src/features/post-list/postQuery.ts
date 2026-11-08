@@ -4,7 +4,7 @@ import { alias, type SQLiteTable } from 'drizzle-orm/sqlite-core';
 import threadCount from './threadCount';
 import withPostAssets from './withPostAssets';
 
-import { contactPhotoIds, contactTargetIds, isIdScope, liveAlbumAssetIds, postAlbumAssetIds } from '@/sync/assetSql';
+import { contactPhotoIds, isIdScope, liveAlbumAssetIds, postAlbumAssetIds } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { AssetRow, PostRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
@@ -77,9 +77,8 @@ export default function postQuery({
     if (scope === 'ignored') return eq(p.isIgnoredForRepost, true);
     if (isIdScope(scope, 'postId')) return eq(p.id, scope.postId);
     if (isIdScope(scope, 'contactId')) {
-      // The posts it is on, and those holding a photo it is on.
-      const { contactId } = scope;
-      return sql`(${p.id} in ${contactTargetIds(contactId, 'post')} or ${p.id} in ${postsHoldingAssets(sql`asset_id in ${contactPhotoIds(contactId)}`)})`;
+      // The posts holding a photo it is on.
+      return sql`${p.id} in ${postsHoldingAssets(sql`asset_id in ${contactPhotoIds(scope.contactId)}`)}`;
     }
     if (isIdScope(scope, 'assetId')) return sql`${p.id} in ${postsHoldingAssets(sql`asset_id = ${scope.assetId}`)}`;
     if (isIdScope(scope, 'albumId')) {

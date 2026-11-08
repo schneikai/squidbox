@@ -1,11 +1,10 @@
-import type { ContactLinkRecord } from '@squidbox/shared';
 import { and, asc, count, desc, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import contactSearchText, { SEARCHED_FIELDS } from './contactSearchText';
 import type { ContactSort } from './contactSortOptions';
 
-import { liveAlbumAssetIds, postThreadAssetIds } from '@/sync/assetSql';
+import { livePhotoIdsOf, type PhotosOf } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
@@ -42,19 +41,13 @@ const LIST_NAMES = sql<
 >`(select json_group_array(name) from (select l.name as name from contact_list_members m join contact_lists l on l.id = m.list_id and l.deleted_at is null where m.contact_id = contacts.id and m.deleted_at is null group by l.id order by l.name collate nocase, l.id))`;
 
 /**
- * A list's members, or the contacts on a photo, album or post (several of one type with a list of
- * ids). `photosOf`: the contacts on the live, untrashed photos of an album or a post (a thread's
- * posts too), which is how an album or post lists who is in it. `tagged`: the contacts on any photo,
- * album or post; `deleted`: the deleted contacts.
+ * A list's members, or the contacts on any of these photos (`photoIds`). `photosOf`: the contacts on
+ * the live, untrashed photos of an album or a post (a thread's posts too), which is who is in it:
+ * contacts go on photos only. `tagged`: the contacts on any untrashed photo; `deleted`: the deleted
+ * contacts.
  */
 export type ContactScope =
-  | 'all'
-  | 'favorites'
-  | 'tagged'
-  | 'deleted'
-  | { listId: string }
-  | { targetType: ContactLinkRecord['targetType']; targetId: string | string[] }
-  | { photosOf: 'album' | 'post'; id: string };
+  'all' | 'favorites' | 'tagged' | 'deleted' | { listId: string } | { photoIds: string[] } | { photosOf: PhotosOf };
 
 export type ContactDescriptor = {
   scope?: ContactScope;
@@ -84,37 +77,34 @@ export default function contactQuery({
 }: ContactDescriptor) {
   const searchText = search.trim().toLowerCase();
   const listId = typeof scope === 'object' && 'listId' in scope ? scope.listId : null;
-  const target = typeof scope === 'object' && 'targetType' in scope ? scope : null;
-  const photosOf = typeof scope === 'object' && 'photosOf' in scope ? scope : null;
+  const photoIds = typeof scope === 'object' && 'photoIds' in scope ? scope.photoIds : null;
+  const photosOf = typeof scope === 'object' && 'photosOf' in scope ? scope.photosOf : null;
   const tables: SQLiteTable[] = [schema.contacts];
   if (listId) tables.push(schema.contactListMembers);
-  if (target) tables.push(schema.contactLinks);
+  if (photoIds) tables.push(schema.contactLinks);
   if (photosOf) {
     tables.push(schema.contactLinks, schema.assets);
-    tables.push(...(photosOf.photosOf === 'album' ? [schema.albumAssets] : [schema.postAssets, schema.posts]));
+    tables.push(...('albumId' in photosOf ? [schema.albumAssets] : [schema.postAssets, schema.posts]));
   }
-  if (scope === 'tagged') tables.push(schema.contactLinks, schema.assets, schema.albums, schema.posts);
+  if (scope === 'tagged') tables.push(schema.contactLinks, schema.assets);
   if (withLists) tables.push(schema.contactLists, ...(listId ? [] : [schema.contactListMembers]));
 
   const scopeCondition = ((): SQL | undefined => {
     if (scope === 'favorites') return eq(c.isFavorite, true);
-    // On something still there: deleting a photo, album or post leaves its links be.
+    // On a photo still there: trashing a photo leaves its links be.
     if (scope === 'tagged')
-      return sql`${c.id} in (select l.contact_id from contact_links l where l.deleted_at is null and exists (
-        select 1 from assets a where l.target_type = 'asset' and a.id = l.target_id and a.deleted_at is null
-        union all select 1 from albums b where l.target_type = 'album' and b.id = l.target_id and b.deleted_at is null
-        union all select 1 from posts p where l.target_type = 'post' and p.id = l.target_id and p.deleted_at is null))`;
+      return sql`${c.id} in (select l.contact_id from contact_links l
+        join assets a on a.id = l.target_id and a.deleted_at is null
+        where l.target_type = 'asset' and l.deleted_at is null)`;
     if (listId) {
       return sql`${c.id} in (select contact_id from contact_list_members where list_id = ${listId} and deleted_at is null)`;
     }
-    if (target) {
-      const ids = Array.isArray(target.targetId) ? target.targetId : [target.targetId];
-      return sql`${c.id} in (select contact_id from contact_links where target_type = ${target.targetType} and deleted_at is null and ${inJson(sql.raw('target_id'), ids)})`;
+    if (photoIds) {
+      return sql`${c.id} in (select contact_id from contact_links where target_type = 'asset' and deleted_at is null and ${inJson(sql.raw('target_id'), photoIds)})`;
     }
     if (photosOf) {
-      const photoIds = photosOf.photosOf === 'album' ? liveAlbumAssetIds(photosOf.id) : postThreadAssetIds(photosOf.id);
-      return sql`${c.id} in (select l.contact_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
-        where l.target_type = 'asset' and l.deleted_at is null and l.target_id in ${photoIds})`;
+      return sql`${c.id} in (select contact_id from contact_links where target_type = 'asset' and deleted_at is null
+        and target_id in ${livePhotoIdsOf(photosOf)})`;
     }
     return undefined;
   })();

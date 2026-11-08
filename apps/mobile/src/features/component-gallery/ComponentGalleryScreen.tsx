@@ -44,13 +44,13 @@ import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
-type GalleryTab = 'library' | 'albums' | 'posts' | 'contacts';
+type GalleryTab = 'library' | 'albums' | 'contacts' | 'posts';
 
 const TAB_ITEMS: SegmentedPillItem<GalleryTab>[] = [
   { key: 'library', icon: 'image', label: 'Library' },
   { key: 'albums', icon: 'images', label: 'Albums' },
-  { key: 'posts', icon: 'send', label: 'Posts' },
   { key: 'contacts', icon: 'contacts', label: 'Contacts' },
+  { key: 'posts', icon: 'send', label: 'Posts' },
 ];
 
 // The categories, in the order of the chips.
