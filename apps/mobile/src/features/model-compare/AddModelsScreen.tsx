@@ -1,5 +1,5 @@
 import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
 
@@ -15,7 +15,7 @@ import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
 import { space } from '@/styles/designTokens';
@@ -27,9 +27,15 @@ import modelsOfKind from '@/utils/ai/modelsOfKind';
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
 // your list. Removing is on the model's page; a removed model shows its score and note here.
 export default function AddModelsScreen() {
+  const kind = useModelKindParam();
+  if (kind === null) return null;
+  return <AddModels kind={kind} />;
+}
+
+type AddModelsProps = { kind: AiModelKind };
+
+function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
-  const { kind } = useLocalSearchParams<{ kind: AiModelKind }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const [searchText, setSearchText] = useState('');
   const padding = useScreenPadding('sheet');
   const haptics = useHaptics();
@@ -69,8 +75,6 @@ export default function AddModelsScreen() {
     if (!catalog) return <CatalogStatus error={error} retry={retry} />;
     return <EmptyState icon="search" title="No models match" />;
   }
-
-  if (!isAvailable) return null;
 
   return (
     <ModalSheet>

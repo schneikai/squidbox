@@ -16,7 +16,7 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAiCatalog from '@/hooks/useAiCatalog';
 import useHaptics from '@/hooks/useHaptics';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 /**
@@ -26,9 +26,16 @@ import findCatalogModel from '@/utils/ai/findCatalogModel';
  * haptic marks the run finishing while the page is open.
  */
 export default function VerifyScreen() {
+  const kind = useModelKindParam();
+  if (kind === null) return null;
+  return <VerifyPage kind={kind} />;
+}
+
+type VerifyPageProps = { kind: AiModelKind };
+
+function VerifyPage({ kind }: VerifyPageProps) {
   const navigation = useNavigation();
-  const { kind, modelId, name } = useLocalSearchParams<{ kind: AiModelKind; modelId: string; name: string }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
+  const { modelId, name } = useLocalSearchParams<{ modelId: string; name: string }>();
   const haptics = useHaptics();
   const { models } = useAiCatalog();
   const { run, plan, error, retry, show } = useVerifyRun(kind, modelId);
@@ -77,8 +84,6 @@ export default function VerifyScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>

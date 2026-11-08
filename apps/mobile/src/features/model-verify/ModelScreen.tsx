@@ -15,7 +15,7 @@ import Page from '@/components/Page';
 import ScoreDetail from '@/components/ScoreDetail';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useYourModels from '@/hooks/useYourModels';
 import { layout } from '@/styles/designTokens';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
@@ -31,9 +31,16 @@ import confirmAsync from '@/utils/confirmAsync';
  * remove it.
  */
 export default function ModelScreen() {
-  const { kind, modelId, name } = useLocalSearchParams<{ kind: AiModelKind; modelId: string; name: string }>();
+  const kind = useModelKindParam();
+  if (kind === null) return null;
+  return <ModelPage kind={kind} />;
+}
+
+type ModelPageProps = { kind: AiModelKind };
+
+function ModelPage({ kind }: ModelPageProps) {
+  const { modelId, name } = useLocalSearchParams<{ modelId: string; name: string }>();
   const navigation = useNavigation();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const yourModels = useYourModels(kind);
   const { error, retry, rows } = yourModels;
 
@@ -81,8 +88,6 @@ export default function ModelScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>

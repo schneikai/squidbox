@@ -9,7 +9,7 @@ import CatalogStatus from '@/components/CatalogStatus';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useInstructions from '@/hooks/useInstructions';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useRequiredSheetRoute from '@/hooks/useRequiredSheetRoute';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
@@ -26,15 +26,22 @@ const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. B
 // catalog: a spinner or Try again until they're in) and for vision the photo set the pick step saved,
 // read once with the ticked models' names.
 export default function CompareRoundScreen() {
-  const { kind, modelIds } = useLocalSearchParams<{ kind: AiModelKind; modelIds: string }>();
+  const kind = useModelKindParam();
+  if (kind === null) return null;
+  return <CompareRoundSheet kind={kind} />;
+}
+
+type CompareRoundSheetProps = { kind: AiModelKind };
+
+function CompareRoundSheet({ kind }: CompareRoundSheetProps) {
+  const { modelIds } = useLocalSearchParams<{ modelIds: string }>();
   const sheet = useRequiredSheetRoute();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { texts, error, retry } = useInstructions();
   const seed = useSeedOrClose((db) => readSeed(db, kind, listParam(modelIds)), `${kind}:${modelIds}`);
 
   const defaultPrompt = kind === 'vision' ? texts?.visionTagging : WRITING_PROMPT;
 
-  if (!isAvailable || !seed) return null;
+  if (!seed) return null;
   if (!defaultPrompt) {
     return (
       <ModalSheet>

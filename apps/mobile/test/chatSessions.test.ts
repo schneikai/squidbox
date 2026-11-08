@@ -1,7 +1,12 @@
 import type { ChatContext, ChatRequest, ChatResponse } from '@squidbox/shared';
 import { describe, expect, it, vi } from 'vitest';
 
-import chatSessions from '../src/features/post-chat/chatSessions';
+import { flushTurns } from './helpers/flushTurns';
+import chatSessions, {
+  type ChatSession,
+  type ContextReader,
+  type UserTurn,
+} from '../src/features/post-chat/chatSessions';
 import type chatAsync from '../src/utils/cloud-api/ai/chatAsync';
 
 // The card's tag edits stay in the chat: nothing writes a photo's tags.
@@ -9,6 +14,7 @@ const setTags = vi.hoisted(() => vi.fn());
 vi.mock('../src/sync/assetsRepository', () => ({ setTags }));
 
 const context: ChatContext = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
+const readContext: ContextReader = async () => context;
 const REPLY: ChatResponse = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
 
 // A request whose answers the test settles by hand, in order.
@@ -25,6 +31,14 @@ function deferredRequest() {
   return { request, calls };
 }
 
+// Sends the turn and lets its context be read, so the request is under way. → `{ sending }`, the
+// reply's promise, wrapped so that awaiting this doesn't wait for the reply.
+async function sendNow(session: ChatSession, turn: UserTurn, request: typeof chatAsync) {
+  const sending = session.send(turn, readContext, request);
+  await flushTurns();
+  return { sending };
+}
+
 function open() {
   const id = chatSessions.open({ kind: 'draft' });
   return { id, session: chatSessions.get(id)! };
@@ -34,7 +48,7 @@ describe('chatSessions', () => {
   it('appends the user turn and a loading reply, then lands the reply and its options', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    const sending = session.send({ label: 'Caption', content: 'Write a caption' }, context, request);
+    const { sending } = await sendNow(session, { label: 'Caption', content: 'Write a caption' }, request);
     const { messages, isSending } = session.getState();
     expect(isSending).toBe(true);
     expect(messages).toMatchObject([
@@ -52,10 +66,105 @@ describe('chatSessions', () => {
     expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...REPLY });
   });
 
+  it("puts the user's turn and a loading reply in the chat before the context is read, and sends once it is", async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let read: (value: ChatContext) => void = () => {};
+    const sending = session.send(
+      { content: 'Write a caption' },
+      () => new Promise((resolve) => (read = resolve)),
+      request,
+    );
+    expect(session.getState()).toMatchObject({
+      isSending: true,
+      messages: [
+        { role: 'user', content: 'Write a caption' },
+        { role: 'assistant', status: 'loading' },
+      ],
+    });
+    expect(request).not.toHaveBeenCalled();
+    read(context);
+    await flushTurns();
+    expect(calls[0]!.body.context).toBe(context);
+    calls[0]!.resolve(REPLY);
+    await sending;
+  });
+
+  it('aborts the context read on New chat, and sends nothing for it', async () => {
+    const { session } = open();
+    const { request } = deferredRequest();
+    let read: (value: ChatContext) => void = () => {};
+    let readSignal: AbortSignal | undefined;
+    const sending = session.send(
+      { content: 'First' },
+      (signal) => {
+        readSignal = signal;
+        return new Promise((resolve) => (read = resolve));
+      },
+      request,
+    );
+    session.reset();
+    expect(readSignal?.aborted).toBe(true);
+    read(context);
+    await sending;
+    expect(request).not.toHaveBeenCalled();
+    expect(session.getState().messages).toEqual([]);
+  });
+
+  it("is waiting while the context waits for the photos' tags, and not once it is read", async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let read: (value: ChatContext) => void = () => {};
+    const sending = session.send(
+      { content: 'First' },
+      (_signal, onWait) => {
+        onWait();
+        return new Promise((resolve) => (read = resolve));
+      },
+      request,
+    );
+    expect(session.getState().isWaiting).toBe(true);
+    read(context);
+    await flushTurns();
+    expect(session.getState().isWaiting).toBe(false);
+    calls[0]!.resolve(REPLY);
+    await sending;
+  });
+
+  it('stops waiting at once on New chat, and the dropped read leaves the next one waiting', async () => {
+    const { session } = open();
+    const { request } = deferredRequest();
+    const reads: ((value: ChatContext) => void)[] = [];
+    const waitingReader: ContextReader = (_signal, onWait) => {
+      onWait();
+      return new Promise((resolve) => reads.push(resolve));
+    };
+    session.send({ content: 'First' }, waitingReader, request);
+    session.reset();
+    expect(session.getState().isWaiting).toBe(false);
+    session.send({ content: 'Again' }, waitingReader, request);
+    reads[0]!(context);
+    await flushTurns();
+    expect(session.getState().isWaiting).toBe(true);
+  });
+
+  it("fails the reply with the error when the context can't be read", async () => {
+    const { session } = open();
+    const { request } = deferredRequest();
+    await session.send({ content: 'First' }, () => Promise.reject(new Error('read the database')), request);
+    expect(session.getState().isSending).toBe(false);
+    expect(session.getState().messages[1]).toMatchObject({
+      status: 'error',
+      error: 'read the database',
+      errorStatus: null,
+    });
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it('sends a More like this turn with its flag, for the server to put the instruction before it', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    session.send({ label: 'More like this', content: 'one', moreLikeThis: true }, context, request);
+    await sendNow(session, { label: 'More like this', content: 'one', moreLikeThis: true }, request);
     expect(session.getState().messages[0]).toMatchObject({ label: 'More like this', content: 'one' });
     expect(calls[0]!.body.messages).toEqual([{ role: 'user', content: 'one', moreLikeThis: true }]);
   });
@@ -63,14 +172,14 @@ describe('chatSessions', () => {
   it('sends the answered turns and the new one, but not a failed reply', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    let sending = session.send({ content: 'First' }, context, request);
+    let { sending } = await sendNow(session, { content: 'First' }, request);
     calls[0]!.resolve(REPLY);
     await sending;
-    sending = session.send({ content: 'Second' }, context, request);
+    ({ sending } = await sendNow(session, { content: 'Second' }, request));
     calls[1]!.reject({ response: { data: { error: { message: 'Model is busy' } } } });
     await sending;
     expect(session.getState().messages[3]).toMatchObject({ status: 'error', error: 'Model is busy' });
-    session.send({ content: 'Third' }, context, request);
+    await sendNow(session, { content: 'Third' }, request);
     expect(calls[2]!.body.messages).toEqual([
       { role: 'user', content: 'First' },
       { role: 'assistant', ...REPLY },
@@ -83,22 +192,23 @@ describe('chatSessions', () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
     for (let turn = 0; turn < 16; turn++) {
-      const sending = session.send({ content: `Turn ${turn}` }, context, request);
+      const { sending } = await sendNow(session, { content: `Turn ${turn}` }, request);
       calls[turn]!.resolve(REPLY);
       await sending;
     }
-    session.send({ content: 'Last' }, context, request);
+    await sendNow(session, { content: 'Last' }, request);
     const { messages } = calls[16]!.body;
     expect(messages).toHaveLength(29);
     expect(messages[0]).toEqual({ role: 'user', content: 'Turn 2' });
     expect(messages[28]).toEqual({ role: 'user', content: 'Last' });
   });
 
-  it('does nothing on a send while a reply loads', () => {
+  it('does nothing on a send while a reply loads', async () => {
     const { session } = open();
     const { request } = deferredRequest();
-    expect(session.send({ content: 'First' }, context, request)).toBeInstanceOf(Promise);
-    expect(session.send({ content: 'Again' }, context, request)).toBeNull();
+    expect(session.send({ content: 'First' }, readContext, request)).toBeInstanceOf(Promise);
+    expect(session.send({ content: 'Again' }, readContext, request)).toBeNull();
+    await flushTurns();
     expect(request).toHaveBeenCalledTimes(1);
     expect(session.getState().messages.filter((m) => m.role === 'assistant' && m.status === 'loading')).toHaveLength(1);
     expect(session.getState().messages).toHaveLength(2);
@@ -107,11 +217,12 @@ describe('chatSessions', () => {
   it('retries the last user turn once, in place of its failed reply', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    const sending = session.send({ content: 'First' }, context, request);
+    const { sending } = await sendNow(session, { content: 'First' }, request);
     calls[0]!.reject(new Error('Network Error'));
     await sending;
-    const retrying = session.retry(context, request);
-    expect(session.retry(context, request)).toBeNull();
+    const retrying = session.retry(readContext, request);
+    await flushTurns();
+    expect(session.retry(readContext, request)).toBeNull();
     expect(request).toHaveBeenCalledTimes(2);
     expect(calls[1]!.body.messages).toEqual([{ role: 'user', content: 'First' }]);
     expect(session.getState().messages).toHaveLength(2);
@@ -124,11 +235,11 @@ describe('chatSessions', () => {
   it('leaves out of later sends a turn the server refused as invalid', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    let sending = session.send({ content: 'Too long' }, context, request);
+    let { sending } = await sendNow(session, { content: 'Too long' }, request);
     calls[0]!.reject(Object.assign(new Error('Bad Request'), { response: { status: 400 } }));
     await sending;
     expect(session.getState().messages[1]).toMatchObject({ status: 'error', errorStatus: 400 });
-    sending = session.send({ content: 'Shorter' }, context, request);
+    ({ sending } = await sendNow(session, { content: 'Shorter' }, request));
     expect(calls[1]!.body.messages).toEqual([{ role: 'user', content: 'Shorter' }]);
     calls[1]!.resolve(REPLY);
     await sending;
@@ -137,10 +248,10 @@ describe('chatSessions', () => {
   it('keeps a turn whose reply failed otherwise', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    let sending = session.send({ content: 'First' }, context, request);
+    let { sending } = await sendNow(session, { content: 'First' }, request);
     calls[0]!.reject(Object.assign(new Error('Bad Gateway'), { response: { status: 502 } }));
     await sending;
-    sending = session.send({ content: 'Second' }, context, request);
+    ({ sending } = await sendNow(session, { content: 'Second' }, request));
     expect(calls[1]!.body.messages).toEqual([
       { role: 'user', content: 'First' },
       { role: 'user', content: 'Second' },
@@ -152,7 +263,7 @@ describe('chatSessions', () => {
   it('sends nothing once closed', () => {
     const { id, session } = open();
     chatSessions.close(id);
-    expect(session.send({ content: 'First' }, context, deferredRequest().request)).toBeNull();
+    expect(session.send({ content: 'First' }, readContext, deferredRequest().request)).toBeNull();
   });
 
   it("holds the card's tag edits: a removed tag leaves the added ones, an added one the removed", () => {
@@ -185,10 +296,10 @@ describe('chatSessions', () => {
   it('keeps the system message an ai_admin gets with a reply, and none without', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    let sending = session.send({ content: 'First' }, context, request);
+    let { sending } = await sendNow(session, { content: 'First' }, request);
     calls[0]!.resolve({ ...REPLY, systemMessage: 'You are a writing assistant.' });
     await sending;
-    sending = session.send({ content: 'Second' }, context, request);
+    ({ sending } = await sendNow(session, { content: 'Second' }, request));
     calls[1]!.resolve(REPLY);
     await sending;
     expect(session.getState().messages.filter((message) => message.role === 'assistant')).toMatchObject([
@@ -201,12 +312,12 @@ describe('chatSessions', () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
     for (const content of ['First', 'Second']) {
-      const sending = session.send({ content }, context, request);
+      const { sending } = await sendNow(session, { content }, request);
       calls[calls.length - 1]!.resolve(REPLY);
       await sending;
     }
     session.reset();
-    const sending = session.send({ content: 'Again' }, context, request);
+    const { sending } = await sendNow(session, { content: 'Again' }, request);
     calls[2]!.resolve(REPLY);
     await sending;
     expect(calls[1]!.body.chatId).toBe(calls[0]!.body.chatId);
@@ -216,7 +327,7 @@ describe('chatSessions', () => {
   it('clears the chat on reset', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    const sending = session.send({ content: 'First' }, context, request);
+    const { sending } = await sendNow(session, { content: 'First' }, request);
     session.reset();
     expect(calls[0]!.signal?.aborted).toBe(true);
     expect(session.getState()).toMatchObject({ messages: [], isSending: false });
@@ -230,16 +341,25 @@ describe('chatSessions', () => {
     const { request, calls } = deferredRequest();
     const listener = vi.fn();
     session.subscribe(listener);
-    const sending = session.send({ content: 'First' }, context, request);
+    const { sending } = await sendNow(session, { content: 'First' }, request);
+    chatSessions.close(id);
     const before = session.getState();
     listener.mockClear();
-    chatSessions.close(id);
     expect(chatSessions.get(id)).toBeUndefined();
     expect(calls[0]!.signal?.aborted).toBe(true);
     calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState()).toBe(before);
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('tells subscribers it closed, so a screen showing it goes', () => {
+    const { id, session } = open();
+    const listener = vi.fn();
+    session.subscribe(listener);
+    chatSessions.close(id);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(session.getState().isClosed).toBe(true);
   });
 
   it('applies text through the registered applier, and says whether there is one', () => {
@@ -259,7 +379,7 @@ describe('chatSessions', () => {
     const listener = vi.fn();
     const unsubscribe = session.subscribe(listener);
     const first = session.getState();
-    session.send({ content: 'First' }, context, deferredRequest().request);
+    session.send({ content: 'First' }, readContext, deferredRequest().request);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(session.getState()).not.toBe(first);
     unsubscribe();

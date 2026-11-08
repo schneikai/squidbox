@@ -1,5 +1,5 @@
 import { INSTRUCTION_LIMITS, type InstructionKind, instructionKindSchema } from '@squidbox/shared';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 
 import instructionText from './instructionText';
@@ -10,8 +10,7 @@ import CatalogStatus from '@/components/CatalogStatus';
 import EditSheet from '@/components/EditSheet';
 import TextEditSheet from '@/components/TextEditSheet';
 import useApplyChangesForEveryone from '@/hooks/useApplyChangesForEveryone';
-import useAvailableUserId from '@/hooks/useAvailableUserId';
-import useCloseWhen from '@/hooks/useCloseWhen';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import useEditSheet from '@/hooks/useEditSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -28,14 +27,10 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // the app's defaults (they come with the catalog). A root screen, one per kind; a link to a kind
 // that doesn't exist (an old link, a renamed kind) closes it.
 export default function InstructionScreen() {
-  const params = useLocalSearchParams<{ kind: string }>();
-  const kind = instructionKindSchema.safeParse(params.kind);
-  const userId = useAvailableUserId('ai_admin');
-  // Only while available: useAvailableUserId closes it otherwise.
-  useCloseWhen(userId !== null && !kind.success);
+  const param = useAvailableParam('kind', instructionKindSchema, 'ai_admin');
 
-  if (!kind.success || userId === null) return null;
-  return <InstructionSheet kind={kind.data} userId={userId} />;
+  if (param === null) return null;
+  return <InstructionSheet kind={param.value} userId={param.userId} />;
 }
 
 type InstructionSheetProps = { kind: InstructionKind; userId: string };

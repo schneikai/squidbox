@@ -1,18 +1,15 @@
-import type { ChatContext } from '@squidbox/shared';
 import { useMemo, useSyncExternalStore } from 'react';
 
-import chatSessions, { type UserTurn } from './chatSessions';
-
-import chatAsync from '@/utils/cloud-api/ai/chatAsync';
+import chatSessions from './chatSessions';
 
 const subscribeNone = () => () => {};
 const getNone = () => null;
 
 /**
  * The chat with this id (chatSessions), live: its state, its draft (`getDraft()`) and its actions
- * (`editTags(edit)` and `editMentions(edit)` among them),
- * `send(turn, context)` and `retry(context)` asking the server (POST /ai/chat; each → the reply's
- * promise, or null when nothing was sent). null when there is no such chat (closed, or no id yet).
+ * (`editTags(edit)` and `editMentions(edit)` among them), and `session`, the chat itself, the same
+ * object all chat long (for what must keep its identity while the state changes). null when there
+ * is no such chat (closed, or no id yet).
  */
 export default function useChatSession(id: string | null) {
   const session = chatSessions.get(id);
@@ -20,11 +17,13 @@ export default function useChatSession(id: string | null) {
 
   return useMemo(() => {
     if (!session || !state) return null;
+    // A closed chat is none, so the live state has no isClosed.
+    const { isClosed, ...live } = state;
+    if (isClosed) return null;
     return {
-      ...state,
+      ...live,
+      session,
       getDraft: session.getDraft,
-      send: (turn: UserTurn, context: ChatContext) => session.send(turn, context, chatAsync),
-      retry: (context: ChatContext) => session.retry(context, chatAsync),
       reset: session.reset,
       applyText: session.applyText,
       editTags: session.editTags,

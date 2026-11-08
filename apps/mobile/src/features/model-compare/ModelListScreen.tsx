@@ -1,5 +1,5 @@
 import { type AiModelKind, COMPARE_MIN_MODELS } from '@squidbox/shared';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 
 import ModelDefaultsActions from './ModelDefaultsActions';
 import ModelRow from './ModelRow';
@@ -18,7 +18,7 @@ import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloat
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import AddRow from '@/components/settings-list/AddRow';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useYourModels, { type YourModelRow } from '@/hooks/useYourModels';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
@@ -29,9 +29,15 @@ import confirmAsync from '@/utils/confirmAsync';
 // from Compare, and Compare. While your picks of the defaults differ from everyone's, the list ends
 // with Apply changes for everyone and Reset changes (ModelDefaultsActions). An ai_admin tool.
 export default function ModelListScreen() {
+  const kind = useModelKindParam();
+  if (kind === null) return null;
+  return <ModelList kind={kind} />;
+}
+
+type ModelListProps = { kind: AiModelKind };
+
+function ModelList({ kind }: ModelListProps) {
   const navigation = useNavigation();
-  const { kind } = useLocalSearchParams<{ kind: AiModelKind }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const paddingBottom = useFloatingPrimaryActionPadding();
   const { defaults, yourDefaults, isChanged, error, retry, rows, readDefaultsToApply, publishDefaults, resetDefaults } =
     useYourModels(kind);
@@ -88,8 +94,6 @@ export default function ModelListScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>

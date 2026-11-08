@@ -18,7 +18,7 @@ import Page from '@/components/Page';
 import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import { layout, space } from '@/styles/designTokens';
 
 /**
@@ -28,13 +28,19 @@ import { layout, space } from '@/styles/designTokens';
  * whether it passed. A conversation still running grows as its turns come in.
  */
 export default function VerifyConversationScreen() {
+  const kind = useModelKindParam();
+  if (kind === null) return null;
+  return <VerifyConversation kind={kind} />;
+}
+
+type VerifyConversationProps = { kind: AiModelKind };
+
+function VerifyConversation({ kind }: VerifyConversationProps) {
   const navigation = useNavigation();
-  const { kind, modelId, sectionId } = useLocalSearchParams<{
-    kind: AiModelKind;
+  const { modelId, sectionId } = useLocalSearchParams<{
     modelId: string;
     sectionId: string;
   }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { run, plan, error, retry } = useVerifyRun(kind, modelId);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
 
@@ -71,8 +77,6 @@ export default function VerifyConversationScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>
