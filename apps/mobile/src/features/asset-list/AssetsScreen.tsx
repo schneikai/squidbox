@@ -94,7 +94,7 @@ export default function AssetsScreen() {
       />
       <FloatingActionsBar
         search={searchBar}
-        placeholder="Search notes, tags and contacts…"
+        placeholder="Search notes, tags, contacts…"
         sortOrder={sortOrder}
         sortOptions={assetSortOptions}
         activeFilter={activeFilter}
