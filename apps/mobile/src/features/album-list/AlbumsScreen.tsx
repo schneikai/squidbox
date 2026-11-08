@@ -35,7 +35,7 @@ export default function AlbumsScreen() {
   const promptAddAlbum = useAddAlbumAction();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
+  const { sortOrder, sortAlbums } = useSortAlbumsAction();
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
     onSort: sortAlbums,
   });
@@ -53,10 +53,10 @@ export default function AlbumsScreen() {
         onPress={() => router.navigate(`/album/${album.id}`)}
         onDoublePress={() => toggleFavoriteAlbum(album)}
       >
-        <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
+        <AlbumListItem album={album} elementWidth={elementWidth} />
       </SuperPressable>
     ),
-    [toggleFavoriteAlbum, isSortedByLastPosted],
+    [toggleFavoriteAlbum],
   );
 
   // Dragging arranges the whole list, so it runs unfiltered and unsearched only.

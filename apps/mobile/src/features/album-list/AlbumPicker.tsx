@@ -36,7 +36,7 @@ export default function AlbumPicker({
 }: AlbumPickerProps) {
   const { bottom } = useSafeAreaInsets();
 
-  const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
+  const { sortOrder, sortAlbums } = useSortAlbumsAction();
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
     onSort: sortAlbums,
   });
@@ -54,7 +54,7 @@ export default function AlbumPicker({
         onScroll={onScroll}
         renderItem={({ album, elementWidth }) => (
           <Pressable style={({ pressed }) => pressed && press.flat} onPress={() => onPick(album)}>
-            <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
+            <AlbumListItem album={album} elementWidth={elementWidth} />
           </Pressable>
         )}
       />

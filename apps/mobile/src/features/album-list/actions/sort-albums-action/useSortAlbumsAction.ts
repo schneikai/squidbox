@@ -9,5 +9,5 @@ export default function useSortAlbumsAction() {
   const sortOrder: AlbumSort = isAlbumSort(albumListSortOrder) ? albumListSortOrder : 'createdAt:desc';
   const sortAlbums: (order: AlbumSort) => void = setAlbumListSortOrder;
 
-  return { sortOrder, sortAlbums, isSortedByLastPosted: sortOrder.startsWith('lastPostedAt') };
+  return { sortOrder, sortAlbums };
 }
