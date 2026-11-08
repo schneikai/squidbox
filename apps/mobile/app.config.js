@@ -1,3 +1,17 @@
+const { execSync } = require('node:child_process');
+
+// The commit this build is made from, which every request names (src/utils/cloud-api/clientHeader.ts).
+// EAS uploads no .git and sets EAS_BUILD_GIT_COMMIT_HASH instead; Metro and local builds run in the
+// checkout. A build that can't name its commit fails here.
+function gitCommit() {
+  if (process.env.EAS_BUILD_GIT_COMMIT_HASH) return process.env.EAS_BUILD_GIT_COMMIT_HASH;
+  try {
+    return execSync('git rev-parse HEAD', { cwd: __dirname, encoding: 'utf8' }).trim();
+  } catch (error) {
+    throw new Error(`app.config.js: the build must know its git commit (${error.message})`);
+  }
+}
+
 // Matched by colors.background.splash, for BootScreen, which takes over from the splash.
 const SPLASH_BACKGROUND = '#B1F1FF';
 
@@ -40,6 +54,7 @@ const baseConfig = {
       // Which EAS build this is (EAS sets EAS_BUILD_PROFILE); unset for any other build, which
       // counts as a release. src/utils/isTestBuild.ts reads it.
       buildProfile: process.env.EAS_BUILD_PROFILE,
+      gitCommit: gitCommit(),
       eas: {
         projectId: 'e74016a5-b902-4dca-9c35-f1ef376c4f52',
       },

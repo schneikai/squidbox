@@ -6,6 +6,7 @@ import { ASSET_TAG_LIMITS, assetTagSchema } from '../collections/asset';
 import { instructionsSchema, instructionTextSchema } from '../collections/instruction';
 import { contactReadSchema } from './contacts';
 import { imageSchema } from './image';
+import { openEnum } from './openEnum';
 
 export const aiModelKindSchema = z.enum(['writing', 'vision']);
 export type AiModelKind = z.infer<typeof aiModelKindSchema>;
@@ -177,7 +178,8 @@ export const verifyResultSchema = z.object({
 export type VerifyResult = z.infer<typeof verifyResultSchema>;
 
 // `stopped`: the run didn't finish (Venice didn't answer, or the server stopped); `error` says why.
-export const verifyRunStatusSchema = z.enum(['running', 'done', 'stopped']);
+// Open: an old build shows a status it doesn't know as neither running nor done.
+export const verifyRunStatusSchema = openEnum(['running', 'done', 'stopped']);
 export type VerifyRunStatus = z.infer<typeof verifyRunStatusSchema>;
 
 // A model's latest Verify run of a kind (the server keeps only that one).

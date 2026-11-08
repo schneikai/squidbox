@@ -1,7 +1,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { AccountFeature } from '@squidbox/shared';
+import { CLIENT_HEADER, parseClientInfo, type AccountFeature } from '@squidbox/shared';
 import { getDb } from '../db/client.js';
 import type { User } from '../db/schema.js';
+import { recordDevice } from '../devices.js';
 import { AppError } from '../errors.js';
 import { findUserById } from '../users.js';
 import { verifyAccessToken } from './jwt.js';
@@ -41,7 +42,24 @@ export function authenticate(opts: { allowQueryToken?: boolean } = {}) {
     const user = await findUserById(getDb(), userId);
     if (!user) throw AppError.unauthorized('Unknown user');
     request.user = user;
+    noteDevice(request, user.id);
   };
+}
+
+// Records the install and build the request names (CLIENT_HEADER), never holding or failing the
+// request: a build from before the header sends none, and a header we can't read is our own build's
+// bug, logged.
+function noteDevice(request: FastifyRequest, userId: string): void {
+  const header = request.headers[CLIENT_HEADER];
+  if (typeof header !== 'string') return;
+  const info = parseClientInfo(header);
+  if (!info) {
+    request.log.warn({ header }, 'devices: unreadable client header');
+    return;
+  }
+  recordDevice(getDb(), userId, info, new Date()).catch((err: unknown) =>
+    request.log.error({ err }, 'devices: recording the device failed'),
+  );
 }
 
 export function requireUser(request: FastifyRequest): User {

@@ -56,6 +56,24 @@ export const refreshTokens = pgTable(
 export type User = typeof users.$inferSelect;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 
+// The installs each account syncs from, and the build each runs (devices.ts, recorded from the
+// x-squidbox-client header on every authenticated request): which builds are in use before one is
+// retired (docs/sync-design.md §15). `id` is the install's own uuid; the key is per account (§2a).
+export const devices = pgTable(
+  'devices',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    id: uuid('id').notNull(),
+    contract: integer('contract').notNull(),
+    build: text('build').notNull(), // the full git sha
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] })],
+);
+
 // --- Syncable collections ---
 // Server-only, never on the wire: each merge field's clock. NULL for a row last written before
 // per-field merge, whose fields all take its updated_at (sync-design §7).

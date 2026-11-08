@@ -1,4 +1,4 @@
-import type { AiModelKind, VerifyPlan, VerifyRun, VerifyRunStatus } from '@squidbox/shared';
+import type { AiModelKind, VerifyPlan, VerifyRun } from '@squidbox/shared';
 import { router } from 'expo-router';
 
 import VerifyStatusIcon from './VerifyStatusIcon';
@@ -7,7 +7,8 @@ import sectionStatuses from './sectionStatuses';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 
-const FOOTERS: Record<VerifyRunStatus, string> = {
+// By the run's status; a status this build doesn't know shows none.
+const FOOTERS: Partial<Record<string, string>> = {
   running: "You can leave this screen. It keeps running and the model's page shows the result when it's done.",
   done: 'Tap a conversation to read it.',
   stopped: "It didn't finish: the turns before it stopped are kept. Verify again to run it all.",
@@ -57,7 +58,7 @@ export default function VerifyConversationsSection({
           );
         })}
       </Section>
-      <SectionFooter>{FOOTERS[run.status]}</SectionFooter>
+      {FOOTERS[run.status] ? <SectionFooter>{FOOTERS[run.status]}</SectionFooter> : null}
     </>
   );
 }

@@ -11,6 +11,7 @@ vi.mock('../src/users.js', () => ({
     features: u.features,
   }),
 }));
+vi.mock('../src/devices.js', () => ({ recordDevice: vi.fn(async () => {}) }));
 vi.mock('../src/auth/passwords.js', () => ({ verifyPassword: vi.fn(), hashPassword: vi.fn() }));
 vi.mock('../src/auth/tokens.js', () => ({
   issueRefreshToken: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock('../src/auth/tokens.js', () => ({
 
 import { buildApp } from '../src/app.js';
 import { signAccessToken } from '../src/auth/jwt.js';
+import { recordDevice } from '../src/devices.js';
 import { findUserByEmail, findUserById, switchUserFeature } from '../src/users.js';
 import { verifyPassword } from '../src/auth/passwords.js';
 import { issueRefreshToken, rotateRefreshToken, revokeRefreshToken } from '../src/auth/tokens.js';
@@ -158,6 +160,30 @@ describe('GET /api/v1/me', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ user: { id: 'u1', email: 'a@b.co', features: ['ai'] }, serverId });
+  });
+
+  it('records the install and build the client header names', async () => {
+    vi.mocked(findUserById).mockResolvedValue(user as any);
+    const build = 'b8171cf94f0e681b1b1e1489755730698a95789c';
+    const device = '3f2c1a0e-5b6d-4e7f-8a9b-0c1d2e3f4a5b';
+    const res = await (
+      await app()
+    ).inject({
+      method: 'GET',
+      url: '/api/v1/me',
+      headers: { authorization: `Bearer ${signAccessToken('u1')}`, 'x-squidbox-client': `1 ${build} ${device}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(recordDevice).toHaveBeenCalledWith(expect.anything(), 'u1', { contract: 1, build, device }, expect.any(Date));
+  });
+
+  it('records nothing for a request without the client header', async () => {
+    vi.mocked(findUserById).mockResolvedValue(user as any);
+    const res = await (
+      await app()
+    ).inject({ method: 'GET', url: '/api/v1/me', headers: { authorization: `Bearer ${signAccessToken('u1')}` } });
+    expect(res.statusCode).toBe(200);
+    expect(recordDevice).not.toHaveBeenCalled();
   });
 });
 

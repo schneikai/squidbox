@@ -46,3 +46,6 @@ export * from './contracts/ai';
 export * from './contracts/contacts';
 export * from './contracts/image';
 export * from './contracts/server';
+export * from './contracts/version';
+export * from './contracts/client';
+export * from './contracts/openEnum';

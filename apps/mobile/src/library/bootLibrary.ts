@@ -4,6 +4,7 @@ import { rebuildRegistry } from './rebuildRegistry';
 import { loadRegistry } from './registry';
 import { openLibraryForSession, type SwitchLibrary } from './sessionLibrary';
 
+import { loadDeviceIdAsync } from '@/utils/cloud-api/deviceId';
 import initializeCloudAsync from '@/utils/cloud-api/initializeCloudAsync';
 import refreshFeaturesAsync from '@/utils/cloud-api/refreshFeaturesAsync';
 import { getSession, loadSessionAsync } from '@/utils/cloud-api/sessionStore';
@@ -15,7 +16,7 @@ import { getSession, loadSessionAsync } from '@/utils/cloud-api/sessionStore';
 // only after the boot. An init failure never stops the boot. The account's features are read again
 // after the init, without holding the boot; offline, the stored ones stay.
 export async function bootLibrary(switchLibrary: SwitchLibrary): Promise<void> {
-  await loadSessionAsync();
+  await Promise.all([loadSessionAsync(), loadDeviceIdAsync()]);
   await loadRegistry(rebuildRegistry);
   const verified = initializeCloudAsync().catch((error) => Sentry.captureException(error));
   const hadTokens = Boolean(getSession()?.tokens);

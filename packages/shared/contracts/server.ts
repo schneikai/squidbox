@@ -2,13 +2,16 @@
 // error envelope every failed request gets.
 import { z } from 'zod';
 
+import { openEnum } from './openEnum';
+
 // GET /up (outside the /api/v1 prefix): the server's stable identity (SERVER_ID), which a session is
 // bound to.
 export const upResponseSchema = z.object({ status: z.literal('ok'), serverId: z.string().uuid() });
 export type UpResponse = z.infer<typeof upResponseSchema>;
 
-// What went wrong, by kind (apps/server/src/errors.ts throws them as AppError).
-export const apiErrorCodeSchema = z.enum([
+// What went wrong, by kind (apps/server/src/errors.ts throws them as AppError). Open: an old build
+// reads a code it doesn't know as a failure with its message.
+export const apiErrorCodeSchema = openEnum([
   'validation_error',
   'unauthorized',
   'invalid_credentials',

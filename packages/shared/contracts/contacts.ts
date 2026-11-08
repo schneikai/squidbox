@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
 import { imageSchema } from './image';
+import { openEnum } from './openEnum';
 
 // A contact as the server reads it from a profile: the name, the handles (normalized,
 // normalizeHandle) and the place's parts, each empty when the profile doesn't show it.
@@ -35,8 +36,8 @@ export type ContactFromLinkRequest = z.infer<typeof contactFromLinkRequestSchema
 
 // What x.com showed: `found` a profile (a protected one too: X shows its name, bio, place and photo);
 // `unavailable` a profile X hides from signed-out readers; `notFound` no such handle; `failed` a page
-// the server couldn't fetch or read.
-const xProfileStatusSchema = z.enum(['found', 'unavailable', 'notFound', 'failed']);
+// the server couldn't fetch or read. Open: an old build reads a status it doesn't know as `failed`.
+const xProfileStatusSchema = openEnum(['found', 'unavailable', 'notFound', 'failed']);
 
 // Its answer: `contact` what the user's writing model read in the profile, as From screenshot's
 // read (the X handle always the link's); nothing but the X handle unless `found`. `avatar` the

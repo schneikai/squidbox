@@ -302,8 +302,8 @@ async function applyPushResults(
       }
       if (plan.clearOutbox) cleared.push(result.id);
       if (plan.flagRejected) {
-        flag(result.id, result.reason ?? 'rejected');
-        notes.push(`${collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`);
+        flag(result.id, plan.flagReason ?? result.reason ?? 'rejected');
+        notes.push(`${collection} ${result.id}: rejected (${plan.flagReason ?? result.reason ?? 'unknown'})`);
       }
     }
 

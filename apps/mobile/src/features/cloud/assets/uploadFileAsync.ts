@@ -5,6 +5,7 @@ import cancelledError from '@/features/cloud/assets/cancelledError';
 import type { SyncIdentity } from '@/library/sessionMatches';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
 import envelopeMessage from '@/utils/cloud-api/envelopeMessage';
+import { clientHeader } from '@/utils/cloud-api/clientHeader';
 import requireApiBaseUrl from '@/utils/cloud-api/requireApiBaseUrl';
 import requireSession from '@/utils/cloud-api/requireSession';
 
@@ -53,6 +54,7 @@ async function doUploadAsync(
 
   const uploadTask = new File(fileUri).createUploadTask(uploadUrl, {
     httpMethod: 'PUT',
+    headers: clientHeader(),
     uploadType: UploadType.BINARY_CONTENT,
     onProgress,
     signal,

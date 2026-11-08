@@ -2,6 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import SessionChangedError from './SessionChangedError';
 import { API_BASE_URL } from './apiBaseUrl';
+import { clientHeader } from './clientHeader';
 import refreshAccessTokenAsync from './authentication/refreshAccessTokenAsync';
 import errorResponse from './errorResponse';
 import requireSession from './requireSession';
@@ -25,10 +26,11 @@ const apiWithAuthentication = axios.create({
 
 // Every request reads the access token fresh from the stored session, for the identity it was given
 // (`config.identity`) or else for the stored session's, noted on the config so the retry below
-// refreshes for the same user.
+// refreshes for the same user. It names the build too (clientHeader).
 apiWithAuthentication.interceptors.request.use((config) => {
   const session = requireSession(config.identity);
   if (!config.identity) config.identity = sessionIdentity(session);
+  config.headers.set(clientHeader());
   config.headers['Authorization'] = `Bearer ${session.tokens.accessToken}`;
   return config;
 });
