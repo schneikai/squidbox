@@ -20,7 +20,7 @@ type MentionSuggestionsProps = { query: string; assetIds: string[]; onPick: (han
  */
 export default function MentionSuggestions({ query, assetIds, onPick }: MentionSuggestionsProps) {
   const contacts = useContactRows({});
-  const onPhotos = useContactRows({ scope: { targetType: 'asset', targetId: assetIds } });
+  const onPhotos = useContactRows({ scope: { photoIds: assetIds } });
 
   const entries = useMemo(() => contacts && mentionEntries(contacts), [contacts]);
   const onPhotoIds = useMemo(() => onPhotos && new Set(onPhotos.map(({ id }) => id)), [onPhotos]);

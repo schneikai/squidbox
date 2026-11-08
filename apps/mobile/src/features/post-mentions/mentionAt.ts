@@ -1,4 +1,4 @@
-import { HANDLE_BODY } from '@/features/post-chat/extractHandles';
+import { HANDLE_BODY } from '@/lib/extractHandles';
 
 // The handle being typed up to the cursor: an @ at the start or after anything but a word character
 // or another @ (so an email address isn't one), then a handle (or nothing yet), maybe with the dot or
