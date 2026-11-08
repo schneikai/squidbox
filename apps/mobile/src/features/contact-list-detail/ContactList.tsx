@@ -42,13 +42,12 @@ export default function ContactList(props: ContactListProps) {
   const { restoreContact } = useContacts();
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   const { sortOrder, setSortOrder } = useContactSort();
-  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: setSortOrder });
+  const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
   const builtIn = 'builtIn' in props ? props.builtIn : undefined;
   const list = 'list' in props ? props.list : undefined;
   const isDeleted = builtIn?.scope === 'deleted';
   // Trimmed, so a trailing space doesn't read the list again.
-  const search = searchText.trim();
   const query = contactQuery({
     scope: builtIn ? builtIn.scope : { listId: list!.id },
     search,

@@ -128,7 +128,7 @@ test('Add to Album finds an album by search and adds the photo to it', async ({ 
   await assetCells(library).first().click();
   await button(library, 'Add to Album').click();
   const sheet = page.getByTestId('add-to-album-sheet');
-  await sheet.getByPlaceholder('Search albums').fill(name);
+  await sheet.getByPlaceholder('Search albums…').fill(name);
   await sheet.getByText(name, { exact: true }).click();
 
   await expect(sheet).toBeHidden();

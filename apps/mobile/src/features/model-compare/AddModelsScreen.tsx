@@ -83,7 +83,7 @@ function AddModels({ kind }: AddModelsProps) {
         title="Add models"
       />
       {/* Always shown, while the catalog loads or fails too, so it doesn't jump in when it arrives. */}
-      <SheetSearchField {...field} placeholder="Search models" />
+      <SheetSearchField {...field} placeholder="Search models…" />
       <FlatList
         data={models}
         keyExtractor={(model) => model.id}

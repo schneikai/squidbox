@@ -55,35 +55,35 @@ export default function ContactListPicker({
     onChange(isSingle ? [listId] : toggleItem(selectedIds, listId));
   }
 
-  if (!shown) return null;
-
   return (
     <>
-      <SheetSearchField {...field} placeholder="Search lists" />
+      <SheetSearchField {...field} placeholder="Search lists…" />
       <ScrollView {...listProps}>
-        {searchText && shown.length === 0 ? (
-          <EmptyState icon="search" title="No lists match" />
-        ) : (
-          <Section>
-            {shown.map((list) => {
-              const isSelected = selectedIds.includes(list.id);
-              return (
-                <Row
-                  key={list.id}
-                  label={list.name}
-                  leading={isSingle ? undefined : <SelectIndicator isSelected={isSelected} />}
-                  isSelected={isSingle ? isSelected : undefined}
-                  onPress={() => handlePress(list.id)}
-                >
-                  <Text style={listTextStyles.subtitle}>
-                    {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
-                  </Text>
-                </Row>
-              );
-            })}
-            <AddRow label="New list" onPress={promptAddList} />
-          </Section>
-        )}
+        {/* The field shows at once, so it doesn't jump in when the lists arrive. */}
+        {shown &&
+          (searchText && shown.length === 0 ? (
+            <EmptyState icon="search" title="No lists match" />
+          ) : (
+            <Section>
+              {shown.map((list) => {
+                const isSelected = selectedIds.includes(list.id);
+                return (
+                  <Row
+                    key={list.id}
+                    label={list.name}
+                    leading={isSingle ? undefined : <SelectIndicator isSelected={isSelected} />}
+                    isSelected={isSingle ? isSelected : undefined}
+                    onPress={() => handlePress(list.id)}
+                  >
+                    <Text style={listTextStyles.subtitle}>
+                      {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
+                    </Text>
+                  </Row>
+                );
+              })}
+              <AddRow label="New list" onPress={promptAddList} />
+            </Section>
+          ))}
       </ScrollView>
     </>
   );

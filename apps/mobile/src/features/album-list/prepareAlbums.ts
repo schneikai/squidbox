@@ -35,7 +35,7 @@ export default function prepareAlbums({
   showSmartAlbums = true,
   showDeleted = true,
 }: { albums: AlbumListRow[] } & PrepareAlbumsOptions): AlbumListRow[] {
-  const search = isBlank(searchText) ? null : searchText.trim().toLowerCase();
+  const search = isBlank(searchText) ? null : searchText.toLowerCase();
   const matchedAlbums = albums.filter((album) => {
     if (!showSmartAlbums && isSmartAlbum(album)) return false;
     if (!showDeleted && isDeletedAssetsAlbum(album)) return false;

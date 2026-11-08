@@ -68,7 +68,7 @@ export default function Album({ album }: AlbumProps) {
   });
   const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150, { withReadAt: true });
   // The album's own count, for its header and menu: a filter or search narrows only the grid's.
-  const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
+  const isNarrowed = activeFilter.length > 0 || !!searchText;
   const unnarrowed = usePagedQuery(assetQuery({ scope: getAlbumAssetScope(album), sort: sortOrder }), 1, {
     isLive: isNarrowed,
   });
@@ -89,7 +89,7 @@ export default function Album({ album }: AlbumProps) {
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
-  const reorderEnabled = !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
+  const reorderEnabled = !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText;
 
   // Smart albums have no stored order, so no Custom order; Deleted lists the most recently deleted first.
   const sortOptions = isDeletedAssetsAlbum(album) ? [] : isSmart ? assetSortOptions : ALBUM_SORT_OPTIONS;
