@@ -69,7 +69,6 @@ function PostChat({
   assets,
   tagging,
   mentions,
-  isWaiting,
   send,
   moreLikeThis,
   retry,
@@ -196,7 +195,7 @@ function PostChat({
             seed={seed.turn}
             placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
             disabled={chat.isSending}
-            isWaiting={isWaiting}
+            isWaiting={chat.isWaiting}
             onSend={send}
           />
         </View>
