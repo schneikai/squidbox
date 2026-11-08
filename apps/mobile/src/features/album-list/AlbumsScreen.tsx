@@ -78,7 +78,7 @@ export default function AlbumsScreen() {
 
   const header = starred.length ? (
     <View style={styles.header}>
-      <ScreenSectionHeader title="Starred" size="small" isFirst />
+      <ScreenSectionHeader title="Starred" icon={{ name: 'star', filled: true }} size="small" isFirst />
       <StarredAlbumRow albums={starred} />
       <ScreenSectionHeader
         title={pluralizeText('1 album', `${albums.length.toLocaleString()} albums`, albums.length)}

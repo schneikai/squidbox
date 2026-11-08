@@ -28,7 +28,7 @@ type AlbumHeaderProps = {
 /**
  * The top of an album, over its grid: its name, how many assets and when it was last posted (after a star when
  * it is starred), its
- * notes (the name and the notes open Edit album, a double-tap on the name stars or unstars it), the Archived badge, then, on one line, a chip with the faces of the contacts on its
+ * notes (the name and the notes open Edit album, a double-tap on the name or the line under it stars or unstars it), the Archived badge, then, on one line, a chip with the faces of the contacts on its
  * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
  * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
@@ -72,10 +72,16 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
             {album.name}
           </NativeText>
         </SuperPressable>
-        <View style={styles.details}>
+        {/* Taps like the name: it opens Edit, a double-tap stars, as the star it shows says. */}
+        <SuperPressable
+          style={({ pressed }) => [styles.details, pressed && press.flat]}
+          onPress={() => openEdit()}
+          onDoublePress={() => toggleFavoriteAlbum(album)}
+          accessibilityHint="Edit album"
+        >
           {!!album.isFavorite && <Icon name="star" filled size={sizes.iconSmall} color={colors.text.secondary} />}
           <Text variant="status">{details}</Text>
-        </View>
+        </SuperPressable>
         {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
         {!!album.notes && (
           <View style={styles.notes}>
