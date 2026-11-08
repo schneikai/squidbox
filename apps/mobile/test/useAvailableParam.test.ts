@@ -10,7 +10,7 @@ import useAvailableParam from '../src/hooks/useAvailableParam';
 const state = vi.hoisted(() => ({ params: { kind: 'vision' }, isAvailable: true }));
 const closeWhen = vi.hoisted(() => vi.fn());
 vi.mock('expo-router', () => ({ useLocalSearchParams: () => state.params }));
-vi.mock('../src/hooks/useLeaveWhenUnavailable', () => ({ default: () => state.isAvailable }));
+vi.mock('../src/hooks/useAvailableUserId', () => ({ default: () => (state.isAvailable ? 'me' : null) }));
 vi.mock('../src/hooks/useCloseWhen', () => ({ default: closeWhen }));
 
 function renderKind(kind: string, isAvailable = true) {
@@ -27,7 +27,7 @@ function renderKind(kind: string, isAvailable = true) {
 
 describe('useAvailableParam', () => {
   it('gives the value a link names', () => {
-    expect(renderKind('vision')).toBe('vision');
+    expect(renderKind('vision')).toEqual({ value: 'vision', userId: 'me' });
     expect(closeWhen).toHaveBeenCalledWith(false);
   });
 
@@ -36,7 +36,7 @@ describe('useAvailableParam', () => {
     expect(closeWhen).toHaveBeenCalledWith(true);
   });
 
-  it("leaves the closing to useLeaveWhenUnavailable while the screen isn't available", () => {
+  it("leaves the closing to useAvailableUserId while the screen isn't available", () => {
     expect(renderKind('foo', false)).toBeNull();
     expect(closeWhen).toHaveBeenCalledWith(false);
     expect(closeWhen).not.toHaveBeenCalledWith(true);

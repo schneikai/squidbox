@@ -5,7 +5,8 @@ import chatSessions, { type ChatSession } from './chatSessions';
 const subscribeNone = () => () => {};
 const getNone = () => null;
 
-// The state as a screen sees it: a closed chat is none, so it is never closed.
+// The state as a screen sees it: the type leaves `isClosed` out, since a closed chat is null here
+// (the spread still carries it, always false).
 type LiveState = Omit<ReturnType<ChatSession['getState']>, 'isClosed'>;
 
 /**

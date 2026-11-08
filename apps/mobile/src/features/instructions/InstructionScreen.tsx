@@ -15,7 +15,6 @@ import useEditSheet from '@/hooks/useEditSheet';
 import useInstructions from '@/hooks/useInstructions';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import applyAppInstructions from '@/lib/applyAppInstructions';
-import useOpenLibrary from '@/library/useOpenLibrary';
 import { getDb } from '@/sync/db/client';
 import { readInstructions, saveInstruction } from '@/sync/instructionsRepository';
 import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsync';
@@ -28,12 +27,10 @@ import publishInstructionAsync from '@/utils/cloud-api/ai/publishInstructionAsyn
 // the app's defaults (they come with the catalog). A root screen, one per kind; a link to a kind
 // that doesn't exist (an old link, a renamed kind) closes it.
 export default function InstructionScreen() {
-  const kind = useAvailableParam('kind', instructionKindSchema, 'ai_admin');
-  // Available already means an account (useIsAssistantAvailable): the null only narrows.
-  const { userId } = useOpenLibrary();
+  const param = useAvailableParam('kind', instructionKindSchema, 'ai_admin');
 
-  if (kind === null || userId === null) return null;
-  return <InstructionSheet kind={kind} userId={userId} />;
+  if (param === null) return null;
+  return <InstructionSheet kind={param.value} userId={param.userId} />;
 }
 
 type InstructionSheetProps = { kind: InstructionKind; userId: string };

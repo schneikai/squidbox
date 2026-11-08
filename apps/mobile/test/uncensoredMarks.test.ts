@@ -120,6 +120,24 @@ describe('uncensoredMarks', () => {
     expect(uncensoredMarks.wanted.get()).not.toHaveProperty('fails-then-tapped');
   });
 
+  it('a tap back to the failed mark during the write still has its write sent', async () => {
+    const first = deferred();
+    setUncensored.mockReturnValueOnce(first.promise).mockResolvedValueOnce(answer([]));
+    const tapped = model('on-off-on');
+
+    uncensoredMarks.set(tapped, true, () => {});
+    await settle();
+    uncensoredMarks.set(tapped, false, () => {});
+    uncensoredMarks.set(tapped, true, () => {});
+    first.reject(new Error('offline'));
+    await settle();
+    expect(setUncensored.mock.calls).toEqual([
+      ['on-off-on', true],
+      ['on-off-on', true],
+    ]);
+    expect(uncensoredMarks.wanted.get()).not.toHaveProperty('on-off-on');
+  });
+
   it('puts the mark back and reports a failed write', async () => {
     const failure = new Error('offline');
     setUncensored.mockRejectedValueOnce(failure);

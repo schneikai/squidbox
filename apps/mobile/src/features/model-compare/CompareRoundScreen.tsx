@@ -1,4 +1,4 @@
-import { type AiModelKind, aiModelKindSchema } from '@squidbox/shared';
+import type { AiModelKind } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
@@ -8,8 +8,8 @@ import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import useAvailableParam from '@/hooks/useAvailableParam';
 import useInstructions from '@/hooks/useInstructions';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useRequiredSheetRoute from '@/hooks/useRequiredSheetRoute';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
@@ -26,7 +26,7 @@ const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. B
 // catalog: a spinner or Try again until they're in) and for vision the photo set the pick step saved,
 // read once with the ticked models' names.
 export default function CompareRoundScreen() {
-  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
+  const kind = useModelKindParam();
   if (kind === null) return null;
   return <CompareRoundSheet kind={kind} />;
 }

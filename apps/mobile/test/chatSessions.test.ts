@@ -90,6 +90,27 @@ describe('chatSessions', () => {
     await sending;
   });
 
+  it('aborts the context read on New chat, and sends nothing for it', async () => {
+    const { session } = open();
+    const { request } = deferredRequest();
+    let read: (value: ChatContext) => void = () => {};
+    let readSignal: AbortSignal | undefined;
+    const sending = session.send(
+      { content: 'First' },
+      (signal) => {
+        readSignal = signal;
+        return new Promise((resolve) => (read = resolve));
+      },
+      request,
+    );
+    session.reset();
+    expect(readSignal?.aborted).toBe(true);
+    read(context);
+    await sending;
+    expect(request).not.toHaveBeenCalled();
+    expect(session.getState().messages).toEqual([]);
+  });
+
   it("fails the reply with the error when the context can't be read", async () => {
     const { session } = open();
     const { request } = deferredRequest();

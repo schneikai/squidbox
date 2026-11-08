@@ -1,4 +1,4 @@
-import { type AiModelKind, aiModelKindSchema, type VerifyTurn as VerifyTurnRecord } from '@squidbox/shared';
+import type { AiModelKind, VerifyTurn as VerifyTurnRecord } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { memo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -18,7 +18,7 @@ import Page from '@/components/Page';
 import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import useAvailableParam from '@/hooks/useAvailableParam';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import { layout, space } from '@/styles/designTokens';
 
 /**
@@ -28,7 +28,7 @@ import { layout, space } from '@/styles/designTokens';
  * whether it passed. A conversation still running grows as its turns come in.
  */
 export default function VerifyConversationScreen() {
-  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
+  const kind = useModelKindParam();
   if (kind === null) return null;
   return <VerifyConversation kind={kind} />;
 }

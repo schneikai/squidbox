@@ -1,4 +1,4 @@
-import { type AiModelKind, aiModelKindSchema } from '@squidbox/shared';
+import type { AiModelKind } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
@@ -15,8 +15,8 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAiCatalog from '@/hooks/useAiCatalog';
-import useAvailableParam from '@/hooks/useAvailableParam';
 import useHaptics from '@/hooks/useHaptics';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 /**
@@ -26,7 +26,7 @@ import findCatalogModel from '@/utils/ai/findCatalogModel';
  * haptic marks the run finishing while the page is open.
  */
 export default function VerifyScreen() {
-  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
+  const kind = useModelKindParam();
   if (kind === null) return null;
   return <VerifyPage kind={kind} />;
 }

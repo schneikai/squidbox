@@ -66,8 +66,11 @@ type ChatRequester = typeof chatAsync;
 
 export type ChatSession = ReturnType<typeof createSession>;
 
-/** What the chat is about, read when the turn goes: it may wait for the photos' tags. */
-export type ContextReader = () => Promise<ChatContext>;
+/**
+ * What the chat is about, read when the turn goes: it may wait for the photos' tags. `signal` aborts
+ * once the turn is dropped (New chat, or the chat closed); what it resolves to then is ignored.
+ */
+export type ContextReader = (signal: AbortSignal) => Promise<ChatContext>;
 
 const NO_EDITS: ListEdits = Object.freeze({ added: [], removed: [] });
 
@@ -171,7 +174,7 @@ function createSession(kind: ChatSubjectKind) {
     controller = new AbortController();
     const { signal } = controller;
     try {
-      const context = await readContext();
+      const context = await readContext(signal);
       if (signal.aborted) return;
       const { messages } = store.get();
       const at = messages.findIndex((message) => message.id === replyId);
@@ -214,7 +217,7 @@ function createSession(kind: ChatSubjectKind) {
 
     /**
      * Puts the user's turn and its loading reply in the chat, then sends it about the context
-     * `readContext()` resolves to (chatContextSchema) through `request(body, { signal })`, which
+     * `readContext(signal)` resolves to (chatContextSchema) through `request(body, { signal })`, which
      * resolves to the reply, `{ reply, postOptions }`. → the reply's promise, or null when nothing was
      * sent (a reply is loading, or the chat was closed).
      */

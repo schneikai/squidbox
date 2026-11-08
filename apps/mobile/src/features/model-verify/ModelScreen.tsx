@@ -1,4 +1,4 @@
-import { type AiModelKind, aiModelKindSchema } from '@squidbox/shared';
+import type { AiModelKind } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
@@ -15,7 +15,7 @@ import Page from '@/components/Page';
 import ScoreDetail from '@/components/ScoreDetail';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useAvailableParam from '@/hooks/useAvailableParam';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useYourModels from '@/hooks/useYourModels';
 import { layout } from '@/styles/designTokens';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
@@ -31,7 +31,7 @@ import confirmAsync from '@/utils/confirmAsync';
  * remove it.
  */
 export default function ModelScreen() {
-  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
+  const kind = useModelKindParam();
   if (kind === null) return null;
   return <ModelPage kind={kind} />;
 }

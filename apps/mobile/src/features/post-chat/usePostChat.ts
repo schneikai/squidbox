@@ -1,8 +1,8 @@
-import { CHAT_LIMITS, type ChatContext } from '@squidbox/shared';
-import { useCallback, useMemo, useState } from 'react';
+import { CHAT_LIMITS } from '@squidbox/shared';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import chatMentions from './chatMentions';
-import type { ChatSession, UserTurn } from './chatSessions';
+import type { ContextReader, UserTurn } from './chatSessions';
 import postTags from './postTags';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
@@ -45,19 +45,29 @@ export default function usePostChat(sessionId: string) {
   // Read when a turn goes, so the sends don't change with the photos' tags or the mentions.
   const latest = useLatestRef({ tagging, mentions });
 
-  // What the chat (`live`) is about as it is now: the editor's latest caption and assets, the post's
-  // tags (their tags, read again once a tagging under way landed, with the card's edits: postTags) and
-  // the handles found in their albums' posts. Waits for the photos being tagged (`isWaiting`
-  // meanwhile).
-  const readContextAsync = useCallback(
-    async (live: ChatSession): Promise<ChatContext> => {
+  // Counts the context reads: only the newest one clears `isWaiting`.
+  const readCount = useRef(0);
+
+  // What the chat is about as it is now: the editor's latest caption and assets, the post's tags
+  // (their tags, read again once a tagging under way landed, with the card's edits: postTags) and the
+  // handles found in their albums' posts. Waits for the photos being tagged (`isWaiting` meanwhile,
+  // until the read ends or its turn is dropped).
+  const readContext = useCallback<ContextReader>(
+    async (signal) => {
+      if (!session) throw new Error('The chat is closed');
       const { tagging: current, mentions: currentMentions } = latest.current;
       const { taggingAsync, rows: taggedRows, isTagging } = current;
+      const read = ++readCount.current;
+      const finish = () => {
+        if (readCount.current === read) setIsWaiting(false);
+      };
+      signal.addEventListener('abort', finish);
       setIsWaiting(isTagging);
       try {
         const hasWaited = await taggingAsync();
-        const { text, assets: now } = live.getDraft();
-        const { kind, tagEdits } = live.getState();
+        if (signal.aborted) throw new Error('The turn was dropped');
+        const { text, assets: now } = session.getDraft();
+        const { kind, tagEdits } = session.getState();
         const ids = now.map((asset) => asset.id);
         const isCurrent = taggedRows?.length === ids.length && ids.every((id, index) => taggedRows[index].id === id);
         const rows = hasWaited || !isCurrent ? await readLiveAssets(getDb(), ids) : taggedRows;
@@ -69,21 +79,18 @@ export default function usePostChat(sessionId: string) {
           mentions: currentMentions?.handles ?? [],
         };
       } finally {
-        setIsWaiting(false);
+        signal.removeEventListener('abort', finish);
+        finish();
       }
     },
-    [latest],
+    [session, latest],
   );
 
   const send = useCallback(
     (turn: UserTurn) =>
       session !== undefined &&
-      session.send(
-        { ...turn, content: turn.content.slice(0, CHAT_LIMITS.message) },
-        () => readContextAsync(session),
-        chatAsync,
-      ) !== null,
-    [session, readContextAsync],
+      session.send({ ...turn, content: turn.content.slice(0, CHAT_LIMITS.message) }, readContext, chatAsync) !== null,
+    [session, readContext],
   );
 
   // The server puts the user's More like this instruction before the option.
@@ -93,8 +100,8 @@ export default function usePostChat(sessionId: string) {
   );
 
   const retry = useCallback(
-    () => session !== undefined && session.retry(() => readContextAsync(session), chatAsync) !== null,
-    [session, readContextAsync],
+    () => session !== undefined && session.retry(readContext, chatAsync) !== null,
+    [session, readContext],
   );
 
   return { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry };

@@ -1,4 +1,4 @@
-import { type AiModelKind, aiModelKindSchema, COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
+import { type AiModelKind, COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
@@ -17,7 +17,7 @@ import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloat
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
-import useAvailableParam from '@/hooks/useAvailableParam';
+import useModelKindParam from '@/hooks/useModelKindParam';
 import useYourModels from '@/hooks/useYourModels';
 import { layout, space } from '@/styles/designTokens';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
@@ -30,7 +30,7 @@ import toggleItem from '@/utils/toggleItem';
 // in your list, and for vision pick the photos (the last compare's to start with). Start saves the
 // photos for CompareRoundScreen, which reads them back.
 export default function ComparePickScreen() {
-  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
+  const kind = useModelKindParam();
   if (kind === null) return null;
   return <ComparePick kind={kind} />;
 }
