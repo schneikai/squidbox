@@ -7,22 +7,21 @@ export type SheetSearchFieldProps = {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
-  accessibilityLabel?: string;
 };
 
 /**
  * A picker sheet's search: a field pinned under its ModalHeader, clear of it, that stays put while the
  * list under it scrolls. Give it `useSearchText().field`, and lay the sheet out as this, then the list
- * (padded with useScreenPadding('sheet-search')). The keyboard comes up only on a tap.
+ * (with useSheetSearchList's props). The keyboard comes up only on a tap.
  */
-export default function SheetSearchField({ placeholder, accessibilityLabel, ...field }: SheetSearchFieldProps) {
+export default function SheetSearchField({ placeholder, ...field }: SheetSearchFieldProps) {
   return (
     <View style={styles.container}>
       <SearchInput
         variant="field"
         {...field}
         placeholder={placeholder}
-        accessibilityLabel={accessibilityLabel ?? placeholder}
+        accessibilityLabel={placeholder}
         returnKeyType="search"
         clearButtonMode="while-editing"
       />

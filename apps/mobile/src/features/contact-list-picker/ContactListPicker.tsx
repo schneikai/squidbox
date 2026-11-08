@@ -1,19 +1,18 @@
 import type { ContactListRecord } from '@squidbox/shared';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
 import SelectIndicator from '@/components/SelectIndicator';
 import SheetSearchField from '@/components/SheetSearchField';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import { SCREEN_PADDING } from '@/constants';
 import type { BuiltInContactListSummary } from '@/features/contact-list/builtInContactLists';
 import shownContactLists from '@/features/contact-list/shownContactLists';
 import useAddListAction from '@/features/contact-list/useAddListAction';
 import useContactListRows from '@/features/contact-list/useContactListRows';
-import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearchText from '@/hooks/useSearchText';
+import useSheetSearchList from '@/hooks/useSheetSearchList';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
@@ -39,7 +38,7 @@ export default function ContactListPicker({
   isSingle = false,
   builtIns,
 }: ContactListPickerProps) {
-  const padding = useScreenPadding('sheet-search');
+  const listProps = useSheetSearchList({ hasGutter: true });
   const lists = useContactListRows({ withMembers: false });
   const { field, searchText } = useSearchText();
   const promptAddList = useAddListAction({
@@ -61,13 +60,8 @@ export default function ContactListPicker({
   return (
     <>
       <SheetSearchField {...field} placeholder="Search lists" />
-      <ScrollView
-        contentContainerStyle={[styles.content, padding]}
-        automaticallyAdjustKeyboardInsets
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        {searchText.trim() && shown.length === 0 ? (
+      <ScrollView {...listProps}>
+        {searchText && shown.length === 0 ? (
           <EmptyState icon="search" title="No lists match" />
         ) : (
           <Section>
@@ -94,9 +88,3 @@ export default function ContactListPicker({
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: SCREEN_PADDING,
-  },
-});

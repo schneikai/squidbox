@@ -7,8 +7,9 @@ export type AppSettings = {
   librarySortOrder: AssetSort;
   // Each album's sort on this device, by album id, when it isn't Newest first (getAlbumSortOrder).
   albumSortOrders: Partial<Record<string, AssetSort>>;
-  // The albums list's sort (useSortAlbumsAction), shared by the Albums tab and the album picker: one
-  // of its sort functions' keys, which it checks, as a stored one may be gone.
+  // The albums list's sort (useSortAlbumsAction), set on the Albums tab and the photo picker's albums,
+  // and followed by Add to Album: one of its sort functions' keys, which it checks, as a stored one may
+  // be gone.
   albumListSortOrder: string;
   // The contacts' sort (useContactSort), shared by the Contacts tab and a list's screen: one of
   // contactSortOptions' keys, which it checks, as a stored one may be gone.

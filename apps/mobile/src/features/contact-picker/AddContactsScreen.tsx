@@ -20,9 +20,9 @@ import useContactSort from '@/features/contact-list/useContactSort';
 import type { MembershipChange } from '@/features/contacts-context/ContactsContext';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
-import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearchText from '@/hooks/useSearchText';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import useSheetSearchList from '@/hooks/useSheetSearchList';
 import type { PhotosOf } from '@/sync/assetSql';
 import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
@@ -62,7 +62,7 @@ export default function AddContactsScreen() {
 type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed };
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
-  const padding = useScreenPadding('sheet-search');
+  const listProps = useSheetSearchList();
   const { changePhotoContacts, changeListContacts, changeContactsOnPhotosOf } = useContacts();
   // The ones on only some of an album's photos start with a dash (`mixed`), the rest of `linked` ticked.
   const partial = useMemo(() => new Set(seed.partial), [seed.partial]);
@@ -70,8 +70,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   // One state, so a pick's toggle reads the latest picks and stays the same function.
   const [{ selectedIds, mixedIds }, setPicks] = useState({ selectedIds: initialIds, mixedIds: seed.partial ?? [] });
   const { sortOrder } = useContactSort();
-  const { field, searchText: typedSearch } = useSearchText();
-  const searchText = typedSearch.trim().toLowerCase();
+  const { field, searchText } = useSearchText();
   // Every contact, read once (and on writes and a new sort); a search filters them here, so typing
   // reads nothing.
   const allContacts = useContactRows({ scope: 'all', sort: sortOrder });
@@ -82,7 +81,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   );
   const contacts = useMemo(() => {
     if (!allContacts || !searchList || !searchText) return allContacts;
-    const matched = new Set(matchingIds(searchList, searchText));
+    const matched = new Set(matchingIds(searchList, searchText.toLowerCase()));
     return allContacts.filter((contact) => matched.has(contact.id));
   }, [allContacts, searchList, searchText]);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -163,10 +162,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
         )}
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={contacts ? <EmptyState icon="search" title="No contacts match" /> : undefined}
-        automaticallyAdjustKeyboardInsets
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={padding}
+        {...listProps}
       />
     </ModalSheet>
   );

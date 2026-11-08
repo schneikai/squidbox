@@ -15,8 +15,8 @@ import ModalSheet from '@/components/ModalSheet';
 import SheetSearchField from '@/components/SheetSearchField';
 import useHaptics from '@/hooks/useHaptics';
 import useModelKindParam from '@/hooks/useModelKindParam';
-import useScreenPadding from '@/hooks/useScreenPadding';
 import useSearchText from '@/hooks/useSearchText';
+import useSheetSearchList from '@/hooks/useSheetSearchList';
 import useYourModels from '@/hooks/useYourModels';
 import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
@@ -37,7 +37,7 @@ type AddModelsProps = { kind: AiModelKind };
 function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
   const { field, searchText } = useSearchText();
-  const padding = useScreenPadding('sheet-search');
+  const listProps = useSheetSearchList();
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
   const removed = useLiveQuery((db) => readRemovedModels(db, kind), [schema.aiModels, schema.aiScores], [kind]);
@@ -90,10 +90,7 @@ function AddModels({ kind }: AddModelsProps) {
         renderItem={renderItem}
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={renderEmpty()}
-        automaticallyAdjustKeyboardInsets
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={padding}
+        {...listProps}
       />
     </ModalSheet>
   );

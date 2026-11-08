@@ -13,7 +13,7 @@ export type ScrollableList = { scrollToOffset(params: { animated: boolean; offse
  *   - `sortOrder` and `sort`, starting at `defaultSort`; a screen whose sort outlives it keeps its own and
  *     passes `onSort`, which `sort` then calls instead;
  *   - `activeFilter` (filter keys, of `Filter`) and `toggleFilter` ('all' clears them);
- *   - `searchBar`, the props SearchOptionsBar expects, and `searchText`, a deferred copy of the typed
+ *   - `searchBar`, the props SearchOptionsBar expects, and `searchText`, a deferred, trimmed copy of the typed
  *     text for filtering, so typing stays smooth on large lists.
  */
 export default function useListControls<Sort = string, Filter extends string = string>({

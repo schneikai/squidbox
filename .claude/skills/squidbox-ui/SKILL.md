@@ -61,7 +61,8 @@ All paths are under `apps/mobile/src/`.
     sort and filter at the bottom left, on main and pushed screens, and the photo picker; built on
     `SearchOptionsBar`), `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
   - Modals: `ModalSheet`, `ModalHeader`, `EditSheet`, `TextEditSheet`. `ToolbarTitle` for a title in a toolbar pill.
-    `SheetSearchField` for a picker sheet's search, pinned under its header, with `hooks/useSearchText`.
+    `SheetSearchField` for a picker sheet's search, pinned under its header, with `hooks/useSearchText` (its text) and
+    `hooks/useSheetSearchList` (the list's padding and keyboard props).
   - Forms and lists: `Field`, `TextInput` (`variant` inline or field, `multiline`), `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
