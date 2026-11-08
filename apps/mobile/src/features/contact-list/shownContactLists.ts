@@ -7,7 +7,7 @@ type ShownList = { id: string; name: string; createdAt: number };
 const byName = (a: ShownList, b: ShownList) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 
 /**
- * The lists a list of lists shows (the Lists tab, the list picker): those whose name matches
+ * The lists a list of lists shows (the Lists screen, the list picker): those whose name matches
  * `searchText` (all while it is empty), in `sortOrder`, the contacts' sort choices: by name, or the
  * newest first (by name where they tie).
  */

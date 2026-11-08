@@ -1,13 +1,13 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { Alert, StyleSheet } from 'react-native';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import FloatingSegmentPill from '@/components/floating-bars/FloatingSegmentPill';
-import type { SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
+import SegmentedPill, { type SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
 import useAlbum from '@/features/album-detail/useAlbum';
 import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
@@ -44,6 +44,13 @@ export default function AssetPickerScreen() {
   const [isAdding, setIsAdding] = useState(false);
   const expandProgress = useSharedValue(0);
   const { scrollY, onScroll } = useScrollY();
+  const { bottom } = useSafeAreaInsets();
+  // The switcher slides out while the search bar next to it is open (SearchOptionsBar's progress).
+  const switcherStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateX: interpolate(expandProgress.value, [0, 1], [0, 30], Extrapolation.CLAMP) }],
+    pointerEvents: expandProgress.value > 0.3 ? 'none' : 'auto',
+  }));
 
   // Closing the picker without Add (the close button, a swipe down) picks nothing.
   useEffect(() => () => finishAssetPicking([]), [finishAssetPicking]);
@@ -126,12 +133,21 @@ export default function AssetPickerScreen() {
         />
       )}
 
-      <FloatingSegmentPill
-        tabs={TABS}
-        activeTab={activeTab}
-        onTabPress={(tab) => showView(tab, null)}
-        expandProgress={expandProgress}
-      />
+      <Animated.View
+        style={[styles.switcher, { bottom: bottom + layout.barMargin }, switcherStyle]}
+        pointerEvents="box-none"
+      >
+        <SegmentedPill items={TABS} activeKey={activeTab} onSelect={(tab) => showView(tab, null)} />
+      </Animated.View>
     </ModalSheet>
   );
 }
+
+const styles = StyleSheet.create({
+  // Bottom right, over the grid.
+  switcher: {
+    position: 'absolute',
+    right: layout.sideGutter,
+    zIndex: 100,
+  },
+});

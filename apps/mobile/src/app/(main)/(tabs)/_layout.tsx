@@ -42,8 +42,8 @@ export default function TabsLayout() {
     <Tabs tabBar={renderTabBar} screenOptions={SCREEN_OPTIONS}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="albums" />
-      <Tabs.Screen name="posts" />
       <Tabs.Screen name="contacts" />
+      <Tabs.Screen name="posts" />
       <Tabs.Screen name="settings" />
     </Tabs>
   );

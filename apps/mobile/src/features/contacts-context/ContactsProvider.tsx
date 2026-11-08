@@ -19,6 +19,7 @@ import { getDb } from '@/sync/db/client';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
+import { addToPhotos, readPhotoIdsOf, removeFromPhotos } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
 import { requestSync } from '@/sync/worker';
 import { deleteAvatar } from '@/utils/assets/assetStorage';
@@ -39,7 +40,7 @@ const LIST_DEFAULTS: Partial<ContactListRecord> = { notes: null };
 type ContactsProviderProps = { children: ReactNode };
 
 // The contact and contact list writes. Membership lives in the contact_list_members edge collection
-// and the contacts on a photo, album or post in contact_links (membershipRepository); a user action
+// and the contacts on a photo in contact_links (membershipRepository, photoContacts); a user action
 // that writes a record and its edges commits once. Screens read through their own live queries
 // (contactQuery, contactListQuery).
 export default function ContactsProvider({ children }: ContactsProviderProps) {
@@ -153,10 +154,21 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       // stay as they are, so another device's change meanwhile is kept.
       changeListContacts: (listId, change) =>
         written((tx) => contactListMembers.change(tx, { listId }, change, getNewItemId)),
-      // `{ added, removed }`: the contacts put on the photo, album or post and those taken off it;
-      // the others stay as they are. The only way a link is removed.
-      changeTargetContacts: ({ targetType, targetId }, change) =>
-        written((tx) => contactLinks.change(tx, { targetType, targetId }, change, getNewItemId)),
+      // `{ added, removed }`: the contacts put on the photo and those taken off it; the others stay
+      // as they are. The only way a link is removed.
+      changePhotoContacts: (assetId, change) =>
+        written((tx) => contactLinks.change(tx, { targetType: 'asset', targetId: assetId }, change, getNewItemId)),
+      // Puts the contacts on every one of the photos; those already on one stay as they are.
+      addContactsToPhotos: (assetIds, contactIds) =>
+        written((tx) => addToPhotos(tx, assetIds, contactIds, getNewItemId)),
+      // Puts the added contacts on every photo of the album or post, as it holds them when this
+      // writes, and takes the removed ones off them all, in one write.
+      changeContactsOnPhotosOf: (of, { added, removed }) =>
+        written(async (tx) => {
+          const photoIds = await readPhotoIdsOf(tx, of);
+          await removeFromPhotos(tx, photoIds, removed);
+          await addToPhotos(tx, photoIds, added, getNewItemId);
+        }),
     };
   }, [library, userId]);
 

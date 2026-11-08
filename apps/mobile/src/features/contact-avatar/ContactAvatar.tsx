@@ -1,14 +1,14 @@
 import type { ContactRecord } from '@squidbox/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Image, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Image as SvgImage, Mask, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import Icon from '@/components/Icon';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
 import { isFileName } from '@/library/fileFields';
 import useOpenLibrary from '@/library/useOpenLibrary';
-import { colors, sizes } from '@/styles/designTokens';
+import { colors, sizes, space } from '@/styles/designTokens';
 import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
 
 /**
@@ -18,7 +18,9 @@ import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
  * `size` is a key of sizes.avatar (`chip` … `hero`). With `isFavorite` it wears a large red heart over
  * its top right edge, outlined in `outlineColor`, the color of the surface behind it (a card's white
  * unless told), so it stands apart from the picture. `isStacked` rings it in white, for avatars
- * overlapping in a stack.
+ * overlapping in a stack. `cutout`, for a face in a row of overlapping ones, is how far the next face
+ * reaches over its right edge: a crescent that much plus a thin gap is cut out of this one, so a real
+ * gap shows whatever is behind the row, on any background.
  * VoiceOver reads the contact's name. style is for layout only.
  */
 export type ContactAvatarProps = {
@@ -29,6 +31,7 @@ export type ContactAvatarProps = {
   isFavorite?: boolean;
   isStacked?: boolean;
   outlineColor?: string;
+  cutout?: number;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -39,6 +42,7 @@ export default function ContactAvatar({
   isFavorite = false,
   isStacked = false,
   outlineColor = colors.background.surface,
+  cutout,
   style,
 }: ContactAvatarProps) {
   const avatarUri = useAvatarUri(contact);
@@ -55,13 +59,16 @@ export default function ContactAvatar({
         styles.avatar,
         { width: diameter, height: diameter, borderRadius: diameter / 2 },
         isStacked && styles.stacked,
+        !!cutout && styles.cut,
         style,
       ]}
       accessible
       accessibilityRole="image"
       accessibilityLabel={contact.name || 'New contact'}
     >
-      {pictureUri ? (
+      {cutout ? (
+        <CutFace diameter={diameter} cutout={cutout} uri={pictureUri} initials={initials} />
+      ) : pictureUri ? (
         <Image source={{ uri: pictureUri }} style={[StyleSheet.absoluteFill, { borderRadius: diameter / 2 }]} />
       ) : initials ? (
         <Text style={[styles.initials, { fontSize: Math.round(diameter * 0.36) }]} numberOfLines={1}>
@@ -79,6 +86,57 @@ export default function ContactAvatar({
         />
       )}
     </View>
+  );
+}
+
+// The gap between overlapping faces.
+const CUT_GAP = space.hair;
+
+// A face drawn in one drawing with the next face's circle (moved `cutout` in from its right edge,
+// CUT_GAP wider) masked out of it. Without a picture or initials it is the plain soft circle.
+type CutFaceProps = { diameter: number; cutout: number; uri: string | null; initials: string };
+
+function CutFace({ diameter, cutout, uri, initials }: CutFaceProps) {
+  const id = useId();
+  const r = diameter / 2;
+  const fontSize = Math.round(diameter * 0.36);
+  return (
+    <Svg width={diameter} height={diameter} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        <Mask id={`${id}m`} maskUnits="userSpaceOnUse" x={0} y={0} width={diameter} height={diameter}>
+          <Rect width={diameter} height={diameter} fill="white" />
+          <Circle cx={diameter - cutout + r} cy={r} r={r + CUT_GAP} fill="black" />
+        </Mask>
+        <ClipPath id={`${id}c`}>
+          <Circle cx={r} cy={r} r={r} />
+        </ClipPath>
+      </Defs>
+      <G mask={`url(#${id}m)`}>
+        <Circle cx={r} cy={r} r={r} fill={colors.accent.surface} />
+        {uri ? (
+          <SvgImage
+            href={{ uri }}
+            width={diameter}
+            height={diameter}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#${id}c)`}
+          />
+        ) : (
+          !!initials && (
+            <SvgText
+              x={r}
+              y={r + fontSize * 0.36}
+              textAnchor="middle"
+              fontSize={fontSize}
+              fontWeight="600"
+              fill={colors.accent.base}
+            >
+              {initials}
+            </SvgText>
+          )
+        )}
+      </G>
+    </Svg>
   );
 }
 
@@ -173,6 +231,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // The soft circle is drawn cut, in CutFace.
+  cut: {
+    backgroundColor: 'transparent',
   },
   stacked: {
     borderWidth: 2,

@@ -9,9 +9,14 @@ const SIZE = { list: scale(26), media: 22 };
 /** The circle's size on a list, for a slot that lines up with it (Row's check for a pick-one row). */
 export const LIST_INDICATOR_SIZE = SIZE.list;
 
-export type SelectIndicatorProps = { isSelected?: boolean; isOnMedia?: boolean; style?: StyleProp<ViewStyle> };
+export type SelectIndicatorProps = {
+  isSelected?: boolean | 'mixed';
+  isOnMedia?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
 
-// A selection circle: a check on the accent's gradient when selected, an empty ring when not. The
+// A selection circle: a check on the accent's gradient when selected, a dash on it when `mixed`
+// (picked for some of several, as a contact on some of an album's photos), an empty ring when not. The
 // ring is white `isOnMedia` (over a picture, a little smaller) and a thin grey one on a list. The
 // parent positions it through `style`.
 export default function SelectIndicator({ isSelected, isOnMedia = false, style }: SelectIndicatorProps) {
@@ -21,7 +26,11 @@ export default function SelectIndicator({ isSelected, isOnMedia = false, style }
   if (isSelected) {
     return (
       <GradientFill style={[styles.circle, box, style]}>
-        <Icon name="check" size={Math.round(size * 0.62)} color={colors.text.inverse} />
+        <Icon
+          name={isSelected === 'mixed' ? 'minus' : 'check'}
+          size={Math.round(size * 0.62)}
+          color={colors.text.inverse}
+        />
       </GradientFill>
     );
   }

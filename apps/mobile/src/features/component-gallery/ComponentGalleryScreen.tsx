@@ -38,19 +38,19 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
-import toggleItem from '@/utils/toggleItem';
 
-type GalleryTab = 'library' | 'albums' | 'posts' | 'contacts';
+type GalleryTab = 'library' | 'albums' | 'contacts' | 'posts';
 
 const TAB_ITEMS: SegmentedPillItem<GalleryTab>[] = [
   { key: 'library', icon: 'image', label: 'Library' },
   { key: 'albums', icon: 'images', label: 'Albums' },
-  { key: 'posts', icon: 'send', label: 'Posts' },
   { key: 'contacts', icon: 'contacts', label: 'Contacts' },
+  { key: 'posts', icon: 'send', label: 'Posts' },
 ];
 
 // The categories, in the order of the chips.
@@ -58,6 +58,9 @@ const CATEGORIES = ['Toolbars', 'Buttons', 'Surfaces', 'Lists', 'Inputs', 'Text'
 type Category = (typeof CATEGORIES)[number];
 
 const noop = () => {};
+
+// Tags a viewer can take off one by one; Add brings them back.
+const GALLERY_TAGS = ['Hiking', 'Sunrise', 'Coast'];
 
 // The prompt buttons a library starts with, for the AssistantTray's row.
 const PROMPT_BUTTONS = DEFAULT_PROMPT_BUTTONS.slice(0, 4);
@@ -75,12 +78,8 @@ export default function ComponentGalleryScreen() {
   const [category, setCategory] = useState<Category>('Toolbars');
   const [activeTab, setActiveTab] = useState<GalleryTab>('library');
   const [isOn, setIsOn] = useState(true);
-  const [selectedTags, setSelectedTags] = useState(['Hiking']);
+  const [tags, setTags] = useState(GALLERY_TAGS);
   const [text, setText] = useState('');
-
-  function toggleTag(tag: string) {
-    setSelectedTags((tags) => toggleItem(tags, tag));
-  }
 
   function renderToolbars() {
     return (
@@ -171,13 +170,24 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="Chip">
           <ChipRow>
-            {['Hiking', 'Sunrise', 'Coast'].map((tag) => (
-              <Chip key={tag} label={tag} isSelected={selectedTags.includes(tag)} onPress={() => toggleTag(tag)} />
+            {tags.map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                onRemove={() => setTags(tags.filter((each) => each !== tag))}
+                removeLabel={`Remove ${tag}`}
+              />
             ))}
-            <Chip variant="action" icon="sparkle" label="Make it shorter" onPress={noop} />
+            <Chip
+              label="Sam Rivera"
+              leading={<ContactAvatar contact={{ name: 'Sam Rivera' }} size="chip" />}
+              onPress={noop}
+              onRemove={noop}
+              removeLabel="Remove Sam Rivera"
+            />
             <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
             <Chip variant="raised" icon="scissors" label="Shorter" onPress={noop} />
-            <Chip variant="add" label="Add" onPress={noop} />
+            <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>
         </Specimen>
@@ -243,7 +253,12 @@ export default function ComponentGalleryScreen() {
           <Row label="Sign out" colorPalette="danger" onPress={noop} hasChevron />
         </Section>
         <SectionFooter>A footer explains the section above it.</SectionFooter>
-        <ScreenSectionHeader title="With trailing" trailing={<Button label="Edit" size="small" onPress={noop} />} />
+        <ScreenSectionHeader title="With a link" link={{ label: 'See all 12', onPress: noop }} />
+        <ScreenSectionHeader title="Tap the title" onTitlePress={noop} link={{ label: 'All lists', onPress: noop }} />
+        <ScreenSectionHeader
+          title="With the assistant's offer"
+          trailing={<Button label="Tag it" icon="sparkle" size="small" onPress={noop} />}
+        />
         <Section>
           <Row label="Disabled" disabled onPress={noop} hasChevron />
         </Section>
@@ -312,6 +327,7 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="SelectIndicator">
           <SelectIndicator isSelected />
+          <SelectIndicator isSelected="mixed" />
           <SelectIndicator isSelected={false} />
           <View style={styles.media}>
             <SelectIndicator isSelected={false} isOnMedia />

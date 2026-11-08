@@ -108,14 +108,34 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
   return sql`(select asset_id from album_assets where album_id = ${albumId} and deleted_at is null)`;
 }
 
+/** The ids of the assets of a post and of its thread's following posts, through live edges. */
+export function postThreadAssetIds(postId: string): SQL {
+  return sql`(select asset_id from post_assets where deleted_at is null and (post_id = ${postId} or post_id in
+    (select id from posts where thread_root_id = ${postId} and deleted_at is null)))`;
+}
+
 /** Whether the album `albumId` (a column, or an id) holds any of these assets, through a live edge. */
 export function albumHoldsAny(albumId: string | SQL | SQLiteColumn, assetIds: string[]): SQL {
   return sql`exists (select 1 from album_assets where album_id = ${albumId} and deleted_at is null and ${inJson(sql.raw('asset_id'), assetIds)})`;
 }
 
-/** The ids of the photos, albums or posts (`targetType`) a contact is on, through its live links. */
-export function contactTargetIds(contactId: string, targetType: 'asset' | 'album' | 'post'): SQL {
-  return sql`(select target_id from contact_links where contact_id = ${contactId} and target_type = ${targetType} and deleted_at is null)`;
+/** An album's photos, or a post's (and its thread's following posts'). */
+export type PhotosOf = { albumId: string } | { postId: string };
+
+/** The ids of the live, untrashed photos of an album or post (PhotosOf), through live edges. */
+export function livePhotoIdsOf(of: PhotosOf): SQL {
+  return sql`(select id from assets where deleted_at is null and id in ${heldPhotoIds(of)})`;
+}
+
+/** The ids of an album's or post's photos (PhotosOf), trashed ones included, through live edges. */
+export function heldPhotoIds(of: PhotosOf): SQL {
+  return 'albumId' in of ? liveAlbumAssetIds(of.albumId) : postThreadAssetIds(of.postId);
+}
+
+/** The ids of the live, untrashed photos a contact is on, through its live links. */
+export function contactPhotoIds(contactId: string): SQL {
+  return sql`(select l.target_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
+    where l.contact_id = ${contactId} and l.target_type = 'asset' and l.deleted_at is null)`;
 }
 
 /**
@@ -161,7 +181,7 @@ export function assetScopeWhere(scope: AssetScope, sort: AssetSort = 'createdAt:
   if (edges) return sql`${deletion} and ${edges.where}`;
   if (scope === 'favorites') return sql`${deletion} and a.is_favorite = 1`;
   if (isIdScope(scope, 'assetId')) return sql`${deletion} and a.id = ${scope.assetId}`;
-  if (isIdScope(scope, 'contactId')) return sql`${deletion} and a.id in ${contactTargetIds(scope.contactId, 'asset')}`;
+  if (isIdScope(scope, 'contactId')) return sql`${deletion} and a.id in ${contactPhotoIds(scope.contactId)}`;
   if (!isIdScope(scope, 'albumId')) return deletion;
   return sql`${deletion} and a.id in ${liveAlbumAssetIds(scope.albumId)}`;
 }

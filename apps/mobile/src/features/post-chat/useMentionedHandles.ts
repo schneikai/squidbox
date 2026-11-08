@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 
-import extractHandles from './extractHandles';
-
 import { MIN_REREAD_INTERVAL } from '@/constants';
+import extractHandles from '@/lib/extractHandles';
 import { schema } from '@/sync/db/client';
 import { readMentionedTexts } from '@/sync/postsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';

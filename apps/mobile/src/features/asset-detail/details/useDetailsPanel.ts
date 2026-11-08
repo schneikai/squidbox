@@ -38,7 +38,7 @@ const KEYBOARD_GAP = space.lg;
  * `onPageLayout` and `liftStyle` on the view around the pager: while the current page's note is
  * edited (`panel.setEditingBottom`), that lifts the page just enough to show the field above the
  * keyboard. `isShown` is true from a drag's start until it has closed again. `open()` opens it,
- * `closeIfOpen()` closes it and says whether it was open, `reset()` closes it at once.
+ * `closeIfOpen()` closes it and says whether it was open.
  */
 export default function useDetailsPanel() {
   const [isShown, setIsShown] = useState(false);
@@ -201,12 +201,6 @@ export default function useDetailsPanel() {
     return true;
   }, [offset, settle]);
 
-  const reset = useCallback(() => {
-    stop();
-    offset.value = 0;
-    setIsShown(false);
-  }, [offset, stop]);
-
   const onPageLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { width, height } = event.nativeEvent.layout;
@@ -229,7 +223,7 @@ export default function useDetailsPanel() {
     [offset, openAt, page, contentHeight, verticalDrag, pagerGesture, showFromTop, setEditingBottom],
   );
 
-  return { isShown, panel, open, closeIfOpen, reset, liftStyle, onPageLayout };
+  return { isShown, panel, open, closeIfOpen, liftStyle, onPageLayout };
 }
 
 export type DetailsPanel = ReturnType<typeof useDetailsPanel>['panel'];

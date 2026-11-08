@@ -9,7 +9,7 @@ import confirmAsync from '@/utils/confirmAsync';
 /**
  * A contact list's menu: Edit list (its name and description, in a sheet), delete it (its contacts
  * stay), then `afterDelete` (leaving its screen). The ⋯ button, or `trigger` (MenuButton's): its row
- * in the Lists tab, on a long press.
+ * in the Lists screen, on a long press.
  */
 type ContactListMenuProps = {
   list: Pick<ContactListRecord, 'id' | 'name'>;

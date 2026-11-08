@@ -1,39 +1,38 @@
-import type { ContactLinkRecord } from '@squidbox/shared';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
-import assetQuery from '@/features/asset-list/assetQuery';
+import type { ContactsOf } from '@/features/contact-links/contactsOf';
 import contactQuery from '@/features/contact-list/contactQuery';
 import { albumHoldsAny } from '@/sync/assetSql';
-import type { CollectionTable } from '@/sync/clientCollections';
-import { schema } from '@/sync/db/client';
+import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
+import { readPhotoIdsOf } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
 
-type TargetType = ContactLinkRecord['targetType'];
-
-const TABLES = { asset: schema.assets, album: schema.albums, post: schema.posts } satisfies Record<
-  TargetType,
-  CollectionTable
->;
-const TITLES: Record<TargetType, string> = { asset: 'On this photo', album: 'On this album', post: 'On this post' };
-
-/** What Add contacts adds to: a photo, album or post, or a list. */
-export type AddContactsTarget = { targetType: TargetType; targetId: string } | { listId: string };
+/** What Add contacts adds to: a photo, an album's or post's photos (ContactsOf), or a list. */
+export type AddContactsTarget = ContactsOf | { listId: string };
 
 /** A section of contacts Add contacts offers: a title and the contacts' ids, in order. */
 export type ContactSection = { title: string; ids: string[] };
 
-export type AddContactsSeed = { title: string; linkedTitle: string; linked: string[]; related: ContactSection[] };
+export type AddContactsSeed = {
+  // Under the sheet's title: how many photos, for an album's or post's several.
+  subtitle?: string;
+  linkedTitle: string;
+  linked: string[];
+  related: ContactSection[];
+  // An album's or post's photos: the linked contacts on only some of them (the rest are on all).
+  partial?: string[];
+};
 
 type AlbumName = Pick<schema.AlbumRow, 'id' | 'name'>;
 
 /**
- * What the Add contacts sheet starts from, for a photo, album or post (`{ targetType, targetId }`) or
- * a list (`{ listId }`): its `title` ("to 1 photo", "to Sea to Sky"), the `linked` contacts' ids
- * with their section's `linkedTitle`, and the `related` sections: contacts on what it is part of or
- * holds, `{ title, ids }` (a photo's albums one by one; an album's photos; a post's photos and
- * albums). `null` when the target is gone. One transaction.
+ * What the Add contacts sheet starts from: its `subtitle` ("12 photos"), the `linked`
+ * contacts' ids with their section's `linkedTitle`, and the `related` sections, `{ title, ids }`:
+ * the contacts on the photos of each album a photo is in, or a post's photos are in. For an album's
+ * or post's photos the linked ones are those on any of them, and `partial` those not on every one.
+ * `null` when it is gone. One transaction.
  */
 export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarget): Promise<AddContactsSeed | null> {
   return db.transaction(async (tx) => {
@@ -42,42 +41,34 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       const [list] = await readByIds(tx, schema.contactLists, [listId]);
       if (!list || list.deletedAt) return null;
       const linked = await contactQuery({ scope: { listId } }).ids(tx);
-      return { title: `to ${list.name}`, linkedTitle: 'In this list', linked, related: [] };
+      return { linkedTitle: 'In this list', linked, related: [] };
     }
-    const { targetType, targetId } = target;
-    const [record] = await readByIds(tx, TABLES[targetType], [targetId]);
-    if (!record || record.deletedAt) return null;
-    const linked = await contactQuery({ scope: { targetType, targetId } }).ids(tx);
-    const onTargets = async (type: TargetType, ids: string[]): Promise<string[]> =>
-      ids.length ? contactQuery({ scope: { targetType: type, targetId: ids } }).ids(tx) : [];
-    const related: ContactSection[] = [];
-
-    if (targetType === 'asset') {
-      const albums = await albumsHolding(tx, [targetId]);
-      const onAlbums = await contactsOnAlbums(tx, albums);
-      for (const album of albums) related.push({ title: `Also in ${album.name}`, ids: onAlbums.get(album.id) ?? [] });
+    if ('assetId' in target) {
+      const [asset] = await readByIds(tx, schema.assets, [target.assetId]);
+      if (!asset || asset.deletedAt) return null;
+      const linked = await contactQuery({ scope: { photoIds: [target.assetId] } }).ids(tx);
+      const related = await onAlbumsPhotos(tx, await albumsHolding(tx, [target.assetId]));
+      return { linkedTitle: 'On this photo', linked, related };
+    }
+    if ('albumId' in target) {
+      const [album] = await readByIds(tx, schema.albums, [target.albumId]);
+      if (!album || album.deletedAt || album.smartAlbumType) return null;
     } else {
-      // The photos it shows: the canonical live edges of live assets (assetQuery's scope).
-      const assetIds = await assetQuery({
-        scope: targetType === 'album' ? { albumId: targetId } : { postId: targetId },
-      }).ids(tx);
-      related.push({ title: 'On its photos', ids: await onTargets('asset', assetIds) });
-      if (targetType === 'post') {
-        const albums = await albumsHolding(tx, assetIds);
-        related.push({
-          title: 'On its albums',
-          ids: await onTargets(
-            'album',
-            albums.map((album) => album.id),
-          ),
-        });
-      }
+      const [post] = await readByIds(tx, schema.posts, [target.postId]);
+      if (!post || post.deletedAt) return null;
     }
-
-    const title = { asset: 'to 1 photo', album: `to ${'name' in record ? record.name : ''}`, post: 'to this post' }[
-      targetType
-    ];
-    return { title, linkedTitle: TITLES[targetType], linked, related: related.filter((section) => section.ids.length) };
+    const photoIds = await readPhotoIdsOf(tx, target);
+    const counts = await photoCounts(tx, photoIds);
+    const linked = await contactQuery({ scope: { photosOf: target } }).ids(tx);
+    // A post's photos' albums; an album is its own.
+    const related = 'postId' in target ? await onAlbumsPhotos(tx, await albumsHolding(tx, photoIds)) : [];
+    return {
+      subtitle: photoIds.length > 1 ? `${photoIds.length} photos` : undefined,
+      linkedTitle: 'On its photos',
+      linked,
+      related,
+      partial: linked.filter((id) => (counts.get(id) ?? 0) < photoIds.length),
+    };
   });
 }
 
@@ -92,31 +83,36 @@ async function albumsHolding(tx: SyncDb, assetIds: string[]): Promise<AlbumName[
     .orderBy(asc(sql`${al.name} collate nocase`), asc(al.id));
 }
 
-// The live contacts on each of these albums, by name: one read for them all.
-async function contactsOnAlbums(tx: SyncDb, albums: AlbumName[]): Promise<Map<string, string[]>> {
-  if (albums.length === 0) return new Map();
-  const l = schema.contactLinks;
-  const c = schema.contacts;
+// "Also in <album>": the live contacts on each album's untrashed photos, by name, for the albums
+// with any: one read for them all.
+async function onAlbumsPhotos(tx: SyncDb, albums: AlbumName[]): Promise<ContactSection[]> {
+  if (albums.length === 0) return [];
+  const albumIds = albums.map((album) => album.id);
+  const { albumAssets: aa, assets: a, contactLinks: l, contacts: c } = schema;
   const rows = await tx
-    .select({ albumId: l.targetId, contactId: c.id })
-    .from(l)
+    .selectDistinct({ albumId: aa.albumId, contactId: c.id })
+    .from(aa)
+    .innerJoin(a, and(eq(a.id, aa.assetId), isNull(a.deletedAt)))
+    .innerJoin(l, and(eq(l.targetType, 'asset'), eq(l.targetId, aa.assetId), isNull(l.deletedAt)))
     .innerJoin(c, and(eq(c.id, l.contactId), isNull(c.deletedAt)))
-    .where(
-      and(
-        eq(l.targetType, 'album'),
-        isNull(l.deletedAt),
-        inJson(
-          l.targetId,
-          albums.map((album) => album.id),
-        ),
-      ),
-    )
+    .where(and(isNull(aa.deletedAt), inJson(aa.albumId, albumIds)))
     .orderBy(asc(sql`${c.name} collate nocase`), asc(c.id));
   const byAlbum = new Map<string, string[]>();
-  for (const { albumId, contactId } of rows) {
-    const ids = byAlbum.get(albumId);
-    if (ids) ids.push(contactId);
-    else byAlbum.set(albumId, [contactId]);
-  }
-  return byAlbum;
+  for (const { albumId, contactId } of rows) byAlbum.set(albumId, [...(byAlbum.get(albumId) ?? []), contactId]);
+  return albums.flatMap((album) => {
+    const ids = byAlbum.get(album.id);
+    return ids ? [{ title: `Also in ${album.name}`, ids }] : [];
+  });
+}
+
+// How many of these photos each contact is on.
+async function photoCounts(tx: SyncDb, photoIds: string[]): Promise<Map<string, number>> {
+  if (photoIds.length === 0) return new Map();
+  const l = schema.contactLinks;
+  const rows = await tx
+    .select({ contactId: l.contactId, count: sql<number>`count(distinct ${l.targetId})` })
+    .from(l)
+    .where(and(eq(l.targetType, 'asset'), isNull(l.deletedAt), inJson(l.targetId, photoIds)))
+    .groupBy(l.contactId);
+  return new Map(rows.map((row) => [row.contactId, row.count]));
 }

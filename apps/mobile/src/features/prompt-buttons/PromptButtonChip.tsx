@@ -6,19 +6,19 @@ import Chip, { type ChipProps, type ChipVariant } from '@/components/Chip';
 
 type PromptButtonChipProps = {
   button: NewPromptButton;
-  variant?: Extract<ChipVariant, 'action' | 'raised'>;
+  variant?: Extract<ChipVariant, 'tag' | 'raised'>;
   onPress: (button: NewPromptButton) => void;
   accessibilityHint?: ChipProps['accessibilityHint'];
 };
 
 /**
  * A prompt button as a chip with its icon; a tap calls `onPress(button)`. `variant` is the Chip's:
- * `action` (outlined, the default) or `raised` (lifted, in a
- * PromptButtonRow).
+ * `raised` (the default, in the assistant's tray) or `tag` (on a card, where white wouldn't show:
+ * the Prompt buttons screen).
  */
 export default function PromptButtonChip({
   button,
-  variant = 'action',
+  variant = 'raised',
   onPress,
   accessibilityHint,
 }: PromptButtonChipProps) {

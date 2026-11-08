@@ -20,7 +20,7 @@ type PromptButtonGroupProps = {
 /**
  * The prompt buttons as chips in their order, with Add at the end: a tap opens the button
  * (`onOpen(button)`), a hold drags it to another place (`onMove(id, afterId)`), Add adds one
- * (`onAdd()`).
+ * (`onAdd()`). On a card, so the chips are grey, as tags on a card are.
  */
 export default function PromptButtonGroup({ buttons, onOpen, onAdd, onMove }: PromptButtonGroupProps) {
   const ids = buttons.map((button) => button.id);
@@ -39,6 +39,7 @@ export default function PromptButtonGroup({ buttons, onOpen, onAdd, onMove }: Pr
     return (
       <PromptButtonChip
         button={button}
+        variant="tag"
         onPress={handleOpen}
         accessibilityHint="Opens it to edit. Touch and hold to move it."
       />

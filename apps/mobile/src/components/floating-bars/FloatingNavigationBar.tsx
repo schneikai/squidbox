@@ -14,8 +14,8 @@ import { layout, motion } from '@/styles/designTokens';
 const NAV_ITEMS = [
   { key: 'index', href: '/', icon: 'image', label: 'Library' },
   { key: 'albums', href: '/albums', icon: 'images', label: 'Albums' },
-  { key: 'posts', href: '/posts', icon: 'send', label: 'Posts' },
   { key: 'contacts', href: '/contacts', icon: 'contacts', label: 'Contacts' },
+  { key: 'posts', href: '/posts', icon: 'send', label: 'Posts' },
 ] satisfies (SegmentedPillItem & { href: Href })[];
 
 const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]));

@@ -176,14 +176,10 @@ export default function Contact({ contact }: ContactProps) {
         <ScreenSectionHeader
           title="Photos"
           isFlush
-          trailing={
-            !!photos?.count && (
-              <Button
-                label={`See all ${photos.count}`}
-                size="small"
-                onPress={() => router.navigate(`/contact/${contact.id}/photos`)}
-              />
-            )
+          link={
+            photos?.count
+              ? { label: `See all ${photos.count}`, onPress: () => router.navigate(`/contact/${contact.id}/photos`) }
+              : undefined
           }
         />
         {photos?.count ? (

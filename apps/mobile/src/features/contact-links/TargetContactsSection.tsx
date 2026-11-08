@@ -1,5 +1,7 @@
-import type { ContactLinkRecord } from '@squidbox/shared';
 import { router } from 'expo-router';
+
+import TargetContactChip from './TargetContactChip';
+import { type ContactsOf, contactsOfScope } from './contactsOf';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
@@ -10,28 +12,28 @@ import useSheetRoute from '@/hooks/useSheetRoute';
 import unguarded, { type GuardPress } from '@/lib/unguarded';
 
 type TargetContactsSectionProps = {
-  targetType: ContactLinkRecord['targetType'];
-  targetId: string;
+  of: ContactsOf;
   guardPress?: GuardPress;
   isLive?: boolean;
   isFlush?: boolean;
 };
 
 /**
- * The Contacts section of a photo, album or post (`targetType`, `targetId`): a chip per contact on
- * it, opening the contact, and Add, which opens the Add contacts sheet (where one is taken off too).
+ * The Contacts section of a photo, album or post (`of`): a chip per contact on the photo, or on any
+ * of the album's or post's photos (contacts go on photos only), opening the contact (its × takes it
+ * off, TargetContactChip), and Add, which opens the Add contacts sheet (where one is taken off too).
  * Inside a sheet (a photo, album or post opened in New post or Compare) the chips only show who is
  * on it: a contact and the Add contacts sheet open from the main app, never as a second sheet or a
- * screen that edits as you type inside a draft. `guardPress` may wrap the presses (useDetailsPanelDrag's); `isLive: false` reads them once.
+ * screen that edits as you type inside a draft. `guardPress` may wrap the presses
+ * (useDetailsPanelDrag's); `isLive: false` reads them once.
  */
 export default function TargetContactsSection({
-  targetType,
-  targetId,
+  of,
   guardPress = unguarded,
   isLive,
   isFlush,
 }: TargetContactsSectionProps) {
-  const contacts = useContactRows({ scope: { targetType, targetId } }, { isLive });
+  const contacts = useContactRows({ scope: contactsOfScope(of) }, { isLive });
   const isInSheet = !!useSheetRoute();
 
   if (isInSheet && !contacts?.length) return null;
@@ -40,22 +42,24 @@ export default function TargetContactsSection({
     <>
       <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
       <ChipRow>
-        {contacts?.map((contact) => (
-          <Chip
-            key={contact.id}
-            label={contact.name}
-            size="large"
-            leading={<ContactAvatar contact={contact} size="chip" />}
-            onPress={isInSheet ? undefined : guardPress(() => router.navigate(`/contact/${contact.id}`))}
-          />
-        ))}
+        {contacts?.map((contact) =>
+          isInSheet ? (
+            <Chip key={contact.id} label={contact.name} leading={<ContactAvatar contact={contact} size="chip" />} />
+          ) : (
+            <TargetContactChip
+              key={contact.id}
+              contact={contact}
+              of={of}
+              onOpen={guardPress(() => router.navigate(`/contact/${contact.id}`))}
+            />
+          ),
+        )}
         {!isInSheet && (
           <Chip
             variant="add"
-            size="large"
             label="Add"
             accessibilityLabel="Add contacts"
-            onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: { targetType, targetId } }))}
+            onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: of }))}
           />
         )}
       </ChipRow>

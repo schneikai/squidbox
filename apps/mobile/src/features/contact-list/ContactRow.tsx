@@ -27,14 +27,14 @@ const AVATAR_INSET = layout.rowInset + sizes.avatar.row + layout.rowLeadingGap;
  * Restore button); without one, a row that opens the contact ends with Row's chevron. `onLongPress` opens its menu (ContactRowMenu's `openFromLongPress`). The rows of one list
  * read as one card: `isFirst` and `isLast` round its ends, and a divider inset to the text separates
  * the rest. The row opens the contact unless given `onPress`; with `isSelected` (true or false) it is
- * a row to pick, with a selection circle at its end.
+ * a row to pick, with a selection circle at its end (`'mixed'`: a dash, picked for some of several).
  */
 type ContactRowProps = {
   contact: Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | 'isFavorite' | 'places' | 'listNames'>;
   trailing?: ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
-  isSelected?: boolean;
+  isSelected?: boolean | 'mixed';
   isFirst?: boolean;
   isLast?: boolean;
 };
@@ -66,7 +66,9 @@ function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFir
         onLongPress={onLongPress}
         {...longPressAccessibility(onLongPress)}
         accessibilityRole="button"
-        accessibilityState={canFavorite ? undefined : { selected: isSelected }}
+        accessibilityState={
+          canFavorite ? undefined : isSelected === 'mixed' ? { checked: 'mixed' } : { selected: isSelected }
+        }
       >
         <RowSlots
           leading={
