@@ -20,8 +20,8 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * → `rows` (the live assets, in order; undefined while reading), `attempts` (the taggings under way
  * or failed, by asset id), `isTagging` (also for a photo about to be tagged by itself), `untagged`
  * (the rows never tagged that nothing will tag without a tap: none while the assistant is available;
- * one whose tags are still on their way isn't), `taggingAsync()` (waits for those under way
- * now; resolves to whether there were any) and `retry(id)` (tags one again: a failed one, or one not
+ * one whose tags are still on their way isn't), `taggingAsync(onWait)` (waits for those under way
+ * now, calling `onWait()` first when there are any; resolves to whether there were any) and `retry(id)` (tags one again: a failed one, or one not
  * tagged). The result changes only when one of these does.
  */
 export default function useAssetTags(assets: readonly Pick<AssetRecord, 'id'>[]) {
@@ -44,9 +44,10 @@ export default function useAssetTags(assets: readonly Pick<AssetRecord, 'id'>[])
     const { isTagging, untagged } = taggingState(rows, attempts, isAvailable, tagAttempts.hasRun);
 
     // Read when called, so a tagging that started since the last render is waited for too.
-    async function taggingAsync() {
+    async function taggingAsync(onWait?: () => void) {
       const now = tagAttempts.get();
       const running = ids.flatMap((id) => (now[id]?.status === 'loading' ? [now[id].promise] : []));
+      if (running.length > 0) onWait?.();
       await Promise.allSettled(running);
       return running.length > 0;
     }

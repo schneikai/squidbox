@@ -93,7 +93,7 @@ describe('uncensoredMarks', () => {
     expect(uncensoredMarks.wanted.get()).not.toHaveProperty('tapped-twice');
   });
 
-  it('a tap made during a write that fails has its own write after it', async () => {
+  it("a tap made during a write that fails has its own write after it, and the failed write doesn't alert", async () => {
     const first = deferred();
     const second = deferred();
     setUncensored.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
@@ -108,7 +108,7 @@ describe('uncensoredMarks', () => {
 
     first.reject(failure);
     await settle();
-    expect(onFirstError).toHaveBeenCalledWith(failure);
+    expect(onFirstError).not.toHaveBeenCalled();
     expect(uncensoredMarks.wanted.get()['fails-then-tapped']).toBe(false);
     expect(setUncensored.mock.calls).toEqual([
       ['fails-then-tapped', true],

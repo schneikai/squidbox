@@ -18,8 +18,8 @@ let tapCount = 0;
 
 /**
  * Marks the catalog model `model` uncensored or not (`isOn`) at once, before the server has it.
- * `onError` runs when the write failed, the mark back as it was unless a tap came after the one the
- * write sent (that tap keeps its mark and has its own write).
+ * `onError` runs when the write failed, the mark back as it was, unless a tap came after the one the
+ * write sent: that tap keeps its mark and has its own write, which reports for itself.
  */
 function set(
   model: Pick<ApiAiModel, 'id' | 'isVeniceUncensored'>,
@@ -37,7 +37,8 @@ function set(
       // Back to following Venice when it agrees.
       applyAiCatalog(await setUncensoredAsync(model.id, next === model.isVeniceUncensored ? null : next));
     } catch (error) {
-      onError(error);
+      // A tap made meanwhile has its own write, which reports for itself.
+      if (lastTaps.get(model.id) === tap) onError(error);
     } finally {
       // A tap made meanwhile keeps its mark and has its own write queued after this one.
       if (lastTaps.get(model.id) === tap) forget(model.id);

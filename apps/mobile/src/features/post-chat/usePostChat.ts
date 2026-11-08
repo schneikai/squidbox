@@ -1,5 +1,5 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import chatMentions from './chatMentions';
 import type { ContextReader, UserTurn } from './chatSessions';
@@ -48,24 +48,26 @@ export default function usePostChat(sessionId: string) {
   // Counts the context reads: only the newest one clears `isWaiting`.
   const readCount = useRef(0);
 
-  // What the chat is about as it is now: the editor's latest caption and assets, the post's tags
-  // (their tags, read again once a tagging under way landed, with the card's edits: postTags) and the
-  // handles found in their albums' posts. Waits for the photos being tagged (`isWaiting` meanwhile,
-  // until the read ends or its turn is dropped).
-  const readContext = useCallback<ContextReader>(
-    async (signal) => {
-      if (!session) throw new Error('The chat is closed');
-      const { tagging: current, mentions: currentMentions } = latest.current;
-      const { taggingAsync, rows: taggedRows, isTagging } = current;
+  // The sends, built once per chat (they keep their identity while its state changes). The context
+  // is what the chat is about when the turn goes: the editor's latest caption and assets, the post's
+  // tags (their tags, read again once a tagging under way landed, with the card's edits: postTags)
+  // and the handles found in their albums' posts. It waits for the photos being tagged (`isWaiting`
+  // meanwhile, until the read ends or its turn is dropped).
+  const { send, moreLikeThis, retry } = useMemo(() => {
+    if (!session) return { send: () => false, moreLikeThis: () => false, retry: () => false };
+    const readContext: ContextReader = async (signal) => {
       const read = ++readCount.current;
       const finish = () => {
         if (readCount.current === read) setIsWaiting(false);
       };
       signal.addEventListener('abort', finish);
-      setIsWaiting(isTagging);
       try {
-        const hasWaited = await taggingAsync();
+        const hasWaited = await latest.current.tagging.taggingAsync(() => setIsWaiting(true));
         if (signal.aborted) throw new Error('The turn was dropped');
+        const {
+          tagging: { rows: taggedRows },
+          mentions: currentMentions,
+        } = latest.current;
         const { text, assets: now } = session.getDraft();
         const { kind, tagEdits } = session.getState();
         const ids = now.map((asset) => asset.id);
@@ -82,27 +84,18 @@ export default function usePostChat(sessionId: string) {
         signal.removeEventListener('abort', finish);
         finish();
       }
-    },
-    [session, latest],
-  );
+    };
 
-  const send = useCallback(
-    (turn: UserTurn) =>
-      session !== undefined &&
-      session.send({ ...turn, content: turn.content.slice(0, CHAT_LIMITS.message) }, readContext, chatAsync) !== null,
-    [session, readContext],
-  );
+    const sendTurn = (turn: UserTurn) =>
+      session.send({ ...turn, content: turn.content.slice(0, CHAT_LIMITS.message) }, readContext, chatAsync) !== null;
 
-  // The server puts the user's More like this instruction before the option.
-  const moreLikeThis = useCallback(
-    (text: string) => send({ label: MORE_LIKE_THIS, content: text, moreLikeThis: true }),
-    [send],
-  );
-
-  const retry = useCallback(
-    () => session !== undefined && session.retry(readContext, chatAsync) !== null,
-    [session, readContext],
-  );
+    return {
+      send: sendTurn,
+      // The server puts the user's More like this instruction before the option.
+      moreLikeThis: (text: string) => sendTurn({ label: MORE_LIKE_THIS, content: text, moreLikeThis: true }),
+      retry: () => session.retry(readContext, chatAsync) !== null,
+    };
+  }, [session, latest]);
 
   return { chat, assets, tagging, mentions, isWaiting, send, moreLikeThis, retry };
 }

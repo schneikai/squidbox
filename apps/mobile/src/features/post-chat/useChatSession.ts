@@ -1,13 +1,9 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
-import chatSessions, { type ChatSession } from './chatSessions';
+import chatSessions from './chatSessions';
 
 const subscribeNone = () => () => {};
 const getNone = () => null;
-
-// The state as a screen sees it: the type leaves `isClosed` out, since a closed chat is null here
-// (the spread still carries it, always false).
-type LiveState = Omit<ReturnType<ChatSession['getState']>, 'isClosed'>;
 
 /**
  * The chat with this id (chatSessions), live: its state, its draft (`getDraft()`) and its actions
@@ -20,8 +16,10 @@ export default function useChatSession(id: string | null) {
   const state = useSyncExternalStore(session?.subscribe ?? subscribeNone, session?.getState ?? getNone);
 
   return useMemo(() => {
-    if (!session || !state || state.isClosed) return null;
-    const live: LiveState = state;
+    if (!session || !state) return null;
+    // A closed chat is none, so the live state has no isClosed.
+    const { isClosed, ...live } = state;
+    if (isClosed) return null;
     return {
       ...live,
       session,
