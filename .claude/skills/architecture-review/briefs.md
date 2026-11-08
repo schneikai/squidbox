@@ -44,7 +44,7 @@ You may propose moving the furniture. Say what moves, where, and what gets simpl
 ```
 You review [SCOPE] in the repo at [ROOT] for data integrity. Read CLAUDE.md "Where data is saved", docs/sync-design.md §2a, §4, §8 and §12, the map at [MAP_FILE], then the code. Write your findings to [REPORT_FILE]; change nothing else.
 
-First, the failure scenarios below. For each, write down what the design docs promise (quote the sentence; that is the contract, independent of the code), then trace the code step by step with file:line, then run it: find the test that drives this exact sequence (apps/mobile/test, apps/server/test, the DB suites README.md names) and run it, or write a throwaway test in the app's test folder that drives the sequence against the real repositories or a real database, run it, and delete it before you return. Quote the run's result; a trace is not a run. A scenario that fails, or has no test that drives it, is a risk whose fix is first that test, from the quoted contract, before any structural change.
+First, the failure scenarios below. For each, write down what the design docs promise (quote the sentence; that is the contract, independent of the code), then trace the code step by step with file:line, then run it: find the test that drives this exact sequence (apps/mobile/test, apps/server/test, the DB suites README.md names) and run it, or write a throwaway test in the app's test folder that drives the sequence against the real repositories or a real database, run it, and delete it before you return. Quote the run's result; a trace is not a run. Where an existing test claims the scenario, break the behaviour on purpose (one line, reverted after) and run it again: a test that stays green does not cover the scenario. A scenario that fails, has no test that drives it, or only a test that stays green when broken, is a risk whose fix is first that test, from the quoted contract, before any structural change.
 1. Two devices edit the same record offline, then both sync.
 2. The process dies between a record write and its file write, or between two of the writes one change needs.
 3. The same sync operation arrives twice, or two arrive out of order.
@@ -60,6 +60,7 @@ Then flag:
 - Any place the multi-tenant invariant (§2a) depends on a caller remembering a filter: name the database constraint, policy or server check that would make the mistake impossible instead.
 - The sync worker, the repositories and library/merge code where they diverge from §8, and §12 choices the code no longer honours.
 - A §8 or §12 behaviour with no test that would fail if it broke, and a fix-up among the recent changes in the map whose bug no test caught: name the test.
+- The seeded fuzz tests (test/helpers/fuzzRuns.ts and the e2e fuzz suites): do they shuffle delivery order, replay an operation, and kill the process between two writes? Each fault they cannot inject is a finding; three replicas and small scenarios are enough.
 A finding names what is lost or corrupted, and when.
 ```
 
@@ -80,7 +81,7 @@ Only when the scope has screens.
 ```
 You review [SCOPE] in the repo at [ROOT] for consistency across features in UI and UX. Read CLAUDE.md "UI / Components", the squidbox-ui skill (its conflicts table and "Checks before calling a screen done"), the map at [MAP_FILE], then the code. Write your findings to [REPORT_FILE]; change nothing else.
 
-Build two inventories first and put them in the report: every button, menu and alert label in scope, grouped by verb; and, for each item kind the map lists, how it is created, edited, deleted, restored and confirmed, and with which components.
+Build three inventories first and put them in the report: every button, menu and alert label in scope, grouped by verb (when an earlier report in docs/reviews/ has this inventory, list the labels new since then: a new synonym for an existing act is a finding); for each item kind the map lists, how it is created, edited, deleted, restored and confirmed, and with which components; and, per feature, the count of one-off styles (a colour, size or duration not from styles/designTokens.ts), raw primitives and style spreads, with the command that produced it. The gallery (features/component-gallery) is the contract for src/components: list every exported component without an entry there.
 
 Then flag:
 - The same job done differently across item kinds: two verbs for one act (Delete and Remove), two capitalisations, a question mark on one confirm and not another, an edit screen for one kind and in-place editing for another, without a reason in the rules.
