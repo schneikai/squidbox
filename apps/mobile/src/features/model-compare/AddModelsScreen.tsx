@@ -15,7 +15,6 @@ import ModalSheet from '@/components/ModalSheet';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import useHaptics from '@/hooks/useHaptics';
 import useListControls from '@/hooks/useListControls';
-import useListRefCallback from '@/hooks/useListRefCallback';
 import useModelKindParam from '@/hooks/useModelKindParam';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
@@ -36,8 +35,8 @@ type AddModelsProps = { kind: AiModelKind };
 
 function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
-  const { listRef, searchBar, searchText } = useListControls();
-  const attachList = useListRefCallback(listRef);
+  // Search only: no sort or filter, so the list is never scrolled from here.
+  const { searchBar, searchText } = useListControls();
   const padding = useScreenPadding('sheet-bar');
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
@@ -84,7 +83,6 @@ function AddModels({ kind }: AddModelsProps) {
         title="Add models"
       />
       <FlatList
-        ref={attachList}
         data={models}
         keyExtractor={(model) => model.id}
         renderItem={renderItem}
@@ -94,7 +92,7 @@ function AddModels({ kind }: AddModelsProps) {
         keyboardDismissMode="on-drag"
         contentContainerStyle={padding}
       />
-      <SearchSortFilterBar search={searchBar} placeholder="Search models…" />
+      {catalog && <SearchSortFilterBar search={searchBar} placeholder="Search models…" />}
     </ModalSheet>
   );
 }

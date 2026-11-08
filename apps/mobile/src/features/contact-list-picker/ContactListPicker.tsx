@@ -62,11 +62,12 @@ export default function ContactListPicker({
     onChange(isSingle ? [listId] : toggleItem(selectedIds, listId));
   }
 
+  if (!shown) return null;
+
   // The lists are one card, so the list has no rows of its own: it is a FlatList for the
   // scrollToOffset that a new sort calls (useListControls), as on the Lists screen.
   const header =
-    shown &&
-    (searchText && shown.length === 0 ? (
+    searchText && shown.length === 0 ? (
       <EmptyState icon="search" title="No lists match" />
     ) : (
       <Section isHeaderless>
@@ -88,7 +89,7 @@ export default function ContactListPicker({
         })}
         <AddRow label="New list" onPress={promptAddList} />
       </Section>
-    ));
+    );
 
   return (
     <>
