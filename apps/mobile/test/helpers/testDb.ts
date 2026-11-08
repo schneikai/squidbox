@@ -3,10 +3,30 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { fileURLToPath } from 'node:url';
 
 import { createDb, type AppDb, type Execute } from '../../src/sync/db/driver';
+import journal from '../../src/sync/db/migrations/meta/_journal.json';
 
 // An in-memory SQLite "device" for tests: better-sqlite3 behind the app's own driver (createDb, so
 // the same queue and transactions), with the same generated migrations the app ships.
-const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrations', import.meta.url));
+export const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrations', import.meta.url));
+
+/**
+ * Runs the client migrations from index `from` up to (not including) `to` on `sqlite`: by default
+ * all of today's; `folder` another build's (taggedBuilds.e2e).
+ */
+export function runMigrations(
+  sqlite: Database.Database,
+  { from = 0, to, folder = migrationsFolder }: { from?: number; to?: number; folder?: string } = {},
+): void {
+  for (const migration of readMigrationFiles({ migrationsFolder: folder }).slice(from, to))
+    for (const statement of migration.sql) sqlite.exec(statement);
+}
+
+/** The index of today's client migration `tag` (`0011_outbox_fields`), for runMigrations. */
+export function migrationIndex(tag: string): number {
+  const index = journal.entries.findIndex((entry) => entry.tag === tag);
+  if (index < 0) throw new Error(`No client migration ${tag}`);
+  return index;
+}
 
 export function makeTestDb(): AppDb {
   const sqlite = openMigrated();
@@ -68,13 +88,11 @@ function countCommits(statements: string[]): number {
 
 export function openMigrated(): Database.Database {
   const sqlite = new Database(':memory:');
-  for (const migration of readMigrationFiles({ migrationsFolder })) {
-    for (const statement of migration.sql) sqlite.exec(statement);
-  }
+  runMigrations(sqlite);
   return sqlite;
 }
 
-function betterSqliteExecutor(sqlite: Database.Database): Execute {
+export function betterSqliteExecutor(sqlite: Database.Database): Execute {
   return async (sql, params, method) => {
     const statement = sqlite.prepare(sql);
     if (method === 'run') {

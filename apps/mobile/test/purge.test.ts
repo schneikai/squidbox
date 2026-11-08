@@ -3,18 +3,15 @@ import { deferred } from '@squidbox/shared/testing/deferred';
 import { gate } from '@squidbox/shared/testing/gate';
 import Database from 'better-sqlite3';
 import { desc, eq } from 'drizzle-orm';
-import { readMigrationFiles } from 'drizzle-orm/migrator';
-import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
-import { makeTestDb } from './helpers/testDb';
+import { betterSqliteExecutor, makeTestDb, migrationIndex, runMigrations } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
-import { createDb, type Execute } from '../src/sync/db/driver';
-import journal from '../src/sync/db/migrations/meta/_journal.json';
+import { createDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
@@ -629,26 +626,12 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
 });
 
 describe('migration 0012_purged_files on a database at 0011', () => {
-  const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
-  const migrations = readMigrationFiles({ migrationsFolder });
-  const at = (tag: string) => journal.entries.findIndex((entry) => entry.tag === tag);
-  const run = (sqlite: Database.Database, from: number, to: number) => {
-    for (const migration of migrations.slice(from, to)) for (const statement of migration.sql) sqlite.exec(statement);
-  };
-  const executor =
-    (sqlite: Database.Database): Execute =>
-    async (sql, params, method) => {
-      const statement = sqlite.prepare(sql);
-      if (method === 'run') return { rows: [], changes: statement.run(...params).changes };
-      const rows = statement.raw().all(...params);
-      return { rows: method === 'get' ? (rows[0] as unknown[]) : rows };
-    };
   // The installed app's database: an asset purged offline (its files already removed, as that app
   // does at once) with its whole-record outbox row, one purged and pushed, one live with a pending
   // notes edit, one trashed.
   function installedAppDb() {
     const sqlite = new Database(':memory:');
-    run(sqlite, 0, at('0011_outbox_fields'));
+    runMigrations(sqlite, { to: migrationIndex('0011_outbox_fields') });
     const insert = sqlite.prepare(
       `INSERT INTO assets (id, created_at, updated_at, deleted_at, media_library_asset_id, media_type, width, height,
         file_size, duration, filename, thumbnail_filename, is_favorite, notes, old_file_id, is_file_synced,
@@ -677,8 +660,8 @@ describe('migration 0012_purged_files on a database at 0011', () => {
         `INSERT INTO outbox (collection, record_id, op, payload, updated_at) VALUES ('assets', 'live', 'upsert', ?, 1000)`,
       )
       .run(JSON.stringify({ ...edit, updatedAt: 1000, purgedAt: null, notes: 'installed' }));
-    run(sqlite, at('0011_outbox_fields'), migrations.length);
-    return { sqlite, db: createDb(executor(sqlite)) as SyncDb };
+    runMigrations(sqlite, { from: migrationIndex('0011_outbox_fields') });
+    return { sqlite, db: createDb(betterSqliteExecutor(sqlite)) as SyncDb };
   }
 
   // The installed app removed a purge's files at once, but not those of a purge it learned in a full

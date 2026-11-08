@@ -1096,6 +1096,10 @@ All sync state is local to the device and none of it syncs.
 - **Status** in `sync_meta.status`: `{ phase: 'idle' | 'pushing' | 'pulling' | 'error',
 lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cursor`.
   `useSyncStatus` exposes both, plus the pending count, as live queries.
+- **Pulled shape** in `sync_meta.pulledShape`: the collections and synced columns the cursor's pulls
+  filled (`clientCollections.ts` `pulledShape`). A build whose shape differs pulls from the beginning
+  once (`status.ts` `pullCursor`), noted in the sync log as `pull restarted from the beginning: new
+  synced fields or collections (assets.tags, …)` (§15).
 - **Outbox.** A record is pending if it has an outbox row. Pending counts are queried from the
   outbox overall and per collection; `useSyncStatus` also counts the failed rows.
 - **File state.** `isFileSynced` and `isThumbnailSynced` (synced) and this device's `syncError`
@@ -1157,3 +1161,63 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
 - **Whole-record pushes** from an older app carry every field as changed (§7).
 - **Derived values are computed per read.** Album stats and `lastPostedAt` are SQL in the paged
   queries (§8), so nothing is recomputed in JavaScript when a table changes.
+
+## 15. Compatibility across app versions
+
+An installed build can't be updated by us, and nobody is ever forced to update: every build that
+was ever installed keeps syncing and calling today's server. The server ships first; the app follows.
+
+### The rules
+
+- **Additive only.** A new field is optional on the wire, and the server ships it before an app
+  sends or needs it. Never remove, rename, retype or narrow what an old build sends or reads: fields,
+  enum values, limits (`maxLength`, `max`, list sizes, body limits), routes.
+- **Enum values.** Removing one breaks a build that sends it; adding one breaks a build that reads
+  it and doesn't know it. Before adding a value to an enum an old build reads, ship a build that
+  tolerates unknown values there, and add the value once no build without that tolerance is
+  installed (the check's message says so).
+- **A behaviour change keeps the old path** for old builds, until no device runs them.
+- **Client migrations are append-only:** never edited once shipped, never removed.
+- **One-time data fixes are migrations**, not boot code to delete later.
+- **A pull fills what the build knows.** A build that learns collections or fields pulls from the
+  beginning once, so values an older build dropped arrive (§13, Pulled shape).
+
+### Tags and contract snapshots
+
+Every App build (`preview`, `production`) is tagged `build/<YYYYMMDD>-<short sha>` by the ios-build
+skill, which then snapshots its contract with `npm run contract:snapshot -- <tag>` (in
+`apps/server`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json` and pushes both. A
+snapshot is never rewritten. It is the normalized JSON Schema of every route (request body, params,
+querystring, every answer, the body limit), every collection, the error envelope and the client
+migrations' hashes (`apps/server/src/contract/`). A dev client runs Metro's code: nothing is frozen
+in it, so it is never tagged.
+
+`apps/server/test/contract.test.ts` fails a change today's server makes that a snapshotted build
+couldn't survive, naming the build, the path and what changed: a request may only loosen (an optional
+field, a wider limit, a value added); a response may only grow (a field added, a value removed); a
+collection may only gain optional fields and wider limits; every recorded route stays, its body
+limit doesn't shrink; the recorded client migrations are a prefix of today's. A JSON Schema keyword
+the check doesn't read is a problem, so it never passes what it can't judge. What it can't see:
+zod `.refine` rules and `.transform`s leave no trace in JSON Schema, and stay under the rules above.
+The dev-only routes (`/api/v1/dev/*`) are no build's contract.
+
+### The client header
+
+Every request names its build and install: `x-squidbox-client: <commit> <device>`
+(`packages/shared/contracts/client.ts`, sent by `apps/mobile/src/utils/cloud-api/clientHeader.ts`):
+the full git sha the build was made from (`app.config.js` `extra.gitCommit`) and a uuid minted once
+per install. The server ignores it for now; recording which builds are installed is a todo before
+other people install the app.
+
+### Retiring a build
+
+An owner decision, once no device runs the build: delete its tag and its snapshot file in one commit.
+
+### The tagged-build suite
+
+`apps/mobile/test/taggedBuilds.e2e.test.ts` runs the oldest and the newest tagged build: each
+build's `apps/mobile/src/sync` as it was built, with its own SQLite migrations, against today's
+server, then updated to today's code and migrations on the same database. The old code runs with
+today's `@squidbox/shared`, so it meets today's schemas and registry (the `withVerbs` shim covers
+what has drifted). It proves both builds converge with today's app through edits, purges and
+updates, and that an updated build's pull restarts.

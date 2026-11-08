@@ -83,9 +83,29 @@ below; the gotchas there are load-bearing.
    (`https://squidbox-server.fly.dev/api/v1`), and `SENTRY_AUTH_TOKEN` should exist. If the URL is
    stale/wrong, fix the VALUE (keep its visibility):
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
-2. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
-3. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
-4. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
+2. The checkout must be clean, committed and pushed, so the tag below marks exactly what is built:
+   `git status --porcelain` empty and `git branch -r --contains HEAD` non-empty. Else stop and say so.
+3. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
+4. After `FINISHED`, tag the build and snapshot its contract (`docs/sync-design.md` §15):
+   ```bash
+   tag=$(git tag --points-at HEAD 'build/*' | head -1)   # reuse the tag of a commit built before
+   if [ -z "$tag" ]; then
+     tag=build/$(date +%Y%m%d)-$(git rev-parse --short=8 HEAD)
+     git tag -a "$tag" -m "EAS build <build-id> <build page url>"
+   fi
+   name=${tag#build/}
+   if [ ! -f "apps/server/contract/builds/$name.json" ]; then
+     (cd apps/server && npm run contract:snapshot -- "$tag")
+     git add apps/server/contract/builds && git commit -m "Contract snapshot of $tag"   # + the usual attribution lines
+   fi
+   git push origin HEAD "$tag"
+   ```
+   The snapshot commit follows the tagged one: the tag marks what is installed, the snapshot
+   describes it. `contract.test.ts` holds today's server to every snapshot, and the old-build e2e
+   suite (`apps/mobile/test/taggedBuilds.e2e.test.ts`) runs the oldest and the newest tag. Retiring
+   a build is deleting its tag and its snapshot in one commit, once no device runs it.
+5. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
+6. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
 
 ## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
 

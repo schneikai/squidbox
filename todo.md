@@ -32,6 +32,16 @@ doesn't.
 
 ## Features
 
+### [ ] Record which builds are installed, before the App Store launch
+
+Every request names its build and install (`x-squidbox-client: <commit> <device>`,
+`apps/mobile/src/utils/cloud-api/clientHeader.ts`, format in `packages/shared/contracts/client.ts`);
+the server ignores it (`apps/server/src/auth/authenticate.ts`). Before other people install the app:
+a `devices` table written per account and install from the header, and a script listing them
+(device, account, build, first and last seen), so a build's tag and contract snapshot
+(`docs/sync-design.md` §15) are retired only once no device runs it. Until then the owner is the
+only user and knows his phone's build.
+
 ### [ ] Search suggestions as you type, like Apple Photos
 
 Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
@@ -219,17 +229,11 @@ The chat's Mentions sheet lists every handle the owner ever mentioned: while it'
 with an @, again on each post change, and `extractHandles` parses them all. Fine now, but costly
 with thousands of posts. Keeping the handles with their counts in a table would avoid it.
 
-### [ ] Bump INSTALLED with each preview build
-
-`INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
-owner's phone (b8171cf): move it to the new build's commit whenever a preview build is installed, so
-the suite tests the real upgrade path.
-
 ### [ ] Drop the outbox's whole-record rows
 
 `outbox.whole_record` (`sync/db/schema.ts`, the `fields` it leaves out in `sync/worker.ts`) exists
 only for rows queued by a build before per-field sync (0011_outbox_fields). The phone is past it
-and mainClient.e2e no longer covers it: a migration can drop the column once no such row can be left.
+and taggedBuilds.e2e no longer covers it: a migration can drop the column once no such row can be left.
 
 ### [ ] Widen what CI checks
 
