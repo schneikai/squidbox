@@ -12,6 +12,8 @@ import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
+import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
+import useMentionAutocomplete from '@/features/post-mentions/useMentionAutocomplete';
 import { layout, scale, space } from '@/styles/designTokens';
 import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -35,8 +37,9 @@ type PostCardProps = {
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
- * One post of the post editor (`card`: { key, text, postAssets }): its text, its photos once it has
- * any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose chat's Use
+ * One post of the post editor (`card`: { key, text, postAssets }): its text, the contacts an @handle
+ * being typed may mean while it `isActive` (MentionSuggestions, a tap writes the handle), its photos
+ * once it has any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose chat's Use
  * fills this card. `onChange(key, changes)` and `onActivate(key)` report to the editor; the first
  * card (`isFirst`) has the thread's time (`postedAt`, as text once `isPostedAtShown`,
  * `onChangePostedAt`), a following one × (`onRemove(key)`), the last ⊕ (`onAddToThread`).
@@ -57,6 +60,7 @@ export default function PostCard({
   const { key, text, postAssets } = card;
   const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
   const sessionId = useSubjectChat({ kind, text, postAssets, setText });
+  const autocomplete = useMentionAutocomplete(text, setText);
 
   // The first card leaves room to write until photos come in under the text.
   const isRoomy = isFirst && postAssets.length === 0;
@@ -79,6 +83,7 @@ export default function PostCard({
           onChangeText={setText}
           onFocus={activate}
           value={text}
+          {...autocomplete.inputProps}
           style={styles.text}
         />
         {onRemove && (
@@ -91,6 +96,9 @@ export default function PostCard({
           />
         )}
       </View>
+      {isActive && autocomplete.mention && (
+        <MentionSuggestions query={autocomplete.mention.query} onPick={autocomplete.pick} />
+      )}
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
