@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { SectionList, type SectionListRenderItemInfo, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import readAddContactsSeed, { type AddContactsSeed, type AddContactsTarget } from './readAddContactsSeed';
 
@@ -23,8 +22,8 @@ import type { MembershipChange } from '@/features/contacts-context/ContactsConte
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useListControls from '@/hooks/useListControls';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { layout } from '@/styles/designTokens';
 import type { PhotosOf } from '@/sync/assetSql';
 import { matchingIds } from '@/sync/matchingIds';
 import toggleItem from '@/utils/toggleItem';
@@ -64,7 +63,7 @@ export default function AddContactsScreen() {
 type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed };
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet-bar');
   const { changePhotoContacts, changeListContacts, changeContactsOnPhotosOf } = useContacts();
   // The ones on only some of an album's photos start with a dash (`mixed`), the rest of `linked` ticked.
   const partial = useMemo(() => new Set(seed.partial), [seed.partial]);
@@ -176,7 +175,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
         ListEmptyComponent={contacts ? <EmptyState icon="search" title="No contacts match" /> : undefined}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: layout.sheetContentTop, paddingBottom: bottom + layout.barClearance }}
+        contentContainerStyle={padding}
       />
       <SearchSortFilterBar
         search={searchBar}

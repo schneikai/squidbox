@@ -57,10 +57,11 @@ All paths are under `apps/mobile/src/`.
     `IntroText` and `SectionFooter` are hints that also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
-    `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
+    `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchSortFilterBar` (search,
+    sort and filter at the bottom left, on screens and pickers alike; built on `SearchOptionsBar`),
     `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
   - Modals: `ModalSheet`, `ModalHeader`, `EditSheet`, `TextEditSheet`. `ToolbarTitle` for a title in a toolbar pill.
-  - Forms and lists: `Field`, `TextInput` (`variant` inline or field, `multiline`), `SearchInput`, `Switch`, `settings-list/`,
+  - Forms and lists: `Field`, `TextInput` (`variant` inline or field, `multiline`), `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
 - `features/<feature>/`: screens and their building blocks, grouped by feature; `app/` (Expo

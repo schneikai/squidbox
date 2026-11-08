@@ -2,7 +2,6 @@ import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { FlatList, type ListRenderItemInfo } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AddModelRow from './AddModelRow';
 import searchModels from './searchModels';
@@ -18,8 +17,8 @@ import useHaptics from '@/hooks/useHaptics';
 import useListControls from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import useModelKindParam from '@/hooks/useModelKindParam';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
-import { layout } from '@/styles/designTokens';
 import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
@@ -37,9 +36,9 @@ type AddModelsProps = { kind: AiModelKind };
 
 function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
-  const { bottom } = useSafeAreaInsets();
   const { listRef, searchBar, searchText } = useListControls();
   const attachList = useListRefCallback(listRef);
+  const padding = useScreenPadding('sheet-bar');
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
   const removed = useLiveQuery((db) => readRemovedModels(db, kind), [schema.aiModels, schema.aiScores], [kind]);
@@ -93,7 +92,7 @@ function AddModels({ kind }: AddModelsProps) {
         ListEmptyComponent={renderEmpty()}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingTop: layout.sheetContentTop, paddingBottom: bottom + layout.barClearance }}
+        contentContainerStyle={padding}
       />
       <SearchSortFilterBar search={searchBar} placeholder="Search models…" />
     </ModalSheet>

@@ -1,7 +1,6 @@
 import type { ContactListRecord } from '@squidbox/shared';
-import { type ComponentRef, useCallback, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo } from 'react';
+import { FlatList, StyleSheet, Text } from 'react-native';
 
 import EmptyState from '@/components/EmptyState';
 import SelectIndicator from '@/components/SelectIndicator';
@@ -16,7 +15,8 @@ import useAddListAction from '@/features/contact-list/useAddListAction';
 import useContactListRows from '@/features/contact-list/useContactListRows';
 import useContactSort from '@/features/contact-list/useContactSort';
 import useListControls from '@/hooks/useListControls';
-import { layout } from '@/styles/designTokens';
+import useListRefCallback from '@/hooks/useListRefCallback';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import listTextStyles from '@/styles/listTextStyles';
 import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
@@ -42,20 +42,12 @@ export default function ContactListPicker({
   isSingle = false,
   builtIns,
 }: ContactListPickerProps) {
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet-bar');
   const lists = useContactListRows({ withMembers: false });
   const { sortOrder, setSortOrder } = useContactSort('lists');
   const { listRef, sort, searchBar, searchText: typedSearch } = useListControls({ onSort: setSortOrder });
   const searchText = typedSearch.trim();
-  // A ScrollView scrolls to an offset with scrollTo.
-  const attachList = useCallback(
-    (scrollView: ComponentRef<typeof ScrollView> | null) => {
-      listRef.current = scrollView && {
-        scrollToOffset: ({ animated, offset }) => scrollView.scrollTo({ y: offset, animated }),
-      };
-    },
-    [listRef],
-  );
+  const attachList = useListRefCallback(listRef);
   const promptAddList = useAddListAction({
     onAdded: (list: ContactListRecord) => onChange(isSingle ? [list.id] : [...selectedIds, list.id]),
     message: isSingle ? undefined : 'The list is made now, even if you close this without saving.',
@@ -70,39 +62,44 @@ export default function ContactListPicker({
     onChange(isSingle ? [listId] : toggleItem(selectedIds, listId));
   }
 
+  // The lists are one card, so the list has no rows of its own: it is a FlatList for the
+  // scrollToOffset that a new sort calls (useListControls), as on the Lists screen.
+  const header =
+    shown &&
+    (searchText && shown.length === 0 ? (
+      <EmptyState icon="search" title="No lists match" />
+    ) : (
+      <Section isHeaderless>
+        {shown.map((list) => {
+          const isSelected = selectedIds.includes(list.id);
+          return (
+            <Row
+              key={list.id}
+              label={list.name}
+              leading={isSingle ? undefined : <SelectIndicator isSelected={isSelected} />}
+              isSelected={isSingle ? isSelected : undefined}
+              onPress={() => handlePress(list.id)}
+            >
+              <Text style={listTextStyles.subtitle}>
+                {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
+              </Text>
+            </Row>
+          );
+        })}
+        <AddRow label="New list" onPress={promptAddList} />
+      </Section>
+    ));
+
   return (
     <>
-      <ScrollView
+      <FlatList
         ref={attachList}
-        contentContainerStyle={[styles.content, { paddingBottom: bottom + layout.barClearance }]}
+        data={NO_ROWS}
+        ListHeaderComponent={header}
+        contentContainerStyle={[styles.content, padding]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-      >
-        {shown &&
-          (searchText && shown.length === 0 ? (
-            <EmptyState icon="search" title="No lists match" />
-          ) : (
-            <Section isHeaderless>
-              {shown.map((list) => {
-                const isSelected = selectedIds.includes(list.id);
-                return (
-                  <Row
-                    key={list.id}
-                    label={list.name}
-                    leading={isSingle ? undefined : <SelectIndicator isSelected={isSelected} />}
-                    isSelected={isSingle ? isSelected : undefined}
-                    onPress={() => handlePress(list.id)}
-                  >
-                    <Text style={listTextStyles.subtitle}>
-                      {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
-                    </Text>
-                  </Row>
-                );
-              })}
-              <AddRow label="New list" onPress={promptAddList} />
-            </Section>
-          ))}
-      </ScrollView>
+      />
       <SearchSortFilterBar
         search={searchBar}
         placeholder="Search lists…"
@@ -114,9 +111,10 @@ export default function ContactListPicker({
   );
 }
 
+const NO_ROWS: never[] = [];
+
 const styles = StyleSheet.create({
   content: {
-    paddingTop: layout.sheetContentTop,
     paddingHorizontal: SCREEN_PADDING,
   },
 });

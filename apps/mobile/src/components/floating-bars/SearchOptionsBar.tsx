@@ -14,7 +14,7 @@ import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
-import SearchInput from '@/components/SearchInput';
+import TextInput from '@/components/TextInput';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { layout, motion, sizes, space } from '@/styles/designTokens';
 
@@ -144,11 +144,13 @@ export default function SearchOptionsBar({
 
         {/* Expanded: the field, with the native clear button inside */}
         <Animated.View style={[styles.expandedRow, expandedStyle]}>
-          <SearchInput
+          <TextInput
             ref={inputRef}
             value={searchText}
             onChangeText={onChangeSearch}
             placeholder={placeholder}
+            autoCorrect={false}
+            autoCapitalize="none"
             style={styles.input}
             returnKeyType="search"
             clearButtonMode="always"

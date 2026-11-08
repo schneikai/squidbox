@@ -3,7 +3,7 @@ import { type SharedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SearchOptionsBar, { type SearchBarState } from './SearchOptionsBar';
-import SortFilterMenu, { type SortFilterMenuProps, type SortOption } from './SortFilterMenu';
+import SortFilterMenu, { type SortFilterMenuProps } from './SortFilterMenu';
 
 import { layout } from '@/styles/designTokens';
 
@@ -11,8 +11,7 @@ export type SearchSortFilterBarProps<Sort extends string, Filter extends string 
   search: SearchBarState;
   placeholder?: string;
   expandProgress?: SharedValue<number>;
-  sortOptions?: SortOption<Sort>[];
-} & Omit<SortFilterMenuProps<Sort, Filter>, 'sortOptions'>;
+} & SortFilterMenuProps<Sort, Filter>;
 
 /**
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
@@ -46,7 +45,7 @@ export default function SearchSortFilterBar<Sort extends string, Filter extends 
         hasOptions && (
           <SortFilterMenu
             sortOrder={sortOrder}
-            sortOptions={sortOptions ?? []}
+            sortOptions={sortOptions}
             activeFilter={activeFilter}
             filterOptions={filterOptions}
             onSort={onSort}
