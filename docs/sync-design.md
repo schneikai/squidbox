@@ -1218,5 +1218,8 @@ An owner decision, once no device runs the build: delete its tag and its snapsho
 `apps/mobile/test/taggedBuilds.e2e.test.ts` runs the oldest and the newest tagged build: each
 build's `apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite
 migrations, against today's server, then updated to today's code and migrations on the same
-database (the `withVerbs` shim lets the test call the oldest builds' repositories by today's names). It proves both builds converge with today's app through edits, purges and
+database (the `withVerbs` shim lets the test call the oldest builds' repositories by today's names).
+The few `@/` imports of the old sync code (the API client, its errors) still resolve to today's
+`src`. Both the suite and the snapshot check take the tags merged into the checked-out commit: a
+build made from a branch counts once that branch is merged. It proves both builds converge with today's app through edits, purges and
 updates, and that an updated build's pull restarts.

@@ -21,6 +21,8 @@ export type Change = {
   path: string;
   /** For property-added and property-removed: whether the property is (or was) required. */
   required?: boolean;
+  /** For property-removed: the object now refuses properties it doesn't name (`.strict()`). */
+  strict?: boolean;
   detail: string;
 };
 
@@ -141,7 +143,13 @@ function propertyChanges(before: JsonSchema, after: JsonSchema, path: string): C
   for (const name of new Set([...Object.keys(from), ...Object.keys(to)])) {
     const at = `${path}.${name}`;
     if (!(name in to))
-      changes.push({ kind: 'property-removed', path: at, required: wasRequired.has(name), detail: 'removed' });
+      changes.push({
+        kind: 'property-removed',
+        path: at,
+        required: wasRequired.has(name),
+        strict: after.additionalProperties === false,
+        detail: after.additionalProperties === false ? 'removed from a strict object' : 'removed',
+      });
     else if (!(name in from))
       changes.push({ kind: 'property-added', path: at, required: isRequired.has(name), detail: 'added' });
     else {

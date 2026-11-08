@@ -5,9 +5,11 @@ import { schemaChanges, type Change } from './schemaChanges.js';
 type Policy = (change: Change) => boolean;
 
 // What an old build sends, validated by the server: it must still pass. Dropping a property is fine
-// (the server strips unknown keys), as are loosening and an optional property added.
-const breaksRequest: Policy = ({ kind, required }) =>
+// (the server strips unknown keys) unless the object is strict, as are loosening and an optional
+// property added.
+const breaksRequest: Policy = ({ kind, required, strict }) =>
   (kind === 'property-added' && required === true) ||
+  (kind === 'property-removed' && strict === true) ||
   [
     'required-added',
     'type-changed',

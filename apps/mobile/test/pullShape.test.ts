@@ -71,6 +71,27 @@ describe('a pull restarts when the app learns new collections or fields', () => 
     expect(await getCursor(db)).toBe(60);
   });
 
+  it('a shape that only lost a column keeps the cursor and notes nothing', async () => {
+    await pullCursor(db, { ...pulledShape(), assets: [...pulledShape().assets!, 'retired_column'] });
+    await setCursor(db, 30);
+    const { asked, transport } = recordingServer(60);
+    await runSyncOnce(db, transport);
+    expect(asked).toEqual([30]);
+    expect(await lastNotes()).toBeNull();
+  });
+
+  it('a restarted pull that fails still notes the restart', async () => {
+    await pullCursor(db, { ...pulledShape(), assets: pulledShape().assets!.filter((column) => column !== 'tags') });
+    await setCursor(db, 30);
+    const offline = fakeTransport({
+      pull: async () => {
+        throw new Error('offline');
+      },
+    });
+    await expect(runSyncOnce(db, offline)).rejects.toThrow('offline');
+    expect(await lastNotes()).toMatch(/^pull restarted from the beginning: .*\(assets\.tags\)$/);
+  });
+
   it("a pending edit's fields survive the re-pull", async () => {
     const asset = await repo.create(db, makeAssetRecord({ notes: 'server' }));
     await db.delete(schema.outbox);

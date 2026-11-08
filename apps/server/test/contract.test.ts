@@ -31,9 +31,12 @@ describe('the tagged builds', () => {
     expect(Object.keys(current.collections).sort()).toEqual(Object.keys(serverCollections).sort());
   });
 
-  // The ios-build skill commits the snapshot right after the tag; a tag without one goes unchecked.
-  it('every build/* tag in this checkout has its contract snapshot', () => {
-    const tags = execFileSync('git', ['tag', '--list', 'build/*'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+  // The ios-build skill commits the snapshot right after the tag, on the branch built from, so both
+  // reach main together; a tag without one would go unchecked. Tags of branches not merged here don't count.
+  it('every build/* tag merged into this checkout has its contract snapshot', () => {
+    const tags = execFileSync('git', ['tag', '--merged', 'HEAD', '--list', 'build/*'], { encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean);
     expect(tags.filter((tag) => !existsSync(snapshotFile(tag)))).toEqual([]);
   });
 });
@@ -102,6 +105,12 @@ describe('what an old build sends (a request) must still pass', () => {
     expect(problems(body(z.object({ a: z.string() })), body(z.object({ a: z.string() }).strict()))).toEqual([
       'POST /api/v1/thing body additionalProperties none → false',
     ]);
+  });
+
+  it('a property removed from a strict body fails: an old build still sends it', () => {
+    expect(
+      problems(body(z.object({ a: z.string(), b: z.string() }).strict()), body(z.object({ a: z.string() }).strict())),
+    ).toEqual(['POST /api/v1/thing body.b removed from a strict object']);
   });
 
   it('a loosened limit passes', () => {

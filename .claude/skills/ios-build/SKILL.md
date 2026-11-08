@@ -100,8 +100,10 @@ below; the gotchas there are load-bearing.
    fi
    git push origin HEAD "$tag"
    ```
-   The snapshot commit follows the tagged one: the tag marks what is installed, the snapshot
-   describes it. `contract.test.ts` holds today's server to every snapshot, and the old-build e2e
+   The snapshot commit follows the tagged one on the branch built from: the tag marks what is
+   installed, the snapshot describes it, and both reach main when that branch merges. Until then
+   main's checks leave the build out (they take the tags merged into the checkout); a squash merge
+   brings the snapshot but not the tagged commit, so prefer a merge commit for a branch with a build. `contract.test.ts` holds today's server to every snapshot, and the old-build e2e
    suite (`apps/mobile/test/taggedBuilds.e2e.test.ts`) runs the oldest and the newest tag. Retiring
    a build is deleting its tag and its snapshot in one commit, once no device runs it.
 5. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.

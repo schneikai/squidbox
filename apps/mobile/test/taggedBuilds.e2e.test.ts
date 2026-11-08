@@ -15,7 +15,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
 import { betterSqliteExecutor, migrationsFolder, runMigrations } from './helpers/testDb';
-import { at, removedFiles, synced as syncedFields } from './helpers/twoDeviceServer';
+import { at, removedFiles, S, synced as syncedFields } from './helpers/twoDeviceServer';
 import type { Db } from '../../server/src/db/client.js';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
@@ -36,31 +36,25 @@ import { runSyncOnce } from '../src/sync/worker';
 // against this server. It extracts the build's apps/mobile/src/sync into test/.builds/<tag>
 // (gitignored) and drives it with its own SQLite migrations; an "update" then runs the current
 // migrations on that same database and goes on with the current code. The old sync code imports the
-// build's own packages/shared (extracted beside it), so it runs as built (docs/sync-design.md §15).
-// Needs Postgres and the tagged commits, which the suite fetches (depth 1) when the checkout lacks
-// one: in CI a tag it can't use fails the suite instead of skipping it.
+// build's own packages/shared (extracted beside it); its few `@/` imports (the API client, errors)
+// still resolve to today's src (docs/sync-design.md §15). Needs Postgres and the tags with their
+// history (CI checks out the whole history): in CI a checkout without a tag fails the suite.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
-// git's output, run in this checkout (or `cwd`), and whether a git command succeeds.
+// git's output, run in this checkout (or `cwd`).
 const git = (args: string[], cwd = here) =>
   execFileSync('git', args, { cwd, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
-function gitOk(args: string[]): boolean {
-  try {
-    git(args);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 type Build = { tag: string; sha: string };
 
-// The oldest and the newest `build/*` tag (once when they are the same), with the commits they tag,
-// fetched when the checkout lacks one. A build retires by deleting its tag.
+// The oldest and the newest `build/*` tag this checkout contains (once when they are the same), by
+// when they were made, with the commits they tag. A build from a branch counts here once that branch
+// is merged: its migrations may not be today's yet. A build retires by deleting its tag.
 function buildsUnderTest(): Build[] {
   const tags = git([
     'for-each-ref',
-    '--sort=refname',
+    '--merged=HEAD',
+    '--sort=creatordate',
     '--format=%(refname:short) %(*objectname) %(objectname)',
     'refs/tags/build/',
   ])
@@ -71,18 +65,12 @@ function buildsUnderTest(): Build[] {
       const [tag, peeled, object] = line.split(' ');
       return { tag: tag!, sha: peeled || object! };
     });
-  const builds = [...new Set([tags[0], tags.at(-1)])].filter((build): build is Build => build !== undefined);
-  for (const { tag, sha } of builds)
-    if (!gitOk(['cat-file', '-e', `${sha}^{commit}`]) && !gitOk(['fetch', '--depth=1', 'origin', sha]))
-      throw new Error(`taggedBuilds.e2e: the commit of ${tag} (${sha}) could not be fetched from origin`);
-  return builds;
+  return [...new Set([tags[0], tags.at(-1)])].filter((build): build is Build => build !== undefined);
 }
 
 const builds = TEST_URL ? buildsUnderTest() : [];
 if (TEST_URL && builds.length === 0 && process.env.CI)
-  throw new Error('taggedBuilds.e2e: no build/* tag (CI fetches tags; the ios-build skill makes them)');
-
-const S = 1_800_000_000_000;
+  throw new Error('taggedBuilds.e2e: no build/* tag in the history of this checkout (the ios-build skill makes them)');
 
 function extract({ tag, sha }: Build): string {
   const root = `${here}.builds/${tag}`;

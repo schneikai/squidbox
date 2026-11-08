@@ -49,8 +49,8 @@ export async function getCursor(db: SyncDb): Promise<number> {
 }
 
 /**
- * Where a pull of `shape` (clientCollections pulledShape) starts: the stored cursor while the shape is
- * the one stored with it, else the beginning, with the new shape stored (sync-design §13, §15): the
+ * Where a pull of `shape` (clientCollections pulledShape) starts: the stored cursor while the shape adds
+ * nothing to the one stored with it, else the beginning, with the new shape stored (sync-design §13, §15): the
  * records pulled before were stored without the fields or collections this build learned. `newFields`
  * names them (`assets.tags`, a whole collection by its name) when a cursor above 0 was dropped.
  */
@@ -62,11 +62,14 @@ export async function pullCursor(
   const cursor = await getCursor(db);
   const text = JSON.stringify(shape);
   if (stored === text) return { cursor, newFields: null };
+  // A shape that only lost columns or collections has nothing new to fetch: it is stored, the cursor kept.
+  const newFields = newIn(stored ? (JSON.parse(stored) as PulledShape) : {}, shape);
+  const restart = stored === null || newFields.length > 0;
   await db.transaction(async (tx) => {
-    await setCursor(tx, 0);
+    if (restart) await setCursor(tx, 0);
     await setMeta(tx, PULLED_SHAPE_KEY, text);
   });
-  return { cursor: 0, newFields: cursor > 0 ? newIn(stored ? (JSON.parse(stored) as PulledShape) : {}, shape) : null };
+  return restart ? { cursor: 0, newFields: cursor > 0 ? newFields : null } : { cursor, newFields: null };
 }
 
 // What `shape` has that `before` lacks: a collection by its name, a column as `collection.column`.
