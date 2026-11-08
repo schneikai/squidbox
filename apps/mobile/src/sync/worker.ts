@@ -84,7 +84,7 @@ export async function runSyncOnce(
     else {
       const pull = await pullPhase(db, transport, signal);
       pulled = pull.pulled;
-      notes.push(...pull.notes);
+      if (pull.note) notes.push(pull.note);
       if (pull.stopped) notes.push('stopped during pull');
     }
     // The purges this run confirmed, and any a sweep left; a file that can't go is noted, not a failed run.
@@ -302,8 +302,8 @@ async function applyPushResults(
       }
       if (plan.clearOutbox) cleared.push(result.id);
       if (plan.flagRejected) {
-        flag(result.id, plan.flagReason ?? result.reason ?? 'rejected');
-        notes.push(`${collection} ${result.id}: rejected (${plan.flagReason ?? result.reason ?? 'unknown'})`);
+        flag(result.id, result.reason ?? 'rejected');
+        notes.push(`${collection} ${result.id}: rejected (${result.reason ?? 'unknown'})`);
       }
     }
 
@@ -346,14 +346,13 @@ async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
-): Promise<{ pulled: number; stopped: boolean; notes: string[] }> {
+): Promise<{ pulled: number; stopped: boolean; note?: string }> {
   await patchStatus(db, { phase: 'pulling' });
-  if (signal.aborted) return { pulled: 0, stopped: true, notes: [] };
-  const shape = pulledShape();
-  const start = await pullCursor(db, shape);
-  const notes = start.restarted
-    ? [`pull restarted from the beginning: new synced fields or collections (${newInShape(start.storedShape, shape)})`]
-    : [];
+  if (signal.aborted) return { pulled: 0, stopped: true };
+  const start = await pullCursor(db, pulledShape());
+  const note = start.newFields
+    ? `pull restarted from the beginning: new synced fields or collections (${start.newFields.join(', ')})`
+    : undefined;
   let cursor = start.cursor;
   let pulled = 0;
   // Ends a download ahead once the run stops or an apply fails.
@@ -367,7 +366,7 @@ async function pullPhase(
       next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
       if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
       cursor = batch.cursor;
-      if (batch.hasMore && signal.aborted) return { pulled, stopped: true, notes };
+      if (batch.hasMore && signal.aborted) return { pulled, stopped: true, note };
     }
   } finally {
     ended = true;
@@ -376,22 +375,7 @@ async function pullPhase(
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
   await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
-  return { pulled, stopped: false, notes };
-}
-
-// The collections and fields of `shape` that `stored` lacks, like `assets.tags, favorites`; every
-// collection when nothing was stored (a build from before the shape was kept).
-function newInShape(stored: string | null, shape: string): string {
-  const columnsOf = (text: string) =>
-    new Map(text.split(';').map((line) => [line.split(':')[0]!, (line.split(':')[1] ?? '').split(',')]));
-  if (stored === null) return [...columnsOf(shape).keys()].join(', ');
-  const before = columnsOf(stored);
-  return [...columnsOf(shape)]
-    .flatMap(([name, columns]) => {
-      const had = before.get(name);
-      return had ? columns.filter((column) => !had.includes(column)).map((column) => `${name}.${column}`) : [name];
-    })
-    .join(', ');
+  return { pulled, stopped: false, note };
 }
 
 interface PulledBatch {

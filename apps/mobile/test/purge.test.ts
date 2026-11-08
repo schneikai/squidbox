@@ -2,11 +2,12 @@ import type { PushMutation } from '@squidbox/shared';
 import { deferred } from '@squidbox/shared/testing/deferred';
 import { gate } from '@squidbox/shared/testing/gate';
 import Database from 'better-sqlite3';
-import { desc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
+import { lastSyncLog } from './helpers/lastSyncLog';
 import { betterSqliteExecutor, makeTestDb, migrationIndex, runMigrations } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import postQuery from '../src/features/post-list/postQuery';
@@ -90,7 +91,7 @@ describe('Delete permanently', () => {
 
     const failure = new Error('disk full');
     await runSyncOnce(db, fakeTransport(), { removeFiles: async () => Promise.reject(failure) }); // not a failed run
-    const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);
+    const log = await lastSyncLog(db);
     expect(log).toMatchObject({ error: null, notes: expect.stringContaining('disk full') });
     expect((await assetRow(mine!.id)).filesRemovedFor).toBeNull(); // still to remove: the next sweep does
     const { removed, removeFiles } = recording();
@@ -314,7 +315,7 @@ describe('the sweep: crashes, shared names, resyncs, device libraries', () => {
       'd-t.jpg',
       'd.jpg',
     ]);
-    const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);
+    const log = await lastSyncLog(db);
     expect(log).toMatchObject({ error: null, notes: expect.stringContaining('1 purged assets: busy') });
     removed.length = 0;
     await sweepPurgedFiles(db, removeFiles);
@@ -512,7 +513,7 @@ describe('the sweep: concurrent sweeps, aborts, stuck assets, resyncs', () => {
     expect(reached).toBe(3); // all three were inside a removal at once
     expect(await unswept()).toEqual([]);
     expect(new Set(removed).size).toBe(700 + 1200);
-    const [log] = await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1);
+    const log = await lastSyncLog(db);
     expect(log).toMatchObject({ error: null });
   });
 

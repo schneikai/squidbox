@@ -2,16 +2,17 @@
 export type JsonSchema = { [keyword: string]: unknown };
 
 const DROPPED = new Set(['$schema', 'description', 'default']);
-const LOWER_BOUNDS = ['minLength', 'minimum', 'exclusiveMinimum', 'minItems'];
-const UPPER_BOUNDS = ['maxLength', 'maximum', 'exclusiveMaximum', 'maxItems'];
+export const LOWER_BOUNDS = ['minLength', 'minimum', 'exclusiveMinimum', 'minItems'];
+export const UPPER_BOUNDS = ['maxLength', 'maximum', 'exclusiveMaximum', 'maxItems'];
 
-const isSchema = (value: unknown): value is JsonSchema =>
+export const isSchema = (value: unknown): value is JsonSchema =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+export const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const isNull = (schema: unknown) => isSchema(schema) && schema.type === 'null' && Object.keys(schema).length === 1;
 
 /**
  * Makes zod-to-json-schema's output comparable (schemaChanges) and small: no `$schema`, descriptions,
- * defaults or boolean `additionalProperties`; every `pattern` as a sorted `patterns` set; an `allOf`
+ * defaults or `additionalProperties: true`; every `pattern` as a sorted `patterns` set; an `allOf`
  * (two `.regex`, or `.trim().pipe()`) merged into one schema with the tightest bound per side; a
  * nullable as `null` in the `type` list; a `const` as a one-value `enum`. Anything else is left as is, for schemaChanges to refuse.
  */
@@ -19,7 +20,9 @@ export function normalize(schema: JsonSchema): JsonSchema {
   let result: JsonSchema = {};
   for (const [keyword, value] of Object.entries(schema)) {
     if (DROPPED.has(keyword)) continue;
-    if (keyword === 'additionalProperties' && typeof value === 'boolean') continue;
+    // `true` is what an object without `.strict()` says anyway; `false` (strict) stays, as a change to it
+    // decides whether a body with a property the server doesn't know is refused.
+    if (keyword === 'additionalProperties' && value === true) continue;
     if (keyword === 'const') result.enum = [value];
     else if (keyword === 'pattern') result.patterns = [value];
     else if (keyword === 'properties' && isSchema(value))
@@ -46,7 +49,7 @@ function merge(into: JsonSchema, schema: JsonSchema): JsonSchema {
   const unmerged: JsonSchema[] = [];
   for (const [keyword, value] of Object.entries(schema)) {
     const existing = merged[keyword];
-    if (existing === undefined || JSON.stringify(existing) === JSON.stringify(value)) merged[keyword] = value;
+    if (existing === undefined || same(existing, value)) merged[keyword] = value;
     else if (keyword === 'patterns')
       merged.patterns = [...new Set([...(existing as string[]), ...(value as string[])])];
     else if (LOWER_BOUNDS.includes(keyword)) merged[keyword] = Math.max(existing as number, value as number);

@@ -1,4 +1,4 @@
-import { collectionsByName, type AssetRecord } from '@squidbox/shared';
+import { type AssetRecord } from '@squidbox/shared';
 import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import Database from 'better-sqlite3';
 import { and, eq } from 'drizzle-orm';
@@ -6,14 +6,16 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
 import { betterSqliteExecutor, migrationsFolder, runMigrations } from './helpers/testDb';
+import { at, removedFiles, synced as syncedFields } from './helpers/twoDeviceServer';
 import type { Db } from '../../server/src/db/client.js';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
@@ -33,8 +35,8 @@ import { runSyncOnce } from '../src/sync/worker';
 // every App build): the suite runs the oldest and the newest, each build's client code as built
 // against this server. It extracts the build's apps/mobile/src/sync into test/.builds/<tag>
 // (gitignored) and drives it with its own SQLite migrations; an "update" then runs the current
-// migrations on that same database and goes on with the current code. The old code runs with today's
-// @squidbox/shared, so its sync code meets today's schemas and registry (docs/sync-design.md §15).
+// migrations on that same database and goes on with the current code. The old sync code imports the
+// build's own packages/shared (extracted beside it), so it runs as built (docs/sync-design.md §15).
 // Needs Postgres and the tagged commits, which the suite fetches (depth 1) when the checkout lacks
 // one: in CI a tag it can't use fails the suite instead of skipping it.
 const TEST_URL = process.env.TEST_DATABASE_URL;
@@ -90,6 +92,19 @@ function extract({ tag, sha }: Build): string {
   const archive = git(['archive', sha, 'apps/mobile/src/sync'], top);
   execFileSync('tar', ['-x', '-C', root, '--strip-components=3'], { input: archive });
   if (!existsSync(`${root}/sync/worker.ts`)) throw new Error(`${tag} has no apps/mobile/src/sync/worker.ts`);
+  // The build's own @squidbox/shared, which its sync code imports instead of today's.
+  const shared = git(['archive', sha, 'packages/shared'], top);
+  execFileSync('tar', ['-x', '-C', root, '--strip-components=1', '--exclude=*/tsconfig.json'], { input: shared });
+  for (const file of readdirSync(`${root}/sync`, { recursive: true, encoding: 'utf8' })) {
+    if (!file.endsWith('.ts')) continue;
+    const path = `${root}/sync/${file}`;
+    const toShared = relative(dirname(path), `${root}/shared`);
+    const code = readFileSync(path, 'utf8').replace(
+      /'@squidbox\/shared(\/[^']*)?'/g,
+      (_, subpath: string | undefined) => `'${toShared}${subpath ?? '/index'}'`,
+    );
+    writeFileSync(path, code);
+  }
   return root;
 }
 
@@ -98,7 +113,9 @@ interface Phone {
   db: SyncDb;
   /** Still the installed app (its code); false once updated. */
   old: boolean;
+  /** The files it was told to remove, and the removeFiles that records them (removedFiles). */
   removed: string[];
+  removeFiles: RemoveFiles;
 }
 
 for (const [index, build] of builds.entries()) describeBuild(build, { fuzz: index === 0 });
@@ -123,27 +140,20 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
       schema: any;
     };
 
-    const at = (t: number) => vi.setSystemTime(t);
     const transport: SyncTransport = {
       push: async (req) => ({ results: await serverPush(pgDb, USER, req.mutations) }),
       pull: (req) => serverPull(pgDb, USER, { cursor: req.cursor, limit: req.limit }),
     };
-    const removeFilesOf =
-      (phone: Phone): RemoveFiles =>
-      async (files) => {
-        for (const file of files)
-          for (const name of [file.filename, file.thumbnailFilename]) if (name) phone.removed.push(name);
-      };
 
     function installedPhone(): Phone {
       const sqlite = new Database(':memory:');
       runMigrations(sqlite, { folder: `${root}/sync/db/migrations` });
-      return { sqlite, db: main.driver.createDb(betterSqliteExecutor(sqlite)), old: true, removed: [] };
+      return { sqlite, db: main.driver.createDb(betterSqliteExecutor(sqlite)), old: true, ...removedFiles() };
     }
     function newPhone(): Phone {
       const sqlite = new Database(':memory:');
       runMigrations(sqlite);
-      return { sqlite, db: createDb(betterSqliteExecutor(sqlite)), old: false, removed: [] };
+      return { sqlite, db: createDb(betterSqliteExecutor(sqlite)), old: false, ...removedFiles() };
     }
     // The app update: the current migrations on the installed app's database, then the current code,
     // opened as library/current.ts opens it (failed pushes retried, the owner kept).
@@ -156,8 +166,8 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
     }
     async function sync(phone: Phone, now = S + 100_000) {
       at(now);
-      if (phone.old) await main.worker.runSyncOnce(phone.db, transport, { removeFiles: removeFilesOf(phone) });
-      else await runSyncOnce(phone.db, transport, { removeFiles: removeFilesOf(phone) });
+      if (phone.old) await main.worker.runSyncOnce(phone.db, transport, { removeFiles: phone.removeFiles });
+      else await runSyncOnce(phone.db, transport, { removeFiles: phone.removeFiles });
     }
     const assetsOf = (phone: Phone) => (phone.old ? main.assets : repo);
     async function edit(phone: Phone, t: number, write: (assets: any) => Promise<unknown>) {
@@ -169,9 +179,7 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
       await assetsOf(phone).purgeAssets(phone.db, [id]);
     }
 
-    const syncedKeys = Object.keys((collectionsByName.assets!.schema as unknown as { shape: object }).shape);
-    const synced = (row: Record<string, unknown> | undefined) =>
-      row && Object.fromEntries(syncedKeys.map((key) => [key, row[key] ?? null]));
+    const synced = (row: Record<string, unknown> | undefined) => syncedFields('assets', row);
     async function serverAsset(id: string) {
       const { table, wireColumns } = serverCollections.assets!;
       // drizzle: the registry's table has no typed columns; for assets it is the assets table
@@ -409,8 +417,8 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
               pull: run.pull,
             };
             const before = phone.removed.length;
-            if (phone.old) await main.worker.runSyncOnce(phone.db, timed, { removeFiles: removeFilesOf(phone) });
-            else await runSyncOnce(phone.db, timed, { removeFiles: removeFilesOf(phone) });
+            if (phone.old) await main.worker.runSyncOnce(phone.db, timed, { removeFiles: phone.removeFiles });
+            else await runSyncOnce(phone.db, timed, { removeFiles: phone.removeFiles });
             if (phone.removed.length > before) trail.push(`  removed ${phone.removed.slice(before).join(',')}`);
             for (const id of ids) {
               const row = await serverAsset(id);

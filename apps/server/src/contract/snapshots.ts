@@ -8,6 +8,9 @@ import type { Contract } from './currentContract.js';
  */
 export const SNAPSHOTS_DIR = fileURLToPath(new URL('../../contract/builds/', import.meta.url));
 
+/** The snapshot file of the build tagged `tag` (`build/<YYYYMMDD>-<short sha>`). */
+export const snapshotFile = (tag: string) => `${SNAPSHOTS_DIR}${tag.slice('build/'.length)}.json`;
+
 /** Every tagged build's contract, oldest first (the file names sort like the tags). */
 export function readSnapshots(): { tag: string; contract: Contract }[] {
   return readdirSync(SNAPSHOTS_DIR)

@@ -1,8 +1,8 @@
-import { desc } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
+import { lastSyncLog } from './helpers/lastSyncLog';
 import { readLiveAsset } from './helpers/readLiveAsset';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
@@ -15,7 +15,7 @@ beforeEach(() => {
   db = makeTestDb();
 });
 
-const lastLog = () => db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1).get();
+const lastLog = () => lastSyncLog(db);
 
 describe('sync_log observability', () => {
   it('writes a log row with push/pull counts after each run', async () => {

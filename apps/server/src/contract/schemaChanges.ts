@@ -1,4 +1,4 @@
-import type { JsonSchema } from './normalize.js';
+import { isSchema, LOWER_BOUNDS, same, UPPER_BOUNDS, type JsonSchema } from './normalize.js';
 
 /** What changed at a path between two normalized schemas (compatibility.ts judges it). */
 export type Change = {
@@ -24,8 +24,6 @@ export type Change = {
   detail: string;
 };
 
-const LOWER_BOUNDS = ['minLength', 'minimum', 'exclusiveMinimum', 'minItems'];
-const UPPER_BOUNDS = ['maxLength', 'maximum', 'exclusiveMaximum', 'maxItems'];
 // The keywords this walk reads; any other that differs is `unsupported`.
 const KNOWN = new Set([
   'type',
@@ -41,9 +39,6 @@ const KNOWN = new Set([
   ...UPPER_BOUNDS,
 ]);
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const isSchema = (value: unknown): value is JsonSchema =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 const show = (value: unknown) => (value === undefined ? 'none' : JSON.stringify(value));
 
 // The type list without `null`, `integer` counted as `number` (its narrowing is a limit).

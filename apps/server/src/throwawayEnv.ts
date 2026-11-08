@@ -1,6 +1,6 @@
 /**
  * A complete config env of throwaway values, so loadConfig() succeeds where no real Postgres or S3 is
- * contacted: the tests (test/setup.ts) and the contract recorder (scripts/contract-record.ts), which
+ * contacted: the tests (test/setup.ts) and the contract snapshot (scripts/contract-snapshot.ts), which
  * build the app this way alike. A value already set is kept.
  */
 export function setThrowawayEnv(): void {

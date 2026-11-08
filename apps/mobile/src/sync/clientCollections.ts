@@ -41,21 +41,27 @@ export type InsertOf<T extends CollectionTable> = T['$inferInsert'];
 // iterate this, so every registered collection is covered with no per-collection rework.
 export const clientCollectionTables: Record<string, CollectionTable> = tables;
 
+/** Each collection and the synced columns a pull fills, by name. */
+export type PulledShape = Record<string, string[]>;
+let shape: PulledShape | null = null;
+
 /**
- * What a pull fills, as one sorted text: each collection and its synced columns
- * (`albums:created_at,…;assets:…`). A pull restarts from the beginning when it changes (status.ts
- * pullCursor): the records pulled before were stored without the new fields or collections.
+ * What a pull fills: each collection and its synced columns, sorted. A pull restarts from the
+ * beginning when it changes (status.ts pullCursor): the records pulled before were stored without the
+ * new fields or collections.
  */
-export function pulledShape(): string {
-  return Object.entries(clientCollectionTables)
-    .map(([name, table]) => {
-      const localOnly = localOnlyKeys(name);
-      const columns = Object.entries(getTableColumns(table))
-        .filter(([key]) => !localOnly.has(key))
-        .map(([, column]) => column.name)
-        .sort();
-      return `${name}:${columns.join(',')}`;
-    })
-    .sort()
-    .join(';');
+export function pulledShape(): PulledShape {
+  shape ??= Object.fromEntries(
+    Object.entries(clientCollectionTables)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, table]) => {
+        const localOnly = localOnlyKeys(name);
+        const columns = Object.entries(getTableColumns(table))
+          .filter(([key]) => !localOnly.has(key))
+          .map(([, column]) => column.name)
+          .sort();
+        return [name, columns];
+      }),
+  );
+  return shape;
 }

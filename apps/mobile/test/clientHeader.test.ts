@@ -1,3 +1,4 @@
+import { CLIENT_HEADER } from '@squidbox/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 const config = vi.hoisted(() => ({ extra: {} as { gitCommit?: string } }));
@@ -14,7 +15,7 @@ describe('clientHeader', () => {
   it("names the build's commit and install", () => {
     config.extra = { gitCommit: COMMIT };
     device.id = DEVICE;
-    expect(clientHeader()).toEqual({ 'x-squidbox-client': `${COMMIT} ${DEVICE}` });
+    expect(clientHeader()).toEqual({ [CLIENT_HEADER]: `${COMMIT} ${DEVICE}` });
   });
 
   it.each([

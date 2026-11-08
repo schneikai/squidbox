@@ -5,12 +5,11 @@ import { makePostRecord } from './helpers/factory';
 import { migrationIndex, runMigrations } from './helpers/testDb';
 
 const index = migrationIndex('0008_round_post_timestamps');
-const migrate = (sqlite: Database.Database, from: number, to: number) => runMigrations(sqlite, { from, to });
 
 describe('migration 0008_round_post_timestamps', () => {
   it('rounds fractional post timestamps and the post payloads waiting in the outbox', () => {
     const sqlite = new Database(':memory:');
-    migrate(sqlite, 0, index);
+    runMigrations(sqlite, { to: index });
 
     const postponed = makePostRecord({ updatedAt: 2000, suggestRepostAt: 1734567890123.5 });
     const posted = makePostRecord({ updatedAt: 3000.25, postedAt: 2500.75, suggestRepostAt: 2500 });
@@ -28,7 +27,7 @@ describe('migration 0008_round_post_timestamps', () => {
       insertOutbox.run('posts', post.id, JSON.stringify(post), post.updatedAt);
     }
 
-    migrate(sqlite, index, index + 1);
+    runMigrations(sqlite, { from: index, to: index + 1 });
 
     const rows = sqlite
       .prepare(

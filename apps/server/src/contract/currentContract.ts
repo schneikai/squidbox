@@ -5,7 +5,7 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import type { RouteOptions } from 'fastify';
 import type { ZodType } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { buildApp } from '../app.js';
+import { BODY_LIMIT, buildApp } from '../app.js';
 import { serverCollections } from '../sync/collections.js';
 import { normalize, type JsonSchema } from './normalize.js';
 
@@ -76,7 +76,7 @@ export async function currentContract(): Promise<Contract> {
         routes.push({
           method,
           url: route.url,
-          bodyLimit: route.bodyLimit ?? 0, // filled from the app's default below
+          bodyLimit: route.bodyLimit ?? BODY_LIMIT,
           body: jsonSchemaOf(schema.body),
           params: jsonSchemaOf(schema.params),
           querystring: jsonSchemaOf(schema.querystring),
@@ -91,12 +91,9 @@ export async function currentContract(): Promise<Contract> {
     },
   });
   await app.ready();
-  const defaultBodyLimit = app.initialConfig.bodyLimit ?? 0;
   await app.close();
   return {
-    routes: routes
-      .map((route) => ({ ...route, bodyLimit: route.bodyLimit || defaultBodyLimit }))
-      .sort((a, b) => a.method.localeCompare(b.method) || a.url.localeCompare(b.url)),
+    routes: routes.sort((a, b) => a.method.localeCompare(b.method) || a.url.localeCompare(b.url)),
     collections: Object.fromEntries(
       Object.entries(serverCollections)
         .sort(([a], [b]) => a.localeCompare(b))

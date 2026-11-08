@@ -46,7 +46,7 @@ const WHOLE_SUITE = [
 ];
 // A change here runs both apps' whole suites: the mobile migrations, which the mobile tests and the
 // server's contract test read through drizzle's readMigrationFiles.
-const BOTH_SUITES = [/^apps\/mobile\/src\/sync\/db\/migrations\//];
+const MIGRATIONS = /^apps\/mobile\/src\/sync\/db\/migrations\//;
 
 const all = process.argv.includes('--all');
 const colors = process.stdout.isTTY;
@@ -146,7 +146,7 @@ function testRuns({ files, deleted }) {
       files.some(
         (file) =>
           (WHOLE_SUITE.some((pattern) => pattern.test(file)) && (ours(file) || !file.startsWith('apps/'))) ||
-          BOTH_SUITES.some((pattern) => pattern.test(file)),
+          MIGRATIONS.test(file),
       ) || deleted.some(ours);
     const related = files.filter((file) => /^(apps|packages)\//.test(file)).map((file) => `${ROOT}${file}`);
     const name = app.slice('apps/'.length, -1);

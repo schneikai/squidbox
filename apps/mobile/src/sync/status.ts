@@ -1,5 +1,6 @@
 import { eq, like, sql } from 'drizzle-orm';
 
+import type { PulledShape } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { newestOutboxId, oldestOutboxId } from './outbox';
@@ -49,23 +50,31 @@ export async function getCursor(db: SyncDb): Promise<number> {
 
 /**
  * Where a pull of `shape` (clientCollections pulledShape) starts: the stored cursor while the shape is
- * the one stored with it, else the beginning, with the new shape stored (sync-design §15): the records
- * pulled before were stored without the fields or collections this build learned. `restarted` only
- * when a cursor above 0 was dropped, with the stored shape (null for an install from before the shape
- * was kept) to name what is new.
+ * the one stored with it, else the beginning, with the new shape stored (sync-design §13, §15): the
+ * records pulled before were stored without the fields or collections this build learned. `newFields`
+ * names them (`assets.tags`, a whole collection by its name) when a cursor above 0 was dropped.
  */
 export async function pullCursor(
   db: SyncDb,
-  shape: string,
-): Promise<{ cursor: number; restarted: boolean; storedShape: string | null }> {
-  const storedShape = await getMeta(db, PULLED_SHAPE_KEY);
+  shape: PulledShape,
+): Promise<{ cursor: number; newFields: string[] | null }> {
+  const stored = await getMeta(db, PULLED_SHAPE_KEY);
   const cursor = await getCursor(db);
-  if (storedShape === shape) return { cursor, restarted: false, storedShape };
+  const text = JSON.stringify(shape);
+  if (stored === text) return { cursor, newFields: null };
   await db.transaction(async (tx) => {
     await setCursor(tx, 0);
-    await setMeta(tx, PULLED_SHAPE_KEY, shape);
+    await setMeta(tx, PULLED_SHAPE_KEY, text);
   });
-  return { cursor: 0, restarted: cursor > 0, storedShape };
+  return { cursor: 0, newFields: cursor > 0 ? newIn(stored ? (JSON.parse(stored) as PulledShape) : {}, shape) : null };
+}
+
+// What `shape` has that `before` lacks: a collection by its name, a column as `collection.column`.
+function newIn(before: PulledShape, shape: PulledShape): string[] {
+  return Object.entries(shape).flatMap(([name, columns]) => {
+    const had = before[name];
+    return had ? columns.filter((column) => !had.includes(column)).map((column) => `${name}.${column}`) : [name];
+  });
 }
 
 // First-sync flag: the initial full pull (the big one after first login) has fully drained. Used to

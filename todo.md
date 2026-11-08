@@ -35,7 +35,7 @@ doesn't.
 ### [ ] Record which builds are installed, before the App Store launch
 
 Every request names its build and install (`x-squidbox-client: <commit> <device>`,
-`apps/mobile/src/utils/cloud-api/clientHeader.ts`, format in `packages/shared/contracts/client.ts`);
+`apps/mobile/src/utils/cloud-api/clientHeader.ts`, name in `packages/shared/contracts/client.ts`);
 the server ignores it (`apps/server/src/auth/authenticate.ts`). Before other people install the app:
 a `devices` table written per account and install from the header, and a script listing them
 (device, account, build, first and last seen), so a build's tag and contract snapshot

@@ -11,19 +11,14 @@ import type { PushResultStatus } from '@squidbox/shared';
 //   - applied, not superseded: clear the row (synced).
 //   - skipped-lww, not superseded: adopt the server's `current` and clear the row.
 //   - rejected, not superseded: keep the row and flag it with the reason; it waits (§6).
-//   - a status this build doesn't know (the contract check refuses adding one; defence only): as
-//     rejected, flagged with `flagReason`, never cleared without adopting anything.
 export interface PushOutcomePlan {
   clearOutbox: boolean;
   adoptCurrent: boolean;
   flagRejected: boolean;
-  flagReason?: string;
 }
 
-const KNOWN: readonly string[] = ['applied', 'skipped-lww', 'rejected'] satisfies PushResultStatus[];
-
 export function planPushOutcome(params: {
-  status: string;
+  status: PushResultStatus;
   pushedUpdatedAt: number;
   /** current outbox row's updatedAt, or null if the row is already gone */
   currentOutboxUpdatedAt: number | null;
@@ -35,14 +30,6 @@ export function planPushOutcome(params: {
     return { clearOutbox: false, adoptCurrent: false, flagRejected: false };
   }
 
-  if (!KNOWN.includes(status)) {
-    return {
-      clearOutbox: false,
-      adoptCurrent: false,
-      flagRejected: true,
-      flagReason: `push result "${status}" is not known to this app`,
-    };
-  }
   if (status === 'rejected') {
     return { clearOutbox: false, adoptCurrent: false, flagRejected: true };
   }

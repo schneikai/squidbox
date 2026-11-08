@@ -1,8 +1,9 @@
-import { desc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
+import { lastSyncLog } from './helpers/lastSyncLog';
 import { makeTestDb } from './helpers/testDb';
 import * as repo from '../src/sync/assetsRepository';
 import { pulledShape } from '../src/sync/clientCollections';
@@ -29,15 +30,14 @@ function recordingServer(end: number, records: Record<string, unknown>[] = []) {
   return { asked, transport };
 }
 
-const lastNotes = async () =>
-  (await db.select().from(schema.syncLog).orderBy(desc(schema.syncLog.id)).limit(1))[0]?.notes ?? null;
+const lastNotes = async () => (await lastSyncLog(db))?.notes ?? null;
 
 describe('a pull restarts when the app learns new collections or fields', () => {
   it('a database without a stored shape and no cursor pulls from the start, stores the shape, notes nothing', async () => {
     const { asked, transport } = recordingServer(5);
     await runSyncOnce(db, transport);
     expect(asked).toEqual([0]);
-    expect(await pullCursor(db, pulledShape())).toEqual({ cursor: 5, restarted: false, storedShape: pulledShape() });
+    expect(await pullCursor(db, pulledShape())).toEqual({ cursor: 5, newFields: null });
     expect(await lastNotes()).toBeNull();
   });
 
@@ -56,12 +56,12 @@ describe('a pull restarts when the app learns new collections or fields', () => 
     await setCursor(db, 30);
     const written: string[][] = [];
     db.onTablesChanged((tables) => written.push([...tables]));
-    expect(await pullCursor(db, pulledShape())).toMatchObject({ cursor: 30, restarted: false });
+    expect(await pullCursor(db, pulledShape())).toEqual({ cursor: 30, newFields: null });
     expect(written).toEqual([]);
   });
 
   it('another stored shape pulls from the start once, naming what is new, then from the new cursor', async () => {
-    await pullCursor(db, pulledShape().replace(',tags', ''));
+    await pullCursor(db, { ...pulledShape(), assets: pulledShape().assets!.filter((column) => column !== 'tags') });
     await setCursor(db, 30);
     const { asked, transport } = recordingServer(60);
     await runSyncOnce(db, transport);
@@ -75,7 +75,7 @@ describe('a pull restarts when the app learns new collections or fields', () => 
     const asset = await repo.create(db, makeAssetRecord({ notes: 'server' }));
     await db.delete(schema.outbox);
     await repo.update(db, asset.id, { notes: 'mine' });
-    await pullCursor(db, 'assets:id');
+    await pullCursor(db, { assets: ['id'] });
     await setCursor(db, 30);
     const pulled = { ...makeAssetRecord({ id: asset.id, notes: 'server', updatedAt: 1 }), tags: ['x'] };
     const { transport } = recordingServer(60, [pulled]);

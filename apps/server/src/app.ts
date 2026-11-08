@@ -18,6 +18,9 @@ function redactUrl(url: string | undefined): string | undefined {
 }
 
 // `onRoute` sees every route as it registers (the contract recorder, src/contract/currentContract.ts).
+// Fastify's body limit for a route that sets none (the contract records it per route).
+export const BODY_LIMIT = 1024 * 1024;
+
 export async function buildApp(opts: { logger?: FastifyServerOptions['logger']; onRoute?: onRouteHookHandler } = {}) {
   const app = Fastify({
     logger: opts.logger ?? {
@@ -29,7 +32,7 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger']; 
       },
     },
     // We stream large uploads through request.raw; the body is never buffered by Fastify.
-    bodyLimit: 1024 * 1024, // JSON routes only (the upload route streams; see storage/routes.ts)
+    bodyLimit: BODY_LIMIT, // JSON routes only (the upload route streams; see storage/routes.ts)
   });
 
   if (opts.onRoute) app.addHook('onRoute', opts.onRoute);

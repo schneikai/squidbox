@@ -16,9 +16,9 @@ if (!tag?.startsWith('build/') || tag.length === 'build/'.length) {
 }
 setThrowawayEnv();
 const { currentContract } = await import('../src/contract/currentContract.js');
-const { SNAPSHOTS_DIR } = await import('../src/contract/snapshots.js');
+const { snapshotFile } = await import('../src/contract/snapshots.js');
 
-const file = `${SNAPSHOTS_DIR}${tag.slice('build/'.length)}.json`;
+const file = snapshotFile(tag);
 if (existsSync(file)) {
   console.error(`${file} exists: a build's contract never changes.`);
   process.exit(1);

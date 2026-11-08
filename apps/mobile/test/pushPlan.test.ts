@@ -37,15 +37,6 @@ describe('planPushOutcome', () => {
     );
   });
 
-  it('a status this app does not know → keep the row and flag it, naming the status', () => {
-    expect(planPushOutcome({ status: 'deferred', pushedUpdatedAt: 100, currentOutboxUpdatedAt: 100 })).toEqual({
-      clearOutbox: false,
-      adoptCurrent: false,
-      flagRejected: true,
-      flagReason: 'push result "deferred" is not known to this app',
-    });
-  });
-
   it('rejected → keep outbox and flag', () => {
     expect(planPushOutcome({ status: 'rejected', pushedUpdatedAt: 100, currentOutboxUpdatedAt: 100 })).toEqual({
       clearOutbox: false,

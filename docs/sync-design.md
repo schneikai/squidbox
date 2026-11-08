@@ -1216,8 +1216,7 @@ An owner decision, once no device runs the build: delete its tag and its snapsho
 ### The tagged-build suite
 
 `apps/mobile/test/taggedBuilds.e2e.test.ts` runs the oldest and the newest tagged build: each
-build's `apps/mobile/src/sync` as it was built, with its own SQLite migrations, against today's
-server, then updated to today's code and migrations on the same database. The old code runs with
-today's `@squidbox/shared`, so it meets today's schemas and registry (the `withVerbs` shim covers
-what has drifted). It proves both builds converge with today's app through edits, purges and
+build's `apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite
+migrations, against today's server, then updated to today's code and migrations on the same
+database (the `withVerbs` shim lets the test call the oldest builds' repositories by today's names). It proves both builds converge with today's app through edits, purges and
 updates, and that an updated build's pull restarts.
