@@ -174,7 +174,12 @@ describe('GET /api/v1/me', () => {
       headers: { authorization: `Bearer ${signAccessToken('u1')}`, 'x-squidbox-client': `1 ${build} ${device}` },
     });
     expect(res.statusCode).toBe(200);
-    expect(recordDevice).toHaveBeenCalledWith(expect.anything(), 'u1', { contract: 1, build, device }, expect.any(Date));
+    expect(recordDevice).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      { contract: 1, build, device },
+      expect.any(Date),
+    );
   });
 
   it('records nothing for a request without the client header', async () => {

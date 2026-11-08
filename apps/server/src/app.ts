@@ -1,4 +1,4 @@
-import Fastify, { type FastifyServerOptions } from 'fastify';
+import Fastify, { type FastifyServerOptions, type onRouteHookHandler } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import { upResponseSchema } from '@squidbox/shared';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -17,7 +17,8 @@ function redactUrl(url: string | undefined): string | undefined {
   return url.replace(/([?&]token=)[^&]*/gi, '$1[REDACTED]');
 }
 
-export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] } = {}) {
+// `onRoute` sees every route as it registers (the contract recorder, src/contract/currentContract.ts).
+export async function buildApp(opts: { logger?: FastifyServerOptions['logger']; onRoute?: onRouteHookHandler } = {}) {
   const app = Fastify({
     logger: opts.logger ?? {
       level: process.env.LOG_LEVEL ?? 'info',
@@ -31,6 +32,7 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger'] }
     bodyLimit: 1024 * 1024, // JSON routes only (the upload route streams; see storage/routes.ts)
   });
 
+  if (opts.onRoute) app.addHook('onRoute', opts.onRoute);
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 

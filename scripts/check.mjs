@@ -36,14 +36,17 @@ const PACKAGES = /^(apps\/mobile\/)?package(-lock)?\.json$/;
 const LINT_EVERYTHING = [PACKAGES, /^apps\/mobile\/\.eslint(rc\.js|ignore)$/];
 const FORMAT_EVERYTHING = [/^package(-lock)?\.json$/, /^\.prettier(rc|ignore)/, /^scripts\/check\.mjs$/];
 // A change here runs the app's whole suite: what every test file depends on without importing it,
-// and the files tests read from disk (the mobile migrations, through drizzle's readMigrationFiles).
+// and the files tests read from disk (the server's recorded contracts).
 const WHOLE_SUITE = [
   /^package(-lock)?\.json$/,
   /^tsconfig\.base\.json$/,
   /^packages\/shared\/(package\.json|testing\/)/,
   /^apps\/[^/]+\/(package\.json|tsconfig[^/]*\.json|vitest\.config\.[cm]?[jt]s|test\/(helpers\/|setup\.ts|dbSetup\.ts))/,
-  /^apps\/mobile\/src\/sync\/db\/migrations\//,
+  /^apps\/server\/contract\//,
 ];
+// A change here runs both apps' whole suites: the mobile migrations, which the mobile tests and the
+// server's contract test read through drizzle's readMigrationFiles.
+const BOTH_SUITES = [/^apps\/mobile\/src\/sync\/db\/migrations\//];
 
 const all = process.argv.includes('--all');
 const colors = process.stdout.isTTY;
@@ -141,7 +144,9 @@ function testRuns({ files, deleted }) {
     const ours = (file) => file.startsWith(app) || file.startsWith(SHARED);
     const whole =
       files.some(
-        (file) => WHOLE_SUITE.some((pattern) => pattern.test(file)) && (ours(file) || !file.startsWith('apps/')),
+        (file) =>
+          (WHOLE_SUITE.some((pattern) => pattern.test(file)) && (ours(file) || !file.startsWith('apps/'))) ||
+          BOTH_SUITES.some((pattern) => pattern.test(file)),
       ) || deleted.some(ours);
     const related = files.filter((file) => /^(apps|packages)\//.test(file)).map((file) => `${ROOT}${file}`);
     const name = app.slice('apps/'.length, -1);
