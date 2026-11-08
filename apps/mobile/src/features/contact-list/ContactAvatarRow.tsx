@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet, Text } from 'react-native';
 
 import type { ContactSummary } from './contactQuery';
 
+import PictureRow from '@/components/PictureRow';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
 /**
  * The pinned row on Contacts (Favorites, or the list pinned in their place): each contact's avatar
@@ -13,56 +12,22 @@ import { colors, layout, press, sizes, space, textStyles } from '@/styles/design
  */
 type ContactAvatarRowProps = { contacts: ContactSummary[]; loadMore: () => void };
 
-const keyExtractor = (contact: ContactSummary) => contact.id;
-
 export default function ContactAvatarRow({ contacts, loadMore }: ContactAvatarRowProps) {
   return (
-    <FlatList
-      horizontal
-      data={contacts}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
+    <PictureRow
+      items={contacts}
+      keyOf={contactId}
+      picture={avatar}
+      label={firstName}
+      accessibilityLabel={fullName}
+      onPress={openContact}
       onEndReached={loadMore}
-      onEndReachedThreshold={2}
-      showsHorizontalScrollIndicator={false}
-      style={styles.scroller}
-      contentContainerStyle={styles.row}
     />
   );
 }
 
-function renderItem({ item: contact }: ListRenderItemInfo<ContactSummary>) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.item, pressed && press.flat]}
-      onPress={() => router.navigate(`/contact/${contact.id}`)}
-      accessibilityRole="button"
-      accessibilityLabel={contact.name}
-    >
-      <ContactAvatar contact={contact} size="medium" />
-      <Text style={[textStyles.footnote, styles.name]} numberOfLines={1}>
-        {contact.name.trim().split(/\s+/)[0]}
-      </Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  // Reaches the screen's edges, so it scrolls edge to edge, with the first avatar under the
-  // row's label (a section header's inset in from the gutter).
-  scroller: {
-    marginHorizontal: -layout.sideGutter,
-  },
-  row: {
-    gap: space.xl,
-    paddingHorizontal: layout.sideGutter + layout.rowInset,
-  },
-  item: {
-    width: sizes.avatar.medium + 4,
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  name: {
-    color: colors.text.primary,
-  },
-});
+const contactId = (contact: ContactSummary) => contact.id;
+const fullName = (contact: ContactSummary) => contact.name;
+const firstName = (contact: ContactSummary) => contact.name.trim().split(/\s+/)[0];
+const avatar = (contact: ContactSummary) => <ContactAvatar contact={contact} size="medium" />;
+const openContact = (contact: ContactSummary) => router.navigate(`/contact/${contact.id}`);
