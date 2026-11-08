@@ -1,6 +1,6 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { layout } from '@/styles/designTokens';
+import { layout, space } from '@/styles/designTokens';
 
 /**
  * Returns consistent top/bottom content padding for the screen types.
@@ -8,18 +8,18 @@ import { layout } from '@/styles/designTokens';
  * 'detail' — stack screens: content sits under the floating detail header
  * 'sheet'  — a sheet's content: under its ModalHeader, and above the bottom safe area (a sheet with a
  *            FloatingPrimaryAction takes its bottom from useFloatingPrimaryActionPadding instead)
- * 'sheet-bar' — a sheet's content above the floating search bar at its bottom (SearchSortFilterBar)
+ * 'sheet-search' — a sheet's list under its SheetSearchField, which already clears the ModalHeader
  */
-export default function useScreenPadding(type: 'main' | 'detail' | 'sheet' | 'sheet-bar' = 'main'): {
+export default function useScreenPadding(type: 'main' | 'detail' | 'sheet' | 'sheet-search' = 'main'): {
   paddingTop: number;
   paddingBottom: number;
 } {
   const insets = useSafeAreaInsets();
 
-  if (type === 'sheet-bar') {
+  if (type === 'sheet-search') {
     return {
-      paddingTop: layout.sheetContentTop,
-      paddingBottom: insets.bottom + layout.barClearance,
+      paddingTop: space.md,
+      paddingBottom: insets.bottom + layout.contentEnd,
     };
   }
 

@@ -14,7 +14,7 @@ export type FilterOption<Filter extends string = string> = SortOption<Filter | '
 
 export type SortFilterMenuProps<Sort extends string, Filter extends string = string> = {
   sortOrder?: Sort;
-  sortOptions?: SortOption<Sort>[];
+  sortOptions: SortOption<Sort>[];
   activeFilter?: Filter[];
   filterOptions?: FilterOption<Filter>[];
   onSort?: (key: Sort) => void;
@@ -37,7 +37,7 @@ export type SortFilterMenuProps<Sort extends string, Filter extends string = str
  */
 export default function SortFilterMenu<Sort extends string, Filter extends string = string>({
   sortOrder,
-  sortOptions = [],
+  sortOptions,
   activeFilter = [],
   filterOptions = [],
   onSort,

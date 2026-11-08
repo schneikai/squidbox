@@ -9,8 +9,7 @@ const isContactSort = (key: string): key is ContactSort => contactSortOptions.so
 /**
  * A sort from the contacts' choices (Name, Recently added), remembered across launches: of the
  * `contacts` (contactListSortOrder; the Contacts tab and a list's screen) or of the `lists`
- * (listsSortOrder; the Lists screen and the list picker). A stored key no longer offered falls back to
- * Name.
+ * (listsSortOrder; the Lists screen). A stored key no longer offered falls back to Name.
  */
 export default function useContactSort(of: 'contacts' | 'lists' = 'contacts'): {
   sortOrder: ContactSort;

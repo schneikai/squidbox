@@ -8,21 +8,20 @@ import EditSheetHeader from '@/components/EditSheetHeader';
 import EmptyState from '@/components/EmptyState';
 import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
+import SheetSearchField from '@/components/SheetSearchField';
 import { SCREEN_PADDING } from '@/constants';
 import confirmRemoveFromPhotos from '@/features/contact-links/confirmRemoveFromPhotos';
 import { contactsOfName } from '@/features/contact-links/contactsOf';
 import ContactRow from '@/features/contact-list/ContactRow';
 import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSearchText from '@/features/contact-list/contactSearchText';
-import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useContactSort from '@/features/contact-list/useContactSort';
 import type { MembershipChange } from '@/features/contacts-context/ContactsContext';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
-import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearchText from '@/hooks/useSearchText';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import type { PhotosOf } from '@/sync/assetSql';
 import { matchingIds } from '@/sync/matchingIds';
@@ -32,8 +31,8 @@ type ContactSectionData = { title: string; data: ContactSummary[] };
 
 /**
  * The contacts of a photo (`?assetId=`) or of a list (`?listId=`), to pick: the ones it has now
- * (picked), the ones on the photos of the albums it is in, then everyone else, with search and the
- * Contacts tab's sort (useContactSort) in the floating bar at the bottom left. Save adds the ones
+ * (picked), the ones on the photos of the albums it is in, then everyone else, each in the Contacts tab's
+ * sort (useContactSort), under a search field pinned under the header (SheetSearchField). Save adds the ones
  * picked here and removes the ones unpicked here. For an album's or post's photos (`?albumId=`,
  * `?postId=`) it is its Contacts: the ones on all its photos start ticked, those on some with a
  * dash; Save puts the ticked ones on every photo and, once confirmed, takes the emptied ones off all
@@ -63,25 +62,16 @@ export default function AddContactsScreen() {
 type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed };
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
-  const padding = useScreenPadding('sheet-bar');
+  const padding = useScreenPadding('sheet-search');
   const { changePhotoContacts, changeListContacts, changeContactsOnPhotosOf } = useContacts();
   // The ones on only some of an album's photos start with a dash (`mixed`), the rest of `linked` ticked.
   const partial = useMemo(() => new Set(seed.partial), [seed.partial]);
   const initialIds = useMemo(() => seed.linked.filter((id) => !partial.has(id)), [seed.linked, partial]);
   // One state, so a pick's toggle reads the latest picks and stays the same function.
   const [{ selectedIds, mixedIds }, setPicks] = useState({ selectedIds: initialIds, mixedIds: seed.partial ?? [] });
-  const { sortOrder, setSortOrder } = useContactSort();
-  const { listRef, sort, searchBar, searchText: typedSearch } = useListControls({ onSort: setSortOrder });
+  const { sortOrder } = useContactSort();
+  const { field, searchText: typedSearch } = useSearchText();
   const searchText = typedSearch.trim().toLowerCase();
-  // A SectionList scrolls to an offset through its scroll responder.
-  const attachList = useCallback(
-    (list: SectionList<ContactSummary, ContactSectionData> | null) => {
-      listRef.current = list && {
-        scrollToOffset: ({ animated, offset }) => list.getScrollResponder()?.scrollTo({ y: offset, animated }),
-      };
-    },
-    [listRef],
-  );
   // Every contact, read once (and on writes and a new sort); a search filters them here, so typing
   // reads nothing.
   const allContacts = useContactRows({ scope: 'all', sort: sortOrder });
@@ -161,8 +151,8 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   return (
     <ModalSheet>
       <EditSheetHeader {...sheetProps} title="Add contacts" subtitle={seed.subtitle} />
+      <SheetSearchField {...field} placeholder="Name, handle or location" />
       <SectionList
-        ref={attachList}
         sections={sections}
         keyExtractor={(contact) => contact.id}
         renderItem={renderItem}
@@ -173,16 +163,10 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
         )}
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={contacts ? <EmptyState icon="search" title="No contacts match" /> : undefined}
+        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={padding}
-      />
-      <SearchSortFilterBar
-        search={searchBar}
-        placeholder="Name, handle or location"
-        sortOrder={sortOrder}
-        sortOptions={contactSortOptions}
-        onSort={sort}
       />
     </ModalSheet>
   );

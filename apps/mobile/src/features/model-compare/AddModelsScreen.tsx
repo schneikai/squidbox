@@ -12,19 +12,20 @@ import Divider from '@/components/Divider';
 import EmptyState from '@/components/EmptyState';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
+import SheetSearchField from '@/components/SheetSearchField';
 import useHaptics from '@/hooks/useHaptics';
-import useListControls from '@/hooks/useListControls';
 import useModelKindParam from '@/hooks/useModelKindParam';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useSearchText from '@/hooks/useSearchText';
 import useYourModels from '@/hooks/useYourModels';
 import { addYourModel, readRemovedModels } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
-// Every model Venice offers for a kind (route param `kind`), with search in the floating bar at the
-// bottom left; a tap adds one to your list. Removing is on the model's page; a removed model shows its score and note here.
+// Every model Venice offers for a kind (route param `kind`), under a search field pinned under the
+// header (SheetSearchField); a tap adds one to your list. Removing is on the model's page; a removed
+// model shows its score and note here.
 export default function AddModelsScreen() {
   const kind = useModelKindParam();
   if (kind === null) return null;
@@ -35,9 +36,8 @@ type AddModelsProps = { kind: AiModelKind };
 
 function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
-  // Search only: no sort or filter, so the list is never scrolled from here.
-  const { searchBar, searchText } = useListControls();
-  const padding = useScreenPadding('sheet-bar');
+  const { field, searchText } = useSearchText();
+  const padding = useScreenPadding('sheet-search');
   const haptics = useHaptics();
   const { catalog, defaults, yourDefaults, error, retry, rows } = useYourModels(kind);
   const removed = useLiveQuery((db) => readRemovedModels(db, kind), [schema.aiModels, schema.aiScores], [kind]);
@@ -82,17 +82,19 @@ function AddModels({ kind }: AddModelsProps) {
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="Add models"
       />
+      {/* Always shown, while the catalog loads or fails too, so it doesn't jump in when it arrives. */}
+      <SheetSearchField {...field} placeholder="Search models" />
       <FlatList
         data={models}
         keyExtractor={(model) => model.id}
         renderItem={renderItem}
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={renderEmpty()}
+        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         contentContainerStyle={padding}
       />
-      {catalog && <SearchSortFilterBar search={searchBar} placeholder="Search models…" />}
     </ModalSheet>
   );
 }
