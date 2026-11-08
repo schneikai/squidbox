@@ -42,7 +42,7 @@ export default function TargetContactChip({ contact, of, onOpen }: TargetContact
       leading={<ContactAvatar contact={contact} size="chip" />}
       onPress={onOpen}
       onRemove={handleRemove}
-      removeLabel={`Remove ${contact.name} from this ${name}`}
+      removeLabel={`Remove ${contact.name} from ${'assetId' in of ? 'this photo' : `every photo of this ${name}`}`}
     />
   );
 }

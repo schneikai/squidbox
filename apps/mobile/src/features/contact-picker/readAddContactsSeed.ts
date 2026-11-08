@@ -3,12 +3,11 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import type { ContactsOf } from '@/features/contact-links/contactsOf';
 import contactQuery from '@/features/contact-list/contactQuery';
 import { albumHoldsAny } from '@/sync/assetSql';
-import { schema } from '@/sync/db/client';
+import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { readPhotoIdsOf } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
-import pluralizeText from '@/utils/pluralizeText';
 
 /** What Add contacts adds to: a photo, an album's or post's photos (ContactsOf), or a list. */
 export type AddContactsTarget = ContactsOf | { listId: string };
@@ -64,7 +63,7 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
     // A post's photos' albums; an album is its own.
     const related = 'postId' in target ? await onAlbumsPhotos(tx, await albumsHolding(tx, photoIds)) : [];
     return {
-      subtitle: photoIds.length > 1 ? pluralizeText('1 photo', '%{count} photos', photoIds.length) : undefined,
+      subtitle: photoIds.length > 1 ? `${photoIds.length} photos` : undefined,
       linkedTitle: 'On its photos',
       linked,
       related,
@@ -84,14 +83,26 @@ async function albumsHolding(tx: SyncDb, assetIds: string[]): Promise<AlbumName[
     .orderBy(asc(sql`${al.name} collate nocase`), asc(al.id));
 }
 
-// "Also in <album>": the contacts on each album's photos, by name, for the albums with any.
+// "Also in <album>": the live contacts on each album's untrashed photos, by name, for the albums
+// with any: one read for them all.
 async function onAlbumsPhotos(tx: SyncDb, albums: AlbumName[]): Promise<ContactSection[]> {
-  const sections: ContactSection[] = [];
-  for (const album of albums) {
-    const ids = await contactQuery({ scope: { photosOf: { albumId: album.id } } }).ids(tx);
-    if (ids.length) sections.push({ title: `Also in ${album.name}`, ids });
-  }
-  return sections;
+  if (albums.length === 0) return [];
+  const albumIds = albums.map((album) => album.id);
+  const { albumAssets: aa, assets: a, contactLinks: l, contacts: c } = schema;
+  const rows = await tx
+    .selectDistinct({ albumId: aa.albumId, contactId: c.id })
+    .from(aa)
+    .innerJoin(a, and(eq(a.id, aa.assetId), isNull(a.deletedAt)))
+    .innerJoin(l, and(eq(l.targetType, 'asset'), eq(l.targetId, aa.assetId), isNull(l.deletedAt)))
+    .innerJoin(c, and(eq(c.id, l.contactId), isNull(c.deletedAt)))
+    .where(and(isNull(aa.deletedAt), inJson(aa.albumId, albumIds)))
+    .orderBy(asc(sql`${c.name} collate nocase`), asc(c.id));
+  const byAlbum = new Map<string, string[]>();
+  for (const { albumId, contactId } of rows) byAlbum.set(albumId, [...(byAlbum.get(albumId) ?? []), contactId]);
+  return albums.flatMap((album) => {
+    const ids = byAlbum.get(album.id);
+    return ids ? [{ title: `Also in ${album.name}`, ids }] : [];
+  });
 }
 
 // How many of these photos each contact is on.

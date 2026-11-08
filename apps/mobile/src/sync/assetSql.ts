@@ -124,8 +124,12 @@ export type PhotosOf = { albumId: string } | { postId: string };
 
 /** The ids of the live, untrashed photos of an album or post (PhotosOf), through live edges. */
 export function livePhotoIdsOf(of: PhotosOf): SQL {
-  const held = 'albumId' in of ? liveAlbumAssetIds(of.albumId) : postThreadAssetIds(of.postId);
-  return sql`(select id from assets where deleted_at is null and id in ${held})`;
+  return sql`(select id from assets where deleted_at is null and id in ${heldPhotoIds(of)})`;
+}
+
+/** The ids of an album's or post's photos (PhotosOf), trashed ones included, through live edges. */
+export function heldPhotoIds(of: PhotosOf): SQL {
+  return 'albumId' in of ? liveAlbumAssetIds(of.albumId) : postThreadAssetIds(of.postId);
 }
 
 /** The ids of the live, untrashed photos a contact is on, through its live links. */

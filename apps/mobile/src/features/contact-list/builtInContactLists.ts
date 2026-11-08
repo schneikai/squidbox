@@ -36,7 +36,8 @@ export type BuiltInContactListSummary = Pick<
  */
 export const builtInContactListsQuery = {
   descriptor: {},
-  tables: [schema.contacts, schema.contactLinks],
+  // Tagged counts the contacts on untrashed photos.
+  tables: [schema.contacts, schema.contactLinks, schema.assets],
   read(db: SyncDb): Promise<BuiltInContactListSummary[]> {
     return db.transaction(async (tx) => {
       const summaries: BuiltInContactListSummary[] = [];

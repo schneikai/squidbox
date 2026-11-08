@@ -50,7 +50,8 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
 
       <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
 
-      <TargetContactsSection of={{ postId: post.id }} isFlush />
+      {/* Contacts go on photos: a post without any has none. */}
+      {assetIds.length > 0 && <TargetContactsSection of={{ postId: post.id }} isFlush />}
 
       <ScreenSectionHeader title="Posted Albums" isFlush />
       <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />

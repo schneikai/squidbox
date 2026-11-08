@@ -1,6 +1,6 @@
-import { sql } from 'drizzle-orm';
+import { and, isNull, sql } from 'drizzle-orm';
 
-import { livePhotoIdsOf, type PhotosOf } from './assetSql';
+import { heldPhotoIds, type PhotosOf } from './assetSql';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { contactLinks } from './membershipRepository';
@@ -9,13 +9,13 @@ import { contactLinks } from './membershipRepository';
 // contact_links for photos, in the caller's transaction; `newId` is injected (the app passes
 // getNewItemId).
 
-/** The ids of the live, untrashed photos of an album or post (livePhotoIdsOf). */
+/** The ids of the live, untrashed photos of an album or post. */
 export async function readPhotoIdsOf(tx: SyncDb, of: PhotosOf): Promise<string[]> {
   const a = schema.assets;
   const rows = await tx
     .select({ id: a.id })
     .from(a)
-    .where(sql`${a.id} in ${livePhotoIdsOf(of)}`);
+    .where(and(isNull(a.deletedAt), sql`${a.id} in ${heldPhotoIds(of)}`));
   return rows.map((row) => row.id);
 }
 
