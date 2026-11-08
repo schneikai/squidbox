@@ -23,8 +23,8 @@ type AlbumHeaderProps = {
 };
 
 /**
- * The top of an album, over its grid: its name, how many assets and when it was last posted, the
- * Archived badge and its notes, then, on one line, a chip with the faces of the contacts on its
+ * The top of an album, over its grid: its name, how many assets and when it was last posted, its
+ * notes (the name and the notes open Edit album), the Archived badge, then, on one line, a chip with the faces of the contacts on its
  * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
  * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
@@ -34,7 +34,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const people = useContactRows({ scope: { photosOf: { albumId: album.id } } }, { isLive: !isSmart });
   const posts = usePagedQuery(postQuery({ scope: { albumId: album.id }, sort: 'postedAt:desc' }), 1);
 
-  // Contacts are added from the ⋯ menu (Add contacts to photos), so none shows no chip.
+  // Contacts are added from the ⋯ menu (Add contacts), so none shows no chip.
   const hasPeople = !isSmart && !!people?.length;
   const faces = people?.slice(0, STACKED) ?? [];
   const names = people?.map((contact) => contact.name) ?? [];
@@ -44,6 +44,11 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
     ...(posts.rows ? [albumLastPostedText({ lastPostedAt })] : []),
   ].join(' · ');
 
+  // The name and the note each open Edit album, the note with the cursor in it.
+  function openEdit(focus?: 'notes') {
+    router.navigate({ pathname: '/album/[albumId]/edit', params: { albumId: album.id, focus } });
+  }
+
   function openContacts() {
     router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
   }
@@ -51,20 +56,32 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   return (
     <View style={styles.header}>
       <View>
-        <NativeText style={[textStyles.title1, styles.name]} accessibilityRole="header" numberOfLines={2}>
-          {album.name}
-        </NativeText>
-        <Text variant="status">{details}</Text>
-      </View>
-      {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
-      {!!album.notes && (
         <Pressable
           style={({ pressed }) => pressed && press.flat}
-          onPress={() => router.navigate(`/album/${album.id}/notes`)}
+          onPress={() => openEdit()}
+          accessibilityRole="header"
+          accessibilityHint="Edit album"
         >
-          <Text variant="hint">{album.notes}</Text>
+          <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
+            {album.name}
+          </NativeText>
         </Pressable>
-      )}
+        <Text variant="status">{details}</Text>
+        {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
+        {!!album.notes && (
+          <View style={styles.notes}>
+            <Pressable
+              style={({ pressed }) => pressed && press.flat}
+              onPress={() => openEdit('notes')}
+              accessibilityRole="button"
+              accessibilityHint="Edit album"
+            >
+              <Text variant="hint">{album.notes}</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+      {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
       {(hasPeople || !!posts.count) && (
         <View style={styles.chips}>
           {hasPeople && (
@@ -115,6 +132,9 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text.primary,
+  },
+  notes: {
+    marginTop: space.sm,
   },
   // One line: the contacts' names are cut short before the posts chip is.
   chips: {

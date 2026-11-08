@@ -271,7 +271,7 @@ function RootStack() {
   return (
     <Stack screenOptions={STACK_SCREEN_OPTIONS} screenLayout={sheetScreenLayout}>
       <Stack.Screen name="(main)/post/[postId]" dangerouslySingular />
-      <Stack.Screen name="(main)/album/[albumId]/notes" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(main)/album/[albumId]/edit" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/contact-list/[listId]/edit" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/contact/[contactId]/place" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/pick-assets" options={SHEET_OPTIONS} />
