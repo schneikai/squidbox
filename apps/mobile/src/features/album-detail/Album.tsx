@@ -194,7 +194,7 @@ export default function Album({ album }: AlbumProps) {
       {!isSelectMode && (
         <SearchSortFilterBar
           search={searchBar}
-          placeholder="Search notes…"
+          placeholder="Search notes, tags and contacts…"
           sortOrder={sortOrder}
           sortOptions={sortOptions}
           activeFilter={activeFilter}

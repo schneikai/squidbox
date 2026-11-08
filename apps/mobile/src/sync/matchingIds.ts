@@ -1,18 +1,17 @@
 /**
- * The ids of the rows whose text contains `searchText`: Unicode-aware, literal, and blind to case,
- * accents and the usual spellings of letters like ü and ß ("sao" finds "São", "muller" and "mueller"
- * find "Müller", "strasse" finds "Straße", and back), which SQLite's LIKE and lower() aren't (they
- * fold ASCII only and read % and _ as wildcards). So a search matches in JS and SQL takes the ids
- * (see inJson).
+ * The ids, each once, of the rows whose text contains `searchText` (an id may have a row per text it
+ * is searched by): Unicode-aware, literal, and blind to case, accents and the usual spellings of
+ * letters like ü and ß ("sao" finds "São", "muller" and "mueller" find "Müller", "strasse" finds
+ * "Straße", and back), which SQLite's LIKE and lower() aren't (they fold ASCII only and read % and _
+ * as wildcards). So a search matches in JS and SQL takes the ids (see inJson).
  */
 export function matchingIds(rows: { id: string; text: string }[], searchText: string): string[] {
   const needles = searchForms(searchText);
-  return rows
-    .filter((row) => {
-      const forms = searchForms(row.text);
-      return needles.some((needle) => forms.some((form) => form.includes(needle)));
-    })
-    .map((row) => row.id);
+  const matched = rows.filter((row) => {
+    const forms = searchForms(row.text);
+    return needles.some((needle) => forms.some((form) => form.includes(needle)));
+  });
+  return [...new Set(matched.map((row) => row.id))];
 }
 
 // Letters Unicode doesn't decompose into a base letter and a mark, by how they're written without them.

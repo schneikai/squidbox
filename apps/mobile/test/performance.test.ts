@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { makeAlbumRecord, makeAssetRecord, makeContactRecord, makePostRecord } from './helpers/factory';
 import { makeMeasuredTestDb, type Work } from './helpers/testDb';
 import albumQuery from '../src/features/album-list/albumQuery';
+import albumSearchQuery from '../src/features/album-list/albumSearchQuery';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import contactQuery from '../src/features/contact-list/contactQuery';
 import postQuery from '../src/features/post-list/postQuery';
@@ -13,6 +14,7 @@ import * as repo from '../src/sync/assetsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { contactLinks } from '../src/sync/membershipRepository';
 import { makeRepository } from '../src/sync/repository';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
@@ -207,10 +209,14 @@ describe('plan guard', () => {
           isFavorite: i % 3 === 0,
           mediaType: i % 4 === 0 ? 'video' : 'photo',
           notes: i % 2 === 0 ? `note ${i}` : null,
+          tags: i % 5 === 0 ? ['sunset'] : null, // some noted too, some tagged only
           deletedAt: i % 7 === 0 ? i : null,
         }),
       ),
     );
+    // One contact on a live photo of the album, which has no notes or tags.
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna' }));
+    await contactLinks.add(db, { targetType: 'asset', targetId: assets[3].id }, ['anna'], () => 'link-1');
     const keys = initialKeys(10);
     await albumEdges.createFromRefs(
       db,
@@ -235,7 +241,7 @@ describe('plan guard', () => {
       });
       return work;
     };
-    return { plansOf, measure, db };
+    return { plansOf, measure, db, assets };
   }
 
   it('walks an index in order for the date, custom and deleted reads, with and without filters', async () => {
@@ -270,15 +276,36 @@ describe('plan guard', () => {
     expect(work.plans).toContain('USE TEMP B-TREE FOR ORDER BY');
   });
 
-  it('searches the noted rows through their covering index, then the matched ids by key', async () => {
-    const { plansOf } = await library();
+  it('searches the noted and tagged rows through their covering index, then the matched ids by key', async () => {
+    const { plansOf, measure, db, assets } = await library();
     const work = await plansOf({ scope: 'library', search: 'note' });
     expect(work.fullScans.filter((line) => !line.startsWith('SCAN json_each'))).toEqual(
-      Array(2).fill('SCAN a USING INDEX assets_notes_idx'), // once per read
+      Array(2).fill('SCAN a USING INDEX assets_search_idx'), // once per read
     );
     expect(work.plans).toContain('SCAN json_each VIRTUAL TABLE INDEX 1:');
+    expect(work.plans).toContain('SEARCH contact_links USING INDEX contact_links_target_idx (target_type=?)');
     expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
     expect(work.plans).toContain('USE TEMP B-TREE FOR ORDER BY');
+
+    // One read takes the live rows with notes or tags, the live links, then the matched page and its count.
+    const live = assets.filter((asset) => asset.deletedAt === null);
+    const searchable = live.filter((asset) => asset.notes !== null || asset.tags != null).length;
+    const matched = live.filter((asset) => asset.notes?.includes('note')).length;
+    const read = await measure(() => assetQuery({ scope: 'library', search: 'note' }).read(db, { limit: LIMIT }));
+    expect(read.rowsRead).toBe(searchable + 1 + matched + 1);
+  });
+
+  it('searches the albums through their links, never scanning the assets', async () => {
+    const { measure, db } = await library();
+    let found: string[] | null = null;
+    const work = await measure(async () => {
+      found = await albumSearchQuery('anna').read(db);
+    });
+    expect(found).toEqual([AL]);
+    expect(work.fullScans.filter((line) => line !== 'SCAN al')).toEqual([]);
+    expect(work.plans).toContain('SEARCH contact_links USING INDEX contact_links_target_idx (target_type=?)');
+    expect(work.plans).toContain('SEARCH aa USING INDEX album_assets_asset_idx (asset_id=?)');
+    expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
   });
 
   it('reads the album stats through one index per branch, never scanning the assets', async () => {

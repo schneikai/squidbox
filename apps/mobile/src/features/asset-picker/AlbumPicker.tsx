@@ -52,7 +52,7 @@ export default function AlbumPicker({ onPick, onScroll, expandProgress }: AlbumP
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        placeholder="Search albums…"
+        placeholder="Search albums, notes and contacts…"
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}

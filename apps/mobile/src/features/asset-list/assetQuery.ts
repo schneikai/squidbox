@@ -1,4 +1,4 @@
-import { and, count, eq, getTableColumns, isNotNull, not, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, isNotNull, not, or, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import isOneOf from '@/lib/isOneOf';
@@ -10,6 +10,7 @@ import {
   fromScope,
   isIdScope,
   liveAlbumAssetIds,
+  photoContactNames,
   type AssetQueryScope,
   type AssetSort,
 } from '@/sync/assetSql';
@@ -20,6 +21,9 @@ import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
 import type { PagedQuery } from '@/sync/usePagedQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
+
+// The rows the search reads, as assets_search_idx keeps them (with the deletion of the scope).
+const hasSearchText = or(isNotNull(a.notes), isNotNull(a.tags));
 
 const ASSET_FILTERS = ['favorites', 'images', 'videos'] as const;
 export type AssetFilter = (typeof ASSET_FILTERS)[number];
@@ -32,8 +36,8 @@ export type AssetExclude = string[] | { albumId: string };
 /**
  * `sort`: `custom` needs an album scope; the Deleted scope has no sort menu and lists the most
  * recently deleted first; a post has no sort either and lists in its own order (filter and search
- * still apply). `search` is a notes substring, matched as the grid did: Unicode-aware, literal,
- * case-insensitive.
+ * still apply). `search` is a substring of the notes, the tags or a tagged contact's name, matched
+ * as `matchingIds` does.
  */
 export type AssetQueryDescriptor = {
   scope?: AssetQueryScope;
@@ -73,6 +77,8 @@ export default function assetQuery({
   if (isPost) tables.push(schema.postAssets);
   if (isIdScope(scope, 'contactId')) tables.push(schema.contactLinks);
   if (!Array.isArray(exclude)) tables.push(schema.albumAssets);
+  const searchText = search.trim().toLowerCase();
+  if (searchText) tables.push(schema.contactLinks, schema.contacts);
 
   const filterConditions: SQL[] = [];
   if (filter.includes('favorites')) filterConditions.push(eq(a.isFavorite, true));
@@ -81,20 +87,27 @@ export default function assetQuery({
   if (!Array.isArray(exclude)) filterConditions.push(sql`a.id not in ${liveAlbumAssetIds(exclude.albumId)}`);
   else if (exclude.length) filterConditions.push(not(inJson(a.id, exclude)));
 
-  // The search runs over the noted rows of the scope, once per read for rows and count alike: a
-  // post's few through its edges, any other scope's through the noted assets' index.
-  const searchText = search.trim().toLowerCase();
+  // The search runs over the notes and tags of the scope's rows that have them (a post's few through
+  // its edges, any other scope's through the covering index assets_search_idx) and every live
+  // contact link's name, once per read for rows and count alike. Once every photo carries tags
+  // (todo.md: tagging at upload) that is every live asset, JSON-parsed and folded per keystroke, and
+  // the pre-folded search column of docs/paged-reads-plan.md §2 becomes due.
   async function matchedIds(tx: SyncDb): Promise<string[] | null> {
     if (!searchText) return null;
-    const select = tx.select({ id: a.id, text: a.notes });
-    const noted = await (isPost
-      ? fromScope(select, scope, sort).where(and(isNotNull(a.notes), assetScopeWhere(scope, sort)))
-      : select.from(a).where(and(isNotNull(a.notes), assetDeletionWhere(scope))));
-    // isNotNull keeps the noted rows only, which drizzle's types don't know.
-    return matchingIds(
-      noted.map((row) => ({ id: row.id, text: row.text ?? '' })),
-      searchText,
-    );
+    const select = tx.select({ id: a.id, notes: a.notes, tags: a.tags });
+    const searchable = await (isPost
+      ? fromScope(select, scope, sort).where(and(hasSearchText, assetScopeWhere(scope, sort)))
+      : select.from(a).where(and(hasSearchText, assetDeletionWhere(scope))));
+    // Not scoped: where(ids) keeps the scope's, and the links are as many as the tagged contacts.
+    const contactNames = await tx
+      .select({ id: photoContactNames.photoId, text: photoContactNames.name })
+      .from(photoContactNames);
+    // Tags are matched as words, one per line, not as their JSON.
+    const rows = searchable.flatMap(({ id, notes, tags }) => [
+      ...(notes === null ? [] : [{ id, text: notes }]),
+      ...(tags?.length ? [{ id, text: tags.join('\n') }] : []),
+    ]);
+    return matchingIds([...rows, ...contactNames], searchText);
   }
 
   function where(ids: string[] | null) {

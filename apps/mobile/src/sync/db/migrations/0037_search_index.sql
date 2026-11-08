@@ -1,0 +1,2 @@
+DROP INDEX `assets_notes_idx`;--> statement-breakpoint
+CREATE INDEX `assets_search_idx` ON `assets` (`id`,`notes`,`tags`) WHERE ("assets"."notes" is not null or "assets"."tags" is not null) and "assets"."deleted_at" is null;

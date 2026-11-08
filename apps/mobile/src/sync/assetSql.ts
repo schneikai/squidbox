@@ -1,5 +1,11 @@
-import { eq, sql, type SQL } from 'drizzle-orm';
-import { alias, type SelectedFields, type SQLiteColumn, type SQLiteSelectBuilder } from 'drizzle-orm/sqlite-core';
+import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import {
+  alias,
+  QueryBuilder,
+  type SelectedFields,
+  type SQLiteColumn,
+  type SQLiteSelectBuilder,
+} from 'drizzle-orm/sqlite-core';
 
 import * as schema from './db/schema';
 import { isCanonicalEdge } from './edgeSql';
@@ -137,6 +143,17 @@ export function contactPhotoIds(contactId: string): SQL {
   return sql`(select l.target_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
     where l.contact_id = ${contactId} and l.target_type = 'asset' and l.deleted_at is null)`;
 }
+
+/** The (photoId, name) pairs of every live link from a live contact to a photo, to select from or join. */
+export const photoContactNames = new QueryBuilder()
+  .select({ photoId: schema.contactLinks.targetId, name: schema.contacts.name })
+  .from(schema.contactLinks)
+  .innerJoin(
+    schema.contacts,
+    and(eq(schema.contacts.id, schema.contactLinks.contactId), isNull(schema.contacts.deletedAt)),
+  )
+  .where(and(eq(schema.contactLinks.targetType, 'asset'), isNull(schema.contactLinks.deletedAt)))
+  .as('photo_contacts');
 
 /**
  * The ids of the assets of a post's live albums (the albums holding any of the assets the post

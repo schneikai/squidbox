@@ -44,7 +44,7 @@ export default function AddToAlbumScreen() {
         title="Add to Album"
         trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
-      <SheetSearchField {...field} placeholder="Search albums…" />
+      <SheetSearchField {...field} placeholder="Search albums, notes and contacts…" />
       <ScrollView {...listProps}>
         {searchText && albums.length === 0 ? (
           <EmptyState icon="search" title="No albums match" />

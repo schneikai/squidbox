@@ -68,7 +68,7 @@ export default function AssetPickerGrid({
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        placeholder="Search notes…"
+        placeholder="Search notes, tags and contacts…"
         sortOrder={sortOrder}
         sortOptions={assetSortOptions}
         activeFilter={activeFilter}

@@ -104,7 +104,7 @@ export default function AlbumsScreen() {
       />
       <FloatingActionsBar
         search={searchBar}
-        placeholder="Search albums…"
+        placeholder="Search albums, notes and contacts…"
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}
