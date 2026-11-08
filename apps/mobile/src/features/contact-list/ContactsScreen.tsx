@@ -11,7 +11,6 @@ import contactSortOptions from './contactSortOptions';
 import useContactSort from './useContactSort';
 import usePinnedContactList from './usePinnedContactList';
 
-import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
 import IntroText from '@/components/IntroText';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -29,7 +28,7 @@ const PAGE_SIZE = 100;
 const PINNED_PAGE_SIZE = 30;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
-// The Contacts tab: favorites first as a row of avatars (or the list the pen beside their name pinned in their place),
+// The Contacts tab: favorites first as a row of avatars (or the list pinned in their place: tapping the row's name picks it),
 // then everyone, by name or recently added, searched and sorted in the floating bar. All lists, at the end of the
 // pinned row's header, pushes the contact lists (ContactListsScreen). + adds a contact.
 export default function ContactsScreen() {
@@ -44,7 +43,7 @@ export default function ContactsScreen() {
   const isSearching = !!search;
   const query = contactQuery({ scope: 'all', search, sort: sortOrder, withLists: true });
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
-  // What is pinned in place of Favorites, and whether there is anything else to pin (the pen).
+  // What is pinned in place of Favorites, and whether there is anything else to pin (the name's tap).
   const pin = usePinnedContactList({ isLive: !isSearching });
   const pinned = pin.pinned ?? null;
   const canChangePin = pin.canPinBuiltIn || !!pin.lists?.length;
@@ -54,8 +53,8 @@ export default function ContactsScreen() {
     PINNED_PAGE_SIZE,
     { isLive: !isSearching },
   );
-  // The pinned row's header (the pen, All lists) heads the tab whenever it isn't searching; the row under it once there
-  // are contacts, even while it is empty, so the pen can change it.
+  // The pinned row's header (its name, All lists) heads the tab whenever it isn't searching; the row under it once there
+  // are contacts, even while it is empty, so its name can change it.
   const hasPinnedHeader = !isSearching && !!pinnedContacts;
   const hasPinned = hasPinnedHeader && (pinnedContacts.length > 0 || !!pinned || !!count);
   const emptyTitle = builtInContactList(pinned?.id ?? 'favorites')?.emptyTitle ?? 'No contacts in this list yet';
@@ -78,16 +77,8 @@ export default function ContactsScreen() {
           title={pinned?.name ?? 'Favorites'}
           size="small"
           isFirst
-          titleAccessory={
-            canChangePin && (
-              <Button
-                icon="edit"
-                size="small"
-                accessibilityLabel="Choose what to pin"
-                onPress={() => router.navigate('/pin-contact-list')}
-              />
-            )
-          }
+          onTitlePress={canChangePin ? () => router.navigate('/pin-contact-list') : undefined}
+          titleHint="Choose what to pin"
           link={{ label: 'All lists', onPress: () => router.navigate('/contact-lists') }}
         />
       )}
