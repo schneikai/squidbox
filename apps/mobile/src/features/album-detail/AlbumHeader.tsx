@@ -74,7 +74,12 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
             {album.name}
           </NativeText>
         </SuperPressable>
-        <SuperPressable {...nameTaps} style={({ pressed }) => [styles.details, pressed && press.flat]}>
+        <SuperPressable
+          {...nameTaps}
+          style={({ pressed }) => [styles.details, pressed && press.flat]}
+          accessibilityRole="button"
+          accessibilityLabel={album.isFavorite ? `Starred, ${details}` : details}
+        >
           {!!album.isFavorite && <Icon name="star" filled size={sizes.iconSmall} color={colors.text.secondary} />}
           <Text variant="status">{details}</Text>
         </SuperPressable>

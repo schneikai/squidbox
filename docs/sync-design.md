@@ -376,8 +376,8 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   (`fieldGroups`). An edit of one sends the whole group with one clock, and the server widens a
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
   devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
-  `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`; albums and contacts one, `isFavorite`,
-  `favoritedAt`.
+  `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`; albums and contacts have `isFavorite`,
+  `favoritedAt` too.
 - **Whole-record pushes** (an app from before per-field merge, the dev client's library copy) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`

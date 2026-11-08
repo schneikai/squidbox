@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet, Text } from 'react-native';
+import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet } from 'react-native';
 
 import CoverImage from '@/components/CoverImage';
+import Text from '@/components/Text';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
-import { colors, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
+import { layout, press, sizes, space } from '@/styles/designTokens';
 
 /**
  * The starred albums atop the Albums tab: each one's cover, small and square, with its name, side by
@@ -37,7 +38,7 @@ function renderItem({ item: album }: ListRenderItemInfo<AlbumListRow>) {
       accessibilityLabel={album.name}
     >
       <CoverImage asset={album.cover} style={styles.cover} />
-      <Text style={[textStyles.footnote, styles.name]} numberOfLines={1}>
+      <Text variant="hint" tone="primary" numberOfLines={1}>
         {album.name}
       </Text>
     </Pressable>
@@ -61,8 +62,5 @@ const styles = StyleSheet.create({
   cover: {
     width: sizes.avatar.medium,
     height: sizes.avatar.medium,
-  },
-  name: {
-    color: colors.text.primary,
   },
 });
