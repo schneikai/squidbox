@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 
-import mentionSuggestions, { type MentionSuggestion } from './mentionSuggestions';
+import mentionSuggestions, { mentionEntries, type MentionSuggestion } from './mentionSuggestions';
 
 import Divider from '@/components/Divider';
+import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
@@ -14,17 +15,18 @@ type MentionSuggestionsProps = { query: string; assetIds: string[]; onPick: (han
 
 /**
  * The contacts the @handle being typed may mean (`query`, without the @; mentionSuggestions), those on
- * the post's photos (`assetIds`) first, each
- * with its avatar, name, handle and networks; a tap hands the handle to `onPick`. Only text: nothing
- * is linked to the contact. Nothing shows while reading or when no contact matches.
+ * the post's photos (`assetIds`) first, each with its avatar, name, handle and networks; a tap hands
+ * the handle to `onPick`. Only text: nothing is linked to the contact. Nothing shows while reading or when no contact matches.
  */
 export default function MentionSuggestions({ query, assetIds, onPick }: MentionSuggestionsProps) {
   const contacts = useContactRows({});
   const onPhotos = useContactRows({ scope: { targetType: 'asset', targetId: assetIds } });
 
+  const entries = useMemo(() => contacts && mentionEntries(contacts), [contacts]);
+  const onPhotoIds = useMemo(() => onPhotos && new Set(onPhotos.map(({ id }) => id)), [onPhotos]);
   const suggestions = useMemo(
-    () => (contacts && onPhotos ? mentionSuggestions(contacts, new Set(onPhotos.map(({ id }) => id)), query) : []),
-    [contacts, onPhotos, query],
+    () => (entries && onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query) : []),
+    [entries, onPhotoIds, query],
   );
 
   if (suggestions.length === 0) return null;
@@ -46,21 +48,20 @@ type SuggestionRowProps = { suggestion: MentionSuggestion; onPick: (handle: stri
 function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: SuggestionRowProps) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.row, pressed && press.flat]}
+      style={({ pressed }) => pressed && press.flat}
       onPress={() => onPick(handle)}
       accessibilityRole="button"
       accessibilityLabel={`${contact.name}, @${handle} on ${networks.join(' and ')}`}
       accessibilityHint="Adds the handle to the text"
     >
-      <ContactAvatar contact={contact} size="chip" />
-      <View style={styles.labels}>
+      <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
         <Text variant="title" size="small" numberOfLines={1}>
           {contact.name}
         </Text>
         <RNText style={listTextStyles.subtitle} numberOfLines={1}>
           @{handle} · {networks.join(', ')}
         </RNText>
-      </View>
+      </RowSlots>
     </Pressable>
   );
 }
@@ -70,21 +71,10 @@ const styles = StyleSheet.create({
   // like a list row's thumbnail.
   list: {
     marginTop: space.sm,
-    paddingHorizontal: space.md,
     borderRadius: radii.cover,
     backgroundColor: colors.background.muted,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.rowLeadingGap,
-    paddingVertical: space.sm,
-  },
-  labels: {
-    flex: 1,
-    minWidth: 0,
-  },
   divider: {
-    marginLeft: sizes.avatar.chip + layout.rowLeadingGap,
+    marginLeft: layout.rowInset + sizes.avatar.chip + layout.rowLeadingGap,
   },
 });

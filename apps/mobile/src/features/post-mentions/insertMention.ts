@@ -1,8 +1,9 @@
 import type { TypedMention } from './mentionAt';
 
 /**
- * `text` with the typed `mention` (mentionAt) replaced by `@handle` and a space after it (the one
- * that follows already, else a new one), and where the cursor goes: after that space.
+ * `text` with the typed `mention` (mentionAt) replaced by `@handle`, and where the cursor goes: right
+ * after it, or after a space added when the handle ends the text, so the next word can follow.
+ * Whatever came after the handle (a space, a comma, a new line) stays as it was.
  */
 export default function insertMention(
   text: string,
@@ -10,7 +11,6 @@ export default function insertMention(
   handle: string,
 ): { text: string; cursor: number } {
   const after = text.slice(mention.end);
-  const written = `@${handle}`;
-  const next = text.slice(0, mention.start) + written + (/^\s/.test(after) ? '' : ' ') + after;
-  return { text: next, cursor: mention.start + written.length + 1 };
+  const written = `@${handle}${after === '' ? ' ' : ''}`;
+  return { text: text.slice(0, mention.start) + written + after, cursor: mention.start + written.length };
 }

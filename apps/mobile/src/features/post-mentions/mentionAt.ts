@@ -1,9 +1,11 @@
-// The handle being typed: an @ at the start or after anything but a word character or another @ (so
-// an email address isn't one), then what extractHandles takes as a handle's characters, up to the
-// cursor.
-const TYPED = /(?<![\w@])@([\w.-]*)$/;
-// The rest of the handle after the cursor, replaced with it.
-const REST = /^[\w.-]*/;
+import { HANDLE_BODY } from '@/features/post-chat/extractHandles';
+
+// The handle being typed up to the cursor: an @ at the start or after anything but a word character
+// or another @ (so an email address isn't one), then a handle (or nothing yet), maybe with the dot or
+// hyphen that goes on to its next part.
+const TYPED = new RegExp(String.raw`(?<![\w@])@((?:${HANDLE_BODY}[.-]?)?)$`);
+// The rest of the handle after the cursor, replaced with it; not a dot or hyphen that ends a sentence.
+const REST = /^\w*(?:[.-]\w+)*/;
 // Longer than any handle: past this the user writes something else.
 const MAX_QUERY = 50;
 

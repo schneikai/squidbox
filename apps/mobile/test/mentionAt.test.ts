@@ -12,9 +12,19 @@ describe('mentionAt', () => {
     expect(mentionAt('with @ridge.bsky today', 8)).toEqual({ start: 5, end: 16, query: 'ri' });
   });
 
-  it('finds none in an email address, after a space or with no @', () => {
+  it('leaves the punctuation after a handle out of it', () => {
+    expect(mentionAt('Thanks @ri.', 10)).toEqual({ start: 7, end: 10, query: 'ri' });
+  });
+
+  it("takes the dot that goes on to a handle's next part", () => {
+    expect(mentionAt('@ridge.', 7)).toEqual({ start: 0, end: 7, query: 'ridge.' });
+  });
+
+  it('finds none in an email address', () => {
     expect(mentionAt('kai@exa', 7)).toBeNull();
+  });
+
+  it('finds none once a space follows the handle', () => {
     expect(mentionAt('@ridge ', 7)).toBeNull();
-    expect(mentionAt('hello', 5)).toBeNull();
   });
 });

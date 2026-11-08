@@ -87,7 +87,6 @@ export default function PostCard({
           multiline
           placeholder="What's new?"
           minHeight={isRoomy ? scale(84) : scale(48)}
-          onChangeText={setText}
           autoFocus={autoFocus}
           onFocus={activate}
           value={text}

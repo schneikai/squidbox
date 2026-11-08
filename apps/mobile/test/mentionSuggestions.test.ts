@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import mentionSuggestions, { type MentionContact } from '../src/features/post-mentions/mentionSuggestions';
+import mentionSuggestionsOf, {
+  mentionEntries,
+  type MentionContact,
+} from '../src/features/post-mentions/mentionSuggestions';
 
 function contact(fields: Partial<MentionContact> & Pick<MentionContact, 'name'>): MentionContact {
   return { id: fields.name, isFavorite: false, avatarFilename: null, ...fields };
 }
 
 const NONE = new Set<string>();
+
+const mentionSuggestions = (contacts: MentionContact[], onPhotoIds: Set<string>, query: string) =>
+  mentionSuggestionsOf(mentionEntries(contacts), onPhotoIds, query);
 
 const shown = (suggestions: ReturnType<typeof mentionSuggestions>) =>
   suggestions.map(({ handle, networks }) => `${handle} ${networks.join(',')}`);
