@@ -1,5 +1,5 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
@@ -12,6 +12,8 @@ import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import WriteWithAi from '@/features/post-chat/WriteWithAi';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
+import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
+import useMentionAutocomplete from '@/features/post-mentions/useMentionAutocomplete';
 import { layout, scale, space } from '@/styles/designTokens';
 import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -29,23 +31,27 @@ type PostCardProps = {
   card: PostCardData;
   isFirst: boolean;
   isActive: boolean;
+  autoFocus?: boolean;
   onChange: (key: string, changes: PostCardChange) => void;
   onActivate: (key: string) => void;
   onRemove?: (key: string) => void;
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
- * One post of the post editor (`card`: { key, text, postAssets }): its text, its photos once it has
- * any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose chat's Use
- * fills this card. `onChange(key, changes)` and `onActivate(key)` report to the editor; the first
- * card (`isFirst`) has the thread's time (`postedAt`, as text once `isPostedAtShown`,
- * `onChangePostedAt`), a following one × (`onRemove(key)`), the last ⊕ (`onAddToThread`).
+ * One post of the post editor (`card`: { key, text, postAssets }): its text, the contacts an @handle
+ * being typed may mean while it `isActive` (MentionSuggestions, a tap writes the handle), its photos
+ * once it has any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose
+ * chat's Use fills this card. `autoFocus` puts the cursor in its text as it opens. `onChange(key,
+ * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
+ * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
+ * (`onRemove(key)`), the last ⊕ (`onAddToThread`).
  */
 export default function PostCard({
   kind,
   card,
   isFirst,
   isActive,
+  autoFocus = false,
   postedAt,
   isPostedAtShown,
   onChangePostedAt,
@@ -57,9 +63,14 @@ export default function PostCard({
   const { key, text, postAssets } = card;
   const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
   const sessionId = useSubjectChat({ kind, text, postAssets, setText });
+  const autocomplete = useMentionAutocomplete(text, setText);
+  // The handle being typed in the card being edited, whose suggestions show.
+  const mention = isActive ? autocomplete.mention : null;
+  const assetIds = useMemo(() => postAssets.map((postAsset) => postAsset.asset.id), [postAssets]);
 
-  // The first card leaves room to write until photos come in under the text.
-  const isRoomy = isFirst && postAssets.length === 0;
+  // The first card leaves room to write until photos come in under the text, or the suggestions of a
+  // handle being typed, which follow the text closely.
+  const isRoomy = isFirst && postAssets.length === 0 && !mention;
 
   function activate() {
     onActivate(key);
@@ -76,9 +87,10 @@ export default function PostCard({
           multiline
           placeholder="What's new?"
           minHeight={isRoomy ? scale(84) : scale(48)}
-          onChangeText={setText}
+          autoFocus={autoFocus}
           onFocus={activate}
           value={text}
+          {...autocomplete.inputProps}
           style={styles.text}
         />
         {onRemove && (
@@ -91,6 +103,7 @@ export default function PostCard({
           />
         )}
       </View>
+      {mention && <MentionSuggestions query={mention.query} assetIds={assetIds} onPick={autocomplete.pick} />}
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
@@ -98,7 +111,7 @@ export default function PostCard({
       />
       <PostCardToolbar
         isFirst={isFirst}
-        exclude={postAssets.map((postAsset) => postAsset.asset.id)}
+        exclude={assetIds}
         onAddMedia={addPostAssets}
         postedAt={postedAt}
         isPostedAtShown={isPostedAtShown}

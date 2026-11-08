@@ -38,3 +38,17 @@ test('a saved post is still in the list after a reload', async ({ page }) => {
   await openTab(page, 'Posts');
   await expect(postCards(page.getByTestId('posts-screen')).filter({ hasText: text })).toBeVisible();
 });
+
+test('typing @ and part of a name suggests the contact, and a tap writes its handle', async ({ page }) => {
+  await openTab(page, 'Posts');
+  await button(page.getByTestId('posts-screen'), 'Add').click();
+  await button(page.getByTestId('new-post-sheet'), 'New post').click();
+  const editor = page.getByTestId('post-editor');
+  const text = editor.getByPlaceholder("What's new?");
+
+  await text.pressSequentially('Out with @lind');
+  await button(editor.getByTestId('mention-suggestions'), 'Maya Lindqvist, @mayalindqvist on X').click();
+
+  await expect(text).toHaveValue('Out with @mayalindqvist ');
+  await expect(editor.getByTestId('mention-suggestions')).toBeHidden();
+});

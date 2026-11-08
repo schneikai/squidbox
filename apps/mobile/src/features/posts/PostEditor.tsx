@@ -40,8 +40,9 @@ type Draft = { cards: PostCardData[]; postedAt: EditedPost['postedAt']; pickedPo
 // a short line. Add (a new post, `kind` 'draft') or Save (an edit) hands `onSave` the post the posts
 // store takes ({ text, assetRefs, postedAt, threadPosts: [{ id, text, assetRefs }] }), allowed once
 // every post has text or a photo (and, for Save, something changed), and the seed in the same shape,
-// so an edit can save only what changed; a save that throws says so and keeps the editor open. × or a
-// swipe down with changes asks first. `kind` is also what each card's assistant chat is about
+// so an edit can save only what changed; a save that throws says so and keeps the editor open. A new
+// post that opens empty has the cursor in its text, keyboard up. × or a swipe down with changes asks
+// first. `kind` is also what each card's assistant chat is about
 // (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
 export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
   const nextKey = useRef(0);
@@ -50,6 +51,8 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
   // The Posted time the user picked: undefined while untouched, null once removed (postedAtToSave).
   const [pickedPostedAt, setPickedPostedAt] = useState<PickedPostedAt>(undefined);
   const [activeKey, setActiveKey] = useState(cards[0].key);
+  // A new post that opens empty (New post's card) is there to be written: its text takes the cursor.
+  const [isOpenedEmpty] = useState(() => kind === 'draft' && !hasCardContent(cards[0]));
 
   const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
   // A new post's time is now until the user picks one, and a removed one is none: till then the
@@ -102,6 +105,7 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
               card={card}
               isFirst={index === 0}
               isActive={card.key === activeKey}
+              autoFocus={index === 0 && isOpenedEmpty}
               postedAt={postedAt}
               isPostedAtShown={isPostedAtShown}
               onChangePostedAt={setPickedPostedAt}
