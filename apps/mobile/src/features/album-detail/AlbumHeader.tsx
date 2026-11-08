@@ -23,8 +23,8 @@ type AlbumHeaderProps = {
 };
 
 /**
- * The top of an album, over its grid: its name, how many assets and when it was last posted, the
- * Archived badge and its notes (the name and the notes open Edit album), then, on one line, a chip with the faces of the contacts on its
+ * The top of an album, over its grid: its name, how many assets and when it was last posted, its notes, the
+ * Archived badge (the name and the notes open Edit album), then, on one line, a chip with the faces of the contacts on its
  * photos, which opens the album's Contacts sheet (AddContactsScreen), and one
  * with its posts, which pushes them, each only when it has some. A smart album has no contacts of its own, so no contacts chip.
  */
@@ -66,13 +66,14 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
           </NativeText>
         </Pressable>
         <Text variant="status">{details}</Text>
+        {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
+        {!!album.notes && (
+          <Pressable style={({ pressed }) => [styles.notes, pressed && press.flat]} onPress={openEdit}>
+            <Text variant="hint">{album.notes}</Text>
+          </Pressable>
+        )}
       </View>
       {!!album.archivedAt && <Badge label="Archived" tone="danger" />}
-      {!!album.notes && (
-        <Pressable style={({ pressed }) => pressed && press.flat} onPress={openEdit}>
-          <Text variant="hint">{album.notes}</Text>
-        </Pressable>
-      )}
       {(hasPeople || !!posts.count) && (
         <View style={styles.chips}>
           {hasPeople && (
@@ -123,6 +124,9 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text.primary,
+  },
+  notes: {
+    marginTop: space.sm,
   },
   // One line: the contacts' names are cut short before the posts chip is.
   chips: {
