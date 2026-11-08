@@ -111,6 +111,43 @@ describe('chatSessions', () => {
     expect(session.getState().messages).toEqual([]);
   });
 
+  it("is waiting while the context waits for the photos' tags, and not once it is read", async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    let read: (value: ChatContext) => void = () => {};
+    const sending = session.send(
+      { content: 'First' },
+      (_signal, onWait) => {
+        onWait();
+        return new Promise((resolve) => (read = resolve));
+      },
+      request,
+    );
+    expect(session.getState().isWaiting).toBe(true);
+    read(context);
+    await flushTurns();
+    expect(session.getState().isWaiting).toBe(false);
+    calls[0]!.resolve(REPLY);
+    await sending;
+  });
+
+  it('stops waiting at once on New chat, and the dropped read leaves the next one waiting', async () => {
+    const { session } = open();
+    const { request } = deferredRequest();
+    const reads: ((value: ChatContext) => void)[] = [];
+    const waitingReader: ContextReader = (_signal, onWait) => {
+      onWait();
+      return new Promise((resolve) => reads.push(resolve));
+    };
+    session.send({ content: 'First' }, waitingReader, request);
+    session.reset();
+    expect(session.getState().isWaiting).toBe(false);
+    session.send({ content: 'Again' }, waitingReader, request);
+    reads[0]!(context);
+    await flushTurns();
+    expect(session.getState().isWaiting).toBe(true);
+  });
+
   it("fails the reply with the error when the context can't be read", async () => {
     const { session } = open();
     const { request } = deferredRequest();

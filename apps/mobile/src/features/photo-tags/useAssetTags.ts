@@ -21,8 +21,9 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * or failed, by asset id), `isTagging` (also for a photo about to be tagged by itself), `untagged`
  * (the rows never tagged that nothing will tag without a tap: none while the assistant is available;
  * one whose tags are still on their way isn't), `taggingAsync(onWait)` (waits for those under way
- * now, calling `onWait()` first when there are any; resolves to whether there were any) and `retry(id)` (tags one again: a failed one, or one not
- * tagged). The result changes only when one of these does.
+ * now, calling `onWait()` first when there are any; resolves to whether there were any) and
+ * `retry(id)` (tags one again: a failed one, or one not tagged). The result changes only when one of
+ * these does.
  */
 export default function useAssetTags(assets: readonly Pick<AssetRecord, 'id'>[]) {
   const isAvailable = useIsAssistantAvailable();

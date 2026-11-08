@@ -138,6 +138,23 @@ describe('uncensoredMarks', () => {
     expect(uncensoredMarks.wanted.get()).not.toHaveProperty('on-off-on');
   });
 
+  it('keeps writing after a report of a failed write throws', async () => {
+    setUncensored.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(answer([]));
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    uncensoredMarks.set(model('report-throws'), true, () => {
+      throw new Error('alert failed');
+    });
+    await settle();
+    uncensoredMarks.set(model('after-throw'), true, () => {});
+    await settle();
+    expect(setUncensored.mock.calls).toEqual([
+      ['report-throws', true],
+      ['after-throw', true],
+    ]);
+    logged.mockRestore();
+  });
+
   it('puts the mark back and reports a failed write', async () => {
     const failure = new Error('offline');
     setUncensored.mockRejectedValueOnce(failure);

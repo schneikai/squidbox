@@ -53,6 +53,8 @@ type ChatSessionState = {
   kind: ChatSubjectKind;
   messages: ChatMessage[];
   isSending: boolean;
+  // While the turn's context waits for the photos' tags.
+  isWaiting: boolean;
   canApply: boolean;
   tagEdits: ListEdits;
   mentionEdits: ListEdits;
@@ -67,10 +69,11 @@ type ChatRequester = typeof chatAsync;
 export type ChatSession = ReturnType<typeof createSession>;
 
 /**
- * What the chat is about, read when the turn goes: it may wait for the photos' tags. `signal` aborts
- * once the turn is dropped (New chat, or the chat closed); what it resolves to then is ignored.
+ * What the chat is about, read when the turn goes: it may wait for the photos' tags, and calls
+ * `onWait()` when it does (the chat is `isWaiting` until the read ends). `signal` aborts once the
+ * turn is dropped (New chat, or the chat closed); what it resolves to then is ignored.
  */
-export type ContextReader = (signal: AbortSignal) => Promise<ChatContext>;
+export type ContextReader = (signal: AbortSignal, onWait: () => void) => Promise<ChatContext>;
 
 const NO_EDITS: ListEdits = Object.freeze({ added: [], removed: [] });
 
@@ -121,21 +124,22 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
 }
 
 /**
- * One chat: `getState()` → `{ kind, messages, isSending, canApply, isClosed }`, a new object on each
- * change, which `subscribe(listener)` tells. A message is the user's (UserChatMessage) or a reply
- * (AssistantChatMessage). `isSending` while a reply loads. `isClosed` once the chat was closed (its
- * last change). `send` and `retry` put the turn in the chat at once and read the context when they go.
+ * One chat: `getState()` → `{ kind, messages, isSending, isWaiting, canApply, isClosed }`, a new
+ * object on each change, which `subscribe(listener)` tells. A message is the user's
+ * (UserChatMessage) or a reply (AssistantChatMessage). `isSending` while a reply loads; `isWaiting`
+ * while its context waits for the photos' tags. `isClosed` once the chat was closed (its last
+ * change). `send` and `retry` put the turn in the chat at once and read the context when they go.
  * The editor's caption and assets (`getDraft()`) change with every keystroke, so they are read when
- * needed, not told. `tagEdits` is what the chat card changed in the
- * post's tags (postTags): kept here only, while the editor is open, never on the photos.
- * `mentionEdits` is the same for the handles it may mention (chatMentions),
- * never on the posts.
+ * needed, not told. `tagEdits` is what the chat card changed in the post's tags (postTags): kept
+ * here only, while the editor is open, never on the photos. `mentionEdits` is the same for the
+ * handles it may mention (chatMentions), never on the posts.
  */
 function createSession(kind: ChatSubjectKind) {
   const store = createStore<ChatSessionState>({
     kind,
     messages: [],
     isSending: false,
+    isWaiting: false,
     canApply: false,
     tagEdits: NO_EDITS,
     mentionEdits: NO_EDITS,
@@ -174,7 +178,12 @@ function createSession(kind: ChatSubjectKind) {
     controller = new AbortController();
     const { signal } = controller;
     try {
-      const context = await readContext(signal);
+      const context = await readContext(signal, () => {
+        if (!signal.aborted) update({ isWaiting: true });
+      }).finally(() => {
+        // A dropped read leaves it to reset() or close(), and to the read after it.
+        if (!signal.aborted && store.get().isWaiting) update({ isWaiting: false });
+      });
       if (signal.aborted) return;
       const { messages } = store.get();
       const at = messages.findIndex((message) => message.id === replyId);
@@ -268,12 +277,12 @@ function createSession(kind: ChatSubjectKind) {
       controller?.abort();
       controller = null;
       chatId = getNewItemId();
-      update({ messages: [] });
+      update({ messages: [], isWaiting: false });
     },
 
     close() {
       controller?.abort();
-      update({ isClosed: true });
+      update({ isClosed: true, isWaiting: false });
     },
   };
 }

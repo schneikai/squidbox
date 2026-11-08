@@ -44,6 +44,8 @@ function set(
       if (lastTaps.get(model.id) === tap) forget(model.id);
     }
   });
+  // A job that throws (an onError that fails, say) doesn't stop the writes after it.
+  queue = queue.catch((error: unknown) => console.error('Uncensored write', error));
 }
 
 function forget(modelId: string) {
