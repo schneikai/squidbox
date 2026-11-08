@@ -253,7 +253,7 @@ export default function ComponentGalleryScreen() {
           <Row label="Sign out" colorPalette="danger" onPress={noop} hasChevron />
         </Section>
         <SectionFooter>A footer explains the section above it.</SectionFooter>
-        <ScreenSectionHeader title="With trailing" trailing={<Button label="Edit" size="small" onPress={noop} />} />
+        <ScreenSectionHeader title="With a link" link={{ label: 'See all 12', onPress: noop }} />
         <Section>
           <Row label="Disabled" disabled onPress={noop} hasChevron />
         </Section>

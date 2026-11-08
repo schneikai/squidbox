@@ -21,8 +21,9 @@ export type ScreenSectionHeaderProps = {
  * a post.
  *
  * When trailing is provided the component renders a flex row with the title
- * on the left and the slot on the right. `link` is a secondary way on (See all 27): a grey link at
- * the row's end, on the title's baseline, never the accent. Over cards it sits a little in from
+ * on the left and the slot on the right: a control, not a text link (the assistant's Tag it). `link` is
+ * the section's secondary way on (See all 27, Ignored, All lists): a grey link at the row's end, on the
+ * title's baseline, never the accent. Every text link beside a section label is a `link`. Over cards it sits a little in from
  * their edge; `isFlush` lines it up with content that has no card around it.
  * `titleAccessory` sits right after the title, a small button about it (the Contacts tab's pen beside
  * the pinned list's name).
