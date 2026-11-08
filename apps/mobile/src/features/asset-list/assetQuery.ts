@@ -9,8 +9,8 @@ import {
   assetScopeWhere,
   fromScope,
   isIdScope,
+  contactLinkedPhotoIds,
   liveAlbumAssetIds,
-  photoContactNames,
   type AssetQueryScope,
   type AssetSort,
 } from '@/sync/assetSql';
@@ -18,12 +18,14 @@ import * as schema from '@/sync/db/schema';
 import type { AssetRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
+import { matchingContactIds } from '@/sync/matchingContactIds';
 import { matchingIds } from '@/sync/matchingIds';
 import type { PagedQuery } from '@/sync/usePagedQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 
-// The rows the search reads, as assets_search_idx keeps them (with the deletion of the scope).
-const hasSearchText = or(isNotNull(a.notes), isNotNull(a.tags));
+// The rows the search reads: those with notes or tags ("No tags", [], has none). assets_search_idx
+// keeps the same rows, so keep the two predicates in step.
+const hasSearchText = or(isNotNull(a.notes), sql`${a.tags} != '[]'`);
 
 const ASSET_FILTERS = ['favorites', 'images', 'videos'] as const;
 export type AssetFilter = (typeof ASSET_FILTERS)[number];
@@ -78,7 +80,10 @@ export default function assetQuery({
   if (isIdScope(scope, 'contactId')) tables.push(schema.contactLinks);
   if (!Array.isArray(exclude)) tables.push(schema.albumAssets);
   const searchText = search.trim().toLowerCase();
-  if (searchText) tables.push(schema.contactLinks, schema.contacts);
+  if (searchText) {
+    if (!tables.includes(schema.contactLinks)) tables.push(schema.contactLinks);
+    tables.push(schema.contacts);
+  }
 
   const filterConditions: SQL[] = [];
   if (filter.includes('favorites')) filterConditions.push(eq(a.isFavorite, true));
@@ -87,31 +92,31 @@ export default function assetQuery({
   if (!Array.isArray(exclude)) filterConditions.push(sql`a.id not in ${liveAlbumAssetIds(exclude.albumId)}`);
   else if (exclude.length) filterConditions.push(not(inJson(a.id, exclude)));
 
-  // The search runs over the notes and tags of the scope's rows that have them (a post's few through
-  // its edges, any other scope's through the covering index assets_search_idx) and every live
-  // contact link's name, once per read for rows and count alike. Once every photo carries tags
-  // (todo.md: tagging at upload) that is every live asset, JSON-parsed and folded per keystroke, and
-  // the pre-folded search column of docs/paged-reads-plan.md §2 becomes due.
-  async function matchedIds(tx: SyncDb): Promise<string[] | null> {
-    if (!searchText) return null;
+  // The search, once per read for rows and count alike: the notes and tags of the scope's rows that
+  // have them (a post's few through its edges, any other scope's through the covering index
+  // assets_search_idx), matched in JS, and the photos of the contacts whose name matches, by SQL.
+  // Once every photo carries tags (todo.md: tagging at upload) that is every live asset, JSON-parsed
+  // and folded per keystroke, and the pre-folded search column of docs/paged-reads-plan.md §2
+  // becomes due.
+  async function matchedWhere(tx: SyncDb): Promise<SQL | undefined> {
+    if (!searchText) return undefined;
     const select = tx.select({ id: a.id, notes: a.notes, tags: a.tags });
     const searchable = await (isPost
       ? fromScope(select, scope, sort).where(and(hasSearchText, assetScopeWhere(scope, sort)))
       : select.from(a).where(and(hasSearchText, assetDeletionWhere(scope))));
-    // Not scoped: where(ids) keeps the scope's, and the links are as many as the tagged contacts.
-    const contactNames = await tx
-      .select({ id: photoContactNames.photoId, text: photoContactNames.name })
-      .from(photoContactNames);
     // Tags are matched as words, one per line, not as their JSON.
     const rows = searchable.flatMap(({ id, notes, tags }) => [
       ...(notes === null ? [] : [{ id, text: notes }]),
       ...(tags?.length ? [{ id, text: tags.join('\n') }] : []),
     ]);
-    return matchingIds([...rows, ...contactNames], searchText);
+    const contactIds = await matchingContactIds(tx, searchText);
+    // The scope keeps its own photos of them by their deletion (contactLinkedPhotoIds).
+    const ofContacts = contactIds.length ? sql`a.id in ${contactLinkedPhotoIds(contactIds)}` : undefined;
+    return or(inJson(a.id, matchingIds(rows, searchText)), ofContacts);
   }
 
-  function where(ids: string[] | null) {
-    return and(assetScopeWhere(scope, sort), ...filterConditions, ids ? inJson(a.id, ids) : undefined);
+  function where(matched: SQL | undefined) {
+    return and(assetScopeWhere(scope, sort), ...filterConditions, matched);
   }
 
   return {
@@ -119,10 +124,10 @@ export default function assetQuery({
     tables,
     read(db, { limit }): Promise<{ rows: AssetRow[]; count: number }> {
       return db.transaction(async (tx) => {
-        const ids = await matchedIds(tx);
-        const [{ count: total }] = await fromScope(tx.select({ count: count() }), scope, sort).where(where(ids));
+        const matched = await matchedWhere(tx);
+        const [{ count: total }] = await fromScope(tx.select({ count: count() }), scope, sort).where(where(matched));
         const rows = await fromScope(tx.select(getTableColumns(a)), scope, sort)
-          .where(where(ids))
+          .where(where(matched))
           .orderBy(assetOrder(scope, sort))
           .limit(limit);
         return { rows, count: total };
@@ -131,7 +136,7 @@ export default function assetQuery({
     ids(db, { limit } = {}) {
       return db.transaction(async (tx) => {
         const query = fromScope(tx.select({ id: a.id }), scope, sort)
-          .where(where(await matchedIds(tx)))
+          .where(where(await matchedWhere(tx)))
           .orderBy(assetOrder(scope, sort));
         const rows = await (limit === undefined ? query : query.limit(limit));
         return rows.map((row) => row.id);

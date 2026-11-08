@@ -14,6 +14,7 @@ import useAddAlbumAction from '@/features/album-list/actions/add-album-action/us
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import albumAssetCountText from '@/features/album-list/albumAssetCountText';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useSearchText from '@/hooks/useSearchText';
@@ -44,7 +45,7 @@ export default function AddToAlbumScreen() {
         title="Add to Album"
         trailing={<Button variant="primary" icon="add" onPress={promptAddAlbum} accessibilityLabel="New album" />}
       />
-      <SheetSearchField {...field} placeholder="Search albums, notes and contacts…" />
+      <SheetSearchField {...field} placeholder={ALBUM_SEARCH_PLACEHOLDER} />
       <ScrollView {...listProps}>
         {searchText && albums.length === 0 ? (
           <EmptyState icon="search" title="No albums match" />

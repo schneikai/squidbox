@@ -10,6 +10,7 @@ import albumSortOptions from '@/features/album-list/actions/sort-albums-action/a
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useListControls from '@/hooks/useListControls';
@@ -52,7 +53,7 @@ export default function AlbumPicker({ onPick, onScroll, expandProgress }: AlbumP
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        placeholder="Search albums, notes and contacts…"
+        placeholder={ALBUM_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}

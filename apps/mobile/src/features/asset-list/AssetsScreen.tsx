@@ -13,6 +13,7 @@ import assetFilterOptions from '@/features/asset-list/actions/filter-assets-acti
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
+import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
@@ -94,7 +95,7 @@ export default function AssetsScreen() {
       />
       <FloatingActionsBar
         search={searchBar}
-        placeholder="Search notes, tags, contacts…"
+        placeholder={ASSET_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={assetSortOptions}
         activeFilter={activeFilter}

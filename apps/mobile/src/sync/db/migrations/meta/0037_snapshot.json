@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f28f1fdd-0958-4ec0-a59f-2ff6d73eb09d",
+  "id": "3e8f597f-3213-4f59-9d29-19ed27d82a25",
   "prevId": "4c710547-3229-4470-ae7e-c63c331283ad",
   "tables": {
     "ai_kinds": {
@@ -585,7 +585,7 @@
             "tags"
           ],
           "isUnique": false,
-          "where": "(\"assets\".\"notes\" is not null or \"assets\".\"tags\" is not null) and \"assets\".\"deleted_at\" is null"
+          "where": "(\"assets\".\"notes\" is not null or \"assets\".\"tags\" != '[]') and \"assets\".\"deleted_at\" is null"
         },
         "assets_purged_files_idx": {
           "name": "assets_purged_files_idx",

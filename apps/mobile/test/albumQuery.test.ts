@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
-import albumQuery from '../src/features/album-list/albumQuery';
+import albumQuery, { type AlbumListRow } from '../src/features/album-list/albumQuery';
 import albumSearchQuery from '../src/features/album-list/albumSearchQuery';
+import matchedAlbumIds from '../src/features/album-list/matchedAlbumIds';
 import prepareAlbums from '../src/features/album-list/prepareAlbums';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import * as repo from '../src/sync/assetsRepository';
@@ -151,8 +152,10 @@ describe('albumQuery', () => {
   });
 });
 
-describe('albumSearchQuery', () => {
-  it("matches the name, the notes and the contacts on the album's live photos, as matchingIds does, and null without a search", async () => {
+describe('album search', () => {
+  // library(), plus albums to search: Portraits holds the live asset-1 and Old only the deleted asset-4,
+  // both photos of Anna (so does library()'s `regular`, holding asset-1 too).
+  async function searchLibrary() {
     await library();
     await albums.createMany(db, [
       album('Sao Paulo'),
@@ -162,26 +165,39 @@ describe('albumSearchQuery', () => {
       album('Anna', { deletedAt: 5 }),
     ]);
     await albumEdges.add(db, 'Portraits', ['asset-1'], newId);
-    await albumEdges.add(db, 'Old', ['asset-4'], newId); // deleted
-    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna' }));
+    await albumEdges.add(db, 'Old', ['asset-4'], newId);
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller' }));
     await contactLinks.add(db, { targetType: 'asset', targetId: 'asset-1' }, ['anna'], newId);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'asset-4' }, ['anna'], newId);
-    const read = (search: string) => albumSearchQuery(search).read(db);
-    expect(await read('são')).toEqual(['Sao Paulo']);
-    expect(await read('BEACH')).toEqual(['Trip']);
-    // `regular` holds asset-1 too (library); `custom` and `Old` hold Anna only on the deleted asset-4.
-    expect((await read('anna'))?.sort()).toEqual(['Portraits', 'regular']);
-    expect(await read('  ')).toBeNull();
+    return albumQuery({ scope: 'all' }).read(db);
+  }
 
-    expect(albumSearchQuery('x').descriptor).toEqual({ search: 'x' });
-    expect(albumSearchQuery('x').tables).toEqual([
-      schema.albums,
-      schema.albumAssets,
-      schema.assets,
-      schema.contactLinks,
-      schema.contacts,
-    ]);
-    expect(albumSearchQuery('').tables).toEqual([]);
+  async function found(rows: AlbumListRow[], search: string) {
+    const ids = matchedAlbumIds(rows, await albumSearchQuery(search).read(db));
+    return ids && [...ids].sort();
+  }
+
+  it('albumSearchQuery finds the live albums holding a live photo of a contact the search matches, as matchingIds does', async () => {
+    await searchLibrary();
+    const { contactAlbumIds } = await albumSearchQuery('mueller').read(db);
+    expect(contactAlbumIds.sort()).toEqual(['Portraits', 'regular']);
+  });
+
+  it('albumSearchQuery reads and watches nothing without a search', async () => {
+    const query = albumSearchQuery('  ');
+    expect(await query.read(db)).toEqual({ search: '', contactAlbumIds: [] });
+    expect(query.tables).toEqual([]);
+  });
+
+  it("matchedAlbumIds finds the albums by name and notes, as matchingIds does, and by their contacts' photos", async () => {
+    const rows = await searchLibrary();
+    expect(await found(rows, 'são')).toEqual(['Sao Paulo']);
+    expect(await found(rows, 'BEACH')).toEqual(['Trip']);
+    expect(await found(rows, 'anna')).toEqual(['Portraits', 'regular']); // not the deleted album named Anna
+  });
+
+  it('matchedAlbumIds is null without a search, keeping every album', async () => {
+    expect(await found(await searchLibrary(), '')).toBeNull();
   });
 
   it('prepareAlbums keeps the matched albums only, and all without a search', async () => {

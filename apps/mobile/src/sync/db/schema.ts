@@ -57,11 +57,10 @@ export const assets = sqliteTable(
     index('assets_sync_error_idx')
       .on(t.id)
       .where(sql`${t.syncError} is not null and ${t.deletedAt} is null`),
-    // The search's rows (assetQuery). Covers every live asset once all are tagged (todo.md: tagging at
-    // upload): the index then saves the table walk, not the rows.
+    // The search's rows: its predicate is assetQuery's hasSearchText.
     index('assets_search_idx')
       .on(t.id, t.notes, t.tags)
-      .where(sql`(${t.notes} is not null or ${t.tags} is not null) and ${t.deletedAt} is null`),
+      .where(sql`(${t.notes} is not null or ${t.tags} != '[]') and ${t.deletedAt} is null`),
     // The purged assets whose files this device still has: the sweep's work (sweepPurgedFiles).
     index('assets_purged_files_idx')
       .on(t.id)

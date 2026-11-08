@@ -7,6 +7,7 @@ import assetFilterOptions from '@/features/asset-list/actions/filter-assets-acti
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery, { type AssetExclude, type AssetFilter } from '@/features/asset-list/assetQuery';
+import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useListControls from '@/hooks/useListControls';
 import { layout } from '@/styles/designTokens';
 import type { AssetQueryScope, AssetSort } from '@/sync/assetSql';
@@ -68,7 +69,7 @@ export default function AssetPickerGrid({
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        placeholder="Search notes, tags, contacts…"
+        placeholder={ASSET_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={assetSortOptions}
         activeFilter={activeFilter}

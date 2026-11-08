@@ -18,6 +18,7 @@ import albumFilterOptions from '@/features/album-list/actions/filter-albums-acti
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
+import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import starredAlbums from '@/features/album-list/starredAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
@@ -104,7 +105,7 @@ export default function AlbumsScreen() {
       />
       <FloatingActionsBar
         search={searchBar}
-        placeholder="Search albums, notes and contacts…"
+        placeholder={ALBUM_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}
