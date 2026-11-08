@@ -250,13 +250,6 @@ tried and left: it needs checks on where each touch lands (catching the panel, a
 the details open), zoom state passed up to `AssetPage`, and new relations with the nested zoom
 gestures, which only a phone can test. Revisit only if the two drift apart.
 
-### [ ] Rewrite the app in TypeScript
-
-Left: convert `app/_layout.jsx`, then turn `allowJs` off in `apps/mobile/tsconfig.json`, so no app
-code can be JavaScript. `sync/db/migrations/migrations.js` (drizzle-kit's output) is typed by the
-`.d.ts` beside it, and the test program keeps its own `allowJs` for the two scripts the UI flows
-import.
-
 ### [ ] Add UI tests
 
 The main flows have Playwright tests on the web build (`apps/mobile/e2e`, `npm run test:ui`);
