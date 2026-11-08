@@ -352,9 +352,7 @@ async function pullPhase(
   const shape = pulledShape();
   const start = await pullCursor(db, shape);
   const notes = start.restarted
-    ? [
-        `pull restarted from the beginning: new synced fields or collections (${newInShape(start.storedShape, shape)})`,
-      ]
+    ? [`pull restarted from the beginning: new synced fields or collections (${newInShape(start.storedShape, shape)})`]
     : [];
   let cursor = start.cursor;
   let pulled = 0;

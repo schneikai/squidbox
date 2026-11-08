@@ -14,7 +14,8 @@
     "knip": "knip",
     "format": "node scripts/check.mjs --format",
     "check": "node scripts/check.mjs",
-    "check:all": "node scripts/check.mjs --all"
+    "check:all": "node scripts/check.mjs --all",
+    "contract:record": "npm run contract:record -w apps/server && npm run client-db:record -w apps/mobile"
   },
   "devDependencies": {
     "eslint": "^8.53.0",

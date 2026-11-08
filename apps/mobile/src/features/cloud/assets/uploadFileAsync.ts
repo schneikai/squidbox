@@ -4,8 +4,8 @@ import UploadFailedError from '@/features/cloud/assets/UploadFailedError';
 import cancelledError from '@/features/cloud/assets/cancelledError';
 import type { SyncIdentity } from '@/library/sessionMatches';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
-import envelopeMessage from '@/utils/cloud-api/envelopeMessage';
 import { clientHeader } from '@/utils/cloud-api/clientHeader';
+import envelopeMessage from '@/utils/cloud-api/envelopeMessage';
 import requireApiBaseUrl from '@/utils/cloud-api/requireApiBaseUrl';
 import requireSession from '@/utils/cloud-api/requireSession';
 

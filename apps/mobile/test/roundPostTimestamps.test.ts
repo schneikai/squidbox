@@ -1,20 +1,11 @@
 import Database from 'better-sqlite3';
-import { readMigrationFiles } from 'drizzle-orm/migrator';
-import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
 import { makePostRecord } from './helpers/factory';
-import journal from '../src/sync/db/migrations/meta/_journal.json';
+import { migrationIndex, runMigrations } from './helpers/testDb';
 
-const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
-const migrations = readMigrationFiles({ migrationsFolder });
-const index = journal.entries.findIndex((entry) => entry.tag === '0008_round_post_timestamps');
-
-function migrate(sqlite: Database.Database, from: number, to: number) {
-  for (const migration of migrations.slice(from, to)) {
-    for (const statement of migration.sql) sqlite.exec(statement);
-  }
-}
+const index = migrationIndex('0008_round_post_timestamps');
+const migrate = (sqlite: Database.Database, from: number, to: number) => runMigrations(sqlite, { from, to });
 
 describe('migration 0008_round_post_timestamps', () => {
   it('rounds fractional post timestamps and the post payloads waiting in the outbox', () => {

@@ -2,8 +2,8 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import SessionChangedError from './SessionChangedError';
 import { API_BASE_URL } from './apiBaseUrl';
-import { clientHeader } from './clientHeader';
 import refreshAccessTokenAsync from './authentication/refreshAccessTokenAsync';
+import { clientHeader } from './clientHeader';
 import errorResponse from './errorResponse';
 import requireSession from './requireSession';
 import sessionIdentity from './sessionIdentity';

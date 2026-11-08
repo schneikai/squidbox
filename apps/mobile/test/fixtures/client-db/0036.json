@@ -1,0 +1,485 @@
+{
+ "migration": "0036_album_favorited_at",
+ "tables": {
+  "ai_kinds": [],
+  "ai_models": [],
+  "ai_scores": [],
+  "ai_vision_photos": [],
+  "album_assets": [
+   {
+    "id": "00000000-0000-4000-8000-000000000010",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "album_id": "00000000-0000-4000-8000-000000000003",
+    "asset_id": "00000000-0000-4000-8000-000000000001",
+    "position": "a0"
+   }
+  ],
+  "albums": [
+   {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "name": "Alps 2026",
+    "is_favorite": 0,
+    "archived_at": null,
+    "show_in_post_suggestions_after": null,
+    "old_collection_name": null,
+    "notes": null,
+    "sort_order": null,
+    "smart_album_type": null,
+    "position": "a0",
+    "favorited_at": null
+   }
+  ],
+  "assets": [
+   {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "created_at": 1790000000000,
+    "updated_at": 1790000001000,
+    "deleted_at": null,
+    "media_library_asset_id": "m1",
+    "media_type": "photo",
+    "width": 100,
+    "height": 100,
+    "file_size": 500,
+    "duration": null,
+    "filename": "trail.jpg",
+    "thumbnail_filename": "trail-t.jpg",
+    "is_favorite": 0,
+    "notes": "Edited after",
+    "old_file_id": null,
+    "is_file_synced": 1,
+    "is_thumbnail_synced": 1,
+    "is_synced": 1,
+    "sync_error": null,
+    "purged_at": null,
+    "files_removed_for": null,
+    "favorited_at": null,
+    "taken_at": null,
+    "original_filename": null,
+    "latitude": null,
+    "longitude": null,
+    "tags": "[\"hiking\"]"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "created_at": 1790000000000,
+    "updated_at": 1790000001000,
+    "deleted_at": 1790000000000,
+    "media_library_asset_id": "m1",
+    "media_type": "photo",
+    "width": 100,
+    "height": 100,
+    "file_size": 500,
+    "duration": null,
+    "filename": "blurry.jpg",
+    "thumbnail_filename": "blurry-t.jpg",
+    "is_favorite": 0,
+    "notes": null,
+    "old_file_id": null,
+    "is_file_synced": 1,
+    "is_thumbnail_synced": 1,
+    "is_synced": 1,
+    "sync_error": null,
+    "purged_at": 1790000001000,
+    "files_removed_for": null,
+    "favorited_at": null,
+    "taken_at": null,
+    "original_filename": null,
+    "latitude": null,
+    "longitude": null,
+    "tags": null
+   }
+  ],
+  "contact_links": [
+   {
+    "id": "00000000-0000-4000-8000-000000000015",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "contact_id": "00000000-0000-4000-8000-000000000005",
+    "target_type": "asset",
+    "target_id": "00000000-0000-4000-8000-000000000001"
+   }
+  ],
+  "contact_list_members": [
+   {
+    "id": "00000000-0000-4000-8000-000000000014",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "list_id": "00000000-0000-4000-8000-000000000006",
+    "contact_id": "00000000-0000-4000-8000-000000000005"
+   }
+  ],
+  "contact_lists": [
+   {
+    "id": "00000000-0000-4000-8000-000000000006",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "name": "Hiking crew",
+    "notes": null,
+    "pinned_at": null
+   }
+  ],
+  "contact_settings": [
+   {
+    "id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "pinned_list_id": "00000000-0000-4000-8000-000000000006",
+    "pinned_at": 1790000000000
+   }
+  ],
+  "contacts": [
+   {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "name": "Trail buddy",
+    "is_favorite": 0,
+    "favorited_at": null,
+    "notes": null,
+    "x_handle": null,
+    "bluesky_handle": null,
+    "only_fans_handle": null,
+    "jff_handle": null,
+    "phone_number": null,
+    "places": "[]",
+    "avatar_filename": "avatar-buddy.jpg",
+    "instagram_handle": null
+   }
+  ],
+  "favorites": [
+   {
+    "id": "00000000-0000-4000-8000-000000000007",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "text": "Golden hour on the lake"
+   },
+   {
+    "id": "00000000-0000-4000-8000-000000000013",
+    "created_at": 1790000000000,
+    "updated_at": 1790000001000,
+    "deleted_at": 1790000001000,
+    "text": "Gone tomorrow"
+   }
+  ],
+  "instructions": [
+   {
+    "id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "writing": "Write short.",
+    "vision_tagging": null,
+    "more_like_this": null,
+    "model_check_judge": null,
+    "contact_screenshot": null,
+    "contact_x_profile": null
+   }
+  ],
+  "model_choices": [
+   {
+    "id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "writing_model": "{\"id\":\"model-a\",\"name\":\"Model A\"}",
+    "vision_model": null,
+    "writing_uncensored_model": null,
+    "vision_uncensored_model": null
+   }
+  ],
+  "outbox": [
+   {
+    "id": 1,
+    "collection": "assets",
+    "record_id": "00000000-0000-4000-8000-000000000001",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000001\",\"createdAt\":1790000000000,\"updatedAt\":1790000001000,\"deletedAt\":null,\"mediaLibraryAssetId\":\"m1\",\"mediaType\":\"photo\",\"width\":100,\"height\":100,\"fileSize\":500,\"duration\":null,\"filename\":\"trail.jpg\",\"thumbnailFilename\":\"trail-t.jpg\",\"isFavorite\":false,\"notes\":\"Edited after\",\"oldFileId\":null,\"isFileSynced\":true,\"isThumbnailSynced\":true,\"isSynced\":true,\"purgedAt\":null,\"favoritedAt\":null,\"takenAt\":null,\"originalFilename\":null,\"latitude\":null,\"longitude\":null,\"tags\":[\"hiking\"]}",
+    "updated_at": 1790000001000,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"mediaLibraryAssetId\":1790000000001,\"mediaType\":1790000000001,\"width\":1790000000001,\"height\":1790000000001,\"fileSize\":1790000000001,\"duration\":1790000000001,\"filename\":1790000000001,\"thumbnailFilename\":1790000000001,\"isFavorite\":1790000000001,\"notes\":1790000001000,\"oldFileId\":1790000000001,\"isFileSynced\":1790000000001,\"isThumbnailSynced\":1790000000001,\"isSynced\":1790000000001,\"tags\":1790000000001,\"favoritedAt\":1790000000001,\"purgedAt\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 2,
+    "collection": "assets",
+    "record_id": "00000000-0000-4000-8000-000000000002",
+    "op": "delete",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000002\",\"createdAt\":1790000000000,\"updatedAt\":1790000001000,\"deletedAt\":1790000000000,\"mediaLibraryAssetId\":\"m1\",\"mediaType\":\"photo\",\"width\":100,\"height\":100,\"fileSize\":500,\"duration\":null,\"filename\":\"blurry.jpg\",\"thumbnailFilename\":\"blurry-t.jpg\",\"isFavorite\":false,\"notes\":null,\"oldFileId\":null,\"isFileSynced\":true,\"isThumbnailSynced\":true,\"isSynced\":true,\"purgedAt\":1790000001000,\"favoritedAt\":null,\"takenAt\":null,\"originalFilename\":null,\"latitude\":null,\"longitude\":null,\"tags\":null}",
+    "updated_at": 1790000001000,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000001000,\"mediaLibraryAssetId\":1790000000001,\"mediaType\":1790000000001,\"width\":1790000000001,\"height\":1790000000001,\"fileSize\":1790000000001,\"duration\":1790000000001,\"filename\":1790000000001,\"thumbnailFilename\":1790000000001,\"isFavorite\":1790000000001,\"notes\":1790000000001,\"oldFileId\":1790000000001,\"isFileSynced\":1790000000001,\"isThumbnailSynced\":1790000000001,\"isSynced\":1790000000001,\"favoritedAt\":1790000000001,\"purgedAt\":1790000001000}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 3,
+    "collection": "albums",
+    "record_id": "00000000-0000-4000-8000-000000000003",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000003\",\"createdAt\":1790000000000,\"updatedAt\":1790000000001,\"deletedAt\":null,\"name\":\"Alps 2026\",\"isFavorite\":false,\"archivedAt\":null,\"favoritedAt\":null,\"showInPostSuggestionsAfter\":null,\"oldCollectionName\":null,\"notes\":null,\"sortOrder\":null,\"smartAlbumType\":null,\"position\":\"a0\"}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"name\":1790000000001,\"isFavorite\":1790000000001,\"archivedAt\":1790000000001,\"showInPostSuggestionsAfter\":1790000000001,\"oldCollectionName\":1790000000001,\"notes\":1790000000001,\"sortOrder\":1790000000001,\"smartAlbumType\":1790000000001,\"position\":1790000000001,\"favoritedAt\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 4,
+    "collection": "posts",
+    "record_id": "00000000-0000-4000-8000-000000000004",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000004\",\"createdAt\":1790000000000,\"updatedAt\":1790000000001,\"deletedAt\":null,\"text\":\"Sunrise over the ridge\",\"isFavorite\":false,\"postedAt\":null,\"rePostId\":null,\"isIgnoredForRepost\":false,\"suggestRepostAt\":1790000000000,\"hasBeenReposted\":false}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"text\":1790000000001,\"isFavorite\":1790000000001,\"postedAt\":1790000000001,\"rePostId\":1790000000001,\"isIgnoredForRepost\":1790000000001,\"suggestRepostAt\":1790000000001,\"hasBeenReposted\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 5,
+    "collection": "album_assets",
+    "record_id": "00000000-0000-4000-8000-000000000010",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000010\",\"albumId\":\"00000000-0000-4000-8000-000000000003\",\"assetId\":\"00000000-0000-4000-8000-000000000001\",\"position\":\"a0\",\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"albumId\":1790000000001,\"assetId\":1790000000001,\"position\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 6,
+    "collection": "post_assets",
+    "record_id": "00000000-0000-4000-8000-000000000011",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000011\",\"postId\":\"00000000-0000-4000-8000-000000000004\",\"assetId\":\"00000000-0000-4000-8000-000000000001\",\"position\":\"a0\",\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"postId\":1790000000001,\"assetId\":1790000000001,\"position\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 7,
+    "collection": "personas",
+    "record_id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "op": "upsert",
+    "payload": "{\"id\":\"6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f\",\"aboutYou\":\"Hiker\",\"contentTags\":[\"outdoors\"],\"tone\":\"calm\",\"rules\":[],\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"aboutYou\":1790000000001,\"contentTags\":1790000000001,\"tone\":1790000000001,\"rules\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 8,
+    "collection": "prompt_buttons",
+    "record_id": "00000000-0000-4000-8000-000000000012",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000012\",\"name\":\"Shorter\",\"prompt\":\"Make it shorter\",\"placement\":\"post\",\"icon\":null,\"position\":\"a0\",\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"name\":1790000000001,\"prompt\":1790000000001,\"placement\":1790000000001,\"icon\":1790000000001,\"position\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 9,
+    "collection": "favorites",
+    "record_id": "00000000-0000-4000-8000-000000000007",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000007\",\"text\":\"Golden hour on the lake\",\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"text\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 10,
+    "collection": "favorites",
+    "record_id": "00000000-0000-4000-8000-000000000013",
+    "op": "delete",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000013\",\"createdAt\":1790000000000,\"updatedAt\":1790000001000,\"deletedAt\":1790000001000,\"text\":\"Gone tomorrow\"}",
+    "updated_at": 1790000001000,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000001000,\"text\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 11,
+    "collection": "instructions",
+    "record_id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "op": "upsert",
+    "payload": "{\"id\":\"6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f\",\"writing\":\"Write short.\",\"visionTagging\":null,\"moreLikeThis\":null,\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"writing\":1790000000001,\"visionTagging\":1790000000001,\"moreLikeThis\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 12,
+    "collection": "model_choices",
+    "record_id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "op": "upsert",
+    "payload": "{\"id\":\"6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f\",\"writingModel\":{\"id\":\"model-a\",\"name\":\"Model A\"},\"visionModel\":null,\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"writingModel\":1790000000001,\"visionModel\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 13,
+    "collection": "contacts",
+    "record_id": "00000000-0000-4000-8000-000000000005",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000005\",\"createdAt\":1790000000000,\"updatedAt\":1790000000001,\"deletedAt\":null,\"name\":\"Trail buddy\",\"isFavorite\":false,\"favoritedAt\":null,\"notes\":null,\"xHandle\":null,\"blueskyHandle\":null,\"onlyFansHandle\":null,\"jffHandle\":null,\"instagramHandle\":null,\"phoneNumber\":null,\"places\":[],\"avatarFilename\":\"avatar-buddy.jpg\"}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"name\":1790000000001,\"isFavorite\":1790000000001,\"favoritedAt\":1790000000001,\"notes\":1790000000001,\"xHandle\":1790000000001,\"instagramHandle\":1790000000001,\"blueskyHandle\":1790000000001,\"onlyFansHandle\":1790000000001,\"jffHandle\":1790000000001,\"phoneNumber\":1790000000001,\"places\":1790000000001,\"avatarFilename\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 14,
+    "collection": "contact_lists",
+    "record_id": "00000000-0000-4000-8000-000000000006",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000006\",\"name\":\"Hiking crew\",\"notes\":null,\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"name\":1790000000001,\"notes\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 15,
+    "collection": "contact_list_members",
+    "record_id": "00000000-0000-4000-8000-000000000014",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000014\",\"listId\":\"00000000-0000-4000-8000-000000000006\",\"contactId\":\"00000000-0000-4000-8000-000000000005\",\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"listId\":1790000000001,\"contactId\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 16,
+    "collection": "contact_links",
+    "record_id": "00000000-0000-4000-8000-000000000015",
+    "op": "upsert",
+    "payload": "{\"id\":\"00000000-0000-4000-8000-000000000015\",\"contactId\":\"00000000-0000-4000-8000-000000000005\",\"targetType\":\"asset\",\"targetId\":\"00000000-0000-4000-8000-000000000001\",\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"contactId\":1790000000001,\"targetType\":1790000000001,\"targetId\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   },
+   {
+    "id": 17,
+    "collection": "contact_settings",
+    "record_id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "op": "upsert",
+    "payload": "{\"id\":\"6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f\",\"pinnedListId\":\"00000000-0000-4000-8000-000000000006\",\"pinnedAt\":1790000000000,\"deletedAt\":null,\"createdAt\":1790000000000,\"updatedAt\":1790000000001}",
+    "updated_at": 1790000000001,
+    "created_at": 1794152841000,
+    "error": null,
+    "fields": "{\"deletedAt\":1790000000001,\"pinnedListId\":1790000000001,\"pinnedAt\":1790000000001}",
+    "whole_record": 0,
+    "uploaded_files": "[]"
+   }
+  ],
+  "personas": [
+   {
+    "id": "6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "about_you": "Hiker",
+    "content_tags": "[\"outdoors\"]",
+    "tone": "calm",
+    "rules": "[]",
+    "adult_content": 0
+   }
+  ],
+  "post_assets": [
+   {
+    "id": "00000000-0000-4000-8000-000000000011",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "post_id": "00000000-0000-4000-8000-000000000004",
+    "asset_id": "00000000-0000-4000-8000-000000000001",
+    "position": "a0"
+   }
+  ],
+  "posts": [
+   {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "text": "Sunrise over the ridge",
+    "is_favorite": 0,
+    "posted_at": null,
+    "re_post_id": null,
+    "is_ignored_for_repost": 0,
+    "suggest_repost_at": 1790000000000,
+    "has_been_reposted": 0,
+    "thread_root_id": null,
+    "thread_index": null
+   }
+  ],
+  "prompt_buttons": [
+   {
+    "id": "00000000-0000-4000-8000-000000000012",
+    "created_at": 1790000000000,
+    "updated_at": 1790000000001,
+    "deleted_at": null,
+    "name": "Shorter",
+    "prompt": "Make it shorter",
+    "placement": "post",
+    "icon": null,
+    "position": "a0"
+   }
+  ],
+  "sync_meta": [
+   {
+    "key": "owner",
+    "value": "{\"kind\":\"account\",\"serverId\":\"server\",\"userId\":\"6f1d6c1e-2b9a-4c3e-9d8f-0a1b2c3d4e5f\",\"email\":\"owner@example.com\"}"
+   }
+  ]
+ }
+}

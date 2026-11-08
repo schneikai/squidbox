@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 const stored = vi.hoisted(() => new Map<string, string>());
 vi.mock('../src/utils/cloud-api/secureStorage', () => ({
   getItemAsync: async (key: string) => stored.get(key) ?? null,
-  setItemAsync: async (key: string, value: string) => void stored.set(key, value),
+  setItemAsync: async (key: string, value: string) => {
+    stored.set(key, value);
+  },
 }));
 
 const { getDeviceId, loadDeviceIdAsync } = await import('../src/utils/cloud-api/deviceId');
