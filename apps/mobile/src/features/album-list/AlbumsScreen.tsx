@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useCallback } from 'react';
-import { View } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
@@ -11,17 +12,22 @@ import type { ReorderChange } from '@/components/sortable-grid/useDragReorder';
 import type { AlbumListProps } from '@/features/album-list/AlbumList';
 import AlbumListItem from '@/features/album-list/AlbumListItem';
 import SortableAlbumList from '@/features/album-list/SortableAlbumList';
+import StarredAlbumRow from '@/features/album-list/StarredAlbumRow';
 import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import albumFilterOptions from '@/features/album-list/actions/filter-albums-action/albumFilterOptions';
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
+import prepareAlbums, { type AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import { layout } from '@/styles/designTokens';
+import pluralizeText from '@/utils/pluralizeText';
 
+// The Albums tab: the starred albums first as a row of small covers (none starred, no row), then every
+// album in a grid, searched, sorted and filtered in the floating bar. Double-tap stars an album, + adds one.
 export default function AlbumsScreen() {
   const { toggleFavoriteAlbum, moveAlbum } = useAlbums();
   const promptAddAlbum = useAddAlbumAction();
@@ -34,7 +40,14 @@ export default function AlbumsScreen() {
 
   const scrollHandler = useFloatingBarScrollHandler();
 
-  const { albums, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
+  const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
+  // In the grid's order; archived ones stay out, as they do in the grid. Searching or filtering shows only the grid.
+  const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
+  const starred = useMemo(
+    () =>
+      isNarrowed ? [] : prepareAlbums({ albums: rows ?? [], sortOrder, activeFilter: ['starred'], searchText: '' }),
+    [isNarrowed, rows, sortOrder],
+  );
 
   const renderItem = useCallback<AlbumListProps['renderItem']>(
     ({ album, elementWidth }) => (
@@ -60,6 +73,17 @@ export default function AlbumsScreen() {
     });
   }
 
+  const header = starred.length ? (
+    <View style={styles.header}>
+      <ScreenSectionHeader title="Starred" size="small" isFirst />
+      <StarredAlbumRow albums={starred} />
+      <ScreenSectionHeader
+        title={pluralizeText('1 album', `${albums.length.toLocaleString()} albums`, albums.length)}
+        size="small"
+      />
+    </View>
+  ) : undefined;
+
   return (
     <View testID="albums-screen" style={{ flex: 1 }}>
       <FloatingHeader title="Albums" onAdd={promptAddAlbum} />
@@ -67,6 +91,7 @@ export default function AlbumsScreen() {
         listRef={listRef}
         albums={albums}
         rowsReadAt={readAt}
+        header={header}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
         onScroll={scrollHandler}
@@ -87,3 +112,10 @@ export default function AlbumsScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // The grid has no side padding of its own: its cells are inset by its gap, the gutter.
+  header: {
+    paddingHorizontal: layout.sideGutter,
+  },
+});
