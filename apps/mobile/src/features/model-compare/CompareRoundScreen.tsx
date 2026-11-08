@@ -8,8 +8,8 @@ import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import useAvailableModelKind from '@/hooks/useAvailableModelKind';
 import useInstructions from '@/hooks/useInstructions';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useRequiredSheetRoute from '@/hooks/useRequiredSheetRoute';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
@@ -24,17 +24,25 @@ const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. B
 // The compare's second step (route params `kind` and the ticked `modelIds`, comma-separated), from
 // the remembered prompt (vision's starts from the user's Photo tags instructions, which come with the
 // catalog: a spinner or Try again until they're in) and for vision the photo set the pick step saved,
-// read once with the ticked models' names.
+// read once with the ticked models' names. A link to an unknown kind goes back (useAvailableModelKind).
 export default function CompareRoundScreen() {
-  const { kind, modelIds } = useLocalSearchParams<{ kind: AiModelKind; modelIds: string }>();
+  const kind = useAvailableModelKind();
+  if (kind === null) return null;
+  return <CompareRoundSheet kind={kind} />;
+}
+
+type CompareRoundSheetProps = { kind: AiModelKind };
+
+// The screen once the kind is known and the screen is available.
+function CompareRoundSheet({ kind }: CompareRoundSheetProps) {
+  const { modelIds } = useLocalSearchParams<{ modelIds: string }>();
   const sheet = useRequiredSheetRoute();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { texts, error, retry } = useInstructions();
   const seed = useSeedOrClose((db) => readSeed(db, kind, listParam(modelIds)), `${kind}:${modelIds}`);
 
   const defaultPrompt = kind === 'vision' ? texts?.visionTagging : WRITING_PROMPT;
 
-  if (!isAvailable || !seed) return null;
+  if (!seed) return null;
   if (!defaultPrompt) {
     return (
       <ModalSheet>

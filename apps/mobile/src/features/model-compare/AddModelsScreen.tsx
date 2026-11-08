@@ -1,5 +1,5 @@
 import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
 
@@ -14,8 +14,8 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
+import useAvailableModelKind from '@/hooks/useAvailableModelKind';
 import useHaptics from '@/hooks/useHaptics';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
 import { space } from '@/styles/designTokens';
@@ -25,11 +25,19 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
-// your list. Removing is on the model's page; a removed model shows its score and note here.
+// your list. Removing is on the model's page; a removed model shows its score and note here. A link
+// to an unknown kind goes back (useAvailableModelKind).
 export default function AddModelsScreen() {
+  const kind = useAvailableModelKind();
+  if (kind === null) return null;
+  return <AddModels kind={kind} />;
+}
+
+type AddModelsProps = { kind: AiModelKind };
+
+// The screen once the kind is known and the screen is available.
+function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
-  const { kind } = useLocalSearchParams<{ kind: AiModelKind }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const [searchText, setSearchText] = useState('');
   const padding = useScreenPadding('sheet');
   const haptics = useHaptics();
@@ -69,8 +77,6 @@ export default function AddModelsScreen() {
     if (!catalog) return <CatalogStatus error={error} retry={retry} />;
     return <EmptyState icon="search" title="No models match" />;
   }
-
-  if (!isAvailable) return null;
 
   return (
     <ModalSheet>

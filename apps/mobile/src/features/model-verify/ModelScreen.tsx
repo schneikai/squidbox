@@ -15,7 +15,7 @@ import Page from '@/components/Page';
 import ScoreDetail from '@/components/ScoreDetail';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useAvailableModelKind from '@/hooks/useAvailableModelKind';
 import useYourModels from '@/hooks/useYourModels';
 import { layout } from '@/styles/designTokens';
 import { removeYourModel, resetScores } from '@/sync/aiStateRepository';
@@ -28,12 +28,20 @@ import confirmAsync from '@/utils/confirmAsync';
  * A model of your list (route params `kind`, `modelId`, `name`; an ai_admin tool): its grey line,
  * its note, its labels (marks every account sees, and this account's picks of the defaults), its Verify, and
  * Reset score and Remove (which hides it, its note and score kept for when it's added again). A model Venice no longer offers keeps its page, to read its Verify and
- * remove it.
+ * remove it. A link to an unknown kind goes back (useAvailableModelKind).
  */
 export default function ModelScreen() {
-  const { kind, modelId, name } = useLocalSearchParams<{ kind: AiModelKind; modelId: string; name: string }>();
+  const kind = useAvailableModelKind();
+  if (kind === null) return null;
+  return <ModelPage kind={kind} />;
+}
+
+type ModelPageProps = { kind: AiModelKind };
+
+// The screen once the kind is known and the screen is available.
+function ModelPage({ kind }: ModelPageProps) {
+  const { modelId, name } = useLocalSearchParams<{ modelId: string; name: string }>();
   const navigation = useNavigation();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const yourModels = useYourModels(kind);
   const { error, retry, rows } = yourModels;
 
@@ -81,8 +89,6 @@ export default function ModelScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>

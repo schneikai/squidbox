@@ -18,23 +18,31 @@ import Page from '@/components/Page';
 import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
+import useAvailableModelKind from '@/hooks/useAvailableModelKind';
 import { layout, space } from '@/styles/designTokens';
 
 /**
  * One conversation of a writing Verify (route params `kind`, `modelId`, `name`, `sectionId`; an
  * ai_admin tool), read like the chat: what the model was told (collapsed), the post it started
  * with, then each turn: the editor's change, the creator's message, the reply with its posts, and
- * whether it passed. A conversation still running grows as its turns come in.
+ * whether it passed. A conversation still running grows as its turns come in. A link to an unknown
+ * kind goes back (useAvailableModelKind).
  */
 export default function VerifyConversationScreen() {
+  const kind = useAvailableModelKind();
+  if (kind === null) return null;
+  return <VerifyConversation kind={kind} />;
+}
+
+type VerifyConversationProps = { kind: AiModelKind };
+
+// The screen once the kind is known and the screen is available.
+function VerifyConversation({ kind }: VerifyConversationProps) {
   const navigation = useNavigation();
-  const { kind, modelId, sectionId } = useLocalSearchParams<{
-    kind: AiModelKind;
+  const { modelId, sectionId } = useLocalSearchParams<{
     modelId: string;
     sectionId: string;
   }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
   const { run, plan, error, retry } = useVerifyRun(kind, modelId);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
 
@@ -71,8 +79,6 @@ export default function VerifyConversationScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>

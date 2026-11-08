@@ -15,20 +15,29 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAiCatalog from '@/hooks/useAiCatalog';
+import useAvailableModelKind from '@/hooks/useAvailableModelKind';
 import useHaptics from '@/hooks/useHaptics';
-import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
 /**
  * A model's latest Verify of a kind (route params `kind`, `modelId`, `name`; an ai_admin tool), in
  * any state, the same run the model page shows (useVerifyRun): its status on top, then its
  * conversations (writing) or its photos (vision), and Verify again once it's no longer running. A
- * haptic marks the run finishing while the page is open.
+ * haptic marks the run finishing while the page is open. A link to an unknown kind goes back
+ * (useAvailableModelKind).
  */
 export default function VerifyScreen() {
+  const kind = useAvailableModelKind();
+  if (kind === null) return null;
+  return <VerifyPage kind={kind} />;
+}
+
+type VerifyPageProps = { kind: AiModelKind };
+
+// The screen once the kind is known and the screen is available.
+function VerifyPage({ kind }: VerifyPageProps) {
   const navigation = useNavigation();
-  const { kind, modelId, name } = useLocalSearchParams<{ kind: AiModelKind; modelId: string; name: string }>();
-  const isAvailable = useLeaveWhenUnavailable('ai_admin');
+  const { modelId, name } = useLocalSearchParams<{ modelId: string; name: string }>();
   const haptics = useHaptics();
   const { models } = useAiCatalog();
   const { run, plan, error, retry, show } = useVerifyRun(kind, modelId);
@@ -77,8 +86,6 @@ export default function VerifyScreen() {
       </>
     );
   }
-
-  if (!isAvailable) return null;
 
   return (
     <Page>
