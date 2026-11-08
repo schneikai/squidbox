@@ -2,8 +2,7 @@
   // The tests and the UI flows (e2e), strictly, with Node's types. What they import compiles here
   // too, under these options: the src files they reach, the apps/server/src files the DB tests import
   // (11 today), so a server change that only its own tsconfig accepts can fail here, and the two
-  // scripts the flows import (JavaScript: allowJs is set here, not inherited, so it stays when
-  // tsconfig.json's goes).
+  // scripts the flows import (JavaScript: allowJs is on here; tsconfig.json turns it off for the app).
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": true },
   "include": ["test/**/*.ts", "e2e/**/*.ts"]
