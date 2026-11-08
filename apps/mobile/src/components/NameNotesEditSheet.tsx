@@ -20,6 +20,7 @@ export type NameNotesEditSheetProps = {
   notesLabel: string;
   notesPlaceholder: string;
   maxLengths?: { name?: number; notes?: number };
+  focus?: 'name' | 'notes';
   testID?: string;
   onSave: (changes: Partial<NameNotes>) => Promise<unknown>;
 };
@@ -29,7 +30,7 @@ export type NameNotesEditSheetProps = {
  * `onSave(changes)`. The draft starts from `name` and `notes` as they were when the sheet opened, so
  * a live update doesn't move its baseline, and Save sends only the fields that changed, so an edit
  * another device made meanwhile to the other field is kept. The name can't be empty; an emptied
- * note saves as none.
+ * note saves as none. `focus` puts the cursor in that field when the sheet opens.
  */
 export default function NameNotesEditSheet({
   name,
@@ -39,10 +40,11 @@ export default function NameNotesEditSheet({
   notesLabel,
   notesPlaceholder,
   maxLengths,
+  focus,
   testID,
   onSave,
 }: NameNotesEditSheetProps) {
-  const [seed] = useState<NameNotes>({ name, notes: noteText(notes) });
+  const [seed] = useState<NameNotes>({ name: name.trim(), notes: noteText(notes) });
   const [draft, setDraft] = useState({ name: seed.name, notes: seed.notes ?? '' });
   const values: NameNotes = { name: draft.name.trim(), notes: noteText(draft.notes) };
   const changes = changedValues(seed, values);
@@ -67,6 +69,7 @@ export default function NameNotesEditSheet({
             onChangeText={(text) => setField('name', text)}
             placeholder={namePlaceholder}
             maxLength={maxLengths?.name}
+            autoFocus={focus === 'name'}
           />
         </Field>
         <Field label={notesLabel}>
@@ -77,6 +80,7 @@ export default function NameNotesEditSheet({
             onChangeText={(text) => setField('notes', text)}
             placeholder={notesPlaceholder}
             maxLength={maxLengths?.notes}
+            autoFocus={focus === 'notes'}
             minHeight={scale(120)}
           />
         </Field>

@@ -1,12 +1,5 @@
 import { router } from 'expo-router';
-import {
-  Pressable,
-  type PressableProps,
-  type PressableStateCallbackType,
-  Text as NativeText,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
 
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
@@ -51,13 +44,10 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
     ...(posts.rows ? [albumLastPostedText({ lastPostedAt })] : []),
   ].join(' · ');
 
-  // The name and the note each open Edit album.
-  const editPress = {
-    style: ({ pressed }: PressableStateCallbackType) => pressed && press.flat,
-    onPress: () => router.navigate(`/album/${album.id}/edit`),
-    accessibilityRole: 'button',
-    accessibilityHint: 'Edit album',
-  } satisfies PressableProps;
+  // The name and the note each open Edit album, the note with the cursor in it.
+  function openEdit(focus?: 'notes') {
+    router.navigate({ pathname: '/album/[albumId]/edit', params: { albumId: album.id, focus } });
+  }
 
   function openContacts() {
     router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
@@ -66,8 +56,13 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   return (
     <View style={styles.header}>
       <View>
-        <Pressable {...editPress}>
-          <NativeText style={[textStyles.title1, styles.name]} accessibilityRole="header" numberOfLines={2}>
+        <Pressable
+          style={({ pressed }) => pressed && press.flat}
+          onPress={() => openEdit()}
+          accessibilityRole="header"
+          accessibilityHint="Edit album"
+        >
+          <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
             {album.name}
           </NativeText>
         </Pressable>
@@ -75,7 +70,12 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
         {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
         {!!album.notes && (
           <View style={styles.notes}>
-            <Pressable {...editPress}>
+            <Pressable
+              style={({ pressed }) => pressed && press.flat}
+              onPress={() => openEdit('notes')}
+              accessibilityRole="button"
+              accessibilityHint="Edit album"
+            >
               <Text variant="hint">{album.notes}</Text>
             </Pressable>
           </View>

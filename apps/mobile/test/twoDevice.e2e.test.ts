@@ -448,12 +448,11 @@ describe('two devices and a whole-record app on one server', () => {
       await sync(B);
       await sync(A);
       await edit(A, S + 200, async () => {
-        // As the album's editor does (AlbumEditScreen): write a field that changed.
-        const name = 'Summer trip';
-        if (name !== seed.name) await albumRepo.update(A, id, { name });
-        // The sheet opened before B's edit arrived and left the note unchanged: nothing to write.
-        const notes = noteText(seed.notes ?? '');
-        if (notes !== noteText(seed.notes)) await albumRepo.update(A, id, { notes });
+        // As the album's editor does (NameNotesEditSheet): save what differs from the seed. The sheet
+        // opened before B's edit arrived and left the note as it was.
+        const opened = { name: seed.name.trim(), notes: noteText(seed.notes) };
+        const changes = changedValues(opened, { name: 'Summer trip', notes: noteText(opened.notes ?? '') });
+        await albumRepo.update(A, id, changes);
       });
       await settle();
       expect(await expectConverged('albums', id)).toMatchObject({
