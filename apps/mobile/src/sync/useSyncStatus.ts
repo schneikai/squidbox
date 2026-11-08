@@ -34,7 +34,7 @@ export function useSyncStatus(): LiveSyncStatus {
 }
 
 // True once the initial full pull has fully drained (firstSyncDone === '1'), live. Combined with
-// "is the user authenticated" in app/_layout.jsx (see AppGate), this drives the "Setting up your library…"
+// "is the user authenticated" in app/_layout.tsx (see AppGate), this drives the "Setting up your library…"
 // gate: it shows from the moment we're logged in until the whole library has landed — including the
 // very first page and any transient/auth errors along the way (so there's never a silent empty
 // screen), and pre-login it stays off.

@@ -13,7 +13,7 @@ type LibraryProviderProps = { children: ReactNode };
 // A switch the effect below runs: its target, and the promise switchLibrary returned to settle.
 type PendingSwitch = { target: Library; resolve: () => void; reject: (error: unknown) => void };
 
-// The open library. A switch sets `next`: LibraryGate (app/_layout.jsx) then shows the switching screen, so
+// The open library. A switch sets `next`: LibraryGate (app/_layout.tsx) then shows the switching screen, so
 // everything below unmounts and its effects clean up, and the effect here runs the switch after
 // those cleanups, in the same commit; the gate remounts the app under the new library's id.
 export default function LibraryProvider({ children }: LibraryProviderProps) {

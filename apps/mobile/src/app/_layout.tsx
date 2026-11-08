@@ -1,9 +1,9 @@
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
 import * as Sentry from '@sentry/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider, type SingularOptions } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use } from 'react';
+import { useState, useEffect, useCallback, Component, Fragment, createContext, memo, use, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -60,14 +60,17 @@ SplashScreen.preventAutoHideAsync();
 // Catches render-time throws during boot (e.g. a failed DB migration) that would otherwise unmount
 // the tree to a blank root behind the still-visible native splash — a silent dead-end in a release
 // build. Lifts the splash and shows a recoverable message instead.
-class BootErrorBoundary extends Component {
-  state = { error: null };
+type BootErrorBoundaryProps = { children: ReactNode };
+type BootErrorBoundaryState = { error: unknown };
 
-  static getDerivedStateFromError(error) {
+class BootErrorBoundary extends Component<BootErrorBoundaryProps, BootErrorBoundaryState> {
+  state: BootErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: unknown): BootErrorBoundaryState {
     return { error };
   }
 
-  componentDidCatch(error) {
+  componentDidCatch(error: unknown) {
     Sentry.captureException(error);
     SplashScreen.hideAsync().catch(() => {}); // never leave the splash up on a crash
   }
@@ -120,7 +123,9 @@ const AppShownContext = createContext(() => {});
 // the gates below show a screen, which the boot screen then fades out over; and the
 // foreground/interval sync triggers. Lives ABOVE the gates so it runs exactly once and keeps the sync
 // running whether the setup screen or the main app is showing.
-function AppInit({ children }) {
+type AppInitProps = { children: ReactNode };
+
+function AppInit({ children }: AppInitProps) {
   const { isAuthenticated } = useCloud();
   const { booted } = useLibrary();
   const [appIsReady, setAppIsReady] = useState(false);
@@ -158,7 +163,9 @@ function AppInit({ children }) {
 // open library, keyed by it, so another library means a fresh tree. Renders nothing while the boot
 // library opens and migrates (brief; longer on a first launch), and the switching screen while one
 // library closes and another opens, so no screen reads across the switch.
-function LibraryGate({ children }) {
+type LibraryGateProps = { children: ReactNode };
+
+function LibraryGate({ children }: LibraryGateProps) {
   const { library, switching } = useLibrary();
   if (switching) return <SwitchingScreen />;
   if (!library) return null;
@@ -239,12 +246,16 @@ const MainApp = memo(function MainApp() {
   );
 });
 
+// A screen's id for `dangerouslySingular`. expo-router types every param as `string | string[]` (a
+// catch-all segment's is an array); `[postId]` and `[kind]` are one segment, a string.
+type ScreenId = Exclude<SingularOptions, boolean>;
+
 // One editor per post: editing the post again goes back to its editor. A group route gets only the
 // URL's path params, so a new post's editor (`?assetIds`, `?rePostId`) is always a new one.
-const editorId = (name, params) => params.postId;
+const editorId: ScreenId = (name, params) => params.postId as string | undefined;
 
 // One compare per kind of model.
-const modelKind = (name, params) => params.kind;
+const modelKind: ScreenId = (name, params) => params.kind as string | undefined;
 
 // The main stack: the tabs, the screens pushed over them, and the sheets. `(main)` holds what opens
 // from the app itself; the top-level groups are sheets with steps that hold their own copies of
