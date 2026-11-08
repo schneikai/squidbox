@@ -5,7 +5,7 @@ import {
   type ContactListRecord,
   type ContactRecord,
 } from '@squidbox/shared';
-import { type ReactNode, useEffect, useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 
 import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 
@@ -19,9 +19,8 @@ import { getDb } from '@/sync/db/client';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
-import { addToPhotos, moveGroupLinksToPhotos, readPhotoIdsOf, removeFromPhotos } from '@/sync/photoContacts';
+import { addToPhotos, readPhotoIdsOf, removeFromPhotos } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
-import { useFirstSyncDone } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 import { deleteAvatar } from '@/utils/assets/assetStorage';
 import getNewItemId from '@/utils/getNewItemId';
@@ -46,16 +45,6 @@ type ContactsProviderProps = { children: ReactNode };
 // (contactQuery, contactListQuery).
 export default function ContactsProvider({ children }: ContactsProviderProps) {
   const { paths: library, userId } = useOpenLibrary();
-  const isFirstSyncDone = useFirstSyncDone();
-
-  // Contacts an older build put on an album or post move onto its photos: on opening the library,
-  // and again once its first pull has brought another device's.
-  useEffect(() => {
-    moveGroupLinksToPhotos(getDb(), getNewItemId).then(
-      (isMoved) => isMoved && requestSync(),
-      (error) => console.error('Moving contacts onto photos failed', error),
-    );
-  }, [library, isFirstSyncDone]);
   const value = useMemo<ContactsContextValue>(() => {
     const db = getDb();
     async function written<T>(write: (tx: SyncDb) => Promise<T>): Promise<T> {
