@@ -1,4 +1,4 @@
-import type { AiModelKind } from '@squidbox/shared';
+import { type AiModelKind, aiModelKindSchema } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
@@ -8,7 +8,7 @@ import Button from '@/components/Button';
 import CatalogStatus from '@/components/CatalogStatus';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
-import useAvailableModelKind from '@/hooks/useAvailableModelKind';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import useInstructions from '@/hooks/useInstructions';
 import useRequiredSheetRoute from '@/hooks/useRequiredSheetRoute';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
@@ -24,16 +24,15 @@ const WRITING_PROMPT = 'Write 3 posts about a quiet morning hike on the coast. B
 // The compare's second step (route params `kind` and the ticked `modelIds`, comma-separated), from
 // the remembered prompt (vision's starts from the user's Photo tags instructions, which come with the
 // catalog: a spinner or Try again until they're in) and for vision the photo set the pick step saved,
-// read once with the ticked models' names. A link to an unknown kind goes back (useAvailableModelKind).
+// read once with the ticked models' names.
 export default function CompareRoundScreen() {
-  const kind = useAvailableModelKind();
+  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
   if (kind === null) return null;
   return <CompareRoundSheet kind={kind} />;
 }
 
 type CompareRoundSheetProps = { kind: AiModelKind };
 
-// The screen once the kind is known and the screen is available.
 function CompareRoundSheet({ kind }: CompareRoundSheetProps) {
   const { modelIds } = useLocalSearchParams<{ modelIds: string }>();
   const sheet = useRequiredSheetRoute();

@@ -1,4 +1,4 @@
-import type { AiModelKind, ApiAiModel } from '@squidbox/shared';
+import { type AiModelKind, aiModelKindSchema, type ApiAiModel } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, type ListRenderItemInfo, StyleSheet } from 'react-native';
@@ -14,7 +14,7 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SearchInput from '@/components/SearchInput';
 import { SCREEN_PADDING } from '@/constants';
-import useAvailableModelKind from '@/hooks/useAvailableModelKind';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import useHaptics from '@/hooks/useHaptics';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
@@ -25,17 +25,15 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 import modelsOfKind from '@/utils/ai/modelsOfKind';
 
 // Every model Venice offers for a kind (route param `kind`), with a search box; a tap adds one to
-// your list. Removing is on the model's page; a removed model shows its score and note here. A link
-// to an unknown kind goes back (useAvailableModelKind).
+// your list. Removing is on the model's page; a removed model shows its score and note here.
 export default function AddModelsScreen() {
-  const kind = useAvailableModelKind();
+  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
   if (kind === null) return null;
   return <AddModels kind={kind} />;
 }
 
 type AddModelsProps = { kind: AiModelKind };
 
-// The screen once the kind is known and the screen is available.
 function AddModels({ kind }: AddModelsProps) {
   const navigation = useNavigation();
   const [searchText, setSearchText] = useState('');

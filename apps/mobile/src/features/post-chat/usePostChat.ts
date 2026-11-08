@@ -2,12 +2,13 @@ import { CHAT_LIMITS, type ChatContext } from '@squidbox/shared';
 import { useCallback, useMemo, useState } from 'react';
 
 import chatMentions from './chatMentions';
-import chatSessions, { type ChatSession, type UserTurn } from './chatSessions';
+import type { ChatSession, UserTurn } from './chatSessions';
 import postTags from './postTags';
 import useChatSession from './useChatSession';
 import useMentions from './useMentions';
 
 import useAssetTags from '@/features/photo-tags/useAssetTags';
+import useLatestRef from '@/hooks/useLatestRef';
 import { readLiveAssets } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
@@ -28,7 +29,7 @@ export default function usePostChat(sessionId: string) {
   const chat = useChatSession(sessionId);
   // The chat itself, the same object all chat long, unlike `chat`: the sends built on it keep their
   // identity, so memo(AssistantMessage) and memo(ChatOptionCard) do their job.
-  const session = chatSessions.get(sessionId);
+  const session = chat?.session;
   const draft = chat?.getDraft();
   const assets = useMemo(() => draft?.assets ?? [], [draft]);
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
@@ -41,7 +42,8 @@ export default function usePostChat(sessionId: string) {
     [found, mentionEdits],
   );
   const [isWaiting, setIsWaiting] = useState(false);
-  const { taggingAsync, rows: taggedRows, isTagging } = tagging;
+  // Read when a turn goes, so the sends don't change with the photos' tags or the mentions.
+  const latest = useLatestRef({ tagging, mentions });
 
   // What the chat (`live`) is about as it is now: the editor's latest caption and assets, the post's
   // tags (their tags, read again once a tagging under way landed, with the card's edits: postTags) and
@@ -49,6 +51,8 @@ export default function usePostChat(sessionId: string) {
   // meanwhile).
   const readContextAsync = useCallback(
     async (live: ChatSession): Promise<ChatContext> => {
+      const { tagging: current, mentions: currentMentions } = latest.current;
+      const { taggingAsync, rows: taggedRows, isTagging } = current;
       setIsWaiting(isTagging);
       try {
         const hasWaited = await taggingAsync();
@@ -62,13 +66,13 @@ export default function usePostChat(sessionId: string) {
           text: text.slice(0, CHAT_LIMITS.text),
           media: countMediaTypes(now),
           tags: postTags(rows, tagEdits).slice(0, CHAT_LIMITS.tags),
-          mentions: mentions?.handles ?? [],
+          mentions: currentMentions?.handles ?? [],
         };
       } finally {
         setIsWaiting(false);
       }
     },
-    [taggingAsync, taggedRows, mentions, isTagging],
+    [latest],
   );
 
   const send = useCallback(

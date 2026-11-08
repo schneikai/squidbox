@@ -1,4 +1,4 @@
-import type { AiModelKind } from '@squidbox/shared';
+import { type AiModelKind, aiModelKindSchema } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
@@ -15,7 +15,7 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAiCatalog from '@/hooks/useAiCatalog';
-import useAvailableModelKind from '@/hooks/useAvailableModelKind';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import useHaptics from '@/hooks/useHaptics';
 import findCatalogModel from '@/utils/ai/findCatalogModel';
 
@@ -23,18 +23,16 @@ import findCatalogModel from '@/utils/ai/findCatalogModel';
  * A model's latest Verify of a kind (route params `kind`, `modelId`, `name`; an ai_admin tool), in
  * any state, the same run the model page shows (useVerifyRun): its status on top, then its
  * conversations (writing) or its photos (vision), and Verify again once it's no longer running. A
- * haptic marks the run finishing while the page is open. A link to an unknown kind goes back
- * (useAvailableModelKind).
+ * haptic marks the run finishing while the page is open.
  */
 export default function VerifyScreen() {
-  const kind = useAvailableModelKind();
+  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
   if (kind === null) return null;
   return <VerifyPage kind={kind} />;
 }
 
 type VerifyPageProps = { kind: AiModelKind };
 
-// The screen once the kind is known and the screen is available.
 function VerifyPage({ kind }: VerifyPageProps) {
   const navigation = useNavigation();
   const { modelId, name } = useLocalSearchParams<{ modelId: string; name: string }>();

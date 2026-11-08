@@ -1,8 +1,9 @@
+import { aiModelKindSchema } from '@squidbox/shared';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import useAvailableModelKind from '../src/hooks/useAvailableModelKind';
+import useAvailableParam from '../src/hooks/useAvailableParam';
 
 // The route, the account and the navigation are replaced: what the link names, whether the screen
 // is available, and what the hook asks useCloseWhen.
@@ -17,20 +18,20 @@ function renderKind(kind: string, isAvailable = true) {
   state.isAvailable = isAvailable;
   let result: unknown;
   function Probe() {
-    result = useAvailableModelKind();
+    result = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
     return null;
   }
   renderToString(createElement(Probe));
   return result;
 }
 
-describe('useAvailableModelKind', () => {
-  it('gives the kind a link names', () => {
+describe('useAvailableParam', () => {
+  it('gives the value a link names', () => {
     expect(renderKind('vision')).toBe('vision');
     expect(closeWhen).toHaveBeenCalledWith(false);
   });
 
-  it('closes a screen whose link names an unknown kind', () => {
+  it("closes a screen whose link names a value that doesn't parse", () => {
     expect(renderKind('foo')).toBeNull();
     expect(closeWhen).toHaveBeenCalledWith(true);
   });

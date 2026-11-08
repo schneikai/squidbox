@@ -1,4 +1,4 @@
-import type { AiModelKind, VerifyTurn as VerifyTurnRecord } from '@squidbox/shared';
+import { type AiModelKind, aiModelKindSchema, type VerifyTurn as VerifyTurnRecord } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { memo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -18,25 +18,23 @@ import Page from '@/components/Page';
 import Text from '@/components/Text';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import useAvailableModelKind from '@/hooks/useAvailableModelKind';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import { layout, space } from '@/styles/designTokens';
 
 /**
  * One conversation of a writing Verify (route params `kind`, `modelId`, `name`, `sectionId`; an
  * ai_admin tool), read like the chat: what the model was told (collapsed), the post it started
  * with, then each turn: the editor's change, the creator's message, the reply with its posts, and
- * whether it passed. A conversation still running grows as its turns come in. A link to an unknown
- * kind goes back (useAvailableModelKind).
+ * whether it passed. A conversation still running grows as its turns come in.
  */
 export default function VerifyConversationScreen() {
-  const kind = useAvailableModelKind();
+  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
   if (kind === null) return null;
   return <VerifyConversation kind={kind} />;
 }
 
 type VerifyConversationProps = { kind: AiModelKind };
 
-// The screen once the kind is known and the screen is available.
 function VerifyConversation({ kind }: VerifyConversationProps) {
   const navigation = useNavigation();
   const { modelId, sectionId } = useLocalSearchParams<{

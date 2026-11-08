@@ -1,4 +1,4 @@
-import { type AiModelKind, COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
+import { type AiModelKind, aiModelKindSchema, COMPARE_MIN_MODELS, VISION_COMPARE_MAX_PHOTOS } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
@@ -17,7 +17,7 @@ import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloat
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
-import useAvailableModelKind from '@/hooks/useAvailableModelKind';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import useYourModels from '@/hooks/useYourModels';
 import { layout, space } from '@/styles/designTokens';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
@@ -28,17 +28,15 @@ import toggleItem from '@/utils/toggleItem';
 
 // The compare's first step (route param `kind`): tick 2 or more of your available models, shown as
 // in your list, and for vision pick the photos (the last compare's to start with). Start saves the
-// photos for CompareRoundScreen, which reads them back. A link to an unknown kind goes back
-// (useAvailableModelKind).
+// photos for CompareRoundScreen, which reads them back.
 export default function ComparePickScreen() {
-  const kind = useAvailableModelKind();
+  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
   if (kind === null) return null;
   return <ComparePick kind={kind} />;
 }
 
 type ComparePickProps = { kind: AiModelKind };
 
-// The screen once the kind is known and the screen is available.
 function ComparePick({ kind }: ComparePickProps) {
   const navigation = useNavigation();
   const isVision = kind === 'vision';

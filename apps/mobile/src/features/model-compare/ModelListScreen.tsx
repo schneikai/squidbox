@@ -1,4 +1,4 @@
-import { type AiModelKind, COMPARE_MIN_MODELS } from '@squidbox/shared';
+import { type AiModelKind, aiModelKindSchema, COMPARE_MIN_MODELS } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 
 import ModelDefaultsActions from './ModelDefaultsActions';
@@ -18,7 +18,7 @@ import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloat
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import AddRow from '@/components/settings-list/AddRow';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useAvailableModelKind from '@/hooks/useAvailableModelKind';
+import useAvailableParam from '@/hooks/useAvailableParam';
 import useYourModels, { type YourModelRow } from '@/hooks/useYourModels';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
@@ -27,17 +27,15 @@ import confirmAsync from '@/utils/confirmAsync';
 // Your models of one kind (route param `kind`: writing | vision), with their labels and the way to
 // add them; a row opens the model's page (ModelScreen: its labels, Verify and Remove), their scores
 // from Compare, and Compare. While your picks of the defaults differ from everyone's, the list ends
-// with Apply changes for everyone and Reset changes (ModelDefaultsActions). An ai_admin tool; a link
-// to an unknown kind goes back (useAvailableModelKind).
+// with Apply changes for everyone and Reset changes (ModelDefaultsActions). An ai_admin tool.
 export default function ModelListScreen() {
-  const kind = useAvailableModelKind();
+  const kind = useAvailableParam('kind', aiModelKindSchema, 'ai_admin');
   if (kind === null) return null;
   return <ModelList kind={kind} />;
 }
 
 type ModelListProps = { kind: AiModelKind };
 
-// The screen once the kind is known and the screen is available.
 function ModelList({ kind }: ModelListProps) {
   const navigation = useNavigation();
   const paddingBottom = useFloatingPrimaryActionPadding();
