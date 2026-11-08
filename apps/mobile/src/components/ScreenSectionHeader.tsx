@@ -8,6 +8,7 @@ type ScreenSectionHeaderSize = 'small' | 'regular';
 
 export type ScreenSectionHeaderProps = {
   title: string;
+  titleAccessory?: ReactNode;
   trailing?: ReactNode;
   link?: { label: string; onPress: () => void };
   isFlush?: boolean;
@@ -23,12 +24,15 @@ export type ScreenSectionHeaderProps = {
  * on the left and the slot on the right. `link` is a secondary way on (See all 27): a grey link at
  * the row's end, on the title's baseline, never the accent. Over cards it sits a little in from
  * their edge; `isFlush` lines it up with content that has no card around it.
+ * `titleAccessory` sits right after the title, a small button about it (the Contacts tab's pen beside
+ * the pinned list's name).
  * `isFirst` drops its top margin, for the first thing under a screen's content top (the Contacts tab's).
  * `size` is `regular` (the default, also for the sections of one item's screen) or `small` (a count
  * or a group over a long list: the contacts, the lists).
  */
 export default function ScreenSectionHeader({
   title,
+  titleAccessory,
   trailing,
   link,
   isFlush = false,
@@ -37,23 +41,31 @@ export default function ScreenSectionHeader({
 }: ScreenSectionHeaderProps) {
   const label = [styles.label, LABEL_STYLES[size], isFlush && styles.flush];
   const spacing = [styles.spacing, isFirst && styles.first];
+  const titleInRow = titleAccessory ? (
+    <View style={styles.titleWithAccessory}>
+      <Text style={label}>{title}</Text>
+      {titleAccessory}
+    </View>
+  ) : (
+    <Text style={[label, styles.labelInRow]}>{title}</Text>
+  );
 
   if (link) {
     return (
-      <View style={[styles.row, styles.withLink, spacing]}>
-        <Text style={[label, styles.labelInRow]}>{title}</Text>
+      <View style={[styles.row, !titleAccessory && styles.withLink, spacing]}>
+        {titleInRow}
         <Button label={link.label} size="small" colorPalette="muted" onPress={link.onPress} />
       </View>
     );
   }
 
-  if (!trailing) {
+  if (!trailing && !titleAccessory) {
     return <Text style={[label, spacing]}>{title}</Text>;
   }
 
   return (
     <View style={[styles.row, spacing]}>
-      <Text style={[label, styles.labelInRow]}>{title}</Text>
+      {titleInRow}
       {trailing}
     </View>
   );
@@ -72,6 +84,12 @@ const styles = StyleSheet.create({
   },
   labelInRow: {
     flex: 1,
+  },
+  titleWithAccessory: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
   },
   first: {
     marginTop: 0,
