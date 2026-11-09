@@ -1,6 +1,23 @@
 import type { ContactPlace, FieldClocks } from '@squidbox/shared';
-import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, real, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { isNotNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  index,
+  primaryKey,
+  uniqueIndex,
+  type SQLiteColumn,
+} from 'drizzle-orm/sqlite-core';
+
+/**
+ * The assets a search reads (assetQuery), and assets_search_idx keeps: those with notes or tags ("No
+ * tags", [], has none). One predicate for both, as SQLite uses the index only for the same one.
+ */
+export function hasSearchText(t: { notes: SQLiteColumn; tags: SQLiteColumn }): SQL | undefined {
+  return or(isNotNull(t.notes), sql`${t.tags} != '[]'`);
+}
 
 // Client (SQLite) mirror of the shared asset collection descriptor. Synced fields match
 // @squidbox/shared assetCollection.schema; syncError is the local-only field. Booleans are
@@ -57,9 +74,10 @@ export const assets = sqliteTable(
     index('assets_sync_error_idx')
       .on(t.id)
       .where(sql`${t.syncError} is not null and ${t.deletedAt} is null`),
-    index('assets_notes_idx')
-      .on(t.id, t.notes)
-      .where(sql`${t.notes} is not null and ${t.deletedAt} is null`),
+    // The search's rows (assetQuery).
+    index('assets_search_idx')
+      .on(t.id, t.notes, t.tags)
+      .where(sql`${hasSearchText(t)} and ${t.deletedAt} is null`),
     // The purged assets whose files this device still has: the sweep's work (sweepPurgedFiles).
     index('assets_purged_files_idx')
       .on(t.id)

@@ -38,6 +38,7 @@ import m0033 from './0033_contact_list_pinned.sql';
 import m0034 from './0034_contact_instagram.sql';
 import m0035 from './0035_contact_settings.sql';
 import m0036 from './0036_album_favorited_at.sql';
+import m0037 from './0037_search_index.sql';
 
   export default {
     journal,
@@ -78,7 +79,8 @@ m0032,
 m0033,
 m0034,
 m0035,
-m0036
+m0036,
+m0037
     }
   }
   

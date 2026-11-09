@@ -3,7 +3,6 @@ import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
-import isBlank from '@/utils/isBlank';
 
 const ALBUM_FILTERS = ['starred', 'archived'] as const;
 export type AlbumFilter = (typeof ALBUM_FILTERS)[number];
@@ -12,7 +11,8 @@ export type AlbumFilter = (typeof ALBUM_FILTERS)[number];
 export type PrepareAlbumsOptions = {
   sortOrder: AlbumSort;
   activeFilter?: AlbumFilter[];
-  searchText: string;
+  /** The albums the search found (albumSearchQuery); null: no search. */
+  matchedIds: ReadonlySet<string> | null;
   showSmartAlbums?: boolean;
   showDeleted?: boolean;
 };
@@ -24,23 +24,22 @@ function matchesFilter(album: Pick<AlbumListRow, 'isFavorite' | 'archivedAt'>, a
   return true;
 }
 
-// The albums to list: filtered by `activeFilter` (albumFilterOptions), searched by name and sorted by
-// `sortOrder` (albumSortFunctions). Smart albums show unless `showSmartAlbums` is false, the Deleted one
+// The albums to list: filtered by `activeFilter` (albumFilterOptions), narrowed to `matchedIds`
+// (albumSearchQuery) and sorted by `sortOrder` (albumSortFunctions). Smart albums show unless `showSmartAlbums` is false, the Deleted one
 // unless `showDeleted` is.
 export default function prepareAlbums({
   albums,
   sortOrder,
   activeFilter = [],
-  searchText,
+  matchedIds,
   showSmartAlbums = true,
   showDeleted = true,
 }: { albums: AlbumListRow[] } & PrepareAlbumsOptions): AlbumListRow[] {
-  const search = isBlank(searchText) ? null : searchText.toLowerCase();
   const matchedAlbums = albums.filter((album) => {
     if (!showSmartAlbums && isSmartAlbum(album)) return false;
     if (!showDeleted && isDeletedAssetsAlbum(album)) return false;
     if (!matchesFilter(album, activeFilter)) return false;
-    if (search && !album.name.toLowerCase().includes(search)) return false;
+    if (matchedIds && !matchedIds.has(album.id)) return false;
     return true;
   });
 

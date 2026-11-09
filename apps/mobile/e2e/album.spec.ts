@@ -11,6 +11,7 @@ import {
   uniqueName,
   withDialog,
 } from './helpers';
+import { ALBUM_SEARCH_PLACEHOLDER } from '../src/features/album-list/albumSearchPlaceholder';
 
 // Adds an album named `name` from the Albums tab (its name asked in an alert prompt).
 async function createAlbum(page: Page, name: string) {
@@ -128,7 +129,7 @@ test('Add to Album finds an album by search and adds the photo to it', async ({ 
   await assetCells(library).first().click();
   await button(library, 'Add to Album').click();
   const sheet = page.getByTestId('add-to-album-sheet');
-  await sheet.getByPlaceholder('Search albums…').fill(name);
+  await sheet.getByPlaceholder(ALBUM_SEARCH_PLACEHOLDER).fill(name);
   await sheet.getByText(name, { exact: true }).click();
 
   await expect(sheet).toBeHidden();

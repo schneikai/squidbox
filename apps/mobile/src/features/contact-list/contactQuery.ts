@@ -126,15 +126,7 @@ export default function contactQuery({
 
   // The search reads every live contact's searched text once per read, for rows and count alike.
   async function matchedIds(tx: SyncDb): Promise<string[] | null> {
-    if (!searchText) return null;
-    const rows = await tx
-      .select({ id: c.id, ...SEARCHED })
-      .from(c)
-      .where(liveness);
-    return matchingIds(
-      rows.map((row) => ({ id: row.id, text: contactSearchText(row) })),
-      searchText,
-    );
+    return searchText ? matchingContactIds(tx, searchText, liveness) : null;
   }
   const where = (ids: string[] | null) => and(liveness, scopeCondition, ids ? inJson(c.id, ids) : undefined);
 
@@ -179,4 +171,24 @@ export default function contactQuery({
       });
     },
   };
+}
+
+/**
+ * The ids of the contacts (`liveness`: the live ones by default) whose name, handles, phone number or
+ * places (contactSearchText) contain `searchText`, as matchingIds matches: the search of the Contacts
+ * tab, and how a photo or album search finds its tagged contacts.
+ */
+export async function matchingContactIds(
+  tx: SyncDb,
+  searchText: string,
+  liveness: SQL = isNull(c.deletedAt),
+): Promise<string[]> {
+  const rows = await tx
+    .select({ id: c.id, ...SEARCHED })
+    .from(c)
+    .where(liveness);
+  return matchingIds(
+    rows.map((row) => ({ id: row.id, text: contactSearchText(row) })),
+    searchText,
+  );
 }

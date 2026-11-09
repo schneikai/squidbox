@@ -1,6 +1,7 @@
-import { and, count, eq, getTableColumns, isNotNull, not, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, not, or, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
+import { matchingContactIds } from '@/features/contact-list/contactQuery';
 import isOneOf from '@/lib/isOneOf';
 import {
   a,
@@ -9,6 +10,7 @@ import {
   assetScopeWhere,
   fromScope,
   isIdScope,
+  contactLinkedPhotoIds,
   liveAlbumAssetIds,
   type AssetQueryScope,
   type AssetSort,
@@ -21,6 +23,9 @@ import { matchingIds } from '@/sync/matchingIds';
 import type { PagedQuery } from '@/sync/usePagedQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 
+// The rows the search reads, as assets_search_idx keeps them (with the scope's deletion).
+const isSearchable = schema.hasSearchText(a);
+
 const ASSET_FILTERS = ['favorites', 'images', 'videos'] as const;
 export type AssetFilter = (typeof ASSET_FILTERS)[number];
 
@@ -32,8 +37,8 @@ export type AssetExclude = string[] | { albumId: string };
 /**
  * `sort`: `custom` needs an album scope; the Deleted scope has no sort menu and lists the most
  * recently deleted first; a post has no sort either and lists in its own order (filter and search
- * still apply). `search` is a notes substring, matched as the grid did: Unicode-aware, literal,
- * case-insensitive.
+ * still apply). `search` is a substring of the notes, the tags or a tagged contact's name, matched
+ * as `matchingIds` does.
  */
 export type AssetQueryDescriptor = {
   scope?: AssetQueryScope;
@@ -73,6 +78,11 @@ export default function assetQuery({
   if (isPost) tables.push(schema.postAssets);
   if (isIdScope(scope, 'contactId')) tables.push(schema.contactLinks);
   if (!Array.isArray(exclude)) tables.push(schema.albumAssets);
+  const searchText = search.trim().toLowerCase();
+  if (searchText) {
+    if (!tables.includes(schema.contactLinks)) tables.push(schema.contactLinks);
+    tables.push(schema.contacts);
+  }
 
   const filterConditions: SQL[] = [];
   if (filter.includes('favorites')) filterConditions.push(eq(a.isFavorite, true));
@@ -81,24 +91,31 @@ export default function assetQuery({
   if (!Array.isArray(exclude)) filterConditions.push(sql`a.id not in ${liveAlbumAssetIds(exclude.albumId)}`);
   else if (exclude.length) filterConditions.push(not(inJson(a.id, exclude)));
 
-  // The search runs over the noted rows of the scope, once per read for rows and count alike: a
-  // post's few through its edges, any other scope's through the noted assets' index.
-  const searchText = search.trim().toLowerCase();
-  async function matchedIds(tx: SyncDb): Promise<string[] | null> {
-    if (!searchText) return null;
-    const select = tx.select({ id: a.id, text: a.notes });
-    const noted = await (isPost
-      ? fromScope(select, scope, sort).where(and(isNotNull(a.notes), assetScopeWhere(scope, sort)))
-      : select.from(a).where(and(isNotNull(a.notes), assetDeletionWhere(scope))));
-    // isNotNull keeps the noted rows only, which drizzle's types don't know.
-    return matchingIds(
-      noted.map((row) => ({ id: row.id, text: row.text ?? '' })),
-      searchText,
-    );
+  // The search, once per read for rows and count alike: the notes and tags of the scope's rows that
+  // have them (a post's few through its edges, any other scope's through the covering index
+  // assets_search_idx), matched in JS, and the photos of the contacts it finds (matchingContactIds,
+  // the Contacts tab's search), by SQL through their links. Once every photo carries tags (todo.md:
+  // tagging at upload) that is every live asset, JSON-parsed and folded per keystroke, and the
+  // pre-folded search column of docs/paged-reads-plan.md §2 becomes due.
+  async function matchedWhere(tx: SyncDb): Promise<SQL | undefined> {
+    if (!searchText) return undefined;
+    const select = tx.select({ id: a.id, notes: a.notes, tags: a.tags });
+    const searchable = await (isPost
+      ? fromScope(select, scope, sort).where(and(isSearchable, assetScopeWhere(scope, sort)))
+      : select.from(a).where(and(isSearchable, assetDeletionWhere(scope))));
+    // One text per line, as contactSearchText: the tags match as words, not as their JSON.
+    const rows = searchable.map(({ id, notes, tags }) => ({
+      id,
+      text: [notes, ...(tags ?? [])].filter(Boolean).join('\n'),
+    }));
+    const contactIds = await matchingContactIds(tx, searchText);
+    // The scope keeps its own photos of them by their deletion (contactLinkedPhotoIds).
+    const ofContacts = contactIds.length ? sql`a.id in ${contactLinkedPhotoIds(contactIds)}` : undefined;
+    return or(inJson(a.id, matchingIds(rows, searchText)), ofContacts);
   }
 
-  function where(ids: string[] | null) {
-    return and(assetScopeWhere(scope, sort), ...filterConditions, ids ? inJson(a.id, ids) : undefined);
+  function where(matched: SQL | undefined) {
+    return and(assetScopeWhere(scope, sort), ...filterConditions, matched);
   }
 
   return {
@@ -106,10 +123,10 @@ export default function assetQuery({
     tables,
     read(db, { limit }): Promise<{ rows: AssetRow[]; count: number }> {
       return db.transaction(async (tx) => {
-        const ids = await matchedIds(tx);
-        const [{ count: total }] = await fromScope(tx.select({ count: count() }), scope, sort).where(where(ids));
+        const matched = await matchedWhere(tx);
+        const [{ count: total }] = await fromScope(tx.select({ count: count() }), scope, sort).where(where(matched));
         const rows = await fromScope(tx.select(getTableColumns(a)), scope, sort)
-          .where(where(ids))
+          .where(where(matched))
           .orderBy(assetOrder(scope, sort))
           .limit(limit);
         return { rows, count: total };
@@ -118,7 +135,7 @@ export default function assetQuery({
     ids(db, { limit } = {}) {
       return db.transaction(async (tx) => {
         const query = fromScope(tx.select({ id: a.id }), scope, sort)
-          .where(where(await matchedIds(tx)))
+          .where(where(await matchedWhere(tx)))
           .orderBy(assetOrder(scope, sort));
         const rows = await (limit === undefined ? query : query.limit(limit));
         return rows.map((row) => row.id);
