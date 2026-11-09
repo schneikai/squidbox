@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TagAttempt } from '../src/features/photo-tags/tagAttempts';
+import type { TagAttempt } from '../src/features/photo-tags/createTagAttempts';
 import taggingState from '../src/features/photo-tags/taggingState';
 
 const never = { id: 'a', tags: null };

@@ -1,4 +1,4 @@
-import type { TagAttempts } from './tagAttempts';
+import type { TagAttempts } from './createTagAttempts';
 
 import type { AssetRow } from '@/sync/db/schema';
 

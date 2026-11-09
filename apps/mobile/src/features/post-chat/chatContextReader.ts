@@ -1,23 +1,24 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
 
 import type { ChatSession, ContextReader } from './chatSessions';
+import chatTags from './chatTags';
 import postTags from './postTags';
 import sentMentions from './sentMentions';
+import type { ChatTagging } from './useChatTags';
 import type { Mentions } from './useMentions';
 
-import type { AssetTagging } from '@/features/photo-tags/useAssetTags';
 import { readLiveAssets } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 
-type ContextSources = { tagging: Pick<AssetTagging, 'taggingAsync'>; found: Mentions | undefined };
+type ContextSources = { tagging: Pick<ChatTagging, 'taggingAsync'>; found: Mentions | undefined };
 
 /**
  * How the chat `session` reads what a turn is about (a ContextReader): it waits for the photos being
- * tagged, then takes the editor's latest caption and assets, the post's tags (their tags as saved,
- * with the card's edits: postTags) and the handles it sends (sentMentions). `getSources()` gives the
- * photos' tagging and the handles found in their albums' posts as of the latest render; they are read
- * again after the wait.
+ * tagged, then takes the editor's latest caption and assets, the post's tags (their tags as saved, or
+ * the chat's own for a photo never tagged: chatTags; with the card's edits: postTags) and the handles
+ * it sends (sentMentions). `getSources()` gives the photos' tagging and the handles found in their
+ * albums' posts as of the latest render; they are read again after the wait.
  */
 export default function chatContextReader(session: ChatSession, getSources: () => ContextSources): ContextReader {
   return async (signal, onWait) => {
@@ -27,9 +28,11 @@ export default function chatContextReader(session: ChatSession, getSources: () =
     const { text, assets } = session.getDraft();
     const { kind, tagEdits, mentionEdits } = session.getState();
     // Read here: the render's rows can be a moment behind tags already saved.
-    const rows = await readLiveAssets(
-      getDb(),
-      assets.map((asset) => asset.id),
+    const rows = chatTags.withTags(
+      await readLiveAssets(
+        getDb(),
+        assets.map((asset) => asset.id),
+      ),
     );
     return {
       kind,

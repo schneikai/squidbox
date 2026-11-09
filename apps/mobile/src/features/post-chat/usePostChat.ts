@@ -5,17 +5,17 @@ import chatContextReader from './chatContextReader';
 import type { UserTurn } from './chatSessions';
 import sentMentions from './sentMentions';
 import useChatSession from './useChatSession';
+import useChatTags from './useChatTags';
 import useLatestRef from './useLatestRef';
 import useMentions from './useMentions';
 
-import useAssetTags from '@/features/photo-tags/useAssetTags';
 import chatAsync from '@/utils/cloud-api/ai/chatAsync';
 
 const MORE_LIKE_THIS = 'More like this';
 
 /**
  * The assistant chat about a post (`sessionId`, chatSessions'), for a screen that shows it: the chat
- * (useChatSession; null once closed), its post's `assets`, their `tagging` (useAssetTags), the
+ * (useChatSession; null once closed), its post's `assets`, their `tagging` (useChatTags), the
  * `mentions` (those it sends, useMentions' with the chat's mentionEdits) and the sends: `send(turn)`
  * puts the turn (cut to CHAT_LIMITS.message) in the chat at once and returns whether it went (false:
  * a reply loads, or the chat is closed); the context is read then (chatContextReader), with the post
@@ -30,7 +30,7 @@ export default function usePostChat(sessionId: string) {
   const draft = chat?.getDraft();
   const assets = useMemo(() => draft?.assets ?? [], [draft]);
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
-  const tagging = useAssetTags(assets);
+  const tagging = useChatTags(assets);
   const found = useMentions(assetIds);
   const mentionEdits = chat?.mentionEdits;
   // The handles the chat may mention and sends: sentMentions'.
