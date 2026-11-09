@@ -23,7 +23,7 @@ export type ContractRoute = {
 /**
  * The API and sync contract an installed build relies on (docs/sync-design.md §15), as normalized
  * JSON Schema: every route, every collection, the error envelope, and the client migrations a build
- * shipped with. Snapshotted per tagged build under contract/builds by `npm run contract:snapshot` (the
+ * shipped with. Snapshotted per App build under contract/builds by `npm run contract:snapshot` (the
  * ios-build skill), checked by test/contract.test.ts.
  */
 export type Contract = {

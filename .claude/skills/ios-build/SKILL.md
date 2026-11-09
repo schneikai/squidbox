@@ -12,6 +12,7 @@ user only answers "which build?" and supplies secrets. **Run every command from 
 ## STEP 0 — Ask what to build (always do this first)
 
 Use AskUserQuestion:
+
 - **App** — the preview/release build. Bundle `com.schneikai.squidbox`, name "Squidbox", EAS profile
   `preview`, self-contained (JS baked in). `EXPO_PUBLIC_*` come from **EAS secrets** at build time.
 - **Dev Client** — the development build. Bundle `com.schneikai.squidbox.dev`, name "Squidbox (Dev)",
@@ -32,11 +33,13 @@ Then follow the matching path below. (Both share the one-time credential setup.)
   **`EXPO_APPLE_TEAM_TYPE=INDIVIDUAL`**.
 
 Export before building:
+
 ```
 EXPO_TOKEN, EAS_BUILD_PROFILE, CI=1,
 EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID,
 EXPO_APPLE_TEAM_ID, EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
 ```
+
 Verify with `scripts/check-env.sh`. Routine rebuilds reuse stored credentials, so the `.p8` + ASC
 IDs are only needed for the FIRST build on each bundle id, or to renew or repair credentials.
 
@@ -47,9 +50,11 @@ both ad hoc profiles currently run until **Oct 10, 2027**; an installed app stop
 longer available") once its profile expires. Non-interactive mode refuses to fix expired
 credentials, so run this step INTERACTIVELY through the prompt driver, with `CI` unset and without
 `--non-interactive`:
+
 ```
 EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
 ```
+
 Answer yes to reusing or regenerating the distribution certificate and to a new ad hoc profile, and
 press Enter at device selection (all registered devices). With the `EXPO_ASC_*` vars set, the CLI
 uses the API key. Abort only on a real prompt (a line starting with `?`) asking for an Apple ID or
@@ -83,35 +88,29 @@ below; the gotchas there are load-bearing.
    (`https://squidbox-server.fly.dev/api/v1`), and `SENTRY_AUTH_TOKEN` should exist. If the URL is
    stale/wrong, fix the VALUE (keep its visibility):
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
-2. The checkout must be clean, committed and pushed, so the tag below marks exactly what is built:
-   `git status --porcelain` empty and `git branch -r --contains HEAD` non-empty. Else stop and say so.
+2. The checkout must be clean, committed and pushed, so the snapshot below records exactly what is
+   built: `git status --porcelain` empty and `git branch -r --contains HEAD` non-empty. Else stop and say so.
 3. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
-4. After `FINISHED`, tag the build and snapshot its contract (`docs/sync-design.md` §15):
+4. After `FINISHED`, still on the built commit, snapshot its contract (`docs/sync-design.md` §15) and
+   push it to the branch built from:
    ```bash
-   tag=$(git tag --points-at HEAD 'build/*' | head -1)   # reuse the tag of a commit built before
-   if [ -z "$tag" ]; then
-     tag=build/$(date +%Y%m%d)-$(git rev-parse --short=8 HEAD)
-     git tag -a "$tag" -m "EAS build <build-id> <build page url>"
-   fi
-   name=${tag#build/}
-   if [ ! -f "apps/server/contract/builds/$name.json" ]; then
-     (cd apps/server && npm run contract:snapshot -- "$tag")
-     git add apps/server/contract/builds && git commit -m "Contract snapshot of $tag"   # + the usual attribution lines
-   fi
-   git push origin HEAD "$tag"
+   (cd apps/server && npm run contract:snapshot)   # refuses a commit snapshotted today already
+   git add apps/server/contract/builds && git commit -m "Contract snapshot of the build of $(git rev-parse --short=8 HEAD)"   # + the usual attribution lines
+   git push origin HEAD
    ```
-   The snapshot commit follows the tagged one on the branch built from: the tag marks what is
-   installed, the snapshot describes it, and both reach main when that branch merges. Until then
-   main's checks leave the build out (they take the tags merged into the checkout); a squash merge
-   brings the snapshot but not the tagged commit, so prefer a merge commit for a branch with a build. `contract.test.ts` holds today's server to every snapshot, and the old-build e2e
-   suite (`apps/mobile/test/taggedBuilds.e2e.test.ts`) runs the oldest and the newest tag. Retiring
-   a build is deleting its tag and its snapshot in one commit, once no device runs it.
+   The snapshot (`apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`) records the built
+   commit's full sha and the build date; it reaches main when the branch merges (a squash merge is
+   fine: GitHub keeps the built commit fetchable through the pull request). `contract.test.ts` holds
+   today's server to every snapshot, and the old-build e2e suite
+   (`apps/mobile/test/installedBuilds.e2e.test.ts`) fetches and runs the oldest and the newest build.
+   Retiring a build is deleting its snapshot, once no device runs it.
 5. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
 6. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
 
 ## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
 
 Facts (SDK 55, current EAS CLI):
+
 - **`environment` per profile is REQUIRED.** eas.json's build profiles set `"environment"`
   (development/preview/production). Without it, EAS injects **none** of the stored env vars → the app
   builds with `EXPO_PUBLIC_API_URL` undefined → every request fails locally → "Can't reach server"
@@ -139,9 +138,11 @@ tight loop. Stop when status is `FINISHED`/`ERRORED`/`CANCELED`, then fetch the 
 
 **Install QR.** `--no-wait` skips EAS's own QR, so render one for the build page (scan with the
 iPhone camera → opens the page → tap Install; EAS has no direct-install QR for internal builds):
+
 ```bash
 node -e 'require("qrcode-terminal").generate("https://expo.dev/accounts/<acct>/projects/squidbox/builds/<build-id>",{small:true},c=>process.stdout.write(c))'
 ```
+
 If `qrcode-terminal` isn't resolvable, install it to a temp prefix first:
 `npm install qrcode-terminal --no-save --prefix /tmp/qrtool` and require
 `/tmp/qrtool/node_modules/qrcode-terminal`. Show the QR in a fenced block and also paste the plain

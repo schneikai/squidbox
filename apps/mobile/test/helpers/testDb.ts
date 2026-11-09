@@ -11,7 +11,7 @@ export const migrationsFolder = fileURLToPath(new URL('../../src/sync/db/migrati
 
 /**
  * Runs the client migrations from index `from` up to (not including) `to` on `sqlite`: by default
- * all of today's; `folder` another build's (taggedBuilds.e2e).
+ * all of today's; `folder` another build's (installedBuilds.e2e).
  */
 export function runMigrations(
   sqlite: Database.Database,

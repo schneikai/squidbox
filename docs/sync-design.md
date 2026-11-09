@@ -1099,7 +1099,7 @@ lastPushAt, lastPullAt, lastError }`. The cursor is stored separately under `cur
 - **Pulled shape** in `sync_meta.pulledShape`: the collections and synced columns the cursor's pulls
   filled (`clientCollections.ts` `pulledShape`). A build whose shape differs pulls from the beginning
   once (`status.ts` `pullCursor`), noted in the sync log as `pull restarted from the beginning: new
-  synced fields or collections (assets.tags, …)` (§15).
+synced fields or collections (assets.tags, …)` (§15).
 - **Outbox.** A record is pending if it has an outbox row. Pending counts are queried from the
   outbox overall and per collection; `useSyncStatus` also counts the failed rows.
 - **File state.** `isFileSynced` and `isThumbnailSynced` (synced) and this device's `syncError`
@@ -1182,15 +1182,16 @@ was ever installed keeps syncing and calling today's server. The server ships fi
 - **A pull fills what the build knows.** A build that learns collections or fields pulls from the
   beginning once, so values an older build dropped arrive (§13, Pulled shape).
 
-### Tags and contract snapshots
+### Contract snapshots
 
-Every App build (`preview`, `production`) is tagged `build/<YYYYMMDD>-<short sha>` by the ios-build
-skill, which then snapshots its contract with `npm run contract:snapshot -- <tag>` (in
-`apps/server`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json` and pushes both. A
-snapshot is never rewritten. It is the normalized JSON Schema of every route (request body, params,
-querystring, every answer, the body limit), every collection, the error envelope and the client
-migrations' hashes (`apps/server/src/contract/`). A dev client runs Metro's code: nothing is frozen
-in it, so it is never tagged.
+After every App build (`preview`, `production`) the ios-build skill snapshots its contract with
+`npm run contract:snapshot` (in `apps/server`, on the clean built commit) to
+`apps/server/contract/builds/<YYYYMMDD>-<short sha>.json` and pushes it to the branch built from. A
+snapshot records the build's full commit sha and build date and is never rewritten. Its contract is
+the normalized JSON Schema of every route (request body, params, querystring, every answer, the body
+limit), every collection, the error envelope and the client migrations' hashes
+(`apps/server/src/contract/`). A dev client runs Metro's code: nothing is frozen in it, so it gets
+no snapshot.
 
 `apps/server/test/contract.test.ts` fails a change today's server makes that a snapshotted build
 couldn't survive, naming the build, the path and what changed: a request may only loosen (an optional
@@ -1211,15 +1212,15 @@ other people install the app.
 
 ### Retiring a build
 
-An owner decision, once no device runs the build: delete its tag and its snapshot file in one commit.
+An owner decision, once no device runs the build: delete its snapshot file.
 
-### The tagged-build suite
+### The installed-build suite
 
-`apps/mobile/test/taggedBuilds.e2e.test.ts` runs the oldest and the newest tagged build: each
+`apps/mobile/test/installedBuilds.e2e.test.ts` runs the oldest and the newest snapshotted build: each
 build's `apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite
 migrations, against today's server, then updated to today's code and migrations on the same
 database (the `withVerbs` shim lets the test call the oldest builds' repositories by today's names).
 The few `@/` imports of the old sync code (the API client, its errors) still resolve to today's
-`src`. Both the suite and the snapshot check take the tags merged into the checked-out commit: a
-build made from a branch counts once that branch is merged. It proves both builds converge with today's app through edits, purges and
+`src`. It takes each build's commit from its snapshot and fetches it (depth 1) when the checkout
+lacks it; in CI a commit it can't fetch fails the suite. It proves both builds converge with today's app through edits, purges and
 updates, and that an updated build's pull restarts.

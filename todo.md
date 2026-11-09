@@ -38,7 +38,7 @@ Every request names its build and install (`x-squidbox-client: <commit> <device>
 `apps/mobile/src/utils/cloud-api/clientHeader.ts`, name in `packages/shared/contracts/client.ts`);
 the server ignores it (`apps/server/src/auth/authenticate.ts`). Before other people install the app:
 a `devices` table written per account and install from the header, and a script listing them
-(device, account, build, first and last seen), so a build's tag and contract snapshot
+(device, account, build, first and last seen), so a build's contract snapshot
 (`docs/sync-design.md` §15) are retired only once no device runs it. Until then the owner is the
 only user and knows his phone's build.
 
@@ -233,7 +233,7 @@ with thousands of posts. Keeping the handles with their counts in a table would 
 
 `outbox.whole_record` (`sync/db/schema.ts`, the `fields` it leaves out in `sync/worker.ts`) exists
 only for rows queued by a build before per-field sync (0011_outbox_fields). The phone is past it
-and taggedBuilds.e2e no longer covers it: a migration can drop the column once no such row can be left.
+and installedBuilds.e2e no longer covers it: a migration can drop the column once no such row can be left.
 
 ### [ ] Widen what CI checks
 

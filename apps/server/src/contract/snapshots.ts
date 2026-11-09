@@ -3,21 +3,22 @@ import { fileURLToPath } from 'node:url';
 import type { Contract } from './currentContract.js';
 
 /**
- * Where each tagged build's contract is kept: `<tag without "build/">.json`, written by the ios-build
- * skill when it tags an App build (docs/sync-design.md §15), never rewritten.
+ * Where each App build's contract is kept, one `<YYYYMMDD>-<short sha>.json` per build, written by
+ * the ios-build skill right after the build (docs/sync-design.md §15), never rewritten.
  */
 export const SNAPSHOTS_DIR = fileURLToPath(new URL('../../contract/builds/', import.meta.url));
 
-/** The snapshot file of the build tagged `tag` (`build/<YYYYMMDD>-<short sha>`). */
-export const snapshotFile = (tag: string) => `${SNAPSHOTS_DIR}${tag.slice('build/'.length)}.json`;
+/** A build's snapshot: the commit it was built from (full sha), its build date, its contract. */
+export type Snapshot = { commit: string; builtAt: string; contract: Contract };
 
-/** Every tagged build's contract, in file name order. */
-export function readSnapshots(): { tag: string; contract: Contract }[] {
+/** The snapshot file of a build from `commit` on `builtAt` (YYYY-MM-DD). */
+export const snapshotFile = ({ commit, builtAt }: Omit<Snapshot, 'contract'>) =>
+  `${SNAPSHOTS_DIR}${builtAt.replaceAll('-', '')}-${commit.slice(0, 8)}.json`;
+
+/** Every build's snapshot, oldest build first. */
+export function readSnapshots(): Snapshot[] {
   return readdirSync(SNAPSHOTS_DIR)
     .filter((file) => file.endsWith('.json'))
     .sort()
-    .map((file) => ({
-      tag: `build/${file.slice(0, -'.json'.length)}`,
-      contract: JSON.parse(readFileSync(`${SNAPSHOTS_DIR}${file}`, 'utf8')) as Contract,
-    }));
+    .map((file) => JSON.parse(readFileSync(`${SNAPSHOTS_DIR}${file}`, 'utf8')) as Snapshot);
 }

@@ -7,7 +7,7 @@
 # Expo local state
 /.expo
 
-# The tagged builds' client code, extracted by test/taggedBuilds.e2e.test.ts
+# The installed builds' client code, extracted by test/installedBuilds.e2e.test.ts
 /test/.builds
 
 # Playwright output of the UI flow tests (npm run test:ui)

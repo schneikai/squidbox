@@ -16,6 +16,7 @@ import { makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
 import { betterSqliteExecutor, migrationsFolder, runMigrations } from './helpers/testDb';
 import { at, removedFiles, S, synced as syncedFields } from './helpers/twoDeviceServer';
+import { readSnapshots } from '../../server/src/contract/snapshots.js';
 import type { Db } from '../../server/src/db/client.js';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
@@ -31,55 +32,56 @@ import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
-// The installed apps are the tagged builds (`build/<date>-<sha>`, made by the ios-build skill for
-// every App build): the suite runs the oldest and the newest, each build's client code as built
-// against this server. It extracts the build's apps/mobile/src/sync into test/.builds/<tag>
-// (gitignored) and drives it with its own SQLite migrations; an "update" then runs the current
-// migrations on that same database and goes on with the current code. The old sync code imports the
-// build's own packages/shared (extracted beside it); its few `@/` imports (the API client, errors)
-// still resolve to today's src (docs/sync-design.md §15). Needs Postgres and the tags with their
-// history (CI checks out the whole history): in CI a checkout without a tag fails the suite.
+// The installed apps are the App builds, each recorded with its commit by a contract snapshot
+// (apps/server/contract/builds, written by the ios-build skill for every App build): the suite runs
+// the oldest and the newest, each build's client code as built against this server. It extracts the
+// build's apps/mobile/src/sync into test/.builds/<name> (gitignored) and drives it with its own
+// SQLite migrations; an "update" then runs the current migrations on that same database and goes on
+// with the current code. The old sync code imports the build's own packages/shared (extracted beside
+// it); its few `@/` imports (the API client, errors) still resolve to today's src
+// (docs/sync-design.md §15). Needs Postgres and each build's commit, which the suite fetches
+// (depth 1) when the checkout lacks it: in CI one it can't get fails the suite instead of skipping it.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
-// git's output, run in this checkout (or `cwd`).
+// git's output, run in this checkout (or `cwd`), and whether a git command succeeds.
 const git = (args: string[], cwd = here) =>
   execFileSync('git', args, { cwd, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
+function gitOk(args: string[]): boolean {
+  try {
+    git(args);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-type Build = { tag: string; sha: string };
+type Build = { name: string; sha: string };
 
-// The oldest and the newest `build/*` tag this checkout contains (once when they are the same), by
-// when they were made, with the commits they tag. A build from a branch counts here once that branch
-// is merged: its migrations may not be today's yet. A build retires by deleting its tag.
+// The oldest and the newest build (once when they are the same). A build retires by deleting its
+// snapshot, once no device runs it.
 function buildsUnderTest(): Build[] {
-  const tags = git([
-    'for-each-ref',
-    '--merged=HEAD',
-    '--sort=creatordate',
-    '--format=%(refname:short) %(*objectname) %(objectname)',
-    'refs/tags/build/',
-  ])
-    .toString()
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => {
-      const [tag, peeled, object] = line.split(' ');
-      return { tag: tag!, sha: peeled || object! };
-    });
-  return [...new Set([tags[0], tags.at(-1)])].filter((build): build is Build => build !== undefined);
+  const builds = readSnapshots().map(({ commit, builtAt }) => ({
+    name: `${builtAt} (${commit.slice(0, 8)})`,
+    sha: commit,
+  }));
+  return [...new Set([builds[0], builds.at(-1)])].filter((build): build is Build => build !== undefined);
 }
 
 const builds = TEST_URL ? buildsUnderTest() : [];
-if (TEST_URL && builds.length === 0 && process.env.CI)
-  throw new Error('taggedBuilds.e2e: no build/* tag in the history of this checkout (the ios-build skill makes them)');
+const missing = builds.filter(
+  ({ sha }) => !gitOk(['cat-file', '-e', `${sha}^{commit}`]) && !gitOk(['fetch', '--depth=1', 'origin', sha]),
+);
+if (missing.length > 0 && process.env.CI)
+  throw new Error(`installedBuilds.e2e: could not fetch ${missing.map(({ sha }) => sha).join(', ')} from origin`);
 
-function extract({ tag, sha }: Build): string {
-  const root = `${here}.builds/${tag}`;
+function extract({ sha }: Build): string {
+  const root = `${here}.builds/${sha.slice(0, 8)}`;
   rmSync(root, { recursive: true, force: true });
   mkdirSync(root, { recursive: true });
   const top = git(['rev-parse', '--show-toplevel']).toString().trim();
   const archive = git(['archive', sha, 'apps/mobile/src/sync'], top);
   execFileSync('tar', ['-x', '-C', root, '--strip-components=3'], { input: archive });
-  if (!existsSync(`${root}/sync/worker.ts`)) throw new Error(`${tag} has no apps/mobile/src/sync/worker.ts`);
+  if (!existsSync(`${root}/sync/worker.ts`)) throw new Error(`${sha} has no apps/mobile/src/sync/worker.ts`);
   // The build's own @squidbox/shared, which its sync code imports instead of today's.
   const shared = git(['archive', sha, 'packages/shared'], top);
   execFileSync('tar', ['-x', '-C', root, '--strip-components=1', '--exclude=*/tsconfig.json'], { input: shared });
@@ -106,15 +108,14 @@ interface Phone {
   removeFiles: RemoveFiles;
 }
 
-for (const [index, build] of builds.entries()) describeBuild(build, { fuzz: index === 0 });
-if (builds.length === 0)
-  describe.skip('the tagged builds (none in this checkout: the ios-build skill tags each App build)', () => {
-    it('run against this server', () => {});
-  });
+for (const [index, build] of builds.entries())
+  if (missing.includes(build)) describe.skip(`the build of ${build.name} (its commit could not be fetched)`, () => {});
+  else describeBuild(build, { fuzz: index === 0 });
+if (builds.length === 0) describe.skip('the installed builds (needs TEST_DATABASE_URL and a snapshot)', () => {});
 
 // A build's suite; the seeded runs (`fuzz`) on the oldest build only.
 function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
-  describe(`${build.tag}: its client code, as built, against this server`, () => {
+  describe(`the build of ${build.name}: its client code, as built, against this server`, () => {
     const USER = randomUUID();
     let pool: pg.Pool;
     let pgDb: Db;
@@ -225,7 +226,7 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
       pgDb = pgDrizzle(pool, { schema: serverSchema });
       await pgDb
         .insert(serverSchema.users)
-        .values({ id: USER, email: `tagged-build-${USER}@test.local`, passwordDigest: 'x', storageBucket: null });
+        .values({ id: USER, email: `installed-build-${USER}@test.local`, passwordDigest: 'x', storageBucket: null });
     });
     afterAll(async () => {
       await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
@@ -445,8 +446,8 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
   });
 }
 
-// Needed while a tagged build older than the repositories' shared verbs is supported: those name them
-// after the collection. Delete it once the oldest tag has `create`, `update`, `remove` and the rest.
+// Needed while an installed build older than the repositories' shared verbs is supported: those name them
+// after the collection. Delete it once the oldest build has `create`, `update`, `remove` and the rest.
 function withVerbs(assets: any) {
   return {
     ...assets,

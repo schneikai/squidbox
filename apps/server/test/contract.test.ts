@@ -1,26 +1,24 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { z } from 'zod';
 
 vi.mock('../src/db/client.js', () => ({ getDb: () => ({}), closeDb: async () => {} }));
 
 import { problems } from '../src/contract/compatibility.js';
 import { currentContract, jsonSchemaOf, type Contract, type ContractRoute } from '../src/contract/currentContract.js';
-import { readSnapshots, snapshotFile } from '../src/contract/snapshots.js';
+import { readSnapshots } from '../src/contract/snapshots.js';
 import { serverCollections } from '../src/sync/collections.js';
 
-// Every installed build keeps working against today's server (docs/sync-design.md §15): each tagged
+// Every installed build keeps working against today's server (docs/sync-design.md §15): each App
 // build's contract is snapshotted under contract/builds, and today's must break none of them.
-describe('the tagged builds', () => {
+describe('the installed builds', () => {
   let current: Contract;
   beforeAll(async () => {
     current = await currentContract();
   });
 
-  it('today’s contract works for every tagged build', () => {
-    const found = readSnapshots().flatMap(({ tag, contract }) =>
-      problems(contract, current).map((problem) => `${tag}: ${problem}`),
+  it('today’s contract works for every installed build', () => {
+    const found = readSnapshots().flatMap(({ commit, builtAt, contract }) =>
+      problems(contract, current).map((problem) => `the build of ${builtAt} (${commit.slice(0, 8)}): ${problem}`),
     );
     expect(found).toEqual([]);
   });
@@ -29,15 +27,6 @@ describe('the tagged builds', () => {
     const routes = current.routes.map(({ method, url }) => `${method} ${url}`);
     expect(routes).toEqual(expect.arrayContaining(['POST /api/v1/sync/push', 'POST /api/v1/sync/pull']));
     expect(Object.keys(current.collections).sort()).toEqual(Object.keys(serverCollections).sort());
-  });
-
-  // The ios-build skill commits the snapshot right after the tag, on the branch built from, so both
-  // reach main together; a tag without one would go unchecked. Tags of branches not merged here don't count.
-  it('every build/* tag merged into this checkout has its contract snapshot', () => {
-    const tags = execFileSync('git', ['tag', '--merged', 'HEAD', '--list', 'build/*'], { encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean);
-    expect(tags.filter((tag) => !existsSync(snapshotFile(tag)))).toEqual([]);
   });
 });
 

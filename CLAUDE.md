@@ -45,7 +45,7 @@ Decide this before the app stores anything new:
 
 - Run `npm run check` from the repo root while working and before each commit: it checks only what changed since the branch left main and prints only the failures. Run `npm run check:all` (every check over the whole repo, knip too) before opening a PR or merging into main. Keep both clean. The DB suites run as `README.md` says
 - Add to `knip.json` only files Expo or Metro load by convention. Delete code that is merely unused
-- Every installed build keeps working against today's server: the contract only grows (`docs/sync-design.md` §15). `apps/server/test/contract.test.ts` fails a change a tagged build couldn't survive; the ios-build skill tags each App build and snapshots its contract
+- Every installed build keeps working against today's server: the contract only grows (`docs/sync-design.md` §15). `apps/server/test/contract.test.ts` fails a change an installed build couldn't survive; the ios-build skill snapshots each App build's contract
 
 ## Tests
 
