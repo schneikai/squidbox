@@ -12,6 +12,24 @@ function gitCommit() {
   }
 }
 
+// An App build (eas.json's preview and production profiles set SQUIDBOX_APP_BUILD) must have its
+// contract snapshot pushed before it starts, so no installed build goes unchecked
+// (docs/sync-design.md §15): `npm run ios:app` writes and pushes it, then builds. Checked where
+// eas-cli starts the build, not on the EAS worker. A re-sign or a credentials repair of an
+// earlier build sets SQUIDBOX_NOT_A_BUILD=1.
+function requirePushedSnapshot(commit) {
+  const { SQUIDBOX_APP_BUILD, SQUIDBOX_NOT_A_BUILD, EAS_BUILD } = process.env;
+  if (!SQUIDBOX_APP_BUILD || SQUIDBOX_NOT_A_BUILD || EAS_BUILD) return;
+  const pushed = execSync('git log --remotes --format= --name-only -- ":(top)apps/server/contract/builds"', {
+    encoding: 'utf8',
+  });
+  if (!pushed.includes(`-${commit.slice(0, 8)}.json`)) {
+    throw new Error(
+      `app.config.js: no pushed contract snapshot of ${commit.slice(0, 8)}. Build the App with \`npm run ios:app\` (ios-build skill), which pushes it first.`,
+    );
+  }
+}
+
 // Matched by colors.background.splash, for BootScreen, which takes over from the splash.
 const SPLASH_BACKGROUND = '#B1F1FF';
 
@@ -91,5 +109,7 @@ if (process.env.EAS_BUILD_PROFILE === 'development') {
     bundleIdentifier: 'com.schneikai.squidbox.dev',
   };
 }
+
+requirePushedSnapshot(baseConfig.expo.extra.gitCommit);
 
 module.exports = baseConfig;

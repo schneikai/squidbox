@@ -52,7 +52,7 @@ credentials, so run this step INTERACTIVELY through the prompt driver, with `CI`
 `--non-interactive`:
 
 ```
-EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
+SQUIDBOX_NOT_A_BUILD=1 EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
 ```
 
 Answer yes to reusing or regenerating the distribution certificate and to a new ad hoc profile, and
@@ -63,7 +63,7 @@ password; an info line mentioning "username/password" cookies is not a prompt.
 Alternatively, `eas build ... --non-interactive --refresh-ad-hoc-provisioning-profile` regenerates
 just the profile during a build. That flag only works together with `--non-interactive`.
 
-**Re-signing instead of rebuilding.** `eas build:resign -p ios -e <profile> --source-profile <profile>
+**Re-signing instead of rebuilding.** `SQUIDBOX_NOT_A_BUILD=1 eas build:resign -p ios -e <profile> --source-profile <profile>
 --id <build-id>` re-signs an existing internal build with fresh credentials, without rebuilding.
 EAS deletes build artifacts about 14 days after a build (`expirationDate` in
 `eas build:list --json`), so it only works within that window; after that, rebuild.
@@ -88,24 +88,24 @@ below; the gotchas there are load-bearing.
    (`https://squidbox-server.fly.dev/api/v1`), and `SENTRY_AUTH_TOKEN` should exist. If the URL is
    stale/wrong, fix the VALUE (keep its visibility):
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
-2. The checkout must be clean, committed and pushed, so the snapshot below records exactly what is
-   built: `git status --porcelain` empty and `git branch -r --contains HEAD` non-empty. Else stop and say so.
-3. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
-4. After `FINISHED`, still on the built commit, snapshot its contract (`docs/sync-design.md` §15) and
-   push it to the branch built from:
+2. Build with ONE command, from the repo root (never `eas build -e preview` directly):
    ```bash
-   (cd apps/server && npm run contract:snapshot)   # refuses a commit snapshotted today already
-   git add apps/server/contract/builds && git commit -m "Contract snapshot of the build of $(git rev-parse --short=8 HEAD)"   # + the usual attribution lines
-   git push origin HEAD
+   npm run ios:app                  # or: npm run ios:app -- production
    ```
-   The snapshot (`apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`) records the built
-   commit's full sha and the build date; it reaches main when the branch merges (a squash merge is
-   fine: GitHub keeps the built commit fetchable through the pull request). `contract.test.ts` holds
-   today's server to every snapshot, and the old-build e2e suite
-   (`apps/mobile/test/installedBuilds.e2e.test.ts`) fetches and runs the oldest and the newest build.
-   Retiring a build is deleting its snapshot, once no device runs it.
-5. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
-6. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
+   It needs the checkout clean and at the pushed tip of its branch (else it stops and says why),
+   writes the build's contract snapshot (`docs/sync-design.md` §15), commits and pushes it, and
+   only then starts the EAS build (`--no-wait`) of the commit the snapshot names. A failed push
+   builds nothing. `app.config.js` refuses an App build whose commit has no pushed snapshot; a
+   re-sign or a credentials repair of an earlier build sets `SQUIDBOX_NOT_A_BUILD=1`.
+   Build from `main`, or from a branch that will merge: the snapshot reaches main with the branch
+   (a squash merge is fine: GitHub keeps the built commit fetchable through the pull request). If a
+   built branch is dropped instead, cherry-pick its snapshot commit to main, so the installed build
+   stays checked. `contract.test.ts` holds today's server to every snapshot, and the old-build e2e
+   suite (`apps/mobile/test/installedBuilds.e2e.test.ts`) fetches and runs the oldest and the
+   newest build. Retiring a build is deleting its snapshot, once no device runs it.
+3. Watch the build (see "Watch / manage") until `FINISHED`.
+4. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
+5. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
 
 ## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
 

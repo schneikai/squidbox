@@ -1184,9 +1184,11 @@ was ever installed keeps syncing and calling today's server. The server ships fi
 
 ### Contract snapshots
 
-After every App build (`preview`, `production`) the ios-build skill snapshots its contract with
-`npm run contract:snapshot` (in `apps/server`, on the clean built commit) to
-`apps/server/contract/builds/<YYYYMMDD>-<short sha>.json` and pushes it to the branch built from. A
+Every App build (`preview`, `production`) starts with `npm run ios:app` (`scripts/iosAppBuild.mjs`,
+the ios-build skill): on the clean, pushed tip of a branch it snapshots the commit's contract
+(`npm run contract:snapshot`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`, commits
+and pushes it, and only then builds that commit. `apps/mobile/app.config.js` refuses an App build
+whose commit has no pushed snapshot, so a build can't be installed without one. A
 snapshot records the build's full commit sha and build date and is never rewritten. Its contract is
 the normalized JSON Schema of every route (request body, params, querystring, every answer, the body
 limit), every collection, the error envelope and the client migrations' hashes
