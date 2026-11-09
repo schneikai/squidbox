@@ -1,10 +1,8 @@
-import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
 import albumTagsDraft, { type AlbumTagsPhoto } from '../src/features/album-tags/albumTagsDraft';
 
 const photos = (...tags: (string[] | null)[]): AlbumTagsPhoto[] => tags.map((each, i) => ({ id: `p${i}`, tags: each }));
-const many = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`);
 
 describe('albumTagsDraft', () => {
   it('shows a tag on all photos solid and one on some dashed, a never-tagged photo having none', () => {
@@ -26,7 +24,7 @@ describe('albumTagsDraft', () => {
   });
 
   it('puts a dashed tag on all photos where it is', () => {
-    const draft = albumTagsDraft.putOnAll(albumTagsDraft.start(photos(['fog', 'moss'], ['fog'])), 'moss')!;
+    const draft = albumTagsDraft.putOnAll(albumTagsDraft.start(photos(['fog', 'moss'], ['fog'])), 'moss');
     expect(albumTagsDraft.tags(draft)).toEqual(['fog', 'moss']);
     expect(albumTagsDraft.mixedTags(draft)).toEqual([]);
     expect(albumTagsDraft.edit(draft)).toEqual({ add: ['moss'], remove: [] });
@@ -41,7 +39,7 @@ describe('albumTagsDraft', () => {
     const start = albumTagsDraft.start(photos(['fog', 'moss'], ['fog']));
     // TagsField drops the duplicate from its list and calls mixed.onPress with the chip's tag.
     expect(albumTagsDraft.change(start, ['fog', 'moss'])).toEqual(start);
-    expect(albumTagsDraft.mixedTags(albumTagsDraft.putOnAll(start, 'MOSS')!)).toEqual([]);
+    expect(albumTagsDraft.mixedTags(albumTagsDraft.putOnAll(start, 'MOSS'))).toEqual([]);
   });
 
   it('puts a new tag on all photos, at the end', () => {
@@ -68,22 +66,5 @@ describe('albumTagsDraft', () => {
     expect(albumTagsDraft.tags(draft)).toEqual(['fog', 'moss', 'granite']);
     expect(albumTagsDraft.mixedTags(draft)).toEqual([]);
     expect(albumTagsDraft.edit(draft)).toEqual({ add: ['moss', 'granite'], remove: [] });
-  });
-
-  it('puts a tag on all photos only while every photo has room for it', () => {
-    const full = many('t', ASSET_TAG_LIMITS.tags - 1);
-    const start = albumTagsDraft.start(photos([...full, 'fog'], ['moss']));
-    expect(albumTagsDraft.room(start)).toBe(0);
-    expect(albumTagsDraft.putOnAll(start, 'moss')).toBeNull();
-    expect(albumTagsDraft.tags(albumTagsDraft.change(start, [...albumTagsDraft.tags(start), 'granite']))).toEqual(
-      albumTagsDraft.tags(start),
-    );
-    const freed = albumTagsDraft.change(
-      start,
-      albumTagsDraft.tags(start).filter((tag) => tag !== 't0' && tag !== 't1'),
-    );
-    expect(albumTagsDraft.room(freed)).toBe(2);
-    expect(albumTagsDraft.mixedTags(albumTagsDraft.putOnAll(freed, 'moss')!)).not.toContain('moss');
-    expect(albumTagsDraft.edit(albumTagsDraft.addOnAll(freed, ['a', 'b', 'c'])).add).toEqual(['a', 'b']);
   });
 });

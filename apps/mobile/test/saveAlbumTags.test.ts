@@ -1,3 +1,4 @@
+import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
@@ -72,6 +73,13 @@ describe('saveAlbumTags', () => {
     await saveAlbumTags(db, 'al1', { add: [], remove: ['fog'] });
     expect(await tagsOf(db, ['p0', 'p1'])).toEqual([[], null]);
     expect(await outboxIds(db)).toEqual(['p0']);
+  });
+
+  it('skips a full photo for an added tag, keeping its own tags', async () => {
+    const full = Array.from({ length: ASSET_TAG_LIMITS.tags }, (_, i) => `t${i}`);
+    const { db } = await albumOf([full, ['fog']]);
+    await saveAlbumTags(db, 'al1', { add: ['moss'], remove: [] });
+    expect(await tagsOf(db, ['p0', 'p1'])).toEqual([full, ['fog', 'moss']]);
   });
 
   it('writes nothing to a deleted photo', async () => {

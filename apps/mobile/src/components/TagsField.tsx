@@ -16,7 +16,7 @@ export type TagsFieldProps = {
   tags: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
-  maxTags: number;
+  maxTags?: number;
   maxTagLength?: number;
   itemName?: string;
   disabled?: boolean;
@@ -29,7 +29,7 @@ export type TagsFieldProps = {
  * Tags as chips on a card, each with a × that takes it out; `isFlush` lays them on the page instead
  * (the secondary info under a photo, which has no cards). The dashed Add turns into an input that
  * adds a tag on return (and stays open for the next) and closes on blur, adding what it holds. A
- * tag that is already there (in any case) isn't added twice; there is room for `maxTags` of
+ * tag that is already there (in any case) isn't added twice; there is room for `maxTags` (optional) of
  * `maxTagLength`. `itemName` names one for VoiceOver ("tag" by default).
  * `mixed` (optional) marks the tags on only some of the items: their chips are dashed (Chip's
  * `mixed`), and a tap on one, or typing it again in Add, calls `mixed.onPress` with it. Add is then
@@ -42,7 +42,7 @@ function TagsField({
   tags,
   onChange,
   placeholder,
-  maxTags,
+  maxTags = Infinity,
   maxTagLength,
   itemName = 'tag',
   disabled = false,

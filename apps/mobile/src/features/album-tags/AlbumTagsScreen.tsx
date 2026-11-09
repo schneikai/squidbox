@@ -1,7 +1,7 @@
 import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import albumTagsDraft from './albumTagsDraft';
 import readAlbumTagsSeed, { type AlbumTagsSeed } from './readAlbumTagsSeed';
@@ -17,7 +17,6 @@ import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { getDb } from '@/sync/db/client';
-import tagKey from '@/utils/tagKey';
 
 /**
  * An album's Tags (`?albumId=`, from its ⋯ menu): every tag on any of its photos in one card, a tag
@@ -55,27 +54,16 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
     return saveAlbumTags(getDb(), albumId, albumTagsDraft.edit(draft));
   }
 
-  function alertNoRoom() {
-    haptics.error();
-    Alert.alert('Some photos have no room for another tag. Take a tag off first.');
-  }
-
-  // The chips take no taps while Tag it runs, so the draft here is the latest.
   function handlePutOnAll(tag: string) {
-    const next = albumTagsDraft.putOnAll(draft, tag);
-    if (!next) return alertNoRoom();
-    setDraft(next);
+    setDraft((current) => albumTagsDraft.putOnAll(current, tag));
   }
 
-  // The chips take no changes while it runs, so its tags join the draft as it was when it started.
+  // An edit made while it ran stays: its tags join the draft as it is then.
   async function handleTagIt() {
     const found = await tagIt(seed.photos.map((photo) => photo.id));
     if (!found) return;
-    const next = albumTagsDraft.addOnAll(draft, found);
-    setDraft(next);
-    const onAll = new Set(next.tags.filter((entry) => entry.onAll).map((entry) => entry.key));
-    if (found.some((tag) => !onAll.has(tagKey(tag)))) alertNoRoom();
-    else haptics.success();
+    setDraft((current) => albumTagsDraft.addOnAll(current, found));
+    haptics.success();
   }
 
   return (
@@ -99,7 +87,6 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
             tags={tags}
             onChange={(next) => setDraft((current) => albumTagsDraft.change(current, next))}
             mixed={{ tags: albumTagsDraft.mixedTags(draft), onPress: handlePutOnAll }}
-            maxTags={tags.length + albumTagsDraft.room(draft)}
             maxTagLength={ASSET_TAG_LIMITS.tag}
             disabled={isRunning}
           />

@@ -7,7 +7,8 @@ import type { TagsEdit } from '@/utils/tagsDifference';
 
 /**
  * An album's Tags sheet's Save: the edit (editedTags') on the stored tags of each photo the album
- * holds now, in one transaction. Throws when the album was deleted. Doesn't sync.
+ * holds now, in one transaction: an added tag goes on each photo that has room for it
+ * (ASSET_TAG_LIMITS.tags) and skips a full one. Throws when the album was deleted. Doesn't sync.
  */
 export default function saveAlbumTags(db: SyncDb, albumId: string, edit: TagsEdit): Promise<void> {
   return db.transaction(async (tx) => {
