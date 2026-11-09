@@ -4,7 +4,7 @@ import type { Contract } from './currentContract.js';
 
 /**
  * Where each App build's contract is kept, one `<YYYYMMDD>-<short sha>.json` per build, written by
- * the ios-build skill right after the build (docs/sync-design.md §15), never rewritten.
+ * `npm run ios:app` before the build (docs/sync-design.md §15), never rewritten.
  */
 export const SNAPSHOTS_DIR = fileURLToPath(new URL('../../contract/builds/', import.meta.url));
 
@@ -22,3 +22,6 @@ export function readSnapshots(): Snapshot[] {
     .sort()
     .map((file) => JSON.parse(readFileSync(`${SNAPSHOTS_DIR}${file}`, 'utf8')) as Snapshot);
 }
+
+/** The snapshot of a build from `commit`, if one was written. */
+export const findSnapshot = (commit: string) => readSnapshots().find((snapshot) => snapshot.commit === commit);

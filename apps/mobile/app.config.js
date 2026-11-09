@@ -20,10 +20,10 @@ function gitCommit() {
 function requirePushedSnapshot(commit) {
   const { SQUIDBOX_APP_BUILD, SQUIDBOX_NOT_A_BUILD, EAS_BUILD } = process.env;
   if (!SQUIDBOX_APP_BUILD || SQUIDBOX_NOT_A_BUILD || EAS_BUILD) return;
-  const pushed = execSync('git log --remotes --format= --name-only -- ":(top)apps/server/contract/builds"', {
-    encoding: 'utf8',
-  });
-  if (!pushed.includes(`-${commit.slice(0, 8)}.json`)) {
+  // The snapshot's name, as snapshotFile (apps/server/src/contract/snapshots.ts) writes it.
+  const snapshot = `:(top,glob)apps/server/contract/builds/*-${commit.slice(0, 8)}.json`;
+  const pushed = execSync(`git log --remotes -1 --format=%H -- "${snapshot}"`, { encoding: 'utf8' }).trim();
+  if (!pushed) {
     throw new Error(
       `app.config.js: no pushed contract snapshot of ${commit.slice(0, 8)}. Build the App with \`npm run ios:app\` (ios-build skill), which pushes it first.`,
     );

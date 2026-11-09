@@ -4,7 +4,7 @@
  * snapshot (docs/sync-design.md §15, ios-build skill → Path B):
  *
  *   1. The checkout must be clean and its commit (X) the pushed tip of its branch.
- *   2. Unless X has a snapshot already (a rebuild), write it, commit it on top (Y) and push. A failed
+ *   2. Unless X has a snapshot already (a rebuild), `contract:snapshot` writes it; commit it on top (Y) and push. A failed
  *      push stops here, before anything is built.
  *   3. Check out X itself and start the EAS build, so the build and its header name X, then return
  *      to the branch. app.config.js refuses an App build whose commit has no pushed snapshot.
@@ -13,7 +13,6 @@
  *   npm run ios:app -- production
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
 
 const profile = process.argv[2] ?? 'preview';
 if (!['preview', 'production'].includes(profile)) fail(`Unknown App profile "${profile}": preview or production.`);
@@ -31,24 +30,23 @@ if (git('rev-parse', `origin/${branch}`) !== commit) {
 }
 
 const short = commit.slice(0, 8);
-if (!readdirSync(buildsDir).some((name) => name.endsWith(`-${short}.json`))) {
-  if (!run('npm', ['run', 'contract:snapshot'], `${root}/apps/server`)) fail('Writing the snapshot failed.');
+if (!run('npm', ['run', 'contract:snapshot'], `${root}/apps/server`)) fail('Writing the snapshot failed.');
+if (git('status', '--porcelain') !== '') {
   git('add', buildsDir);
   git('commit', '-q', '-m', `Contract snapshot of the build of ${short}`);
   retry(() => git('push', '-q', 'origin', `HEAD:${branch}`));
   console.log(`Pushed the contract snapshot of ${short} to ${branch}.`);
 }
 
-git('checkout', '-q', '--detach', commit);
+const detach = git('rev-parse', 'HEAD') !== commit;
+if (detach) git('checkout', '-q', '--detach', commit);
 const started = run(
   'npx',
   ['--yes', 'eas-cli', 'build', '-p', 'ios', '-e', profile, '--non-interactive', '--no-wait'],
   `${root}/apps/mobile`,
-  {
-    EAS_BUILD_PROFILE: profile,
-  },
+  { EAS_BUILD_PROFILE: profile },
 );
-git('checkout', '-q', branch);
+if (detach) git('checkout', '-q', branch);
 if (!started) fail('The EAS build did not start.');
 
 function git(...args) {

@@ -100,9 +100,7 @@ below; the gotchas there are load-bearing.
    Build from `main`, or from a branch that will merge: the snapshot reaches main with the branch
    (a squash merge is fine: GitHub keeps the built commit fetchable through the pull request). If a
    built branch is dropped instead, cherry-pick its snapshot commit to main, so the installed build
-   stays checked. `contract.test.ts` holds today's server to every snapshot, and the old-build e2e
-   suite (`apps/mobile/test/installedBuilds.e2e.test.ts`) fetches and runs the oldest and the
-   newest build. Retiring a build is deleting its snapshot, once no device runs it.
+   stays checked. What the snapshots are checked by, and retiring one: `docs/sync-design.md` §15.
 3. Watch the build (see "Watch / manage") until `FINISHED`.
 4. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
 5. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
