@@ -51,7 +51,7 @@ function AssetItem({
     },
     [assetId, onZoomChange],
   );
-  const { gesture, zoomStyle, onLayout } = useZoomGesture({
+  const { gesture, gestureKey, zoomStyle, onLayout } = useZoomGesture({
     aspectRatio: aspectRatioOf(asset),
     canZoom,
     isZoomable: isZoomable && canZoom,
@@ -63,7 +63,7 @@ function AssetItem({
   });
 
   return (
-    <GestureDetector gesture={gesture}>
+    <GestureDetector key={gestureKey} gesture={gesture}>
       <View style={[styles.container, style]} onLayout={onLayout}>
         <Animated.View style={[styles.image, zoomStyle]}>
           <AssetImage
