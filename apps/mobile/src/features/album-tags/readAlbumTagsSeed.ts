@@ -5,6 +5,7 @@ import assetQuery from '@/features/asset-list/assetQuery';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { readByIds } from '@/sync/readByIds';
+import readLiveAlbum from '@/sync/readLiveAlbum';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';
 
 export type AlbumTagsSeed = { photos: AlbumTagsPhoto[] };
@@ -20,8 +21,8 @@ export default function readAlbumTagsSeed(
   albumSortOrders: AppSettings['albumSortOrders'],
 ): Promise<AlbumTagsSeed | null> {
   return db.transaction(async (tx) => {
-    const [album] = await readByIds(tx, schema.albums, [albumId]);
-    if (!album || album.deletedAt || album.smartAlbumType) return null;
+    const album = await readLiveAlbum(tx, albumId);
+    if (!album || album.smartAlbumType) return null;
     // The photos Save writes to (readPhotoIdsOf: the untrashed assets of the album's live edges), in
     // the album screen's order, which only the grid's query knows.
     const ids = await assetQuery({ scope: { albumId }, sort: getAlbumSortOrder(album, albumSortOrders) }).ids(tx);

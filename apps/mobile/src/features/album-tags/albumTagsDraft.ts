@@ -22,11 +22,32 @@ export type AlbumTagsDraft = {
 };
 
 /**
- * The draft of these photos' tags, in the sheet's chip order: the tags on the most photos first, then
- * in the order they first appear (the photos in the album's order, each one's tags in theirs). A
- * photo with `tags === null` has none. Tags are grouped by tagKey; a chip shows the first spelling.
+ * The album Tags sheet's draft and what can be done to it, each a pure function returning a new
+ * draft: `start(photos)` builds it; `change(draft, list)` takes TagsField's new list (a tag taken
+ * out comes off all photos, a new one goes on all at the end while it fits); `putOnAll(draft, tag)`
+ * puts a mixed tag on all where it is (null when a photo lacking it has no room); `addOnAll(draft,
+ * tags)` puts Tag it's tags on all, in order while they fit. Readers: `tags` (the chips), `mixedTags`
+ * (the dashed ones), `room` (the fewest free slots any photo has), `edit` (what Save writes) and
+ * `isDirty`.
  */
-export function startAlbumTags(photos: readonly AlbumTagsPhoto[]): AlbumTagsDraft {
+const albumTagsDraft = {
+  start,
+  change,
+  putOnAll,
+  addOnAll,
+  tags: draftTags,
+  mixedTags,
+  room,
+  edit,
+  isDirty,
+};
+
+export default albumTagsDraft;
+
+// The chips in order: the tags on the most photos first, then in the order they first appear (the
+// photos in the album's order, each one's tags in theirs). A photo with `tags === null` has none.
+// Tags are grouped by tagKey; a chip shows the first spelling.
+function start(photos: readonly AlbumTagsPhoto[]): AlbumTagsDraft {
   const byKey = new Map<string, { tag: string; count: number }>();
   const photoKeys = photos.map((photo) => {
     const keys = new Set<string>();
@@ -45,29 +66,37 @@ export function startAlbumTags(photos: readonly AlbumTagsPhoto[]): AlbumTagsDraf
   return { tags, seed: tags, photoKeys };
 }
 
-/** The chips' tags, in order. */
-export function draftTags(draft: AlbumTagsDraft): string[] {
+function draftTags(draft: AlbumTagsDraft): string[] {
   return draft.tags.map((entry) => entry.tag);
 }
 
-/** The tags on only some of the photos (dashed chips). */
-export function mixedTags(draft: AlbumTagsDraft): string[] {
+function mixedTags(draft: AlbumTagsDraft): string[] {
   return draft.tags.filter((entry) => !entry.onAll).map((entry) => entry.tag);
 }
 
-/**
- * The fewest tags any photo has room for after the draft's edit (ASSET_TAG_LIMITS.tags each): a tag
- * put on all photos needs a slot on every one.
- */
-export function room(draft: AlbumTagsDraft): number {
+// Each photo's tag count after the draft's edit (every tag on all, and its own mixed ones), once per
+// draft: the sheet asks on every render.
+const sizesByDraft = new WeakMap<AlbumTagsDraft, number[]>();
+function photoSizes(draft: AlbumTagsDraft): number[] {
+  const cached = sizesByDraft.get(draft);
+  if (cached) return cached;
   const onAll = draft.tags.filter((entry) => entry.onAll).length;
   const mixed = draft.tags.filter((entry) => !entry.onAll).map((entry) => entry.key);
-  const mostMixed = Math.max(0, ...draft.photoKeys.map((keys) => mixed.filter((key) => keys.has(key)).length));
-  return Math.max(ASSET_TAG_LIMITS.tags - onAll - mostMixed, 0);
+  const sizes = draft.photoKeys.map((keys) => onAll + mixed.filter((key) => keys.has(key)).length);
+  // An album without photos still holds the tags on all to the limit.
+  if (sizes.length === 0) sizes.push(onAll);
+  sizesByDraft.set(draft, sizes);
+  return sizes;
 }
 
-/** What Save writes, against the tags the sheet opened with: the tags newly on all and those taken off. */
-export function draftEdit(draft: AlbumTagsDraft): TagsEdit {
+// The fewest tags any photo has room for after the draft's edit (ASSET_TAG_LIMITS.tags each): a tag
+// put on all photos needs a slot on every one.
+function room(draft: AlbumTagsDraft): number {
+  return Math.max(ASSET_TAG_LIMITS.tags - Math.max(...photoSizes(draft)), 0);
+}
+
+// The tags newly on all and those taken off, against the tags the sheet opened with.
+function edit(draft: AlbumTagsDraft): TagsEdit {
   const seedOnAll = new Set(draft.seed.filter((entry) => entry.onAll).map((entry) => entry.key));
   return {
     add: draft.tags.filter((entry) => entry.onAll && !seedOnAll.has(entry.key)).map((entry) => entry.tag),
@@ -78,42 +107,30 @@ export function draftEdit(draft: AlbumTagsDraft): TagsEdit {
   };
 }
 
-/** Whether the draft would change any photo's tags. */
-export function isDirty(draft: AlbumTagsDraft): boolean {
-  const { add, remove } = draftEdit(draft);
+function isDirty(draft: AlbumTagsDraft): boolean {
+  const { add, remove } = edit(draft);
   return add.length > 0 || remove.length > 0;
 }
 
-/**
- * The draft after TagsField's change to the chips' list: a tag taken out comes off all photos, and a
- * new one goes on all of them at the end, while it fits. (Typing a mixed tag again is TagsField's
- * `mixed.onPress`: putOnAll.)
- */
-export function changeTags(draft: AlbumTagsDraft, next: readonly string[]): AlbumTagsDraft {
+// Typing a mixed tag again is TagsField's `mixed.onPress` (putOnAll), so only new keys arrive here.
+function change(draft: AlbumTagsDraft, next: readonly string[]): AlbumTagsDraft {
   const { add, remove } = tagsDifference(draftTags(draft), next);
   const removed = new Set(remove.map(tagKey));
   const kept: AlbumTagsDraft = { ...draft, tags: draft.tags.filter((entry) => !removed.has(entry.key)) };
   return add.reduce((changed, tag) => putOrAdd(changed, tag) ?? changed, kept);
 }
 
-/**
- * The draft with a mixed tag put on all photos, where it is; null when a photo that lacks it has no
- * room for another tag.
- */
-export function putOnAll(draft: AlbumTagsDraft, tag: string): AlbumTagsDraft | null {
+function putOnAll(draft: AlbumTagsDraft, tag: string): AlbumTagsDraft | null {
   const key = tagKey(tag);
   const entry = draft.tags.find((each) => each.key === key);
   if (!entry || entry.onAll) return draft;
-  const fits = draft.photoKeys.every((keys) => keys.has(key) || afterEdit(draft, keys).size < ASSET_TAG_LIMITS.tags);
+  const sizes = photoSizes(draft);
+  const fits = draft.photoKeys.every((keys, i) => keys.has(key) || sizes[i]! < ASSET_TAG_LIMITS.tags);
   if (!fits) return null;
   return { ...draft, tags: draft.tags.map((each) => (each.key === key ? { ...each, onAll: true } : each)) };
 }
 
-/**
- * Tag it's tags on all photos, in order while they fit (the rest are dropped): a tag on all stays, a
- * mixed one goes on all, a new one is added at the end.
- */
-export function addOnAll(draft: AlbumTagsDraft, tags: readonly string[]): AlbumTagsDraft {
+function addOnAll(draft: AlbumTagsDraft, tags: readonly string[]): AlbumTagsDraft {
   return uniqueTags(tags).reduce((changed, tag) => putOrAdd(changed, tag) ?? changed, draft);
 }
 
@@ -125,9 +142,4 @@ function putOrAdd(draft: AlbumTagsDraft, tag: string): AlbumTagsDraft | null {
   if (draft.tags.some((entry) => entry.key === key)) return putOnAll(draft, tag);
   if (room(draft) === 0) return null;
   return { ...draft, tags: [...draft.tags, { tag: tag.trim(), key, onAll: true }] };
-}
-
-// A photo's tag keys after the draft's edit: those still in the draft, and every tag on all.
-function afterEdit(draft: AlbumTagsDraft, keys: ReadonlySet<string>): Set<string> {
-  return new Set(draft.tags.filter((entry) => entry.onAll || keys.has(entry.key)).map((entry) => entry.key));
 }

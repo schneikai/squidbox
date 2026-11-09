@@ -56,8 +56,8 @@ export async function setTags(
 
 /**
  * setTags for many assets, in the caller's transaction: `tags` (a list, or a function of each
- * asset's stored tags returning null to leave them) on each one still in the library, the changed
- * ones saved in one go. Resolves to each live asset's stored list (null while never tagged), by id.
+ * asset's stored tags returning null to leave them) on each one still in the library, saved in
+ * one go (saveRecords leaves out the rows whose tags didn't change). Resolves to each live asset's stored list (null while never tagged), by id.
  */
 export async function setTagsOf(
   tx: SyncDb,
@@ -66,24 +66,19 @@ export async function setTagsOf(
 ): Promise<Map<string, string[] | null>> {
   const live = (await readByIds(tx, schema.assets, ids)).filter((row) => row.deletedAt === null);
   const stored = new Map<string, string[] | null>();
-  const previous: schema.AssetRow[] = [];
   const rows: schema.AssetRow[] = [];
   for (const row of live) {
     const next = typeof tags === 'function' ? tags(row.tags) : tags;
-    const nextTags = next === null ? row.tags : uniqueTags(next);
+    if (next === null) {
+      stored.set(row.id, row.tags);
+      continue;
+    }
+    const nextTags = uniqueTags(next);
     stored.set(row.id, nextTags);
-    if (next === null || isSameTags(nextTags, row.tags)) continue;
-    previous.push(row);
     rows.push(nextVersion(row, { tags: nextTags }));
   }
-  if (rows.length > 0) await saveRecords(tx, 'assets', schema.assets, rows, { previous });
+  await saveRecords(tx, 'assets', schema.assets, rows, { previous: live });
   return stored;
-}
-
-// Whether two tag lists hold the same tags in the same order (null: never tagged).
-function isSameTags(a: string[] | null, b: string[] | null): boolean {
-  if (a === null || b === null) return a === b;
-  return a.length === b.length && a.every((tag, i) => tag === b[i]);
 }
 
 // The local-only sync-error marker (never synced) of the assets matching `where`, written only where

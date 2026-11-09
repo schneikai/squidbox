@@ -1,5 +1,5 @@
 import { uniqueTags } from '@squidbox/shared';
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import Card from '@/components/Card';
@@ -54,7 +54,8 @@ function TagsField({
   const [text, setText] = useState('');
 
   const canAdd = !disabled && tags.length < maxTags;
-  const mixedKeys = new Set(mixed?.tags.map(tagKey));
+  // Not rebuilt on every keystroke in the input.
+  const mixedKeys = useMemo(() => new Set(mixed?.tags.map(tagKey)), [mixed?.tags]);
 
   function addTag() {
     // Cleared first, so the blur after a refused mixed tap (an alert) finds nothing to add.
@@ -100,7 +101,7 @@ function TagsField({
           <Chip
             label="Add"
             variant={mixed ? 'tag' : 'add'}
-            icon="add"
+            icon={mixed ? 'add' : undefined}
             onPress={guardPress(() => setIsAdding(true))}
             accessibilityLabel={`Add a ${itemName}`}
           />

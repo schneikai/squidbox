@@ -101,7 +101,11 @@ export default function Chip({
 
   if (!onPress && !remove) {
     return (
-      <View accessibilityLabel={accessibilityLabel} style={[frame, disabled && styles.disabled, style]}>
+      <View
+        accessibilityLabel={accessibilityLabel}
+        aria-checked={ariaChecked}
+        style={[frame, disabled && styles.disabled, style]}
+      >
         {content}
       </View>
     );

@@ -3,17 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
-import {
-  addOnAll,
-  changeTags,
-  draftEdit,
-  draftTags,
-  isDirty,
-  mixedTags,
-  putOnAll,
-  room,
-  startAlbumTags,
-} from './albumTagsDraft';
+import albumTagsDraft from './albumTagsDraft';
 import readAlbumTagsSeed, { type AlbumTagsSeed } from './readAlbumTagsSeed';
 import saveAlbumTags from './saveAlbumTags';
 import useAlbumTagIt from './useAlbumTagIt';
@@ -27,6 +17,7 @@ import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import { getDb } from '@/sync/db/client';
+import tagKey from '@/utils/tagKey';
 
 /**
  * An album's Tags (`?albumId=`, from its ⋯ menu): every tag on any of its photos in one card, a tag
@@ -50,34 +41,41 @@ export default function AlbumTagsScreen() {
 type AlbumTagsSheetProps = { albumId: string; seed: AlbumTagsSeed };
 
 function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
-  const [draft, setDraft] = useState(() => startAlbumTags(seed.photos));
+  const [draft, setDraft] = useState(() => albumTagsDraft.start(seed.photos));
   const haptics = useHaptics();
   const { tagIt, isRunning, error } = useAlbumTagIt();
-  const { sheetProps } = useEditSheet({ isDirty: isDirty(draft), save });
+  // Save waits for Tag it, whose tags it would leave out; × still closes (and stops it).
+  const { sheetProps } = useEditSheet({ isValid: !isRunning, isDirty: albumTagsDraft.isDirty(draft), save });
 
-  const tags = draftTags(draft);
+  const tags = albumTagsDraft.tags(draft);
   const count = seed.photos.length;
 
   // Writes only the change, made on each photo's stored tags, so a tag stored meanwhile stays.
   function save() {
-    return saveAlbumTags(getDb(), albumId, draftEdit(draft));
+    return saveAlbumTags(getDb(), albumId, albumTagsDraft.edit(draft));
+  }
+
+  function alertNoRoom() {
+    haptics.error();
+    Alert.alert('Some photos have no room for another tag. Take a tag off first.');
   }
 
   // The chips take no taps while Tag it runs, so the draft here is the latest.
   function handlePutOnAll(tag: string) {
-    const next = putOnAll(draft, tag);
-    if (!next) {
-      haptics.error();
-      Alert.alert(`Some photos already have ${ASSET_TAG_LIMITS.tags} tags. Take a tag off first.`);
-      return;
-    }
+    const next = albumTagsDraft.putOnAll(draft, tag);
+    if (!next) return alertNoRoom();
     setDraft(next);
   }
 
-  // An edit made while it ran stays: its tags join the draft as it is then.
+  // The chips take no changes while it runs, so its tags join the draft as it was when it started.
   async function handleTagIt() {
     const found = await tagIt(seed.photos.map((photo) => photo.id));
-    if (found) setDraft((current) => addOnAll(current, found));
+    if (!found) return;
+    const next = albumTagsDraft.addOnAll(draft, found);
+    setDraft(next);
+    const onAll = new Set(next.tags.filter((entry) => entry.onAll).map((entry) => entry.key));
+    if (found.some((tag) => !onAll.has(tagKey(tag)))) alertNoRoom();
+    else haptics.success();
   }
 
   return (
@@ -99,9 +97,9 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
         >
           <TagsField
             tags={tags}
-            onChange={(next) => setDraft((current) => changeTags(current, next))}
-            mixed={{ tags: mixedTags(draft), onPress: handlePutOnAll }}
-            maxTags={tags.length + room(draft)}
+            onChange={(next) => setDraft((current) => albumTagsDraft.change(current, next))}
+            mixed={{ tags: albumTagsDraft.mixedTags(draft), onPress: handlePutOnAll }}
+            maxTags={tags.length + albumTagsDraft.room(draft)}
             maxTagLength={ASSET_TAG_LIMITS.tag}
             disabled={isRunning}
           />

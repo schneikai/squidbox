@@ -137,18 +137,25 @@ test('Add to Album finds an album by search and adds the photo to it', async ({ 
   await expect(page.getByTestId('album-screen').getByText(/^1 Asset · /)).toBeVisible();
 });
 
-test("Tags in the album's menu puts a typed tag on all its photos", async ({ page }) => {
+test("Tags in the album's menu puts a typed tag on all its photos, and a dashed one on all once tapped", async ({
+  page,
+}) => {
   const name = uniqueName('Granite slabs');
-  // The account's photos keep their tags from run to run, so the tag is new each time.
+  // A tag of its own, taken off again at the end, so runs leave the account's photos as they were.
   const tag = uniqueName('granite');
   await createAlbum(page, name);
   const album = await addPhotos(page, name, 2);
   const sheet = page.getByTestId('album-tags-sheet');
-  const openTags = async () => {
+  const mixedChip = sheet.locator('[aria-checked="mixed"]', { hasText: tag });
+  async function openTags() {
     await button(album, 'More options').click();
     await page.getByRole('menuitem', { name: 'Tags' }).click();
     await expect(sheet).toBeVisible();
-  };
+  }
+  async function save() {
+    await button(sheet, 'Save').click();
+    await expect(sheet).toBeHidden();
+  }
 
   await openTags();
   await expect(sheet.getByText('on all 2 photos', { exact: true })).toBeVisible();
@@ -156,13 +163,24 @@ test("Tags in the album's menu puts a typed tag on all its photos", async ({ pag
   await button(sheet, 'Add a tag').click();
   await sheet.getByPlaceholder('Tag').fill(tag);
   await sheet.getByPlaceholder('Tag').press('Enter');
-  await expect(button(sheet, 'Save')).toBeEnabled();
-  await button(sheet, 'Save').click();
-  await expect(sheet).toBeHidden();
+  await save();
+
+  // A third photo lacks the tag, so it is dashed; a tap puts it on all three.
+  await button(album, 'Add').click();
+  await pickFromSquidbox(page, 1);
+  await expect(assetCells(album)).toHaveCount(3);
+  await openTags();
+  await mixedChip.click();
+  await expect(mixedChip).toHaveCount(0);
+  await save();
 
   await openTags();
   await expect(sheet.getByText(tag, { exact: true })).toBeVisible();
-  // A tag on only some photos is a dashed chip VoiceOver reads as mixed.
-  await expect(sheet.locator('[aria-checked="mixed"]', { hasText: tag })).toHaveCount(0);
+  await expect(mixedChip).toHaveCount(0);
   await expect(button(sheet, 'Save')).toBeDisabled();
+
+  await button(sheet, `Remove ${tag}`).click();
+  await save();
+  await openTags();
+  await expect(sheet.getByText(tag, { exact: true })).toHaveCount(0);
 });
