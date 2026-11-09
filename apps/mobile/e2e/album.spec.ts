@@ -136,3 +136,30 @@ test('Add to Album finds an album by search and adds the photo to it', async ({ 
   await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
   await expect(page.getByTestId('album-screen').getByText(/^1 Asset · /)).toBeVisible();
 });
+
+test("Tags in the album's menu puts a typed tag on all its photos", async ({ page }) => {
+  const name = uniqueName('Granite slabs');
+  await createAlbum(page, name);
+  const album = await addPhotos(page, name, 2);
+  const sheet = page.getByTestId('album-tags-sheet');
+  const openTags = async () => {
+    await button(album, 'More options').click();
+    await page.getByRole('menuitem', { name: 'Tags' }).click();
+    await expect(sheet).toBeVisible();
+  };
+
+  await openTags();
+  await expect(sheet.getByText('on all 2 photos', { exact: true })).toBeVisible();
+  await expect(button(sheet, 'Save')).toBeDisabled();
+  await button(sheet, 'Add a tag').click();
+  await sheet.getByPlaceholder('Tag').fill('granite');
+  await sheet.getByPlaceholder('Tag').press('Enter');
+  await expect(button(sheet, 'Save')).toBeEnabled();
+  await button(sheet, 'Save').click();
+  await expect(sheet).toBeHidden();
+
+  await openTags();
+  await expect(sheet.getByText('granite', { exact: true })).toBeVisible();
+  await expect(sheet.getByLabel('granite, on some photos')).toHaveCount(0);
+  await expect(button(sheet, 'Save')).toBeDisabled();
+});
