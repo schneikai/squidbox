@@ -39,7 +39,7 @@ Every request names its build and install (`x-squidbox-client: <commit> <device>
 the server ignores it (`apps/server/src/auth/authenticate.ts`). Before other people install the app:
 a `devices` table written per account and install from the header, and a script listing them
 (device, account, build, first and last seen), so a build's contract snapshot
-(`docs/sync-design.md` §15) are retired only once no device runs it. Until then the owner is the
+(`docs/sync-design.md` §15) is retired only once no device runs it. Until then the owner is the
 only user and knows his phone's build.
 
 ### [ ] Search suggestions as you type, like Apple Photos
