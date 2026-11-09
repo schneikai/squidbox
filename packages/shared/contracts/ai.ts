@@ -304,6 +304,15 @@ export type TagPhotoRequest = z.infer<typeof tagPhotoRequestSchema>;
 export const tagPhotoResponseSchema = z.object({ tags: z.array(assetTagSchema).max(ASSET_TAG_LIMITS.tags) });
 export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
+// Photos an album's Tag it sends: the first, the last and evenly between, in the album's order.
+export const ALBUM_TAG_PHOTOS = 4;
+
+// POST /ai/album-tags — the assistant tags an album from a few of its photos in one request, with
+// the user's Album tags instructions and their chosen vision model; it answers as POST /ai/tags does
+// (tagPhotoResponseSchema), and the app puts the tags on every photo of the album once the user saves.
+export const tagAlbumRequestSchema = z.object({ images: z.array(visionImageSchema).min(1).max(ALBUM_TAG_PHOTOS) });
+export type TagAlbumRequest = z.infer<typeof tagAlbumRequestSchema>;
+
 // POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the New
 // contact sheet, as instructions.contactScreenshot says. Each field is empty when the screenshot
 // doesn't show it; the handles come normalized (normalizeHandle), the place as its city, state and

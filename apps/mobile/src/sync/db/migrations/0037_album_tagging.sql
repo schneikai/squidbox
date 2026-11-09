@@ -1,0 +1,1 @@
+ALTER TABLE `instructions` ADD `album_tagging` text;

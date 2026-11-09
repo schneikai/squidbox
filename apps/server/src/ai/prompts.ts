@@ -277,22 +277,23 @@ export function xProfileMessages(template: string, profile: XProfileText): ChatM
 }
 
 /**
- * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
- * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line
- * is left out without any, as for a compare) as the system message, then the photo.
+ * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags or Album tags
+ * instructions, or a compare's prompt) filled with the creator's content themes (their persona's
+ * `contentTags`; the line is left out without any, as for a compare) as the system message, then
+ * the photos in one user message, one image part each.
  */
 export function visionMessages({
   prompt,
-  imageDataUrl,
+  imageDataUrls,
   contentTags = [],
 }: {
   prompt: string;
-  imageDataUrl: string;
+  imageDataUrls: string[];
   contentTags?: string[];
 }): ChatMessage[] {
   return [
     { role: 'system', content: fillLines(prompt, { themes: contentTags.join(', ') }) },
-    { role: 'user', content: [{ type: 'image_url', image_url: { url: imageDataUrl } }] },
+    { role: 'user', content: imageDataUrls.map((url) => ({ type: 'image_url' as const, image_url: { url } })) },
   ];
 }
 
@@ -310,7 +311,7 @@ export function compareVisionMessages({
   imageDataUrl: string;
   earlierRounds?: string[][];
 }): ChatMessage[] {
-  const [system, photo] = visionMessages({ prompt, imageDataUrl });
+  const [system, photo] = visionMessages({ prompt, imageDataUrls: [imageDataUrl] });
   return [
     { role: 'system', content: `${system!.content}\n\n${COMPARE_VISION_FORMAT}` },
     photo!,
