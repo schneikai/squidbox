@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { flushTurns } from './helpers/flushTurns';
-import tagAttempts from '../src/features/photo-tags/tagAttempts';
+import createTagAttempts from '../src/lib/createTagAttempts';
 
-describe('tagAttempts', () => {
+const tagAttempts = createTagAttempts();
+
+describe('createTagAttempts', () => {
   it('starts a photo by itself once, however often it is asked, and forgets it once tagged', async () => {
     const tag = vi.fn().mockResolvedValue(['forest']);
     tagAttempts.once('a1', tag);

@@ -4,13 +4,13 @@ import { StyleSheet, View } from 'react-native';
 import ItSeesRow from './ItSeesRow';
 import MentionsRow from './MentionsRow';
 import type { LiveChat } from './useChatSession';
+import type { ChatTagging } from './useChatTags';
 import type { Mentions } from './useMentions';
 import type { ListEdits } from './withEdits';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
 import Text from '@/components/Text';
-import type { AssetTagging } from '@/features/photo-tags/useAssetTags';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
 import { colors, layout, sizes } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
@@ -22,7 +22,7 @@ const SUBJECTS: Record<ChatSubjectKind, string> = { draft: 'New post', edit: 'Ed
 type ChatSubjectCardProps = {
   kind: ChatSubjectKind;
   assets: AssetRecord[];
-  tagging: AssetTagging;
+  tagging: ChatTagging;
   tagEdits: ListEdits;
   onEditTags: LiveChat['editTags'];
   mentions: Mentions | undefined;
@@ -32,7 +32,7 @@ type ChatSubjectCardProps = {
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
  * album named when every photo is in it; "Edit post" for a saved post), what the assistant sees in
- * them (ItSeesRow, from `tagging`, useAssetTags', with the post's tag edits `tagEdits`, changed with
+ * them (ItSeesRow, from `tagging`, useChatTags', with the post's tag edits `tagEdits`, changed with
  * `onEditTags`) and the handles it may mention (`mentions`, usePostChat's, changed with `onEditMentions`), as grey
  * lines.
  */
