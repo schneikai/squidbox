@@ -1,3 +1,4 @@
+import { normalizeHandle } from '@squidbox/shared';
 import { and, asc, count, desc, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -187,8 +188,20 @@ export async function matchingContactIds(
     .select({ id: c.id, ...SEARCHED })
     .from(c)
     .where(liveness);
-  return matchingIds(
-    rows.map((row) => ({ id: row.id, text: contactSearchText(row) })),
-    searchText,
-  );
+  const texts = rows.map((row) => ({ id: row.id, text: contactSearchText(row) }));
+  const handle = typedHandle(searchText);
+  const ids = matchingIds(texts, searchText);
+  return handle ? [...new Set([...ids, ...matchingIds(texts, handle)])] : ids;
+}
+
+/**
+ * The handle a search typed as a handle is (normalizeHandle, as a handle field saves it): "@MayaL" or
+ * a pasted "https://x.com/MayaL?s=21" → "mayal". Null for a search with spaces, or one that already is
+ * its handle.
+ */
+function typedHandle(searchText: string): string | null {
+  const text = searchText.trim();
+  if (/\s/.test(text)) return null;
+  const handle = normalizeHandle(text);
+  return handle && handle !== text.toLowerCase() ? handle : null;
 }

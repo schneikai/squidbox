@@ -132,8 +132,9 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ search: 'BENCLIMBS' }))).toEqual(['ben']);
   });
 
-  it('search finds a handle shown with @ when the @ is typed', async () => {
+  it('search finds a handle typed as a handle field takes it: with @ or as a profile URL', async () => {
     expect(await ids(contactQuery({ search: '@BenClimbs ' }))).toEqual(['ben']);
+    expect(await ids(contactQuery({ search: 'https://x.com/BenClimbs?s=21' }))).toEqual(['ben']);
   });
 
   it('search ignores accents both ways', async () => {
