@@ -139,6 +139,8 @@ test('Add to Album finds an album by search and adds the photo to it', async ({ 
 
 test("Tags in the album's menu puts a typed tag on all its photos", async ({ page }) => {
   const name = uniqueName('Granite slabs');
+  // The account's photos keep their tags from run to run, so the tag is new each time.
+  const tag = uniqueName('granite');
   await createAlbum(page, name);
   const album = await addPhotos(page, name, 2);
   const sheet = page.getByTestId('album-tags-sheet');
@@ -152,14 +154,14 @@ test("Tags in the album's menu puts a typed tag on all its photos", async ({ pag
   await expect(sheet.getByText('on all 2 photos', { exact: true })).toBeVisible();
   await expect(button(sheet, 'Save')).toBeDisabled();
   await button(sheet, 'Add a tag').click();
-  await sheet.getByPlaceholder('Tag').fill('granite');
+  await sheet.getByPlaceholder('Tag').fill(tag);
   await sheet.getByPlaceholder('Tag').press('Enter');
   await expect(button(sheet, 'Save')).toBeEnabled();
   await button(sheet, 'Save').click();
   await expect(sheet).toBeHidden();
 
   await openTags();
-  await expect(sheet.getByText('granite', { exact: true })).toBeVisible();
-  await expect(sheet.getByLabel('granite, on some photos')).toHaveCount(0);
+  await expect(sheet.getByText(tag, { exact: true })).toBeVisible();
+  await expect(sheet.getByLabel(`${tag}, on some photos`)).toHaveCount(0);
   await expect(button(sheet, 'Save')).toBeDisabled();
 });
