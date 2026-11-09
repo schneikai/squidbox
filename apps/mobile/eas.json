@@ -12,10 +12,16 @@
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview"
+      "environment": "preview",
+      "env": {
+        "SQUIDBOX_APP_BUILD": "1"
+      }
     },
     "production": {
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "SQUIDBOX_APP_BUILD": "1"
+      }
     }
   },
   "submit": {

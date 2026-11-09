@@ -69,10 +69,11 @@ async function syncedLibrary(count: number) {
 describe('performance at library scale', () => {
   it('a first sync commits about 5,000 records per transaction', async () => {
     const { db, measure } = makeMeasuredTestDb();
+    await runSyncOnce(db, pullTransport([])); // the one-time writes: the pulled shape, the first-sync flag
     const empty = await measure(() => runSyncOnce(db, pullTransport([])));
     const first = await measure(() => runSyncOnce(db, pullTransport(makeAssets(12_000))));
     // 12 pages: 5 + 5 + 2, one transaction each, instead of one per page.
-    expect(first.commits - empty.commits).toBe(2);
+    expect(first.commits - empty.commits).toBe(3);
   });
 
   it('a first sync never scans the big tables', async () => {

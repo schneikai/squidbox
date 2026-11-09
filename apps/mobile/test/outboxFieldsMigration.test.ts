@@ -1,26 +1,16 @@
 import { assetCollection } from '@squidbox/shared';
 import Database from 'better-sqlite3';
-import { readMigrationFiles } from 'drizzle-orm/migrator';
-import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
-import journal from '../src/sync/db/migrations/meta/_journal.json';
+import { migrationIndex, runMigrations } from './helpers/testDb';
 
-const migrationsFolder = fileURLToPath(new URL('../src/sync/db/migrations', import.meta.url));
-const migrations = readMigrationFiles({ migrationsFolder });
-const index = journal.entries.findIndex((entry) => entry.tag === '0011_outbox_fields');
-
-function migrate(sqlite: Database.Database, from: number, to: number) {
-  for (const migration of migrations.slice(from, to)) {
-    for (const statement of migration.sql) sqlite.exec(statement);
-  }
-}
+const index = migrationIndex('0011_outbox_fields');
 
 describe('migration 0011_outbox_fields', () => {
   it('names every merge field of a waiting payload at its updatedAt, so it merges like a whole record', () => {
     const sqlite = new Database(':memory:');
-    migrate(sqlite, 0, index);
+    runMigrations(sqlite, { to: index });
     const { notes: _notes, ...rest } = makeAssetRecord({ updatedAt: 2000 });
     const withoutNotes = { ...rest, stray: 'not a field' };
     sqlite
@@ -29,7 +19,7 @@ describe('migration 0011_outbox_fields', () => {
       )
       .run(withoutNotes.id, JSON.stringify(withoutNotes), 2000);
 
-    migrate(sqlite, index, index + 1);
+    runMigrations(sqlite, { from: index, to: index + 1 });
 
     const { fields } = sqlite.prepare('SELECT fields FROM outbox').get() as { fields: string };
     const expected = assetCollection.mergeFields.filter((key) => key in withoutNotes);
@@ -41,8 +31,8 @@ describe('migration 0011_outbox_fields', () => {
 describe('migration 0031_contacts', () => {
   it('gives an outbox row from before it an empty list of uploaded files', () => {
     const sqlite = new Database(':memory:');
-    const contacts = journal.entries.findIndex((entry) => entry.tag === '0031_contacts');
-    migrate(sqlite, 0, contacts);
+    const contacts = migrationIndex('0031_contacts');
+    runMigrations(sqlite, { to: contacts });
     const asset = makeAssetRecord();
     sqlite
       .prepare(
@@ -50,7 +40,7 @@ describe('migration 0031_contacts', () => {
       )
       .run(asset.id, JSON.stringify(asset));
 
-    migrate(sqlite, contacts, contacts + 1);
+    runMigrations(sqlite, { from: contacts, to: contacts + 1 });
 
     const { uploaded_files } = sqlite.prepare('SELECT uploaded_files FROM outbox').get() as { uploaded_files: string };
     expect(JSON.parse(uploaded_files)).toEqual([]);

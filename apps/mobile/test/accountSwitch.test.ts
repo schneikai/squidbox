@@ -26,6 +26,9 @@ const store: { session: Session | null } = { session: null };
 vi.mock('../src/sync/db/client', async () => (await import('./helpers/fakeDevice')).dbClient());
 vi.mock('@react-native-async-storage/async-storage', async () => (await import('./helpers/fakeDevice')).asyncStorage());
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
+// The build's header: the install's id (secure storage) and commit (expo-constants) need native modules.
+vi.mock('../src/utils/cloud-api/deviceId', () => ({ loadDeviceIdAsync: async () => {} }));
+vi.mock('../src/utils/cloud-api/clientHeader', () => ({ clientHeader: () => ({}) }));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('expo-file-system', async () =>
   (await import('./helpers/fakeFileSystem')).fakeFileSystem({ document: 'file:///docs/' }),

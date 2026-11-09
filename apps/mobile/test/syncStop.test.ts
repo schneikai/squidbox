@@ -9,10 +9,11 @@ import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import type { SyncIdentity } from '../src/library/sessionMatches';
 import * as repo from '../src/sync/assetsRepository';
+import { pulledShape } from '../src/sync/clientCollections';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { startRun } from '../src/sync/runGate';
-import { getCursor, isFirstSyncDone, setCursor } from '../src/sync/status';
+import { getCursor, isFirstSyncDone, pullCursor, setCursor } from '../src/sync/status';
 import type { SyncTransport } from '../src/sync/transport';
 import {
   APPLY_BATCH,
@@ -141,6 +142,7 @@ describe('withSyncPaused', () => {
   // A full resync tapped just before a paused section starts finds the runs paused: it fails
   // with a message to try again (the section may switch libraries), and nothing runs in its place.
   it('a full resync held back by a pause fails, to be tapped again', async () => {
+    await pullCursor(db, pulledShape());
     await setCursor(db, 5000); // a sync pulls from here, a full resync from the start
     const pulls: number[] = [];
     transportImpl.current = {

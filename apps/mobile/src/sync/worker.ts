@@ -9,7 +9,7 @@ import {
 } from '@squidbox/shared';
 import { and, gt } from 'drizzle-orm';
 
-import { clientCollectionTables } from './clientCollections';
+import { clientCollectionTables, pulledShape } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { FileUploadRefusedError } from './fileUploadErrors';
@@ -26,7 +26,7 @@ import {
 import { planPushOutcome } from './pushPlan';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
-import { getCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import { pullCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
 import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
@@ -82,7 +82,7 @@ export async function runSyncOnce(
     notes.push(...p.notes);
     if (p.stopped) notes.push('stopped during push');
     else {
-      const pull = await pullPhase(db, transport, signal);
+      const pull = await pullPhase(db, transport, signal, notes);
       pulled = pull.pulled;
       if (pull.stopped) notes.push('stopped during pull');
     }
@@ -339,15 +339,21 @@ function pushTo<K, V>(lists: Map<K, V[]>, key: K, value: V): void {
 }
 
 // Downloads the next batch while applying one; a stop ends the run after the batch at hand, which
-// commits with its cursor.
+// commits with its cursor. A build that learned collections or fields pulls from the beginning once
+// (status.ts pullCursor), noted in the sync log.
 async function pullPhase(
   db: SyncDb,
   transport: SyncTransport,
   signal: AbortSignal,
+  notes: string[],
 ): Promise<{ pulled: number; stopped: boolean }> {
   await patchStatus(db, { phase: 'pulling' });
   if (signal.aborted) return { pulled: 0, stopped: true };
-  let cursor = await getCursor(db);
+  const start = await pullCursor(db, pulledShape());
+  // Noted before the pull, so a run that fails on the way still logs the restart.
+  if (start.newFields)
+    notes.push(`pull restarted from the beginning: new synced fields or collections (${start.newFields.join(', ')})`);
+  let cursor = start.cursor;
   let pulled = 0;
   // Ends a download ahead once the run stops or an apply fails.
   let ended = false;
