@@ -38,7 +38,7 @@ describe('chatTags', () => {
 
     const [row] = await readByIds(current.db!, schema.assets, ['c1']);
     expect(row.tags).toBeNull();
-    expect(chatTags.withTags([row])[0].tags).toEqual(['forest', 'morning fog']);
+    expect(chatTags.withTags([row], chatTags.tags.get())[0].tags).toEqual(['forest', 'morning fog']);
   });
 
   it("shows a photo's stored tags over the chat's own", () => {

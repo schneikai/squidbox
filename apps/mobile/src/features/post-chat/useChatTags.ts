@@ -2,9 +2,9 @@ import type { AssetRecord } from '@squidbox/shared';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import chatTags from './chatTags';
+import taggingState from './taggingState';
 
 import { MIN_REREAD_INTERVAL } from '@/constants';
-import taggingState from '@/features/photo-tags/taggingState';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useVisionImageDeps from '@/hooks/useVisionImageDeps';
 import { readLiveAssets } from '@/sync/aiStateRepository';

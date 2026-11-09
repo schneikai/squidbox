@@ -1,5 +1,5 @@
-import createTagAttempts from '@/features/photo-tags/createTagAttempts';
 import createStore from '@/lib/createStore';
+import createTagAttempts from '@/lib/createTagAttempts';
 import type { AssetRow } from '@/sync/db/schema';
 import readVisionImageAsync, { type VisionAsset, type VisionImageReadDeps } from '@/utils/assets/readVisionImageAsync';
 import tagPhotoAsync from '@/utils/cloud-api/ai/tagPhotoAsync';
@@ -16,11 +16,15 @@ async function tagAsync(asset: VisionAsset, deps: VisionImageReadDeps): Promise<
   return result;
 }
 
-/** `rows` with the chat's tags on those never tagged; the rows as they are when it has none for them. */
+/**
+ * `rows` with the chat's tags (`byId`, the `tags` store's value) on those never tagged; `rows` itself
+ * when it has none for them, so a tag landing for another post's photo changes nothing here.
+ */
 function withTags<Row extends Pick<AssetRow, 'id' | 'tags'>>(
   rows: readonly Row[],
-  byId: Partial<Record<string, string[]>> = tags.get(),
-): Row[] {
+  byId: Partial<Record<string, string[]>>,
+): readonly Row[] {
+  if (!rows.some((row) => row.tags === null && byId[row.id])) return rows;
   return rows.map((row) => {
     const kept = byId[row.id];
     return row.tags === null && kept ? { ...row, tags: kept } : row;
@@ -31,7 +35,7 @@ function withTags<Row extends Pick<AssetRow, 'id' | 'tags'>>(
  * The post chat's own tagging of the photos never tagged: `run(asset, deps)` (tags it again, joining
  * one under way) and `once(asset, deps)` (unless it was tried in this app run), both keeping the tags
  * in memory only; `attempts` (createTagAttempts', the chat's taggings), `tags` (the store of the tags
- * it got, by asset id) and `withTags(rows, byId?)`. A photo with stored tags is never tagged here:
+ * it got, by asset id) and `withTags(rows, byId)`. A photo with stored tags is never tagged here:
  * only Tag it on the photo and the album's Tags store AI tags on a photo.
  */
 const chatTags = {

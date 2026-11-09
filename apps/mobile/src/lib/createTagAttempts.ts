@@ -1,4 +1,5 @@
-import createStore from '@/lib/createStore';
+import createStore from './createStore';
+
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // A tagging under way or failed; it resolves to the photo's tags.

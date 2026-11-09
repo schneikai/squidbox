@@ -33,6 +33,7 @@ export default function chatContextReader(session: ChatSession, getSources: () =
         getDb(),
         assets.map((asset) => asset.id),
       ),
+      chatTags.tags.get(),
     );
     return {
       kind,
