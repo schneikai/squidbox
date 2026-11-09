@@ -31,15 +31,21 @@ if (git('rev-parse', `origin/${branch}`) !== commit) {
 
 const short = commit.slice(0, 8);
 if (!run('npm', ['run', 'contract:snapshot'], `${root}/apps/server`)) fail('Writing the snapshot failed.');
-if (git('status', '--porcelain') !== '') {
+if (git('status', '--porcelain', '--', buildsDir) !== '') {
   git('add', buildsDir);
   git('commit', '-q', '-m', `Contract snapshot of the build of ${short}`);
-  retry(() => git('push', '-q', 'origin', `HEAD:${branch}`));
+  // A push that still fails (the branch moved on) drops the snapshot commit: nothing is built.
+  retry(
+    () => git('push', '-q', 'origin', `HEAD:${branch}`),
+    () => git('reset', '-q', '--hard', commit),
+  );
   console.log(`Pushed the contract snapshot of ${short} to ${branch}.`);
 }
 
 const detach = git('rev-parse', 'HEAD') !== commit;
 if (detach) git('checkout', '-q', '--detach', commit);
+// Ctrl+C or SIGTERM reaches eas-cli; this script outlives it to check the branch out again.
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {});
 const started = run(
   'npx',
   ['--yes', 'eas-cli', 'build', '-p', 'ios', '-e', profile, '--non-interactive', '--no-wait'],
@@ -58,12 +64,15 @@ function run(command, args, cwd, env = {}) {
 }
 
 // Network calls are retried with backoff (2, 4, 8, 16 s) before giving up.
-function retry(action) {
+function retry(action, onFailure = () => {}) {
   for (let attempt = 0; ; attempt++) {
     try {
       return action();
     } catch (error) {
-      if (attempt === 4) fail(error.message);
+      if (attempt === 4) {
+        onFailure();
+        fail(error.message);
+      }
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000 * 2 ** attempt);
     }
   }

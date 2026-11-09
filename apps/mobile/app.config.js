@@ -20,6 +20,10 @@ function gitCommit() {
 function requirePushedSnapshot(commit) {
   const { SQUIDBOX_APP_BUILD, SQUIDBOX_NOT_A_BUILD, EAS_BUILD } = process.env;
   if (!SQUIDBOX_APP_BUILD || SQUIDBOX_NOT_A_BUILD || EAS_BUILD) return;
+  // eas-cli uploads the working tree: changes there would ship code the snapshot doesn't describe.
+  if (execSync('git status --porcelain', { encoding: 'utf8' }).trim()) {
+    throw new Error('app.config.js: an App build needs a clean checkout. Build it with `npm run ios:app`.');
+  }
   // The snapshot's name, as snapshotFile (apps/server/src/contract/snapshots.ts) writes it.
   const snapshot = `:(top,glob)apps/server/contract/builds/*-${commit.slice(0, 8)}.json`;
   const pushed = execSync(`git log --remotes -1 --format=%H -- "${snapshot}"`, { encoding: 'utf8' }).trim();
