@@ -132,6 +132,10 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ search: 'BENCLIMBS' }))).toEqual(['ben']);
   });
 
+  it('search finds a handle shown with @ when the @ is typed', async () => {
+    expect(await ids(contactQuery({ search: '@BenClimbs ' }))).toEqual(['ben']);
+  });
+
   it('search ignores accents both ways', async () => {
     await contacts.create(
       db,
