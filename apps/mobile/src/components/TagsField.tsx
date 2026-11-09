@@ -58,7 +58,7 @@ function TagsField({
   const mixedKeys = useMemo(() => new Set(mixed?.tags.map(tagKey)), [mixed?.tags]);
 
   function addTag() {
-    // Cleared first, so the blur after a refused mixed tap (an alert) finds nothing to add.
+    // Cleared first, so the blur after a submit finds nothing left to add.
     setText('');
     const key = tagKey(text);
     const match = mixed?.tags.find((tag) => tagKey(tag) === key);

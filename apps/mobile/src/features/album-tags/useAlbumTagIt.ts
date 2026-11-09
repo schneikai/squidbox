@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import rankSampleTags from './rankSampleTags';
+import countTags from './countTags';
 import spreadSample from './spreadSample';
 
 import useHaptics from '@/hooks/useHaptics';
@@ -20,7 +20,7 @@ const SUGGESTED_TAGS = 10;
 /**
  * An album's Tag it: `tagIt(photoIds)` (in the album's order) tags SAMPLE_PHOTOS of them spread
  * through it, each by itself (POST /ai/tags, as a photo's Tag it, at the same time), and resolves to
- * their tags ranked by how many of them have each (rankSampleTags), or to null once it failed
+ * their tags ranked by how many of them have each (countTags), or to null once it failed
  * (`error`): a photo that can't be read or tagged is left out, and it fails only when every one did.
  * Unmounting aborts it. Stores nothing on the photos. A failure is felt; the caller plays the success.
  */
@@ -49,7 +49,9 @@ export default function useAlbumTagIt() {
       if (signal.aborted) return null;
       const lists = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
       if (lists.length === 0) throw (results[0] as PromiseRejectedResult).reason;
-      return rankSampleTags(lists, SUGGESTED_TAGS);
+      return countTags(lists)
+        .slice(0, SUGGESTED_TAGS)
+        .map((entry) => entry.tag);
     } catch (caught) {
       if (signal.aborted) return null;
       haptics.error();

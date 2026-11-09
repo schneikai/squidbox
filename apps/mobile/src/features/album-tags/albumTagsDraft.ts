@@ -1,5 +1,7 @@
 import { uniqueTags } from '@squidbox/shared';
 
+import countTags from './countTags';
+
 import type { AssetRow } from '@/sync/db/schema';
 import tagKey from '@/utils/tagKey';
 import tagsDifference, { type TagsEdit } from '@/utils/tagsDifference';
@@ -45,18 +47,11 @@ export default albumTagsDraft;
 // photos in the album's order, each one's tags in theirs). A photo with `tags === null` has none.
 // Tags are grouped by tagKey; a chip shows the first spelling.
 function start(photos: readonly AlbumTagsPhoto[]): AlbumTagsDraft {
-  const byKey = new Map<string, { tag: string; count: number }>();
-  for (const photo of photos) {
-    for (const tag of uniqueTags(photo.tags ?? [])) {
-      const key = tagKey(tag);
-      const entry = byKey.get(key);
-      byKey.set(key, { tag: entry?.tag ?? tag, count: (entry?.count ?? 0) + 1 });
-    }
-  }
-  // Array.prototype.sort is stable, so equal counts keep their first appearance.
-  const tags = [...byKey]
-    .sort(([, a], [, b]) => b.count - a.count)
-    .map(([key, { tag, count }]) => ({ tag, key, onAll: count === photos.length }));
+  const tags = countTags(photos.map((photo) => photo.tags)).map(({ tag, key, count }) => ({
+    tag,
+    key,
+    onAll: count === photos.length,
+  }));
   return { tags, seed: tags };
 }
 
@@ -71,12 +66,10 @@ function mixedTags(draft: AlbumTagsDraft): string[] {
 // The tags newly on all and those taken off, against the tags the sheet opened with.
 function edit(draft: AlbumTagsDraft): TagsEdit {
   const seedOnAll = new Set(draft.seed.filter((entry) => entry.onAll).map((entry) => entry.key));
+  const draftKeys = new Set(draft.tags.map((entry) => entry.key));
   return {
     add: draft.tags.filter((entry) => entry.onAll && !seedOnAll.has(entry.key)).map((entry) => entry.tag),
-    remove: tagsDifference(
-      draft.seed.map((entry) => entry.tag),
-      draftTags(draft),
-    ).remove,
+    remove: draft.seed.filter((entry) => !draftKeys.has(entry.key)).map((entry) => entry.tag),
   };
 }
 
