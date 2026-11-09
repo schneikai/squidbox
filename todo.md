@@ -46,7 +46,8 @@ only user and knows his phone's build.
 
 Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
 matching terms above the field, each with how many assets it finds (Apple Photos: "mvp 3",
-"mvz 1"). Terms would come from the words of the assets' notes, which is what `assetQuery` searches.
+"mvz 1"). Terms would come from the words of the assets' notes, tags and tagged contacts' names,
+which is what `assetQuery` searches.
 
 ### [ ] Share several assets at once
 
@@ -398,6 +399,13 @@ deleted or restored.
 
 ## Ideas
 
+- **Album search by tags (maybe).** The album search (`albumSearchQuery`, `matchedAlbumIds`) matches
+  an album's name, notes and the contacts on its photos, not the assistant's tags. Broad tags ("sky",
+  "trail") would match nearly every album; if wanted, count a tag only when it's on a good share of
+  the album's photos. Apple and Google Photos also find albums by name only.
+- **Post search by tagged contacts (maybe).** The post search (`postQuery` `matchedIds`) matches only
+  the post's text (an @mention included). Matching the contacts tagged on its photos, as the album
+  search does (`contactAlbumIds`), would find a post by the person in it.
 - **Backup progress ring.** The Backup screen shows a running backup as "sent / total" text.
   `components/ProgressRing` (now a shared component, used by the progress overlay) could show it
   there too. Owner to decide.

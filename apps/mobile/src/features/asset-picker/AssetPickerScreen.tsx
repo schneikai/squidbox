@@ -9,8 +9,8 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import SegmentedPill, { type SegmentedPillItem } from '@/components/floating-bars/SegmentedPill';
 import useAlbum from '@/features/album-detail/useAlbum';
-import AlbumPicker from '@/features/album-list/AlbumPicker';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
+import AlbumPicker from '@/features/asset-picker/AlbumPicker';
 import AssetPickerGrid from '@/features/asset-picker/AssetPickerGrid';
 import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useScrollY from '@/hooks/useScrollY';
@@ -115,8 +115,6 @@ export default function AssetPickerScreen() {
       {isPickingAlbum ? (
         <AlbumPicker
           onPick={(nextAlbum: AlbumRow) => showView('Albums', nextAlbum)}
-          showSmartAlbums
-          paddingTop={layout.sheetContentTop}
           onScroll={onScroll}
           expandProgress={expandProgress}
         />

@@ -6,6 +6,7 @@ import Chip from '@/components/Chip';
 import Icon from '@/components/Icon';
 import SuperPressable from '@/components/SuperPressable';
 import Text from '@/components/Text';
+import albumAssetCountText from '@/features/album-list/albumAssetCountText';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import useAlbums from '@/features/albums-context/useAlbums';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
@@ -46,7 +47,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const names = people?.map((contact) => contact.name) ?? [];
   const lastPostedAt = posts.rows?.[0]?.postedAt ?? null;
   const details = [
-    pluralizeText('1 Asset', '%{count} Assets', assetCount ?? 0),
+    albumAssetCountText(assetCount ?? 0),
     ...(posts.rows ? [albumLastPostedText({ lastPostedAt })] : []),
   ].join(' · ');
 

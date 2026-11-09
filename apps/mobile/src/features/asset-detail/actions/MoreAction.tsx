@@ -31,7 +31,7 @@ export default function MoreAction({ asset }: MoreActionProps) {
 
   return (
     <MenuButton>
-      <MenuOption label="Add to album" icon="library" onPress={handleAddToAlbum} />
+      <MenuOption label="Add to Album" icon="library" onPress={handleAddToAlbum} />
       <MenuOption label="Create post" icon="edit" onPress={handleCreatePost} />
       <MenuOption label="Copy file URL" icon="link" onPress={handleCopyFileUrl} />
     </MenuButton>

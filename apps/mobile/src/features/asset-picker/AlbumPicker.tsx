@@ -10,6 +10,7 @@ import albumSortOptions from '@/features/album-list/actions/sort-albums-action/a
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useListControls from '@/hooks/useListControls';
@@ -17,30 +18,21 @@ import { layout, press } from '@/styles/designTokens';
 
 type AlbumPickerProps = {
   onPick: (album: AlbumListRow) => void;
-  showSmartAlbums?: boolean;
-  paddingTop: number;
   onScroll?: ScrollHandlerProcessed;
   expandProgress?: SharedValue<number>;
 };
 
-// The albums of a modal to pick one from, with search, sort and filter; a tap hands the album to
-// `onPick`. Smart albums show with `showSmartAlbums` (to pick assets from Favorites, not to add to
-// it), but never Deleted: nothing is picked from the trash. `onScroll` and `expandProgress` let the
-// modal animate its header and a segment pill.
-export default function AlbumPicker({
-  onPick,
-  showSmartAlbums = false,
-  paddingTop,
-  onScroll,
-  expandProgress,
-}: AlbumPickerProps) {
+// The photo picker's albums to pick one from, with search, sort and filter; a tap hands the album to
+// `onPick`. Smart albums show (to pick assets from Favorites), but never Deleted: nothing is picked
+// from the trash. `onScroll` and `expandProgress` let the modal animate its header and a segment pill.
+export default function AlbumPicker({ onPick, onScroll, expandProgress }: AlbumPickerProps) {
   const { bottom } = useSafeAreaInsets();
 
   const { sortOrder, sortAlbums } = useSortAlbumsAction();
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
     onSort: sortAlbums,
   });
-  const { albums } = usePreparedAlbums({ sortOrder, activeFilter, searchText, showSmartAlbums, showDeleted: false });
+  const { albums } = usePreparedAlbums({ sortOrder, activeFilter, searchText, showDeleted: false });
 
   return (
     <>
@@ -48,7 +40,7 @@ export default function AlbumPicker({
         listRef={listRef}
         albums={albums}
         contentContainerStyle={{
-          paddingTop,
+          paddingTop: layout.sheetContentTop,
           paddingBottom: bottom + layout.barClearance,
         }}
         onScroll={onScroll}
@@ -61,7 +53,7 @@ export default function AlbumPicker({
       <SearchSortFilterBar
         search={searchBar}
         expandProgress={expandProgress}
-        placeholder="Search albums…"
+        placeholder={ALBUM_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}

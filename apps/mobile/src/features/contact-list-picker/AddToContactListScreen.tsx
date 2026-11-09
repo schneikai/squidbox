@@ -3,7 +3,8 @@ import { useState } from 'react';
 
 import ContactListPicker from './ContactListPicker';
 
-import EditSheet from '@/components/EditSheet';
+import EditSheetHeader from '@/components/EditSheetHeader';
+import ModalSheet from '@/components/ModalSheet';
 import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import listParam from '@/lib/listParam';
@@ -20,8 +21,9 @@ export default function AddToContactListScreen() {
   });
 
   return (
-    <EditSheet {...sheetProps} title="Add to lists">
+    <ModalSheet>
+      <EditSheetHeader {...sheetProps} title="Add to lists" />
       <ContactListPicker selectedIds={listIds} onChange={setListIds} />
-    </EditSheet>
+    </ModalSheet>
   );
 }
