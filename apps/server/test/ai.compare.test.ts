@@ -76,7 +76,7 @@ describe('visionMessages', () => {
   it('sends the Photo tags briefing as the system message, then the photo', () => {
     const [system, user] = visionMessages({
       prompt: DEFAULT_INSTRUCTIONS.visionTagging,
-      imageDataUrls: ['data:image/jpeg;base64,AAAA'],
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
     });
     expect(system!.role).toBe('system');
     expect(system!.content).toMatch(/^You generate tags for images/);
@@ -90,7 +90,7 @@ describe('visionMessages', () => {
   it("fills in the creator's content themes when they have any", () => {
     const [system] = visionMessages({
       prompt: DEFAULT_INSTRUCTIONS.visionTagging,
-      imageDataUrls: ['data:image/jpeg;base64,AAAA'],
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
       contentTags: ['landscape', 'golden hour'],
     });
     expect(system!.content).toContain(
@@ -101,22 +101,10 @@ describe('visionMessages', () => {
   it("uses the user's own Photo tags text, an unknown placeholder left as it is", () => {
     const [system] = visionMessages({
       prompt: 'Think of {themes} and {other}.',
-      imageDataUrls: ['data:image/jpeg;base64,AAAA'],
+      imageDataUrl: 'data:image/jpeg;base64,AAAA',
       contentTags: ['moss', 'fog'],
     });
     expect(system).toEqual({ role: 'system', content: 'Think of moss, fog and {other}.' });
-  });
-
-  it('sends several photos as image parts of one user message', () => {
-    const messages = visionMessages({
-      prompt: DEFAULT_INSTRUCTIONS.albumTagging,
-      imageDataUrls: ['data:image/jpeg;base64,AAAA', 'data:image/jpeg;base64,BBBB'],
-    });
-    expect(messages).toHaveLength(2);
-    expect(messages[1]!.content).toEqual([
-      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
-      { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,BBBB' } },
-    ]);
   });
 });
 
@@ -168,7 +156,7 @@ describe('checking the replies', () => {
 describe('runTask', () => {
   const messages = visionMessages({
     prompt: 'Tag it',
-    imageDataUrls: ['data:image/jpeg;base64,AAAA'],
+    imageDataUrl: 'data:image/jpeg;base64,AAAA',
   });
 
   it("resolves the model's reply once it passes the task's check", async () => {

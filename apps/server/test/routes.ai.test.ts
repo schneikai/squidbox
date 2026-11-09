@@ -71,7 +71,6 @@ vi.mock('../src/config.js', async (importOriginal) => {
 });
 
 import {
-  ALBUM_TAG_PHOTOS,
   ASSET_TAG_LIMITS,
   CHAT_LIMITS,
   CONTACT_HANDLES,
@@ -168,9 +167,6 @@ const chatBodies = () =>
 
 const writing = { prompt: 'Write 3 posts about a sunrise hike', modelIds: ['kimi-k3', 'z-ai-glm-5-3'] };
 const tagRequest = { image: { base64: 'AAAA', mimeType: 'image/jpeg' } };
-const albumTagRequest = {
-  images: ['AAAA', 'BBBB'].map((base64) => ({ base64, mimeType: 'image/jpeg' })),
-};
 const CONTACT_READ = {
   name: ' Maya Lindqvist ',
   xHandle: '@MayaL',
@@ -249,7 +245,6 @@ describe('without VENICE_API_KEY', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
-      ['POST', '/ai/album-tags', albumTagRequest],
       ['POST', '/ai/contact-from-link', linkRequest],
       ['POST', '/ai/chat', chatRequest],
     ] as const) {
@@ -272,7 +267,6 @@ describe('account features', () => {
       ['POST', '/ai/compare/writing', writing],
       ['POST', '/ai/compare/vision', vision],
       ['POST', '/ai/tags', tagRequest],
-      ['POST', '/ai/album-tags', albumTagRequest],
       ['POST', '/ai/contact-from-screenshot', tagRequest],
       ['POST', '/ai/contact-from-link', linkRequest],
       ['POST', '/ai/chat', chatRequest],
@@ -305,12 +299,11 @@ describe('account features', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('lets an account with ai only list the models, tag a photo or an album and chat', async () => {
+  it('lets an account with ai only list the models, tag a photo and chat', async () => {
     signedInWith(['ai']);
     veniceAnswers();
     expect((await call('GET', '/ai/models')).statusCode).toBe(200);
     expect((await call('POST', '/ai/tags', tagRequest)).statusCode).toBe(200);
-    expect((await call('POST', '/ai/album-tags', albumTagRequest)).statusCode).toBe(200);
     const chat = await call('POST', '/ai/chat', chatRequest);
     expect(chat.statusCode).toBe(200);
     expect(chat.json()).toEqual(CHAT_REPLY);
@@ -823,47 +816,6 @@ describe('POST /api/v1/ai/tags', () => {
     const base64 = 'A'.repeat(2 * 1024 * 1024 + 1);
     const res = await call('POST', '/ai/tags', { image: { ...tagRequest.image, base64 } });
     expect(res.statusCode).toBe(413);
-  });
-});
-
-describe('POST /api/v1/ai/album-tags', () => {
-  it("sends every photo in one request, briefed by the user's Album tags filled with their themes, on their vision model", async () => {
-    veniceAnswers();
-    vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, albumTagging: 'Tags for {themes}.' });
-    vi.mocked(readPersona).mockResolvedValueOnce({ aboutYou: '', tone: '', contentTags: ['landscape'], rules: [] });
-    vi.mocked(readChosenModelId).mockResolvedValueOnce('qwen-3-6-plus');
-    const res = await call('POST', '/ai/album-tags', albumTagRequest);
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ tags });
-    const [body, ...others] = chatBodies();
-    expect(others).toHaveLength(0);
-    expect(body.model).toBe('qwen-3-6-plus');
-    expect(body.messages).toEqual([
-      { role: 'system', content: 'Tags for landscape.' },
-      {
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
-          { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,BBBB' } },
-        ],
-      },
-    ]);
-  });
-
-  it('400 without photos or with more than ALBUM_TAG_PHOTOS', async () => {
-    veniceAnswers();
-    const image = albumTagRequest.images[0]!;
-    for (const images of [[], Array.from({ length: ALBUM_TAG_PHOTOS + 1 }, () => image)]) {
-      expect((await call('POST', '/ai/album-tags', { images })).statusCode).toBe(400);
-    }
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('502 ai_unavailable with the reason when Venice fails', async () => {
-    veniceAnswers({ chatStatus: 503 });
-    const res = await call('POST', '/ai/album-tags', albumTagRequest);
-    expect(res.statusCode).toBe(502);
-    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Model is busy' } });
   });
 });
 

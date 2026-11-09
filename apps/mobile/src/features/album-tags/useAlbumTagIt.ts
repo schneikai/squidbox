@@ -1,6 +1,6 @@
-import { ALBUM_TAG_PHOTOS, type VisionImage } from '@squidbox/shared';
 import { useEffect, useRef, useState } from 'react';
 
+import rankSampleTags from './rankSampleTags';
 import spreadSample from './spreadSample';
 
 import useHaptics from '@/hooks/useHaptics';
@@ -9,14 +9,20 @@ import { getDb } from '@/sync/db/client';
 import * as schema from '@/sync/db/schema';
 import { readByIds } from '@/sync/readByIds';
 import readVisionImageAsync from '@/utils/assets/readVisionImageAsync';
-import tagAlbumAsync from '@/utils/cloud-api/ai/tagAlbumAsync';
+import tagPhotoAsync from '@/utils/cloud-api/ai/tagPhotoAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
+// Photos an album's Tag it tags: the first, the last and evenly between, in the album's order.
+const SAMPLE_PHOTOS = 4;
+// Tags it suggests at most, so photos keep room for their own (ASSET_TAG_LIMITS.tags each).
+const SUGGESTED_TAGS = 10;
+
 /**
- * An album's Tag it: `tagIt(photoIds)` (in the album's order) sends ALBUM_TAG_PHOTOS of them spread
- * through it to POST /ai/album-tags and resolves to the tags, or to null once it failed (`error`).
- * Photos whose thumbnail can't be read are left out. Unmounting aborts it. Stores nothing. A failure
- * is felt; the caller plays the success once the tags are in.
+ * An album's Tag it: `tagIt(photoIds)` (in the album's order) tags SAMPLE_PHOTOS of them spread
+ * through it, each by itself (POST /ai/tags, as a photo's Tag it, at the same time), and resolves to
+ * their tags ranked by how many of them have each (rankSampleTags), or to null once it failed
+ * (`error`): a photo that can't be read or tagged is left out, and it fails only when every one did.
+ * Unmounting aborts it. Stores nothing on the photos. A failure is felt; the caller plays the success.
  */
 export default function useAlbumTagIt() {
   const haptics = useHaptics();
@@ -35,16 +41,15 @@ export default function useAlbumTagIt() {
     setIsRunning(true);
     setError(null);
     try {
-      const assets = await readByIds(getDb(), schema.assets, spreadSample(photoIds, ALBUM_TAG_PHOTOS));
-      const reads = await Promise.allSettled(assets.map((asset) => readVisionImageAsync(asset, { ...deps, signal })));
-      const images = reads.flatMap((read): VisionImage[] => (read.status === 'fulfilled' ? [read.value] : []));
-      if (images.length === 0) {
-        const failed = reads.find((read) => read.status === 'rejected');
-        throw failed ? failed.reason : new Error('This album has no photos');
-      }
-      const tags = await tagAlbumAsync(images, signal);
+      const assets = await readByIds(getDb(), schema.assets, spreadSample(photoIds, SAMPLE_PHOTOS));
+      if (assets.length === 0) throw new Error('This album has no photos');
+      const results = await Promise.allSettled(
+        assets.map(async (asset) => tagPhotoAsync(await readVisionImageAsync(asset, { ...deps, signal }), signal)),
+      );
       if (signal.aborted) return null;
-      return tags;
+      const lists = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+      if (lists.length === 0) throw (results[0] as PromiseRejectedResult).reason;
+      return rankSampleTags(lists, SUGGESTED_TAGS);
     } catch (caught) {
       if (signal.aborted) return null;
       haptics.error();

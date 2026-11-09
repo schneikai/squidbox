@@ -28,7 +28,7 @@ export async function readContactScreenshotAsync({
     const instructions = await readInstructions(db, user);
     return visionMessages({
       prompt: contactReadPrompt(instructions.contactScreenshot),
-      imageDataUrls: [imageDataUrl(image)],
+      imageDataUrl: imageDataUrl(image),
     });
   }
   return runChosenModelTask({

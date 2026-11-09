@@ -63,7 +63,7 @@ export const verifyTaggingModel: VerifyRunner = async (model, { instructions, on
     for (const file of PHOTO_FILES) {
       const messages = visionMessages({
         prompt: instructions.visionTagging,
-        imageDataUrls: [(await verifyPhotos())[file]!],
+        imageDataUrl: (await verifyPhotos())[file]!,
         contentTags: MOCK_PERSONA.contentTags,
       });
       let raw: string[] = [];

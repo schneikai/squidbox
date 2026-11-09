@@ -260,13 +260,6 @@
       "when": 1794134995022,
       "tag": "0036_album_favorited_at",
       "breakpoints": true
-    },
-    {
-      "idx": 37,
-      "version": "7",
-      "when": 1794210817257,
-      "tag": "0037_album_tagging",
-      "breakpoints": true
     }
   ]
 }

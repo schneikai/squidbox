@@ -12,10 +12,6 @@ const instructionText: Record<InstructionKind, InstructionText> = {
     title: 'Photo tags',
     description: 'The system instructions for the assistant when tagging your photos.',
   },
-  albumTagging: {
-    title: 'Album tags',
-    description: "The system instructions for the assistant when you use Tag it in an album's Tags.",
-  },
   moreLikeThis: {
     title: 'More like this',
     description: 'The system instructions for the assistant when you choose More like this on a post suggestion.',

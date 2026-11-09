@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
-  ALBUM_TAG_PHOTOS,
   aiBalanceResponseSchema,
   aiModelKindSchema,
   aiModelsResponseSchema,
@@ -19,7 +18,6 @@ import {
   modelDefaultRequestSchema,
   publishInstructionRequestSchema,
   publishInstructionResponseSchema,
-  tagAlbumRequestSchema,
   tagPhotoRequestSchema,
   tagPhotoResponseSchema,
   uncensoredRequestSchema,
@@ -31,7 +29,6 @@ import {
   type AiModelsResponse,
   type ModelDefaultVariants,
   MODEL_DEFAULT_VARIANTS,
-  VISION_IMAGE_MAX_BASE64_LENGTH,
 } from '@squidbox/shared';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
@@ -45,7 +42,7 @@ import { readContactScreenshotAsync } from './contactFromScreenshot.js';
 import { readContactFromLinkAsync } from './contactFromLink.js';
 import { publishInstruction, readAppInstructions, readInstructions } from './instructions.js';
 import { compareVisionMessages, writingMessages } from './prompts.js';
-import { tagAlbumAsync, tagPhotoAsync } from './tagging.js';
+import { tagPhotoAsync } from './tagging.js';
 import { visionTask, writingTask } from './tasks.js';
 import { orAiUnavailable, VeniceError } from './venice.js';
 import { verifyPhotos } from './tagVerify.js';
@@ -57,9 +54,6 @@ import { untilClientLeaves } from '../untilClientLeaves.js';
 
 // A body holds one photo's base64 (VISION_IMAGE_MAX_BASE64_LENGTH) and, for a compare, the model ids.
 const VISION_REQUEST_BODY_LIMIT = 2 * 1024 * 1024;
-// An album's Tag it: ALBUM_TAG_PHOTOS photos, with the same headroom over the photos as one has.
-const ALBUM_TAGS_REQUEST_BODY_LIMIT =
-  ALBUM_TAG_PHOTOS * VISION_IMAGE_MAX_BASE64_LENGTH + (VISION_REQUEST_BODY_LIMIT - VISION_IMAGE_MAX_BASE64_LENGTH);
 
 // Before any Venice call: 503 ai_not_configured when the server has no Venice key.
 async function aiConfigured(): Promise<void> {
@@ -154,28 +148,6 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
           db: getDb(),
           user: requireUser(request),
           image: request.body.image,
-          signal,
-        });
-        return { tags };
-      },
-    });
-
-    // POST /ai/album-tags — an album's Tag it (its Tags sheet): the user's vision model tags a few of
-    // the album's photos in one request, as their Album tags instructions say; the app puts the tags
-    // on every photo once the user saves. Each request carries several photos: its body limit is theirs,
-    // and its rate limit half /ai/tags'.
-    r.route({
-      method: 'POST',
-      url: '/ai/album-tags',
-      bodyLimit: ALBUM_TAGS_REQUEST_BODY_LIMIT,
-      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
-      schema: { body: tagAlbumRequestSchema, response: { 200: tagPhotoResponseSchema } },
-      handler: async (request, reply) => {
-        const signal = untilClientLeaves(reply);
-        const tags = await tagAlbumAsync({
-          db: getDb(),
-          user: requireUser(request),
-          images: request.body.images,
           signal,
         });
         return { tags };

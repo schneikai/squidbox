@@ -20,7 +20,6 @@ export const instructionCollection = defineCollection({
     modelCheckJudge: instructionText.optional(),
     contactScreenshot: instructionText.optional(),
     contactXProfile: instructionText.optional(),
-    albumTagging: instructionText.optional(),
   }),
 });
 
@@ -34,8 +33,6 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   (the post), `{count}` (the options to write). A Compare sends only its prompt box;
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content). A
  *   Compare sends its prompt box in its place, without the themes;
- * - `albumTagging`, the system message of an album's Tag it (a few of its photos in one request):
- *   `{themes}` (Your content), as `visionTagging` has it;
  * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
  * - `modelCheckJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
@@ -50,7 +47,6 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
 export const INSTRUCTION_KINDS = [
   'writing',
   'visionTagging',
-  'albumTagging',
   'moreLikeThis',
   'modelCheckJudge',
   'contactScreenshot',
@@ -63,7 +59,6 @@ const CREATOR_AND_POST = ['aboutYou', 'tone', 'contentTags', 'rules', 'posts', '
 export const INSTRUCTION_PLACEHOLDERS: Readonly<Record<InstructionKind, readonly string[]>> = Object.freeze({
   writing: [...CREATOR_AND_POST, 'count'],
   visionTagging: ['themes'],
-  albumTagging: ['themes'],
   moreLikeThis: [],
   modelCheckJudge: [...CREATOR_AND_POST, 'transcript', 'request', 'reply'],
   contactScreenshot: ['fields'],
@@ -138,15 +133,6 @@ Write handles exactly as given.`,
     "You generate tags for images to inspire creative posts and captions. Tag this photo with 8 short, specific tags. Capture what's visible, the mood, aesthetic, and interesting story angles. Lowercase, 1–2 words per tag.",
     '',
     "Creator's content themes: {themes}. Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a theme that doesn't fit the image.",
-    '',
-    'Return only a valid JSON object containing a "tags" array of unique strings. No commentary or Markdown.',
-  ].join('\n'),
-  // The album Tag it briefing (an album's Tags sheet): a sample of the album's photos in one request;
-  // the line with {themes} is left out while Your content has no tags.
-  albumTagging: [
-    'You generate tags for a photo album to inspire creative posts and captions. These photos are a sample from one album. Tag the album with 8 short, specific tags that fit all of them: the shared place, subject, mood, aesthetic and story. Leave out what only one photo shows. Lowercase, 1–2 words per tag.',
-    '',
-    "Creator's content themes: {themes}. Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a theme that doesn't fit the photos.",
     '',
     'Return only a valid JSON object containing a "tags" array of unique strings. No commentary or Markdown.',
   ].join('\n'),
