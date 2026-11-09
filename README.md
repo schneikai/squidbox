@@ -85,6 +85,8 @@ Run `/ios-build`: it asks what to build and drives EAS for you (no flags or prof
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.ts` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Installing, credentials (an App Store Connect API key, no Mac), signing renewal and the full runbook are in the `ios-build` skill.
 
+A preview or release build starts with `npm run ios:app`, which first records the commit and its contract (`apps/server/contract/builds/`), which `contract.test.ts` holds today's server to; the old-build e2e suite (`installedBuilds.e2e.test.ts`) runs the oldest and the newest of those builds (`docs/sync-design.md` §15).
+
 ### Dev client
 
 The dev client loads JS from Metro at runtime over Expo's tunnel (an `on.expo.app` URL, through your Expo account: signed in with `eas login`, or `EXPO_TOKEN` in the cloud; it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums, posts and contacts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):

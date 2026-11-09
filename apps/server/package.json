@@ -24,6 +24,7 @@
     "db:seed": "node --env-file=.env --import tsx src/db/seed.ts",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "user:features": "node --env-file=.env --import tsx scripts/user-features.ts",
+    "contract:snapshot": "node --import tsx scripts/contract-snapshot.ts",
     "split:link-threads": "node --env-file=.env --import tsx scripts/split-link-threads.ts",
     "split:link-threads:prod": "node --import tsx scripts/split-link-threads.ts"
   },
@@ -41,7 +42,8 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "tsx": "^4.19.2",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

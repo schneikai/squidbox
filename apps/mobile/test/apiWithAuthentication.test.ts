@@ -1,3 +1,4 @@
+import { CLIENT_HEADER } from '@squidbox/shared';
 import { type AxiosAdapter, AxiosError } from 'axios';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -8,6 +9,10 @@ import type { SyncIdentity } from '../src/library/sessionMatches';
 const store: { session: Session | null } = { session: null };
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/sessionStore', () => sessionStoreMock(store));
+vi.mock('../src/utils/cloud-api/clientHeader', async () => {
+  const { CLIENT_HEADER } = await import('@squidbox/shared');
+  return { clientHeader: () => ({ [CLIENT_HEADER]: 'this build' }) };
+});
 // The refresh checks the identity like the real one and rotates the stored tokens, as the real one
 // does after the server answered; `refresh.answer` is the server's answer instead: rejected (the
 // tokens go, a SessionChangedError) or unreachable.
@@ -101,6 +106,17 @@ describe('apiWithAuthentication', () => {
       SessionChangedError,
     );
     expect(bearers).toEqual([]);
+  });
+
+  it('names the build on every request', async () => {
+    let header: unknown;
+    await apiWithAuthentication.get('me', {
+      adapter: async (config) => {
+        header = config.headers.get(CLIENT_HEADER);
+        return { data: {}, status: 200, statusText: '', headers: {}, config };
+      },
+    });
+    expect(header).toBe('this build');
   });
 
   it('notes the stored session as the identity when the caller gives none', async () => {

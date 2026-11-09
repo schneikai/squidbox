@@ -5,25 +5,25 @@ import ChatTagsSheet from './ChatTagsSheet';
 import EditableLine from './EditableLine';
 import postTags from './postTags';
 import type { LiveChat } from './useChatSession';
+import type { ChatTagging } from './useChatTags';
 import type { ListEdits } from './withEdits';
 
 import Button from '@/components/Button';
 import IntroText from '@/components/IntroText';
-import type { AssetTagging } from '@/features/photo-tags/useAssetTags';
 import { colors, space } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
 import pluralizeText from '@/utils/pluralizeText';
 
-type ItSeesRowProps = Pick<AssetTagging, 'attempts' | 'isTagging' | 'untagged'> & {
-  rows: NonNullable<AssetTagging['rows']>;
+type ItSeesRowProps = Pick<ChatTagging, 'attempts' | 'isTagging' | 'untagged'> & {
+  rows: NonNullable<ChatTagging['rows']>;
   tagEdits: ListEdits;
   onEditTags: LiveChat['editTags'];
-  onRetry: AssetTagging['retry'];
+  onRetry: ChatTagging['retry'];
 };
 
 /**
  * What the assistant sees in the chat's photos (`rows`, the live assets, their `attempts` and
- * `isTagging` and `untagged`, as useAssetTags gives them), as grey lines: "Sees" and the post's tags
+ * `isTagging` and `untagged`, as useChatTags gives them), as grey lines: "Sees" and the post's tags
  * the chat sends (postTags, with the chat's `tagEdits`), a tap opening ChatTagsSheet to edit them
  * (`onEditTags({ add, remove })`, the chat's editTags; the post's tags only, never the photos');
  * "Looking at the photos…" while any is tagged; the photos whose tagging failed, with Retry

@@ -1,13 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
-import albumQuery from '../src/features/album-list/albumQuery';
+import albumQuery, { type AlbumListRow } from '../src/features/album-list/albumQuery';
+import albumSearchQuery from '../src/features/album-list/albumSearchQuery';
+import matchedAlbumIds from '../src/features/album-list/matchedAlbumIds';
+import prepareAlbums from '../src/features/album-list/prepareAlbums';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import * as repo from '../src/sync/assetsRepository';
+import * as contacts from '../src/sync/contactsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { contactLinks } from '../src/sync/membershipRepository';
 import { makeRepository } from '../src/sync/repository';
 import getAlbumAssetScope from '../src/utils/albums/getAlbumAssetScope';
 import getAlbumSortOrder from '../src/utils/albums/getAlbumSortOrder';
@@ -144,5 +149,67 @@ describe('albumQuery', () => {
     const rows = await albumQuery({ scope: { assetIds: ['asset-3'] } }).read(db);
     expect(rows.length).toBe(2);
     expect(rows.every((row) => 'lastPostedAt' in row)).toBe(true);
+  });
+});
+
+describe('album search', () => {
+  // library(), plus albums to search: Portraits holds the live asset-1 and Old only the deleted asset-4,
+  // both photos of Anna (so does library()'s `regular`, holding asset-1 too).
+  async function searchLibrary() {
+    await library();
+    await albums.createMany(db, [
+      album('Sao Paulo'),
+      album('Trip', { notes: 'Beach week' }),
+      album('Portraits'),
+      album('Old'),
+      album('Anna', { deletedAt: 5 }),
+    ]);
+    await albumEdges.add(db, 'Portraits', ['asset-1'], newId);
+    await albumEdges.add(db, 'Old', ['asset-4'], newId);
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller', xHandle: 'annashoots' }));
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'asset-1' }, ['anna'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'asset-4' }, ['anna'], newId);
+    return albumQuery({ scope: 'all' }).read(db);
+  }
+
+  async function found(rows: AlbumListRow[], search: string) {
+    const ids = matchedAlbumIds(rows, search, (await albumSearchQuery(search).read(db)).contactAlbumIds);
+    return ids && [...ids].sort();
+  }
+
+  it('albumSearchQuery finds the albums holding a live photo of a contact the search finds, by any text the Contacts tab searches', async () => {
+    await searchLibrary();
+    for (const search of ['mueller', 'annashoots']) {
+      const { contactAlbumIds } = await albumSearchQuery(search).read(db);
+      expect(contactAlbumIds.sort(), search).toEqual(['Portraits', 'regular']);
+    }
+  });
+
+  it('albumSearchQuery reads and watches nothing without a search', async () => {
+    const query = albumSearchQuery('  ');
+    expect(await query.read(db)).toEqual({ search: '', contactAlbumIds: [] });
+    expect(query.tables).toEqual([]);
+  });
+
+  it("matchedAlbumIds finds the albums by name and notes, as matchingIds does, and by their contacts' photos", async () => {
+    const rows = await searchLibrary();
+    expect(await found(rows, 'são')).toEqual(['Sao Paulo']);
+    expect(await found(rows, 'BEACH')).toEqual(['Trip']);
+    expect(await found(rows, 'anna')).toEqual(['Portraits', 'regular']); // not the deleted album named Anna
+  });
+
+  it('matchedAlbumIds is null without a search, keeping every album', async () => {
+    expect(await found(await searchLibrary(), '')).toBeNull();
+  });
+
+  it('prepareAlbums keeps the matched albums only, and all without a search', async () => {
+    await albums.createMany(db, [album('Trip'), album('Hike')]);
+    const rows = await albumQuery({ scope: 'all' }).read(db);
+    const names = (matchedIds: ReadonlySet<string> | null) =>
+      prepareAlbums({ albums: rows, sortOrder: 'createdAt:asc', matchedIds })
+        .map((row) => row.id)
+        .sort();
+    expect(names(new Set(['Trip']))).toEqual(['Trip']);
+    expect(names(null)).toEqual(['Hike', 'Trip']);
   });
 });

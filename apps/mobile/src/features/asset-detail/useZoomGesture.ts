@@ -457,11 +457,13 @@ export default function useZoomGesture({
   const pan = usePanGesture(panConfig);
 
   // Hooks can't be called conditionally: every combination is built, and the detector gets the one
-  // that fits the asset, which stays the same while it's mounted.
+  // that fits the asset. A detector doesn't take a different composition while mounted (a pager page
+  // that goes from a photo to a video), so `gestureKey` names the composition for the detector's key.
   const tapOrDoubleTap = useExclusiveGestures(doubleTap, singleTap);
   const zoomAndTaps = useSimultaneousGestures(pinch, pan, tapOrDoubleTap);
   const dragAndTap = useSimultaneousGestures(pan, singleTap);
-  const gesture = canZoom ? zoomAndTaps : verticalDrag ? dragAndTap : singleTap;
+  const gestureKey = canZoom ? 'zoom' : verticalDrag ? 'drag' : 'tap';
+  const gesture = { zoom: zoomAndTaps, drag: dragAndTap, tap: singleTap }[gestureKey];
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { translateY: translateY.value }, { scale: scale.value }],
@@ -476,5 +478,5 @@ export default function useZoomGesture({
     if (Math.abs(translateY.value) > bounds.y) translateY.value = clamp(translateY.value, -bounds.y, bounds.y);
   }
 
-  return { gesture, zoomStyle, onLayout: handleLayout };
+  return { gesture, gestureKey, zoomStyle, onLayout: handleLayout };
 }

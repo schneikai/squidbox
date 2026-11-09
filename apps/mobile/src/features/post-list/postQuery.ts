@@ -106,7 +106,7 @@ export default function postQuery({
       .select({ id: listedPostId('p'), text: p.text })
       .from(p)
       .where(isNull(p.deletedAt));
-    return [...new Set(matchingIds(rows, searchText))];
+    return matchingIds(rows, searchText);
   }
   const where = (ids: string[] | null) =>
     and(isNull(p.deletedAt), threadCondition, scopeCondition, ids ? inJson(p.id, ids) : undefined);

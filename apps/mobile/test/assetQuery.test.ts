@@ -2,13 +2,15 @@ import type { AssetRecord } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createPost, makeAssetRecord } from './helpers/factory';
+import { createPost, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
 import assetQuery from '../src/features/asset-list/assetQuery';
 import * as repo from '../src/sync/assetsRepository';
+import * as contacts from '../src/sync/contactsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { contactLinks } from '../src/sync/membershipRepository';
 import { makeRepository } from '../src/sync/repository';
 
 type Descriptor = Parameters<typeof assetQuery>[0];
@@ -31,6 +33,10 @@ function seedAssets(overrides: Partial<AssetRecord>[]): Promise<AssetRecord[]> {
     db,
     overrides.map((over, i) => makeAssetRecord({ id: `asset-${i}`, createdAt: 1000 + i, ...over })),
   );
+}
+
+function tagContact(contactId: string, photoId: string) {
+  return contactLinks.add(db, { targetType: 'asset', targetId: photoId }, [contactId], newId);
 }
 
 const rowIds = (rows: { id: string }[]) => rows.map((row) => row.id);
@@ -88,18 +94,41 @@ describe('assetQuery', () => {
     expect(await assetQuery({ scope: { albumId: 'album-2' }, exclude }).ids(db)).toEqual(['asset-1']);
   });
 
-  it('matches the search Unicode-aware, literally and once per read', async () => {
-    await seedAssets([{ notes: 'Über 50% done' }, { notes: 'under_score' }, { notes: 'plain' }, { notes: null }]);
+  it("matches the search Unicode-aware and literally over the notes, the tags and the tagged contacts' names, once per read", async () => {
+    await seedAssets([
+      { notes: 'Über 50% done' },
+      { notes: 'under_score' },
+      { notes: 'plain' },
+      { notes: null },
+      { tags: ['Beach', 'golden hour'] },
+      { notes: 'beach day' },
+      { tags: [] },
+      {},
+      {},
+      {},
+    ]);
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna Müller', xHandle: 'annashoots' }));
+    await contacts.create(db, makeContactRecord({ id: 'gone', name: 'Anna Gone', deletedAt: 5 }));
+    await tagContact('anna', 'asset-7');
+    await tagContact('gone', 'asset-8');
+    await tagContact('anna', 'asset-9');
+    await contactLinks.remove(db, { targetType: 'asset', targetId: 'asset-9' }, ['anna']);
     const search = (text: string) => assetQuery({ scope: 'library', search: text });
     expect(await search('über').ids(db)).toEqual(['asset-0']);
     expect(await search('%').ids(db)).toEqual(['asset-0']);
     expect(await search('_').ids(db)).toEqual(['asset-1']);
     expect(await search('  PLAIN ').ids(db)).toEqual(['asset-2']);
-    expect(await search('   ').ids(db)).toHaveLength(4);
+    expect(await search('   ').ids(db)).toHaveLength(10);
+    expect(await search('beach').ids(db)).toEqual(['asset-5', 'asset-4']);
+    expect(await search('golden').ids(db)).toEqual(['asset-4']);
+    expect(await search('[').ids(db)).toEqual([]); // tags are matched as words, not as their JSON
+    expect(await search('mueller').ids(db)).toEqual(['asset-7']);
+    expect(await search('anna').ids(db)).toEqual(['asset-7']);
+    expect(await search('annashoots').ids(db)).toEqual(['asset-7']); // as the Contacts tab finds her
 
     const work = await measure(() => search('n').read(db, { limit: 10 }));
-    expect(work.plans.filter((line) => line.includes('assets_notes_idx'))).toHaveLength(1);
-    expect((await search('n').read(db, { limit: 10 })).count).toBe(3);
+    expect(work.plans.filter((line) => line.includes('assets_search_idx'))).toHaveLength(1); // once per read
+    expect((await search('n').read(db, { limit: 10 })).count).toBe(5);
   });
 
   it('scopes to favorites, deleted (most recently deleted first) and an album', async () => {
@@ -196,6 +225,9 @@ describe('assetQuery', () => {
     ]);
     await albumEdges.add(db, AL, ['asset-0', 'asset-1', 'asset-2'], newId);
     await createPost(db, { id: 'p1', postedAt: 10 }, ['asset-1', 'asset-2', 'asset-0']);
+    await contacts.create(db, makeContactRecord({ id: 'anna', name: 'Anna' }));
+    await tagContact('anna', 'asset-0');
+    await tagContact('anna', 'asset-4');
     const descriptors: Descriptor[] = [
       { scope: 'library' },
       { scope: 'library', filter: ['favorites'] },
@@ -212,6 +244,7 @@ describe('assetQuery', () => {
       { scope: 'library', exclude: ['asset-0', 'asset-4'] },
       { scope: { albumId: AL }, exclude: ['asset-1'], search: 'o' },
       { scope: 'library', exclude: { albumId: AL }, sort: 'createdAt:asc' },
+      { scope: { albumId: AL }, search: 'anna' },
     ];
     for (const descriptor of descriptors) {
       const q = assetQuery(descriptor);
@@ -242,6 +275,11 @@ describe('assetQuery', () => {
     expect(assetQuery({ scope: 'library', exclude: { albumId: AL } }).tables).toEqual([
       schema.assets,
       schema.albumAssets,
+    ]);
+    expect(assetQuery({ scope: 'library', search: 'x' }).tables).toEqual([
+      schema.assets,
+      schema.contactLinks,
+      schema.contacts,
     ]);
   });
 });

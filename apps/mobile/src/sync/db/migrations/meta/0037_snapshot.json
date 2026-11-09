@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5dca75dc-d10d-4f1e-a566-08e61eda9408",
+  "id": "3e8f597f-3213-4f59-9d29-19ed27d82a25",
   "prevId": "4c710547-3229-4470-ae7e-c63c331283ad",
   "tables": {
     "ai_kinds": {
@@ -577,14 +577,15 @@
           "isUnique": false,
           "where": "\"assets\".\"sync_error\" is not null and \"assets\".\"deleted_at\" is null"
         },
-        "assets_notes_idx": {
-          "name": "assets_notes_idx",
+        "assets_search_idx": {
+          "name": "assets_search_idx",
           "columns": [
             "id",
-            "notes"
+            "notes",
+            "tags"
           ],
           "isUnique": false,
-          "where": "\"assets\".\"notes\" is not null and \"assets\".\"deleted_at\" is null"
+          "where": "(\"assets\".\"notes\" is not null or \"assets\".\"tags\" != '[]') and \"assets\".\"deleted_at\" is null"
         },
         "assets_purged_files_idx": {
           "name": "assets_purged_files_idx",
@@ -1105,13 +1106,6 @@
         },
         "contact_x_profile": {
           "name": "contact_x_profile",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "album_tagging": {
-          "name": "album_tagging",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

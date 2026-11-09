@@ -12,6 +12,7 @@ user only answers "which build?" and supplies secrets. **Run every command from 
 ## STEP 0 — Ask what to build (always do this first)
 
 Use AskUserQuestion:
+
 - **App** — the preview/release build. Bundle `com.schneikai.squidbox`, name "Squidbox", EAS profile
   `preview`, self-contained (JS baked in). `EXPO_PUBLIC_*` come from **EAS secrets** at build time.
 - **Dev Client** — the development build. Bundle `com.schneikai.squidbox.dev`, name "Squidbox (Dev)",
@@ -32,11 +33,13 @@ Then follow the matching path below. (Both share the one-time credential setup.)
   **`EXPO_APPLE_TEAM_TYPE=INDIVIDUAL`**.
 
 Export before building:
+
 ```
 EXPO_TOKEN, EAS_BUILD_PROFILE, CI=1,
 EXPO_ASC_API_KEY_PATH, EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID,
 EXPO_APPLE_TEAM_ID, EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
 ```
+
 Verify with `scripts/check-env.sh`. Routine rebuilds reuse stored credentials, so the `.p8` + ASC
 IDs are only needed for the FIRST build on each bundle id, or to renew or repair credentials.
 
@@ -47,9 +50,11 @@ both ad hoc profiles currently run until **Oct 10, 2027**; an installed app stop
 longer available") once its profile expires. Non-interactive mode refuses to fix expired
 credentials, so run this step INTERACTIVELY through the prompt driver, with `CI` unset and without
 `--non-interactive`:
+
 ```
-EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
+SQUIDBOX_NOT_A_BUILD=1 EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
 ```
+
 Answer yes to reusing or regenerating the distribution certificate and to a new ad hoc profile, and
 press Enter at device selection (all registered devices). With the `EXPO_ASC_*` vars set, the CLI
 uses the API key. Abort only on a real prompt (a line starting with `?`) asking for an Apple ID or
@@ -58,7 +63,7 @@ password; an info line mentioning "username/password" cookies is not a prompt.
 Alternatively, `eas build ... --non-interactive --refresh-ad-hoc-provisioning-profile` regenerates
 just the profile during a build. That flag only works together with `--non-interactive`.
 
-**Re-signing instead of rebuilding.** `eas build:resign -p ios -e <profile> --source-profile <profile>
+**Re-signing instead of rebuilding.** `SQUIDBOX_NOT_A_BUILD=1 eas build:resign -p ios -e <profile> --source-profile <profile>
 --id <build-id>` re-signs an existing internal build with fresh credentials, without rebuilding.
 EAS deletes build artifacts about 14 days after a build (`expirationDate` in
 `eas build:list --json`), so it only works within that window; after that, rebuild.
@@ -83,13 +88,27 @@ below; the gotchas there are load-bearing.
    (`https://squidbox-server.fly.dev/api/v1`), and `SENTRY_AUTH_TOKEN` should exist. If the URL is
    stale/wrong, fix the VALUE (keep its visibility):
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility secret --environment development --environment preview --environment production`
-2. Build: `EAS_BUILD_PROFILE=preview eas build -p ios -e preview` (agent runs it).
-3. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
-4. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
+2. Build with ONE command, from the repo root (never `eas build -e preview` directly):
+   ```bash
+   npm run ios:app                  # or: npm run ios:app -- production
+   ```
+   It needs the checkout clean and at the pushed tip of its branch (else it stops and says why),
+   writes the build's contract snapshot (`docs/sync-design.md` §15), commits and pushes it, and
+   only then starts the EAS build (`--no-wait`) of the commit the snapshot names. A failed push
+   builds nothing. `app.config.js` refuses an App build whose commit has no pushed snapshot; a
+   re-sign or a credentials repair of an earlier build sets `SQUIDBOX_NOT_A_BUILD=1`.
+   Build from `main`, or from a branch that will merge: the snapshot reaches main with the branch
+   (a squash merge is fine: GitHub keeps the built commit fetchable through the pull request). If a
+   built branch is dropped instead, cherry-pick its snapshot commit to main, so the installed build
+   stays checked. What the snapshots are checked by, and retiring one: `docs/sync-design.md` §15.
+3. Watch the build (see "Watch / manage") until `FINISHED`.
+4. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
+5. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
 
 ## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
 
 Facts (SDK 55, current EAS CLI):
+
 - **`environment` per profile is REQUIRED.** eas.json's build profiles set `"environment"`
   (development/preview/production). Without it, EAS injects **none** of the stored env vars → the app
   builds with `EXPO_PUBLIC_API_URL` undefined → every request fails locally → "Can't reach server"
@@ -117,9 +136,11 @@ tight loop. Stop when status is `FINISHED`/`ERRORED`/`CANCELED`, then fetch the 
 
 **Install QR.** `--no-wait` skips EAS's own QR, so render one for the build page (scan with the
 iPhone camera → opens the page → tap Install; EAS has no direct-install QR for internal builds):
+
 ```bash
 node -e 'require("qrcode-terminal").generate("https://expo.dev/accounts/<acct>/projects/squidbox/builds/<build-id>",{small:true},c=>process.stdout.write(c))'
 ```
+
 If `qrcode-terminal` isn't resolvable, install it to a temp prefix first:
 `npm install qrcode-terminal --no-save --prefix /tmp/qrtool` and require
 `/tmp/qrtool/node_modules/qrcode-terminal`. Show the QR in a fenced block and also paste the plain

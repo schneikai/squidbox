@@ -77,7 +77,7 @@ function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFir
                 onPress={handlePress}
                 onDoublePress={handleToggleFavorite}
                 onLongPress={onLongPress}
-                accessibilityRole="button"
+                // No button role: it sits inside the row's button, and the web can't nest buttons.
                 accessibilityLabel={contact.name}
                 accessibilityHint={
                   contact.isFavorite ? 'Double tap to remove from favorites' : 'Double tap to favorite'

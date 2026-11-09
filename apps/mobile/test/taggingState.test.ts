@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TagAttempt } from '../src/features/photo-tags/tagAttempts';
-import taggingState from '../src/features/photo-tags/taggingState';
+import taggingState from '../src/features/post-chat/taggingState';
+import type { TagAttempt } from '../src/lib/createTagAttempts';
 
 const never = { id: 'a', tags: null };
 const tagged = { id: 'b', tags: [] };

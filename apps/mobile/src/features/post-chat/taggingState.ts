@@ -1,5 +1,4 @@
-import type { TagAttempts } from './tagAttempts';
-
+import type { TagAttempts } from '@/lib/createTagAttempts';
 import type { AssetRow } from '@/sync/db/schema';
 
 /**
