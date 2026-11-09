@@ -189,6 +189,7 @@ export default function ComponentGalleryScreen() {
             />
             <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
             <Chip variant="raised" icon="scissors" label="Shorter" onPress={noop} />
+            <Chip variant="partial" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>
