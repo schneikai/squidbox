@@ -240,7 +240,7 @@ export function writingBriefingText(
   });
 }
 
-// An X profile's fields as From link reads them from the page: the handle normalized, the bio with
+// An X profile's fields as From link reads them from the page: the handle bare, case kept, the bio with
 // its t.co links expanded.
 export type XProfileText = { handle: string; name: string; bio: string; location: string; website: string };
 

@@ -5,6 +5,7 @@ import { Alert, StyleSheet } from 'react-native';
 
 import DuplicatesCard from './DuplicatesCard';
 import QuickAddBar from './QuickAddBar';
+import duplicateCandidates from './duplicateCandidates';
 import findDuplicates from './findDuplicates';
 import useNewContactDraft from './useNewContactDraft';
 
@@ -41,6 +42,8 @@ export default function NewContactScreen() {
   const { addContact } = useContacts();
   const { draft, setField, avatarUri, setAvatarUri, listIds, setListIds, fill } = useNewContactDraft();
   const allContacts = useContactRows({ scope: 'all' });
+  // Their handles' keys, worked out once per read of the contacts.
+  const candidates = useMemo(() => duplicateCandidates(allContacts ?? []), [allContacts]);
   const lists = useContactListRows({ withMembers: false });
   // Rescanned only when the contacts or what the check reads change, not on every keystroke in the notes.
   const { name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle } = draft;
@@ -53,8 +56,8 @@ export default function NewContactScreen() {
       onlyFansHandle,
       jffHandle,
     };
-    return findDuplicates(storedContactFields({ ...EMPTY_DRAFT, ...typed }), allContacts ?? []);
-  }, [allContacts, name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle]);
+    return findDuplicates(storedContactFields({ ...EMPTY_DRAFT, ...typed }), candidates);
+  }, [candidates, name, xHandle, instagramHandle, blueskyHandle, onlyFansHandle, jffHandle]);
   const fields = storedContactFields(draft);
   const selectedLists = (lists ?? []).filter((list) => listIds.includes(list.id));
   const isDirty = JSON.stringify(fields) !== EMPTY || !!avatarUri || listIds.length > 0;

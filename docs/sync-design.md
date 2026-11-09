@@ -922,8 +922,8 @@ columns. The edge id is the `assetRefs[].id` the UI sees.
 
 **contacts** (the Contacts tab: the people the user works with). Synced: `name`, `isFavorite`,
 `favoritedAt` (when it was favorited, null once unfavorited; one field group with `isFavorite`),
-`notes`, `xHandle`, `blueskyHandle`, `onlyFansHandle`, `jffHandle` (stored without `@` or a URL,
-`normalizeHandle` in `packages/shared`), `phoneNumber`, `places` (a list of
+`notes`, `xHandle`, `blueskyHandle`, `onlyFansHandle`, `jffHandle`, `instagramHandle` (stored as
+typed, trimmed; every comparison uses `handleKey` in `packages/shared`), `phoneNumber`, `places` (a list of
 `{ city, state, country }`, the state optional as an empty string, each trimmed and at least one
 part set; JSON, merges as one value; a row shows "City, Country", the state too in the US,
 `formatPlace`), `avatarFilename` (the photo's key, a file field:

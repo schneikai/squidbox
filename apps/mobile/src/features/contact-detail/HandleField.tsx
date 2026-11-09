@@ -4,6 +4,7 @@ import DuplicateDot from './DuplicateDot';
 import FillMark from './FillMark';
 import LabelledInputRow from './LabelledInputRow';
 import type { HandleFormField } from './contactFields';
+import handleLink from './handleLink';
 import openContactLinkAsync from './openContactLinkAsync';
 
 import Button from '@/components/Button';
@@ -40,8 +41,9 @@ export type HandleFieldProps = {
  * One of a contact's handles (or its phone number) as a row of a card: the label on the left, the
  * text on the right, and while it holds one a 44 pt button that opens it where it lives
  * (openContactLinkAsync). `field` is the contact field it edits (xHandle, …, phoneNumber, or the
- * name in the New contact sheet): a handle takes no capitals or corrections, the phone number the
- * phone pad. `isFilled` marks a value filled in for the user with the sparkle (FillMark); `isDuplicate` one another contact has too (an amber dot).
+ * name in the New contact sheet): a handle takes no automatic capitals or corrections, the phone
+ * number the phone pad. `isFilled` marks a value filled in for the user with the sparkle (FillMark);
+ * `isDuplicate` one another contact has too (an amber dot).
  */
 export default function HandleField({
   field,
@@ -56,6 +58,8 @@ export default function HandleField({
 }: HandleFieldProps) {
   const isPhone = field === 'phoneNumber';
   const isName = field === 'name';
+  // Something to open: a phone number, or a handle with a link (only `@`s have none).
+  const hasLink = isPhone ? !!value.trim() : !isName && handleLink(field, value) !== null;
 
   return (
     <LabelledInputRow
@@ -76,7 +80,7 @@ export default function HandleField({
           {isFilled && <FillMark />}
         </RowMark>
       )}
-      {isOpenable && field !== 'name' && !!value.trim() && (
+      {isOpenable && !isName && hasLink && (
         // A full 44 pt slot, so its icon sits as far in from the card's edge as the rows' text does.
         <IconSlotContext.Provider value>
           <Button

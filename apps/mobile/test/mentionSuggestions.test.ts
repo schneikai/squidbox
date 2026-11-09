@@ -27,11 +27,11 @@ describe('mentionSuggestions', () => {
     expect(shown(mentionSuggestions(contacts, NONE, 'Trail'))).toEqual(['trailjo X', 'sammy_t X', 'outdoortrail X']);
   });
 
-  it('lists a handle a contact uses on several networks once, naming them', () => {
+  it('lists a handle a contact uses on several networks once, naming them, without the @ it was typed with', () => {
     const contacts = [
-      contact({ name: 'Mike', xHandle: 'ridge', blueskyHandle: 'Ridge', instagramHandle: 'ridge.pics' }),
+      contact({ name: 'Mike', xHandle: '@Ridge', blueskyHandle: 'ridge', instagramHandle: 'ridge.pics' }),
     ];
-    expect(shown(mentionSuggestions(contacts, NONE, 'ri'))).toEqual(['ridge X,Bluesky', 'ridge.pics Instagram']);
+    expect(shown(mentionSuggestions(contacts, NONE, 'ri'))).toEqual(['Ridge X,Bluesky', 'ridge.pics Instagram']);
   });
 
   it('puts favorites first among equal matches, then goes by name', () => {
@@ -60,8 +60,13 @@ describe('mentionSuggestions', () => {
     expect(shown(mentionSuggestions(contacts, NONE, 'joa'))).toEqual(['jsilva X']);
   });
 
-  it('leaves out contacts without a handle and those that match nothing', () => {
-    const contacts = [contact({ name: 'Fan' }), contact({ name: 'Zed', xHandle: 'zed' })];
+  it('leaves out contacts without a handle, a link that is no profile, and those that match nothing', () => {
+    const contacts = [
+      contact({ name: 'Fan' }),
+      contact({ name: 'Zed', xHandle: 'zed' }),
+      contact({ name: 'Ivy', xHandle: 'https://x.com/i/lists/1' }),
+    ];
     expect(shown(mentionSuggestions(contacts, NONE, 'fa'))).toEqual([]);
+    expect(shown(mentionSuggestions(contacts, NONE, 'i'))).toEqual([]);
   });
 });

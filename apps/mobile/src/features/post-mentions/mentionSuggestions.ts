@@ -1,4 +1,4 @@
-import { CONTACT_HANDLES } from '@squidbox/shared';
+import { CONTACT_HANDLES, parseHandle } from '@squidbox/shared';
 
 import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import { searchForms } from '@/sync/matchingIds';
@@ -72,11 +72,14 @@ export default function mentionSuggestions(
     .map(({ suggestion }) => suggestion);
 }
 
-// A contact's distinct @handles, each with the networks it is on, in the app's order.
+// A contact's distinct @handles, each bare (parseHandle: a profile link's too) with the networks it is
+// on, in the app's order. A link that isn't a profile can't be written as an @handle.
 function handlesOf(contact: MentionContact): MentionSuggestion[] {
   const byKey = new Map<string, MentionSuggestion>();
   for (const { field, label } of MENTION_HANDLES) {
-    const handle = contact[field];
+    const text = contact[field] ?? '';
+    // Its handle on this network (another network's link is none), keyed as handleKey keys it.
+    const { handle } = parseHandle(text, field);
     if (!handle) continue;
     const key = handle.toLowerCase();
     const seen = byKey.get(key);

@@ -1,3 +1,4 @@
+import { handleKey } from '@squidbox/shared';
 import { and, asc, count, desc, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
@@ -175,8 +176,9 @@ export default function contactQuery({
 
 /**
  * The ids of the contacts (`liveness`: the live ones by default) whose name, handles, phone number or
- * places (contactSearchText) contain `searchText`, as matchingIds matches: the search of the Contacts
- * tab, and how a photo or album search finds its tagged contacts.
+ * places (contactSearchText) contain `searchText`, or, for a search typed as a handle, its handle
+ * (typedHandle), as matchingIds matches: the search of the Contacts tab, and how a photo or album
+ * search finds its tagged contacts.
  */
 export async function matchingContactIds(
   tx: SyncDb,
@@ -187,8 +189,21 @@ export async function matchingContactIds(
     .select({ id: c.id, ...SEARCHED })
     .from(c)
     .where(liveness);
+  const handle = typedHandle(searchText);
   return matchingIds(
     rows.map((row) => ({ id: row.id, text: contactSearchText(row) })),
-    searchText,
+    handle ? [searchText, handle] : searchText,
   );
+}
+
+/**
+ * What a search typed as a handle finds a stored handle by, under any spelling (handleKey): "@MayaL"
+ * or a pasted "https://x.com/MayaL?s=21" → "mayal"; a link that isn't a profile only as itself. Null
+ * for a search with spaces, or one that already is its key.
+ */
+function typedHandle(searchText: string): string | null {
+  const text = searchText.trim();
+  if (/\s/.test(text)) return null;
+  const key = handleKey(text);
+  return key && key !== text.toLowerCase() ? key : null;
 }

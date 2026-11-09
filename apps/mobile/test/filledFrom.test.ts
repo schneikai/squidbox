@@ -12,8 +12,8 @@ const draft = (fields: Parameters<typeof contactDraft>[0] = {}) => contactDraft(
 
 describe('filledFrom', () => {
   it('does not fill a handle the draft already holds, as typed with @ and capitals', () => {
-    const typed = { ...draft(), xHandle: '@MayaL' };
-    expect(filledFrom(read({ xHandle: 'mayal', onlyFansHandle: 'mayal' }), typed)).toEqual({
+    const typed = { ...draft(), xHandle: '@mayal' };
+    expect(filledFrom(read({ xHandle: 'MayaL', onlyFansHandle: 'mayal' }), typed)).toEqual({
       onlyFansHandle: 'mayal',
     });
   });
@@ -23,10 +23,27 @@ describe('filledFrom', () => {
   });
 
   it('shows the handles as their fields write them', () => {
-    expect(filledFrom(read({ blueskyHandle: 'maya.bsky.social', jffHandle: 'mayal' }), draft())).toEqual({
-      blueskyHandle: '@maya.bsky.social',
+    expect(filledFrom(read({ blueskyHandle: 'Maya.bsky.social', jffHandle: 'mayal' }), draft())).toEqual({
+      blueskyHandle: '@Maya.bsky.social',
       jffHandle: 'mayal',
     });
+  });
+
+  it('writes a single @ and a link as it is', () => {
+    expect(filledFrom(read({ xHandle: '@@MayaL', instagramHandle: 'https://x.com/i/lists/1' }), draft())).toEqual({
+      xHandle: '@MayaL',
+      instagramHandle: 'https://x.com/i/lists/1',
+    });
+  });
+
+  it('a read of only @s fills nothing', () => {
+    expect(filledFrom(read({ xHandle: '@' }), { ...draft(), xHandle: '@MayaL' })).toEqual({});
+  });
+
+  it('cuts a long handle after writing its @', () => {
+    const xHandle = filledFrom(read({ xHandle: 'm'.repeat(200) }), draft()).xHandle;
+    expect(xHandle).toHaveLength(200);
+    expect(xHandle?.startsWith('@')).toBe(true);
   });
 
   it('puts a place it read first, unless the draft has it', () => {
