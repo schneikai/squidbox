@@ -57,6 +57,7 @@ describe('chatContextReader', () => {
     const read = chatContextReader(session, () => ({ tagging: { taggingAsync: async () => false }, found: undefined }));
 
     expect((await read(new AbortController().signal, () => {})).tags).toEqual(['meadow', 'tent']);
+    chatTags.tags.set({});
     chatSessions.close(id);
   });
 });

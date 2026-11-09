@@ -18,7 +18,7 @@ async function tagAsync(asset: VisionAsset, deps: VisionImageReadDeps): Promise<
 
 /**
  * `rows` with the chat's tags (`byId`, the `tags` store's value) on those never tagged; `rows` itself
- * when it has none for them, so a tag landing for another post's photo changes nothing here.
+ * when it has none for them.
  */
 function withTags<Row extends Pick<AssetRow, 'id' | 'tags'>>(
   rows: readonly Row[],
