@@ -1,8 +1,7 @@
-import editedTags from './editedTags';
-
 import { setTags } from '@/sync/assetsRepository';
 import { getDb } from '@/sync/db/client';
 import { requestSync } from '@/sync/worker';
+import editedTags from '@/utils/editedTags';
 import type { TagsEdit } from '@/utils/tagsDifference';
 
 /**
