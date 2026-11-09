@@ -1,6 +1,6 @@
 import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import albumTagsDraft from './albumTagsDraft';
@@ -31,7 +31,7 @@ export default function AlbumTagsScreen() {
   const seed = useSeedOrClose(
     async (db) => (albumId ? readAlbumTagsSeed(db, albumId, albumSortOrders) : null),
     albumId ?? '',
-    'It was deleted',
+    'This album was deleted',
   );
   if (!seed || !albumId) return null;
   return <AlbumTagsSheet albumId={albumId} seed={seed} />;
@@ -46,16 +46,21 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
   // Save waits for Tag it, whose tags it would leave out; × still closes (and stops it).
   const { sheetProps } = useEditSheet({ isValid: !isRunning, isDirty: albumTagsDraft.isDirty(draft), save });
 
-  const tags = albumTagsDraft.tags(draft);
+  const tags = useMemo(() => albumTagsDraft.tags(draft), [draft]);
+  // Stable while the draft is, so TagsField's memo holds across Tag it's renders.
+  const mixed = useMemo(
+    () => ({
+      tags: albumTagsDraft.mixedTags(draft),
+      onPress: (tag: string) => setDraft((current) => albumTagsDraft.putOnAll(current, tag)),
+    }),
+    [draft],
+  );
+  const handleChange = useCallback((next: string[]) => setDraft((current) => albumTagsDraft.change(current, next)), []);
   const count = seed.photos.length;
 
   // Writes only the change, made on each photo's stored tags, so a tag stored meanwhile stays.
   function save() {
     return saveAlbumTags(getDb(), albumId, albumTagsDraft.edit(draft));
-  }
-
-  function handlePutOnAll(tag: string) {
-    setDraft((current) => albumTagsDraft.putOnAll(current, tag));
   }
 
   // An edit made while it ran stays: its tags join the draft as it is then.
@@ -85,8 +90,8 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
         >
           <TagsField
             tags={tags}
-            onChange={(next) => setDraft((current) => albumTagsDraft.change(current, next))}
-            mixed={{ tags: albumTagsDraft.mixedTags(draft), onPress: handlePutOnAll }}
+            onChange={handleChange}
+            mixed={mixed}
             maxTagLength={ASSET_TAG_LIMITS.tag}
             disabled={isRunning}
           />

@@ -89,6 +89,7 @@ function TagsField({
             label={tag}
             variant={isMixed ? 'mixed' : 'tag'}
             onPress={isMixed && !disabled ? guardPress(() => mixed.onPress(tag)) : undefined}
+            accessibilityHint={isMixed ? 'Puts it on all' : undefined}
             onRemove={disabled ? undefined : guardPress(() => onChange(tags.filter((each) => each !== tag)))}
             removeLabel={`Remove ${tag}`}
           />

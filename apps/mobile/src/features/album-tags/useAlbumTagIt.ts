@@ -41,7 +41,10 @@ export default function useAlbumTagIt() {
     setIsRunning(true);
     setError(null);
     try {
-      const assets = await readByIds(getDb(), schema.assets, spreadSample(photoIds, SAMPLE_PHOTOS));
+      // A photo trashed since the sheet opened isn't sent.
+      const assets = (await readByIds(getDb(), schema.assets, spreadSample(photoIds, SAMPLE_PHOTOS))).filter(
+        (asset) => asset.deletedAt === null,
+      );
       if (assets.length === 0) throw new Error('This album has no photos');
       const results = await Promise.allSettled(
         assets.map(async (asset) => tagPhotoAsync(await readVisionImageAsync(asset, { ...deps, signal }), signal)),
