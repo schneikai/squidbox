@@ -7,7 +7,7 @@ import {
   draftEdit,
   draftTags,
   isDirty,
-  partialTags,
+  mixedTags,
   putOnAll,
   room,
   startAlbumTags,
@@ -21,14 +21,14 @@ describe('albumTagsDraft', () => {
   it('shows a tag on all photos solid and one on some dashed, a never-tagged photo having none', () => {
     const draft = startAlbumTags(photos(['granite', 'fog'], ['granite'], null));
     expect(draftTags(draft)).toEqual(['granite', 'fog']);
-    expect(partialTags(draft)).toEqual(['granite', 'fog']);
-    expect(partialTags(startAlbumTags(photos(['granite', 'fog'], ['granite'])))).toEqual(['fog']);
+    expect(mixedTags(draft)).toEqual(['granite', 'fog']);
+    expect(mixedTags(startAlbumTags(photos(['granite', 'fog'], ['granite'])))).toEqual(['fog']);
   });
 
   it('groups tags in any case under the first spelling', () => {
     const draft = startAlbumTags(photos(['Hiking'], [' hiking ']));
     expect(draftTags(draft)).toEqual(['Hiking']);
-    expect(partialTags(draft)).toEqual([]);
+    expect(mixedTags(draft)).toEqual([]);
   });
 
   it('orders the tags on the most photos first, then by first appearance', () => {
@@ -39,7 +39,7 @@ describe('albumTagsDraft', () => {
   it('puts a dashed tag on all photos where it is', () => {
     const draft = putOnAll(startAlbumTags(photos(['fog', 'moss'], ['fog'])), 'moss')!;
     expect(draftTags(draft)).toEqual(['fog', 'moss']);
-    expect(partialTags(draft)).toEqual([]);
+    expect(mixedTags(draft)).toEqual([]);
     expect(draftEdit(draft)).toEqual({ add: ['moss'], remove: [] });
   });
 
@@ -48,17 +48,17 @@ describe('albumTagsDraft', () => {
     expect(draftEdit(draft)).toEqual({ add: [], remove: ['moss'] });
   });
 
-  it("puts a dashed tag typed again (TagsField's partial press) on all photos", () => {
+  it("puts a dashed tag typed again (TagsField's mixed press) on all photos", () => {
     const start = startAlbumTags(photos(['fog', 'moss'], ['fog']));
-    // TagsField drops the duplicate from its list and calls partial.onPress with the chip's tag.
+    // TagsField drops the duplicate from its list and calls mixed.onPress with the chip's tag.
     expect(changeTags(start, ['fog', 'moss'])).toEqual(start);
-    expect(partialTags(putOnAll(start, 'MOSS')!)).toEqual([]);
+    expect(mixedTags(putOnAll(start, 'MOSS')!)).toEqual([]);
   });
 
   it('puts a new tag on all photos, at the end', () => {
     const draft = changeTags(startAlbumTags(photos(['fog'], ['moss'])), ['fog', 'moss', 'granite']);
     expect(draftTags(draft)).toEqual(['fog', 'moss', 'granite']);
-    expect(partialTags(draft)).toEqual(['fog', 'moss']);
+    expect(mixedTags(draft)).toEqual(['fog', 'moss']);
     expect(draftEdit(draft)).toEqual({ add: ['granite'], remove: [] });
   });
 
@@ -72,7 +72,7 @@ describe('albumTagsDraft', () => {
   it("adds Tag it's tags on all photos: keeps those on all, puts dashed ones on all, adds new ones", () => {
     const draft = addOnAll(startAlbumTags(photos(['fog', 'moss'], ['fog'])), ['Fog', 'moss', 'granite', 'granite']);
     expect(draftTags(draft)).toEqual(['fog', 'moss', 'granite']);
-    expect(partialTags(draft)).toEqual([]);
+    expect(mixedTags(draft)).toEqual([]);
     expect(draftEdit(draft)).toEqual({ add: ['moss', 'granite'], remove: [] });
   });
 
@@ -87,7 +87,7 @@ describe('albumTagsDraft', () => {
       draftTags(start).filter((tag) => tag !== 't0' && tag !== 't1'),
     );
     expect(room(freed)).toBe(2);
-    expect(partialTags(putOnAll(freed, 'moss')!)).not.toContain('moss');
+    expect(mixedTags(putOnAll(freed, 'moss')!)).not.toContain('moss');
     expect(draftEdit(addOnAll(freed, ['a', 'b', 'c'])).add).toEqual(['a', 'b']);
   });
 });

@@ -1,7 +1,7 @@
 import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import {
   addOnAll,
@@ -9,7 +9,7 @@ import {
   draftEdit,
   draftTags,
   isDirty,
-  partialTags,
+  mixedTags,
   putOnAll,
   room,
   startAlbumTags,
@@ -18,18 +18,14 @@ import readAlbumTagsSeed, { type AlbumTagsSeed } from './readAlbumTagsSeed';
 import saveAlbumTags from './saveAlbumTags';
 import useAlbumTagIt from './useAlbumTagIt';
 
-import Button from '@/components/Button';
 import EditSheet from '@/components/EditSheet';
-import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import TagsField from '@/components/TagsField';
+import TagsSection from '@/components/TagsSection';
 import { SectionFooter } from '@/components/settings-list/SettingsList';
 import useAppSettings from '@/features/app-settings/useAppSettings';
 import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
-import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
-import { space } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 import { getDb } from '@/sync/db/client';
 
 /**
@@ -56,7 +52,6 @@ type AlbumTagsSheetProps = { albumId: string; seed: AlbumTagsSeed };
 function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
   const [draft, setDraft] = useState(() => startAlbumTags(seed.photos));
   const haptics = useHaptics();
-  const isAssistantAvailable = useIsAssistantAvailable();
   const { tagIt, isRunning, error } = useAlbumTagIt();
   const { sheetProps } = useEditSheet({ isDirty: isDirty(draft), save });
 
@@ -68,13 +63,15 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
     return saveAlbumTags(getDb(), albumId, draftEdit(draft));
   }
 
+  // The chips take no taps while Tag it runs, so the draft here is the latest.
   function handlePutOnAll(tag: string) {
-    if (!putOnAll(draft, tag)) {
+    const next = putOnAll(draft, tag);
+    if (!next) {
       haptics.error();
       Alert.alert(`Some photos already have ${ASSET_TAG_LIMITS.tags} tags. Take a tag off first.`);
       return;
     }
-    setDraft((current) => putOnAll(current, tag) ?? current);
+    setDraft(next);
   }
 
   // An edit made while it ran stays: its tags join the draft as it is then.
@@ -90,33 +87,25 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
       subtitle={count > 1 ? `on all ${count} photos` : undefined}
       testID="album-tags-sheet"
     >
+      {/* One block, so the footer sits under the card as a section's footer does. */}
       <View>
-        <ScreenSectionHeader
+        <TagsSection
           title="On its photos"
           isFirst
-          trailing={
-            isAssistantAvailable && (
-              <Button label="Tag it" icon="sparkle" size="small" onPress={handleTagIt} loading={isRunning} />
-            )
-          }
-        />
-        <View style={styles.section}>
+          tagItLabel="Tag it"
+          onTagIt={handleTagIt}
+          isTagging={isRunning}
+          error={error}
+        >
           <TagsField
             tags={tags}
             onChange={(next) => setDraft((current) => changeTags(current, next))}
-            partial={{
-              tags: partialTags(draft),
-              onPress: handlePutOnAll,
-              label: 'on some photos',
-              hint: 'Puts it on all photos',
-            }}
+            mixed={{ tags: mixedTags(draft), onPress: handlePutOnAll }}
             maxTags={tags.length + room(draft)}
             maxTagLength={ASSET_TAG_LIMITS.tag}
-            itemName="tag"
             disabled={isRunning}
           />
-          {!!error && <Text style={listTextStyles.subtitle}>{error}</Text>}
-        </View>
+        </TagsSection>
         <SectionFooter>
           Dashed tags are only on some photos: tap one to put it on all. Add puts a tag on all photos, × takes it off
           all.
@@ -125,9 +114,3 @@ function AlbumTagsSheet({ albumId, seed }: AlbumTagsSheetProps) {
     </EditSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    gap: space.sm,
-  },
-});

@@ -892,7 +892,8 @@ from the camera roll or a sign-in merge; an app from before it leaves it as it w
 (epoch ms, the camera roll's creation time at import), `originalFilename` (the camera roll's file
 name), `latitude` and `longitude` (where it was taken), `tags` (optional, null | a list of at most
 20 strings of 1 to 40 characters: what the assistant sees in it, from `POST /ai/tags`, an album's
-Tag it (`POST /ai/album-tags`) or the user's fixes, an album's Tags sheet included; null until it was tagged, `[]` once every tag was removed; the list merges as one value),
+Tag it (`POST /ai/album-tags`) or the user's fixes, an album's Tags sheet included; null until it
+was tagged, `[]` once every tag was removed; the list merges as one value),
 plus the base columns. Local-only: `syncError`.
 
 **albums**. Synced: `name`, `isFavorite`, `archivedAt`, `showInPostSuggestionsAfter`,
@@ -997,7 +998,8 @@ system message, filled with the persona, a sample of the user's posts and the po
 its prompt box, without system instructions), `visionTagging` (the photo tags briefing, the system
 message of every tags request, filled with Your content's themes; a Compare sends its prompt box
 instead, without them), `albumTagging` (the album Tag it briefing, the system message of
-`POST /ai/album-tags`, filled with Your content's themes; optional, server 0037, app 0037), `moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
+`POST /ai/album-tags`, filled with Your content's themes; optional, server 0037, app 0037),
+`moreLikeThis` (what the chat's More like this sends) and `modelCheckJudge` (what
 a writing Verify asks its judge after each chat turn) and `contactScreenshot` (the system message of a
 New contact's From screenshot, no placeholders; optional, server 0031, app 0031) and `contactXProfile` (what a New
 contact's From link asks the writing model about the X profile the server read, `{profile}` its fields as labelled

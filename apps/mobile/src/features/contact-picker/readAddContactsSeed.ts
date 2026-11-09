@@ -6,8 +6,8 @@ import { albumHoldsAny } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { readPhotoIdsOf } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
+import readPhotoIdsOf from '@/sync/readPhotoIdsOf';
 
 /** What Add contacts adds to: a photo, an album's or post's photos (ContactsOf), or a list. */
 export type AddContactsTarget = ContactsOf | { listId: string };

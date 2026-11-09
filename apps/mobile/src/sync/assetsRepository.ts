@@ -72,12 +72,18 @@ export async function setTagsOf(
     const next = typeof tags === 'function' ? tags(row.tags) : tags;
     const nextTags = next === null ? row.tags : uniqueTags(next);
     stored.set(row.id, nextTags);
-    if (next === null || JSON.stringify(nextTags) === JSON.stringify(row.tags)) continue;
+    if (next === null || isSameTags(nextTags, row.tags)) continue;
     previous.push(row);
     rows.push(nextVersion(row, { tags: nextTags }));
   }
   if (rows.length > 0) await saveRecords(tx, 'assets', schema.assets, rows, { previous });
   return stored;
+}
+
+// Whether two tag lists hold the same tags in the same order (null: never tagged).
+function isSameTags(a: string[] | null, b: string[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.length === b.length && a.every((tag, i) => tag === b[i]);
 }
 
 // The local-only sync-error marker (never synced) of the assets matching `where`, written only where

@@ -1,16 +1,14 @@
 import { setTagsOf } from '@/sync/assetsRepository';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
-import { readPhotoIdsOf } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
+import readPhotoIdsOf from '@/sync/readPhotoIdsOf';
 import editedTags from '@/utils/editedTags';
 import type { TagsEdit } from '@/utils/tagsDifference';
 
 /**
- * An album's Tags sheet's Save: the edit (`{ add, remove }`, editedTags') made on each photo the
- * album holds now, on its stored tags, in one transaction, so a tag stored meanwhile stays and a tag
- * on only some photos that wasn't touched stays on exactly those. Throws when the album was deleted.
- * It doesn't sync (the sheet does).
+ * An album's Tags sheet's Save: the edit (editedTags') on the stored tags of each photo the album
+ * holds now, in one transaction. Throws when the album was deleted. Doesn't sync.
  */
 export default function saveAlbumTags(db: SyncDb, albumId: string, edit: TagsEdit): Promise<void> {
   return db.transaction(async (tx) => {

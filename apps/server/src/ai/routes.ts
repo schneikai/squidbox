@@ -162,8 +162,8 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
 
     // POST /ai/album-tags — an album's Tag it (its Tags sheet): the user's vision model tags a few of
     // the album's photos in one request, as their Album tags instructions say; the app puts the tags
-    // on every photo once the user saves. Each request carries several photos, so the limit is lower
-    // than /ai/tags'.
+    // on every photo once the user saves. Each request carries several photos: its body limit is theirs,
+    // and its rate limit half /ai/tags'.
     r.route({
       method: 'POST',
       url: '/ai/album-tags',

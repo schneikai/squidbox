@@ -1,4 +1,4 @@
-import type { TagAlbumRequest, TagPhotoResponse, VisionImage } from '@squidbox/shared';
+import type { TagAlbumRequest, TagAlbumResponse, VisionImage } from '@squidbox/shared';
 
 import { AI_REQUEST_TIMEOUT_MS } from './aiRequestTimeout';
 
@@ -12,8 +12,8 @@ import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
 export default async function tagAlbumAsync(
   images: VisionImage[],
   signal?: AbortSignal,
-): Promise<TagPhotoResponse['tags']> {
-  const { data } = await apiWithAuthentication.post<TagPhotoResponse>(
+): Promise<TagAlbumResponse['tags']> {
+  const { data } = await apiWithAuthentication.post<TagAlbumResponse>(
     'ai/album-tags',
     { images } satisfies TagAlbumRequest,
     { timeout: AI_REQUEST_TIMEOUT_MS, signal },

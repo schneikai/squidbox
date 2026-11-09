@@ -162,6 +162,7 @@ test("Tags in the album's menu puts a typed tag on all its photos", async ({ pag
 
   await openTags();
   await expect(sheet.getByText(tag, { exact: true })).toBeVisible();
-  await expect(sheet.getByLabel(`${tag}, on some photos`)).toHaveCount(0);
+  // A tag on only some photos is a dashed chip VoiceOver reads as mixed.
+  await expect(sheet.locator('[aria-checked="mixed"]', { hasText: tag })).toHaveCount(0);
   await expect(button(sheet, 'Save')).toBeDisabled();
 });

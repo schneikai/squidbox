@@ -13,11 +13,9 @@ import tagAlbumAsync from '@/utils/cloud-api/ai/tagAlbumAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 /**
- * An album's Tag it, from its Tags sheet: `tagIt(photoIds)` (the album's photos in its order) sends
- * ALBUM_TAG_PHOTOS of them spread through it (spreadSample) in one request (POST /ai/album-tags) and
- * resolves to the tags, or to null once it failed (`error` says why). It goes out with the photos
- * whose thumbnail could be read, and fails only when none could. Nothing is stored. Leaving the sheet
- * stops it, and a result after that is dropped. A success or a failure is felt.
+ * An album's Tag it: `tagIt(photoIds)` (in the album's order) sends ALBUM_TAG_PHOTOS of them spread
+ * through it to POST /ai/album-tags and resolves to the tags, or to null once it failed (`error`).
+ * Photos whose thumbnail can't be read are left out. Unmounting aborts it. Stores nothing.
  */
 export default function useAlbumTagIt() {
   const haptics = useHaptics();
@@ -46,14 +44,14 @@ export default function useAlbumTagIt() {
       const tags = await tagAlbumAsync(images, signal);
       if (signal.aborted) return null;
       haptics.success();
-      setIsRunning(false);
       return tags;
     } catch (caught) {
       if (signal.aborted) return null;
       haptics.error();
       setError(apiErrorMessage(caught));
-      setIsRunning(false);
       return null;
+    } finally {
+      if (!signal.aborted) setIsRunning(false);
     }
   }
 

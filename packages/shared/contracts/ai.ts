@@ -313,6 +313,9 @@ export const ALBUM_TAG_PHOTOS = 4;
 export const tagAlbumRequestSchema = z.object({ images: z.array(visionImageSchema).min(1).max(ALBUM_TAG_PHOTOS) });
 export type TagAlbumRequest = z.infer<typeof tagAlbumRequestSchema>;
 
+// Its answer is POST /ai/tags' own (tagPhotoResponseSchema): the tags, as an asset holds them.
+export type TagAlbumResponse = TagPhotoResponse;
+
 // POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the New
 // contact sheet, as instructions.contactScreenshot says. Each field is empty when the screenshot
 // doesn't show it; the handles come normalized (normalizeHandle), the place as its city, state and
