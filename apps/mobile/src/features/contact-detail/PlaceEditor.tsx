@@ -3,6 +3,7 @@ import { Fragment, useState } from 'react';
 
 import SuggestionField from './SuggestionField';
 import autofillPlace from './autofillPlace';
+import type { CitySuggestion } from './citySuggestions';
 import { EMPTY_PLACE, storedPlace } from './contactFields';
 import usePlaceSuggestions from './usePlaceSuggestions';
 
@@ -22,7 +23,8 @@ const PARTS: { part: keyof ContactPlace; label: string; placeholder: string }[] 
  * One place of a contact as a draft sheet: New location (Add) without a `place`, else Edit location (Save),
  * both on once the place has a part set and, for Save, changed. Its City, State and Country offer
  * what the user's contacts have (usePlaceSuggestions), and a known city or state fills the empty
- * parts it implies (autofillPlace). `onSave(place, from)` gets it trimmed, with the place as the sheet
+ * parts it implies (autofillPlace); a city known in several places is offered once per place, and
+ * picking one fills its state and country. `onSave(place, from)` gets it trimmed, with the place as the sheet
  * opened with it (null for a new one); Remove location, for one being edited, asks first and calls
  * `onRemove(from)`. Both write what the screen around it holds and ask for a sync if that needs one:
  * the sheet asks for none.
@@ -36,7 +38,7 @@ type PlaceEditorProps = {
 export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEditorProps) {
   const [initial] = useState(() => (seed ? storedPlace(seed) : null));
   const [draft, setDraft] = useState<ContactPlace>(() => ({ ...EMPTY_PLACE, ...initial }));
-  const { suggestions, knownPlaces } = usePlaceSuggestions();
+  const { cities, suggestions, knownPlaces } = usePlaceSuggestions();
   const place = storedPlace(draft);
   const { sheetProps, finish } = useEditSheet({
     isNew: !initial,
@@ -50,6 +52,16 @@ export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEdit
 
   function setPart(part: keyof ContactPlace, text: string) {
     setDraft((current) => autofillPlace({ ...current, [part]: text }, part, knownPlaces));
+  }
+
+  // A city picked as one of its places fills that place's state and country where they are empty.
+  function pickCity({ text, place: picked }: CitySuggestion) {
+    if (!picked) return setPart('city', text);
+    setDraft((current) => ({
+      city: text,
+      state: current.state.trim() ? current.state : picked.state,
+      country: current.country.trim() ? current.country : picked.country,
+    }));
   }
 
   async function handleRemove() {
@@ -72,16 +84,29 @@ export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEdit
         {PARTS.map(({ part, label, placeholder }, index) => (
           <Fragment key={part}>
             {index > 0 && <Divider />}
-            <SuggestionField
-              label={label}
-              value={draft[part]}
-              onChangeText={(text) => setPart(part, text)}
-              suggestions={suggestions[part]}
-              placeholder={placeholder}
-              maxLength={CONTACT_LIMITS.place}
-              autoCapitalize="words"
-              autoFocus={!initial && part === 'city'}
-            />
+            {part === 'city' ? (
+              <SuggestionField
+                label={label}
+                value={draft.city}
+                onChangeText={(text) => setPart('city', text)}
+                suggestions={cities}
+                onPick={pickCity}
+                placeholder={placeholder}
+                maxLength={CONTACT_LIMITS.place}
+                autoCapitalize="words"
+                autoFocus={!initial}
+              />
+            ) : (
+              <SuggestionField
+                label={label}
+                value={draft[part]}
+                onChangeText={(text) => setPart(part, text)}
+                suggestions={suggestions[part].map((text) => ({ text }))}
+                placeholder={placeholder}
+                maxLength={CONTACT_LIMITS.place}
+                autoCapitalize="words"
+              />
+            )}
           </Fragment>
         ))}
       </Card>

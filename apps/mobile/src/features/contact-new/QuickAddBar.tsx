@@ -13,6 +13,7 @@ import Note from '@/components/Note';
 import Text from '@/components/Text';
 import FillMark from '@/features/contact-detail/FillMark';
 import { type ContactDraft, HANDLE_FIELDS, contactDraft } from '@/features/contact-detail/contactFields';
+import usePlaceSuggestions from '@/features/contact-detail/usePlaceSuggestions';
 import useHasFeature from '@/hooks/useHasFeature';
 import { layout } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
@@ -35,6 +36,7 @@ function noteText(fill: NonNullable<NewContactDraftValue['fill']>): string {
 export default function QuickAddBar() {
   const { fillFields, fill, undoFill } = useNewContactDraft();
   const hasAssistant = useHasFeature('ai');
+  const { knownPlaces } = usePlaceSuggestions();
   const [isReading, setIsReading] = useState(false);
   const { isReading: isReadingLink, fillFromLinkAsync } = useFillFromLink(handleScreenshot);
 
@@ -45,9 +47,9 @@ export default function QuickAddBar() {
       if (!read) return;
       // Whether it read anything; what it fills is worked out against the draft as it is now, edits
       // made during the read included.
-      if (Object.keys(filledFrom(read, contactDraft())).length === 0)
+      if (Object.keys(filledFrom(read, contactDraft(), knownPlaces)).length === 0)
         Alert.alert('Nothing to fill', 'The assistant found no name or handle in it.');
-      else fillFields('assistant', (current) => filledFrom(read, current));
+      else fillFields('assistant', (current) => filledFrom(read, current, knownPlaces));
     } catch (error) {
       Alert.alert("Couldn't read the screenshot", apiErrorMessage(error));
     } finally {

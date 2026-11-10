@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import LabelledInputRow, { LABELLED_INPUT_TEXT_INSET } from './LabelledInputRow';
-import shownSuggestions from './shownSuggestions';
+import shownSuggestions, { type Suggestion } from './shownSuggestions';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
@@ -20,23 +20,26 @@ const KEEP_FOCUS_ON_PRESS: object =
 /**
  * A labelled text row of a card that offers what it may hold: while it has focus, the `suggestions`
  * that contain what is typed (as a search matches, shownSuggestions) show as chips under it, at most
- * five; a tap fills it with one. The other props are TextInput's.
+ * five, each with its `detail` in grey after it; a tap fills it with one, or calls `onPick` with it
+ * when given. The other props are TextInput's.
  */
-type SuggestionFieldProps = Omit<TextInputProps, 'value' | 'onChangeText' | 'style'> & {
+type SuggestionFieldProps<T extends Suggestion> = Omit<TextInputProps, 'value' | 'onChangeText' | 'style'> & {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
-  suggestions: readonly string[];
+  suggestions: readonly T[];
+  onPick?: (suggestion: T) => void;
 };
 
-export default function SuggestionField({
+export default function SuggestionField<T extends Suggestion>({
   label,
   value,
   onChangeText,
   onBlur,
   suggestions,
+  onPick,
   ...inputProps
-}: SuggestionFieldProps) {
+}: SuggestionFieldProps<T>) {
   const [isFocused, setIsFocused] = useState(false);
   const shown = isFocused ? shownSuggestions(suggestions, value, MAX_SHOWN) : [];
 
@@ -60,9 +63,10 @@ export default function SuggestionField({
           <ChipRow>
             {shown.map((suggestion) => (
               <Chip
-                key={suggestion}
-                label={suggestion}
-                onPress={() => onChangeText(suggestion)}
+                key={`${suggestion.text}\n${suggestion.detail ?? ''}`}
+                label={suggestion.text}
+                detail={suggestion.detail}
+                onPress={() => (onPick ? onPick(suggestion) : onChangeText(suggestion.text))}
                 accessibilityHint={`Fills ${label} with it`}
               />
             ))}
