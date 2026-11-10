@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import LabelledInputRow, { LABELLED_INPUT_TEXT_INSET } from './LabelledInputRow';
+import shownSuggestions from './shownSuggestions';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
@@ -18,7 +19,7 @@ const KEEP_FOCUS_ON_PRESS: object =
 
 /**
  * A labelled text row of a card that offers what it may hold: while it has focus, the `suggestions`
- * that contain what is typed (ignoring case, not the text itself) show as chips under it, at most
+ * that contain what is typed (as a search matches, shownSuggestions) show as chips under it, at most
  * five; a tap fills it with one. The other props are TextInput's.
  */
 type SuggestionFieldProps = Omit<TextInputProps, 'value' | 'onChangeText' | 'style'> & {
@@ -37,15 +38,7 @@ export default function SuggestionField({
   ...inputProps
 }: SuggestionFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const typed = value.trim().toLowerCase();
-  const shown = isFocused
-    ? suggestions
-        .filter((suggestion) => {
-          const text = suggestion.toLowerCase();
-          return text !== typed && text.includes(typed);
-        })
-        .slice(0, MAX_SHOWN)
-    : [];
+  const shown = isFocused ? shownSuggestions(suggestions, value, MAX_SHOWN) : [];
 
   function handleBlur(event: Parameters<NonNullable<TextInputProps['onBlur']>>[0]) {
     setIsFocused(false);
