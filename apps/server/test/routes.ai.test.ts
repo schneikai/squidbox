@@ -539,13 +539,13 @@ describe('POST /api/v1/ai/compare/vision', () => {
 });
 
 describe('POST /api/v1/ai/contact-from-screenshot', () => {
-  it("reads the screenshot with the user's From screenshot instructions, handles normalized", async () => {
+  it("reads the screenshot with the user's From screenshot instructions, handles bare, case kept", async () => {
     veniceAnswers();
     const res = await call('POST', '/ai/contact-from-screenshot', tagRequest);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       name: 'Maya Lindqvist',
-      xHandle: 'mayal',
+      xHandle: 'MayaL',
       blueskyHandle: 'maya.bsky.social',
       onlyFansHandle: '',
       jffHandle: '',
@@ -592,7 +592,7 @@ describe('POST /api/v1/ai/contact-from-link', () => {
       status: 'found',
       contact: {
         name: 'Maya Lindqvist',
-        xHandle: 'mayal',
+        xHandle: 'MayaL',
         blueskyHandle: 'maya.bsky.social',
         onlyFansHandle: '',
         jffHandle: '',
@@ -614,7 +614,7 @@ describe('POST /api/v1/ai/contact-from-link', () => {
           .replace(
             '{profile}',
             [
-              'Handle: @mayal',
+              'Handle: @MayaL',
               'Name: Maya Lindqvist 🌲',
               "Bio: Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
               'Location: Squamish, BC',

@@ -1,14 +1,14 @@
-import { CONTACT_HANDLE_BY_FIELD, type ContactRecord } from '@squidbox/shared';
+import type { ContactRecord } from '@squidbox/shared';
 import { router } from 'expo-router';
 import { Share } from 'react-native';
+
+import handleLink from './handleLink';
 
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
 import useContacts from '@/features/contacts-context/useContacts';
 import useDeleteContact from '@/features/contacts-context/useDeleteContact';
-
-const xProfileUrl = CONTACT_HANDLE_BY_FIELD.xHandle.profileUrl;
 
 /**
  * The contact screen's ⋯ menu: add to a list, share the X profile (with an X handle), remove the
@@ -22,16 +22,16 @@ type ContactMenuProps = {
 export default function ContactMenu({ contact, afterDelete }: ContactMenuProps) {
   const { removeAvatar } = useContacts();
   const deleteContactAsync = useDeleteContact();
-  const { xHandle } = contact;
+  const xLink = handleLink('xHandle', contact.xHandle ?? '');
 
   return (
     <MenuButton accessibilityLabel="Contact options">
       <MenuOption label="Add to list" icon="list" onPress={() => router.navigate(addToContactListHref([contact.id]))} />
-      {!!xHandle && (
+      {!!xLink && (
         <MenuOption
           label="Share profile link"
           icon="share"
-          onPress={() => Share.share({ url: xProfileUrl(xHandle), message: xProfileUrl(xHandle) })}
+          onPress={() => Share.share({ url: xLink, message: xLink })}
         />
       )}
       {!!contact.avatarFilename && (

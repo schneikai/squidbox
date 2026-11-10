@@ -36,7 +36,8 @@ export * from './positionsInOrder';
 export * from './chunk';
 export * from './uniqueTags';
 export * from './contacts/formatPlace';
-export * from './contacts/normalizeHandle';
+export * from './contacts/parseHandle';
+export * from './contacts/handleKey';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

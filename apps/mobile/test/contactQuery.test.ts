@@ -132,6 +132,22 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ search: 'BENCLIMBS' }))).toEqual(['ben']);
   });
 
+  it('search finds a handle typed as a handle field takes it: with @ or as a profile URL', async () => {
+    expect(await ids(contactQuery({ search: '@BenClimbs ' }))).toEqual(['ben']);
+    expect(await ids(contactQuery({ search: 'https://x.com/BenClimbs?s=21' }))).toEqual(['ben']);
+  });
+
+  it('search finds a handle stored with @ and capitals under any spelling', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'todo', name: 'Todo', xHandle: '@TodoesMorb0' }));
+    for (const search of ['todoesmorb0', '@todoesmorb0', 'x.com/TodoesMorb0'])
+      expect(await ids(contactQuery({ search }))).toEqual(['todo']);
+  });
+
+  it("a pasted link that isn't a profile finds no contact by its first segment", async () => {
+    await contacts.create(db, makeContactRecord({ id: 'eye', name: 'Eye', xHandle: 'i' }));
+    expect(await ids(contactQuery({ search: 'https://x.com/i/lists/1' }))).toEqual([]);
+  });
+
   it('search ignores accents both ways', async () => {
     await contacts.create(
       db,

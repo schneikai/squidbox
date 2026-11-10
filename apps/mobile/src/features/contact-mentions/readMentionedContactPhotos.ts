@@ -1,4 +1,4 @@
-import { CONTACT_HANDLE_FIELDS, normalizeHandle } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, handleKey } from '@squidbox/shared';
 import { and, eq, isNull, like } from 'drizzle-orm';
 
 import extractHandles from '@/lib/extractHandles';
@@ -29,7 +29,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
     const contactsByPost = new Map<string, string[]>();
     for (const post of posts) {
       const ids = new Set(
-        extractHandles([post.text]).flatMap((handle) => contactsByHandle.get(normalizeHandle(handle)) ?? []),
+        extractHandles([post.text]).flatMap((handle) => contactsByHandle.get(handleKey(handle)) ?? []),
       );
       if (ids.size) contactsByPost.set(post.id, [...ids]);
     }
@@ -49,7 +49,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
   });
 }
 
-// The live contacts by each of their handles (stored normalized, so already lowercased without `@`).
+// The live contacts by each of their handles' keys (handleKey).
 async function readContactsByHandle(tx: SyncDb): Promise<Map<string, string[]>> {
   const c = schema.contacts;
   const contacts = await tx.select().from(c).where(isNull(c.deletedAt));
@@ -60,7 +60,7 @@ async function readContactsByHandle(tx: SyncDb): Promise<Map<string, string[]>> 
   };
   for (const contact of contacts) {
     for (const field of CONTACT_HANDLE_FIELDS) {
-      const handle = contact[field]?.toLowerCase();
+      const handle = handleKey(contact[field] ?? '', field);
       if (!handle) continue;
       add(handle, contact.id);
       if (field === 'blueskyHandle' && handle.endsWith(BLUESKY_SUFFIX))

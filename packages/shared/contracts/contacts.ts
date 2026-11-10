@@ -1,11 +1,11 @@
 // Contacts wire contract: what the server reads for a New contact (an X profile for From link, a
 // screenshot for From screenshot, contracts/ai.ts).
 import { z } from 'zod';
-import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
+import { CONTACT_HANDLE_FIELDS, type ContactHandleField, X_HANDLE_PATTERN } from '../collections/contact';
 import { imageSchema } from './image';
 
-// A contact as the server reads it from a profile: the name, the handles (normalized,
-// normalizeHandle) and the place's parts, each empty when the profile doesn't show it.
+// A contact as the server reads it from a profile: the name, the handles (bare, case kept) and the
+// place's parts, each empty when the profile doesn't show it.
 export const contactReadSchema = z.object({
   name: z.string(),
   ...(Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, z.string()])) as Record<
@@ -22,9 +22,6 @@ export type ContactRead = z.infer<typeof contactReadSchema>;
 export function emptyContactRead(): ContactRead {
   return Object.fromEntries(contactReadSchema.keyof().options.map((field) => [field, ''])) as ContactRead;
 }
-
-// The characters of an X handle (older handles can be longer than 15), without anchors.
-export const X_HANDLE_PATTERN = /[A-Za-z0-9_]{1,50}/;
 
 // POST /ai/contact-from-link — From link on a New contact, an assistant feature: the X handle of a
 // profile link. Only X links for now.

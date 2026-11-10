@@ -1,13 +1,11 @@
 import {
   CONTACT_HANDLES,
   CONTACT_LIMITS,
-  CONTACT_HANDLE_BY_FIELD,
   CONTACT_HANDLE_FIELDS,
   CONTACT_PLACE_PARTS,
   type ContactHandleField,
   type ContactPlace,
   type ContactRecord,
-  normalizeHandle,
   placeParts,
 } from '@squidbox/shared';
 
@@ -31,12 +29,6 @@ export const HANDLE_FIELDS: { field: HandleFormField; label: string; placeholder
   { field: 'phoneNumber', label: 'Phone', placeholder: 'Phone number' },
 ];
 
-/** A stored handle as its field shows it: with `@` on a network that writes it so (X, Bluesky). */
-export function handleText(field: HandleFormField, handle: string | null | undefined): string {
-  const bare = handle?.replace(/^@+/, '') ?? '';
-  return bare && field !== 'phoneNumber' && CONTACT_HANDLE_BY_FIELD[field].isAtHandle ? `@${bare}` : bare;
-}
-
 function handlesOf<T>(valueOf: (field: ContactHandleField) => T): Record<ContactHandleField, T> {
   return Object.fromEntries(CONTACT_HANDLE_FIELDS.map((field) => [field, valueOf(field)])) as Record<
     ContactHandleField,
@@ -58,7 +50,7 @@ export function storedPlace(place: Partial<ContactPlace> | string | null | undef
 export function contactDraft(contact?: Partial<ContactRecord> | null): ContactDraft {
   return {
     name: contact?.name ?? '',
-    ...handlesOf((field) => handleText(field, contact?.[field])),
+    ...handlesOf((field) => contact?.[field] ?? ''),
     phoneNumber: contact?.phoneNumber ?? '',
     places: (contact?.places ?? []).map(placeParts),
     notes: contact?.notes ?? '',
@@ -66,15 +58,14 @@ export function contactDraft(contact?: Partial<ContactRecord> | null): ContactDr
 }
 
 /**
- * The fields a form stores (contactDraft's, as typed): the name trimmed, each handle normalized
- * (normalizeHandle), the phone number and notes trimmed, each place's parts trimmed; empty rows as
- * null, empty places left out.
+ * The fields a form stores (contactDraft's, as typed): the name trimmed, each handle as typed,
+ * trimmed, the phone number and notes trimmed, each place's parts trimmed; empty rows as null, empty
+ * places left out.
  */
 export function storedContactFields(draft: ContactDraft): ContactFormFields {
-  const handle = (text: string) => normalizeHandle(text) || null;
   return {
     name: draft.name.trim(),
-    ...handlesOf((field) => handle(draft[field])),
+    ...handlesOf((field) => draft[field].trim() || null),
     phoneNumber: draft.phoneNumber.trim() || null,
     places: draft.places.map(storedPlace).filter((place): place is ContactPlace => place !== null),
     notes: noteText(draft.notes),

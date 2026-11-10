@@ -17,7 +17,7 @@ const read = async () => {
 beforeEach(async () => {
   db = makeTestDb();
   for (const id of ['p1', 'p2', 'p3']) await assets.create(db, makeAssetRecord({ id }));
-  await contacts.create(db, makeContactRecord({ id: 'ben', xHandle: 'benclimbs' }));
+  await contacts.create(db, makeContactRecord({ id: 'ben', xHandle: '@BenClimbs' }));
   await contacts.create(db, makeContactRecord({ id: 'ana', blueskyHandle: 'ana.bsky.social' }));
 });
 

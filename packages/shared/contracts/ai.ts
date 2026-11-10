@@ -306,7 +306,7 @@ export type TagPhotoResponse = z.infer<typeof tagPhotoResponseSchema>;
 
 // POST /ai/contact-from-screenshot — the user's vision model reads a profile screenshot for the New
 // contact sheet, as instructions.contactScreenshot says. Each field is empty when the screenshot
-// doesn't show it; the handles come normalized (normalizeHandle), the place as its city, state and
+// doesn't show it; the handles come bare, case kept, the place as its city, state and
 // country. The screenshot is never stored.
 export const contactFromScreenshotRequestSchema = z.object({ image: visionImageSchema });
 export type ContactFromScreenshotRequest = z.infer<typeof contactFromScreenshotRequestSchema>;

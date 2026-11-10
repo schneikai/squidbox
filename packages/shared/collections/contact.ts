@@ -18,11 +18,20 @@ export type ContactPlace = z.infer<typeof contactPlaceSchema>;
 // device joins it into its avatars folder.
 const avatarFilenameSchema = textSchema.regex(/^avatar-[A-Za-z0-9-]+\.jpg$/, 'an avatar-….jpg file name');
 
+// The characters of an X handle (older handles can be longer than 15), without anchors.
+export const X_HANDLE_PATTERN = /[A-Za-z0-9_]{1,50}/;
+
+// A network without pages at the root of its profiles' path.
+const NO_PAGES: ReadonlySet<string> = new Set();
+
 /**
  * The networks a contact has a handle on, in the order the app shows them: the field, the network's
- * name, a hint of the form a handle takes, whether it is shown with `@` (`isAtHandle`: stored without
- * it, like every handle), the hosts a profile URL is pasted from (without scheme or `www.`) and the
- * web profile a handle opens. Everything that lists the handles derives from this.
+ * name, a hint of the form a handle takes, whether it is shown with `@` (`isAtHandle`: where the app
+ * writes a handle itself), the hosts a profile URL is pasted from (without scheme or `www.`), the
+ * web profile a handle opens, and how a profile link's first path segment reads as a handle
+ * (`handleSegment`, group 1 the handle; `reserved`: the network's pages at the root, lowercased, that
+ * are no profile). A handle is stored as typed, trimmed, and compared with handleKey. Everything that
+ * lists the handles derives from this.
  */
 export const CONTACT_HANDLES = [
   {
@@ -32,14 +41,52 @@ export const CONTACT_HANDLES = [
     isAtHandle: true,
     hosts: ['x.com/', 'twitter.com/', 'mobile.x.com/', 'mobile.twitter.com/'],
     profileUrl: (handle: string) => `https://x.com/${handle}`,
+    handleSegment: new RegExp(`^(${X_HANDLE_PATTERN.source})$`),
+    reserved: new Set([
+      'home',
+      'explore',
+      'search',
+      'notifications',
+      'messages',
+      'settings',
+      'i',
+      'intent',
+      'share',
+      'hashtag',
+      'compose',
+      'login',
+      'signup',
+      'logout',
+      'tos',
+      'privacy',
+      'download',
+      'jobs',
+      'about',
+    ]) as ReadonlySet<string>,
   },
   {
     field: 'instagramHandle',
     label: 'Instagram',
     placeholder: '@username',
     isAtHandle: true,
-    hosts: ['instagram.com/'],
+    hosts: ['instagram.com/', 'm.instagram.com/'],
     profileUrl: (handle: string) => `https://instagram.com/${handle}`,
+    handleSegment: /^([A-Za-z0-9._]{1,30})$/,
+    // `_u` is the app's link to a profile (`instagram.com/_u/maya`), no profile itself.
+    reserved: new Set([
+      'p',
+      'reel',
+      'reels',
+      'explore',
+      'stories',
+      'accounts',
+      'direct',
+      'tv',
+      '_u',
+      'about',
+      'legal',
+      'web',
+    ]) as ReadonlySet<string>,
   },
   {
     field: 'blueskyHandle',
@@ -48,6 +95,9 @@ export const CONTACT_HANDLES = [
     isAtHandle: true,
     hosts: ['bsky.app/profile/'],
     profileUrl: (handle: string) => `https://bsky.app/profile/${handle}`,
+    // A domain-style handle: a DID (`did:plc:…`) is no handle.
+    handleSegment: /^([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)$/,
+    reserved: NO_PAGES,
   },
   {
     field: 'onlyFansHandle',
@@ -56,6 +106,9 @@ export const CONTACT_HANDLES = [
     isAtHandle: false,
     hosts: ['onlyfans.com/'],
     profileUrl: (handle: string) => `https://onlyfans.com/${handle}`,
+    // Not a number: `onlyfans.com/123456/maya` is a post.
+    handleSegment: /^(?!\d+$)([A-Za-z0-9_.-]+)$/,
+    reserved: new Set(['my']) as ReadonlySet<string>,
   },
   {
     field: 'jffHandle',
@@ -64,6 +117,8 @@ export const CONTACT_HANDLES = [
     isAtHandle: false,
     hosts: ['justfor.fans/'],
     profileUrl: (handle: string) => `https://justfor.fans/${handle}`,
+    handleSegment: /^([A-Za-z0-9_.-]+)$/,
+    reserved: NO_PAGES,
   },
 ] as const;
 export type ContactHandleField = (typeof CONTACT_HANDLES)[number]['field'];
@@ -80,8 +135,8 @@ const handleSchemas = Object.fromEntries(
   instagramHandle: ReturnType<typeof handleSchema.optional>;
 };
 
-// `contacts` — the people the user works with (the Contacts tab). The handles are stored without
-// `@` or a URL (normalizeHandle); `places` is a list of `{ city, state, country }` (the state
+// `contacts` — the people the user works with (the Contacts tab). The handles are stored as typed,
+// trimmed, and compared with handleKey; `places` is a list of `{ city, state, country }` (the state
 // optional, an empty string without one) that merges as one value. The avatar is a file in the user's storage (`avatar-<id>-<new id>.jpg`) that
 // `avatarFilename` names, null without a photo: a file field, so the sync uploads the file before the
 // record is pushed; a new photo gets a new name, so a device holding the old one never shows it for
