@@ -36,10 +36,20 @@ export type ContactSummary = Pick<schema.ContactRow, 'id' | 'isFavorite' | 'avat
   listNames?: string[];
 };
 
-// The names of the live lists a contact is in, by name, as a JSON array.
-const LIST_NAMES = sql<
-  string | null
->`(select json_group_array(name) from (select l.name as name from contact_list_members m join contact_lists l on l.id = m.list_id and l.deleted_at is null where m.contact_id = contacts.id and m.deleted_at is null group by l.id order by l.name collate nocase, l.id))`;
+// The names of the live lists a contact is in and, with `withTagged`, Tagged when it is on a photo still there (the
+// built-in list's rule, as in the `tagged` scope), by name, as a JSON array.
+const listNames = (withTagged: boolean) =>
+  sql<string | null>`(select json_group_array(name) from (select l.name as name, l.id as id from contact_list_members m
+    join contact_lists l on l.id = m.list_id and l.deleted_at is null
+    where m.contact_id = contacts.id and m.deleted_at is null group by l.id
+    ${
+      withTagged
+        ? sql`union all select 'Tagged', 'tagged' where exists (select 1 from contact_links tl
+      join assets ta on ta.id = tl.target_id and ta.deleted_at is null
+      where tl.target_type = 'asset' and tl.deleted_at is null and tl.contact_id = contacts.id)`
+        : sql``
+    }
+    order by name collate nocase, id))`;
 
 /**
  * A list's members, or the contacts on any of these photos (`photoIds`). `photosOf`: the contacts on
@@ -57,7 +67,8 @@ export type ContactDescriptor = {
   search?: string;
   // By name ignoring case, or recently added first: to the app, or in a list's scope to that list.
   sort?: ContactSort;
-  // `read`'s rows carry the names of the lists each contact is in (a contact row's pills).
+  // `read`'s rows carry the names of the lists each contact is in (a contact row's pills), Tagged among them
+  // (outside the Tagged scope, where every row would say it).
   withLists?: boolean;
 };
 
@@ -88,7 +99,9 @@ export default function contactQuery({
     tables.push(...('albumId' in photosOf ? [schema.albumAssets] : [schema.postAssets, schema.posts]));
   }
   if (scope === 'tagged') tables.push(schema.contactLinks, schema.assets);
+  const withTagged = withLists && scope !== 'tagged';
   if (withLists) tables.push(schema.contactLists, ...(listId ? [] : [schema.contactListMembers]));
+  if (withTagged) tables.push(schema.contactLinks, schema.assets);
 
   const scopeCondition = ((): SQL | undefined => {
     if (scope === 'favorites') return eq(c.isFavorite, true);
@@ -139,7 +152,7 @@ export default function contactQuery({
         const ids = await matchedIds(tx);
         const [{ count: total }] = await tx.select({ count: count() }).from(c).where(where(ids));
         const query = tx
-          .select({ ...SUMMARY, listNames: withLists ? LIST_NAMES : sql<string | null>`null` })
+          .select({ ...SUMMARY, listNames: withLists ? listNames(withTagged) : sql<string | null>`null` })
           .from(c)
           .where(where(ids))
           .orderBy(...order);
