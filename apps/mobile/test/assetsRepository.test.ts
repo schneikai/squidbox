@@ -120,4 +120,31 @@ describe('assetsRepository', () => {
     expect(after).toEqual(before);
     expect(await db.select().from(schema.outbox)).toHaveLength(0);
   });
+
+  it("stores several assets' tags in the caller's transaction, skipping deleted and unchanged ones", async () => {
+    const { db } = makeMeasuredTestDb();
+    await repo.createMany(db, [
+      makeAssetRecord({ id: 'a1', tags: ['forest'] }),
+      makeAssetRecord({ id: 'a2', tags: null }),
+      makeAssetRecord({ id: 'a3', tags: ['forest', 'fog'] }),
+      makeAssetRecord({ id: 'gone', tags: null, deletedAt: 5 }),
+    ]);
+    await clearOutboxRows(db, 'assets', ['a1', 'a2', 'a3', 'gone']);
+
+    const stored = await db.transaction((tx) =>
+      repo.setTagsOf(tx, ['a1', 'a2', 'a3', 'gone', 'missing'], (tags) =>
+        tags?.includes('fog') ? null : [...(tags ?? []), 'fog'],
+      ),
+    );
+    expect(stored).toEqual(
+      new Map([
+        ['a1', ['forest', 'fog']],
+        ['a2', ['fog']],
+        ['a3', ['forest', 'fog']],
+      ]),
+    );
+    expect((await readByIds(db, schema.assets, ['gone']))[0].tags).toBeNull();
+    const outbox = await db.select().from(schema.outbox).where(eq(schema.outbox.collection, 'assets'));
+    expect(outbox.map((row) => row.recordId).sort()).toEqual(['a1', 'a2']);
+  });
 });

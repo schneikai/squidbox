@@ -50,17 +50,35 @@ export async function setTags(
   id: string,
   tags: string[] | ((stored: string[] | null) => string[] | null),
 ): Promise<string[] | null> {
-  return db.transaction(async (tx) => {
-    const previous = (await readByIds(tx, schema.assets, [id])).filter((row) => row.deletedAt === null);
-    if (previous.length === 0) return null;
-    const next = typeof tags === 'function' ? tags(previous[0]!.tags) : tags;
-    if (next === null) return previous[0]!.tags;
-    const stored = uniqueTags(next);
-    if (JSON.stringify(stored) === JSON.stringify(previous[0]!.tags)) return stored;
-    const rows = previous.map((row) => nextVersion(row, { tags: stored }));
-    await saveRecords(tx, 'assets', schema.assets, rows, { previous });
-    return stored;
-  });
+  const stored = await db.transaction((tx) => setTagsOf(tx, [id], tags));
+  return stored.get(id) ?? null;
+}
+
+/**
+ * setTags for many assets, in the caller's transaction: `tags` (a list, or a function of each
+ * asset's stored tags returning null to leave them) on each one still in the library, saved in
+ * one go (saveRecords leaves out the rows whose tags didn't change). Resolves to each live asset's stored list (null while never tagged), by id.
+ */
+export async function setTagsOf(
+  tx: SyncDb,
+  ids: string[],
+  tags: string[] | ((stored: string[] | null) => string[] | null),
+): Promise<Map<string, string[] | null>> {
+  const live = (await readByIds(tx, schema.assets, ids)).filter((row) => row.deletedAt === null);
+  const stored = new Map<string, string[] | null>();
+  const rows: schema.AssetRow[] = [];
+  for (const row of live) {
+    const next = typeof tags === 'function' ? tags(row.tags) : tags;
+    if (next === null) {
+      stored.set(row.id, row.tags);
+      continue;
+    }
+    const nextTags = uniqueTags(next);
+    stored.set(row.id, nextTags);
+    rows.push(nextVersion(row, { tags: nextTags }));
+  }
+  await saveRecords(tx, 'assets', schema.assets, rows, { previous: live });
+  return stored;
 }
 
 // The local-only sync-error marker (never synced) of the assets matching `where`, written only where

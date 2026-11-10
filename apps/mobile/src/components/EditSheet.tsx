@@ -12,6 +12,7 @@ import { layout } from '@/styles/designTokens';
 
 export type EditSheetProps = {
   title?: string;
+  subtitle?: string;
   confirmLabel: string;
   canConfirm: boolean;
   isSaving?: boolean;
@@ -25,13 +26,14 @@ export type EditSheetProps = {
 
 /**
  * The sheet that edits one item as a draft (hooks/useEditSheet gives its props), under an
- * EditSheetHeader (×, the optional `title`, `confirmLabel`); while `isSaving` the actions are off too. The body (`children`) scrolls under
+ * EditSheetHeader (×, the optional `title` and `subtitle`, `confirmLabel`); while `isSaving` the actions are off too. The body (`children`) scrolls under
  * the header, with optional `actions` at its end (ActionButtons: `{ label, colorPalette, onPress,
  * loading, disabled }`, e.g. Delete). `isFilling` lets the body fill the sheet above the keyboard instead of scrolling, for
  * a text field that fills it (TextEditSheet). `testID` names the sheet for the UI flow tests.
  */
 export default function EditSheet({
   title,
+  subtitle,
   confirmLabel,
   canConfirm,
   isSaving = false,
@@ -48,6 +50,7 @@ export default function EditSheet({
   const header = (
     <EditSheetHeader
       title={title}
+      subtitle={subtitle}
       confirmLabel={confirmLabel}
       canConfirm={canConfirm}
       isSaving={isSaving}

@@ -5,7 +5,7 @@ import Icon, { type IconName } from '@/components/Icon';
 import chipFrame from '@/styles/chipFrame';
 import { colors, disabledOpacity, layout, press, shadows, sizes, space, textStyles } from '@/styles/designTokens';
 
-export type ChipVariant = 'tag' | 'raised' | 'lead' | 'add';
+export type ChipVariant = 'tag' | 'raised' | 'lead' | 'add' | 'mixed';
 
 export type ChipProps = Pick<
   PressableProps,
@@ -27,9 +27,10 @@ export type ChipProps = Pick<
  * (white and lifted by a soft shadow, with a violet label and icon: a prompt button in the
  * assistant's tray, which is tinted),
  * `lead` (light violet with a semibold violet label, lifted like `raised`, the assistant's own
- * action at the end of a row of prompt buttons: Ask anything) or `add` (the grey dashed Add at the
- * end of a row, with its plus). Every variant has the same frame, so a tag tapped on never changes
- * its width and moves the chips after it.
+ * action at the end of a row of prompt buttons: Ask anything), `add` (the grey dashed Add at the
+ * end of a row, with its plus) or `mixed` (a tag on only some of the items, such as an album's
+ * photos: no fill and a dashed outline; VoiceOver reads it as mixed). Every variant has the same
+ * frame, so a tag tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), grey, or violet when it is the assistant's sparkle; `leading` leads it instead with a node
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
@@ -71,6 +72,8 @@ export default function Chip({
   ];
   const accessibilityState =
     accessibilityRole === 'checkbox' ? { checked: isSelected, disabled } : { selected: isSelected, disabled };
+  // A `mixed` tag reads as mixed, in the app and the web build alike (aria-checked reaches both).
+  const ariaChecked = variant === 'mixed' ? ('mixed' as const) : undefined;
   const content = (
     <>
       {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={iconColor} />)}
@@ -98,7 +101,11 @@ export default function Chip({
 
   if (!onPress && !remove) {
     return (
-      <View accessibilityLabel={accessibilityLabel} style={[frame, disabled && styles.disabled, style]}>
+      <View
+        accessibilityLabel={accessibilityLabel}
+        aria-checked={ariaChecked}
+        style={[frame, disabled && styles.disabled, style]}
+      >
         {content}
       </View>
     );
@@ -114,6 +121,7 @@ export default function Chip({
             disabled={disabled}
             accessibilityRole={accessibilityRole}
             accessibilityState={accessibilityState}
+            aria-checked={ariaChecked}
             accessibilityLabel={accessibilityLabel}
             accessibilityHint={accessibilityHint}
             style={({ pressed }) => [styles.chip, styles.shrinks, pressed && press.flat]}
@@ -121,7 +129,11 @@ export default function Chip({
             {content}
           </Pressable>
         ) : (
-          <View accessibilityLabel={accessibilityLabel} style={[styles.chip, styles.shrinks]}>
+          <View
+            accessibilityLabel={accessibilityLabel}
+            aria-checked={ariaChecked}
+            style={[styles.chip, styles.shrinks]}
+          >
             {content}
           </View>
         )}
@@ -138,6 +150,7 @@ export default function Chip({
       disabled={disabled}
       accessibilityRole={accessibilityRole}
       accessibilityState={accessibilityState}
+      aria-checked={ariaChecked}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [frame, pressed && press.flat, disabled && styles.disabled, style]}
@@ -178,7 +191,8 @@ const styles = StyleSheet.create({
   lifted: {
     ...shadows.raised,
   },
-  add: {
+  // `add` and `mixed`.
+  dashed: {
     borderColor: colors.border.dashed,
     borderStyle: 'dashed',
   },
@@ -208,5 +222,6 @@ const styles = StyleSheet.create({
 const VARIANT_STYLES: Partial<Record<ChipVariant, ViewStyle>> = {
   tag: styles.tag,
   raised: styles.raised,
-  add: styles.add,
+  add: styles.dashed,
+  mixed: styles.dashed,
 };
