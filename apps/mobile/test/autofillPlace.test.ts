@@ -23,6 +23,15 @@ describe('autofillPlace', () => {
     ).toEqual(place('Sao Paulo', 'São Paulo', 'Brazil'));
   });
 
+  it('a known place that only lacks parts of another fills from the fuller one', () => {
+    const known = [
+      { city: 'São Paulo', state: '', country: 'Brazil' },
+      { city: 'São Paulo', state: 'São Paulo', country: 'Brazil' },
+      { city: 'São Paulo', state: '', country: '' },
+    ];
+    expect(autofillPlace(place('São Paulo'), 'city', known)).toEqual(place('São Paulo', 'São Paulo', 'Brazil'));
+  });
+
   it('a state in one known country fills an empty country', () => {
     expect(autofillPlace(place('', 'Oregon'), 'state', KNOWN)).toEqual(place('', 'Oregon', 'United States'));
   });
