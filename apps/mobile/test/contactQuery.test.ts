@@ -61,6 +61,20 @@ describe('contactQuery', () => {
     });
   });
 
+  it('withLists names Tagged for a contact on a photo still there, by name with its lists, but not inside Tagged', async () => {
+    await lists.create(db, { id: 'l1', createdAt: 1, updatedAt: 1, deletedAt: null, name: 'Zine', notes: null });
+    await contactListMembers.addToEach(db, [{ listId: 'l1' }], ['maya'], newId);
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'gone' }, ['ben'], newId);
+    const names = async (scope: 'all' | 'tagged') =>
+      Object.fromEntries(
+        (await contactQuery({ scope, withLists: true }).read(db)).rows.map((r) => [r.id, r.listNames]),
+      );
+    expect(await names('all')).toEqual({ ana: ['Tagged'], ben: [], maya: ['Tagged', 'Zine'] });
+    expect(await names('tagged')).toEqual({ ana: [], maya: ['Zine'] });
+  });
+
   it('Tagged lists the contacts on any photo still there, once each', async () => {
     await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
