@@ -53,11 +53,43 @@ describe('filledFrom', () => {
     expect(filledFrom(read(squamish), draft({ places: [squamish] })).places).toBeUndefined();
   });
 
-  it('completes a place it read from the places the contacts know', () => {
-    const known = [{ city: 'São Paulo', state: 'São Paulo', country: 'Brazil' }];
-    expect(filledFrom(read({ city: 'São Paulo', country: 'Brazil' }), draft(), known).places).toEqual([
+  describe('a place it read', () => {
+    const known = [
       { city: 'São Paulo', state: 'São Paulo', country: 'Brazil' },
-    ]);
+      { city: 'San José', state: '', country: 'Costa Rica' },
+      { city: 'Portland', state: 'Oregon', country: 'United States' },
+      { city: 'Portland', state: 'Maine', country: 'United States' },
+    ];
+    const placesOf = (fields: Partial<ContactRead>, typed = draft()) => filledFrom(read(fields), typed, known).places;
+
+    it('takes the spelling the contacts use and is completed from their places', () => {
+      expect(placesOf({ city: 'sao paulo', country: 'Brazil' })).toEqual([
+        { city: 'São Paulo', state: 'São Paulo', country: 'Brazil' },
+      ]);
+    });
+
+    it('is not added again when the draft has it in its completed form', () => {
+      const typed = draft({ places: [{ city: 'São Paulo', state: 'São Paulo', country: 'Brazil' }] });
+      expect(placesOf({ city: 'Sao Paulo', country: 'Brazil' }, typed)).toBeUndefined();
+    });
+
+    it('stays as read for a city the contacts never had', () => {
+      expect(placesOf({ city: 'Curitiba', country: 'Brazil' })).toEqual([
+        { city: 'Curitiba', state: '', country: 'Brazil' },
+      ]);
+    });
+
+    it('takes no spelling or state from a city of the same name in another country', () => {
+      expect(placesOf({ city: 'San Jose', state: 'California', country: 'United States' })).toEqual([
+        { city: 'San Jose', state: 'California', country: 'United States' },
+      ]);
+    });
+
+    it('gets no state when the contacts know the city in two states', () => {
+      expect(placesOf({ city: 'Portland', country: 'United States' })).toEqual([
+        { city: 'Portland', state: '', country: 'United States' },
+      ]);
+    });
   });
 
   it('leaves the notes to the user, whatever the bio and website say', () => {

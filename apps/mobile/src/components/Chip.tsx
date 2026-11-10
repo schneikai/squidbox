@@ -12,6 +12,7 @@ export type ChipProps = Pick<
   'onPress' | 'disabled' | 'accessibilityRole' | 'accessibilityLabel' | 'accessibilityHint'
 > & {
   label: string;
+  detail?: string;
   variant?: ChipVariant;
   icon?: IconName;
   leading?: ReactNode;
@@ -37,12 +38,14 @@ export type ChipProps = Pick<
  * chip would be wider than its row. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
- * `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
+ * `detail` follows the label in grey, after a ·: what tells it apart from a chip of the same label
+ * (a city's state or country). `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
  * what VoiceOver reads for it.
  * style is for layout only.
  */
 export default function Chip({
   label,
+  detail,
   variant = 'tag',
   icon,
   leading,
@@ -82,6 +85,7 @@ export default function Chip({
         numberOfLines={leading ? 1 : undefined}
       >
         {label}
+        {detail ? <Text style={styles.detail}>{` · ${detail}`}</Text> : null}
       </Text>
     </>
   );
@@ -209,6 +213,9 @@ const styles = StyleSheet.create({
   label: {
     ...textStyles.subheadline,
     color: colors.text.primary,
+  },
+  detail: {
+    color: colors.text.secondary,
   },
   accentLabel: {
     color: colors.accent.base,

@@ -1,12 +1,9 @@
 import { type ContactPlace, placeParts } from '@squidbox/shared';
 
-import { searchForms } from '@/sync/matchingIds';
+import distinctPlaces from './distinctPlaces';
+import samePlaceText from './samePlaceText';
 
 type PlacePart = keyof ContactPlace;
-
-// A part as it is compared: blind to case and accents, as a search is ("Sao Paulo" is "São Paulo").
-const comparable = (text: string) => searchForms(text.trim())[0]!;
-const same = (a: string, b: string) => comparable(a) === comparable(b);
 
 /**
  * `place` once its `part` was typed or picked, its empty parts filled from the `known` places (the
@@ -33,23 +30,13 @@ export default function autofillPlace(
     .map(placeParts)
     .filter(
       (candidate) =>
-        same(candidate[part], typed) && (!country || !candidate.country.trim() || same(candidate.country, country)),
+        samePlaceText(candidate[part], typed) &&
+        (!country || !candidate.country.trim() || samePlaceText(candidate.country, country)),
     );
-  const fullest = matches.filter(
-    (match) =>
-      !matches.some(
-        (other) => fills.some((fill) => other[fill].trim() && !match[fill].trim()) && covers(other, match, fills),
-      ),
-  );
-  const [match] = fullest;
-  if (!match || fullest.some((other) => !fills.every((fill) => same(other[fill], match[fill])))) return place;
+  const [match, ...others] = distinctPlaces(matches, fills);
+  if (!match || others.length > 0) return place;
 
   const filled = { ...place };
   for (const fill of fills) if (!filled[fill].trim()) filled[fill] = match[fill];
   return filled;
-}
-
-// Whether `fuller` has every part `place` has (of `parts`), the same.
-function covers(fuller: ContactPlace, place: ContactPlace, parts: PlacePart[]): boolean {
-  return parts.every((part) => !place[part].trim() || same(fuller[part], place[part]));
 }
