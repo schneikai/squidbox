@@ -1,7 +1,7 @@
 import { ASSET_TAG_LIMITS } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
-import editedTags from '../src/features/photo-tags/editedTags';
+import editedTags from '../src/utils/editedTags';
 
 describe('editedTags', () => {
   it('takes a removed tag out in any case and leaves a photo without it as it was', () => {

@@ -13,6 +13,8 @@ type MoreActionProps = { album: AlbumRow; hasPhotos?: boolean; afterDelete?: () 
 
 export default function MoreAction({ album, hasPhotos = false, afterDelete, onSelect }: MoreActionProps) {
   const { updateAlbum, setAlbumDeleted } = useAlbums();
+  // A smart album holds no photos of its own, so they are edited through a real album.
+  const canEditPhotos = hasPhotos && !isSmartAlbum(album);
 
   async function handleDeleteAlbum() {
     if (!(await confirmAsync({ title: 'Delete Album?', action: 'Delete', destructive: true }))) return;
@@ -28,6 +30,10 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
     router.navigate({ pathname: '/add-contacts', params: { albumId: album.id } });
   }
 
+  function handleTagPhotos() {
+    router.navigate({ pathname: '/album-tags', params: { albumId: album.id } });
+  }
+
   async function handleArchiveAlbum() {
     await updateAlbum(album.id, { archivedAt: getTimestamp() });
   }
@@ -40,9 +46,8 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
     <MenuButton>
       {!!onSelect && <MenuOption label="Select" icon="check-circle" onPress={onSelect} />}
       <MenuOption label="Edit" icon="edit" onPress={handleEdit} />
-      {hasPhotos && !isSmartAlbum(album) && (
-        <MenuOption label="Add contacts" icon="contacts" onPress={handleAddContactsToPhotos} />
-      )}
+      {canEditPhotos && <MenuOption label="Add contacts" icon="contacts" onPress={handleAddContactsToPhotos} />}
+      {canEditPhotos && <MenuOption label="Tags" icon="tag" onPress={handleTagPhotos} />}
       {!!album.archivedAt && <MenuOption label="Unarchive" icon="arrow-up-circle" onPress={handleUnarchiveAlbum} />}
       {!album.archivedAt && <MenuOption label="Archive" icon="archive" onPress={handleArchiveAlbum} />}
       <Divider variant="menu" />

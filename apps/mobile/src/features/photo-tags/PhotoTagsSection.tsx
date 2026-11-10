@@ -1,14 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
-
 import PhotoTagsField from './PhotoTagsField';
 import useRetag from './useRetag';
 
-import Button from '@/components/Button';
-import ScreenSectionHeader from '@/components/ScreenSectionHeader';
-import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
+import TagsSection from '@/components/TagsSection';
 import type { GuardPress } from '@/lib/unguarded';
-import { space } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 import type { AssetRow } from '@/sync/db/schema';
 
 export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: GuardPress };
@@ -20,36 +14,18 @@ export type PhotoTagsSectionProps = { asset: AssetRow; guardPress: GuardPress };
  * from pressing a chip or a button. It never tags by itself.
  */
 export default function PhotoTagsSection({ asset, guardPress }: PhotoTagsSectionProps) {
-  const isAssistantAvailable = useIsAssistantAvailable();
   const { retag, isRunning, error } = useRetag(asset);
 
   return (
-    <View>
-      <ScreenSectionHeader
-        title="Tags"
-        isFlush
-        trailing={
-          isAssistantAvailable && (
-            <Button
-              label={asset.tags === null ? 'Tag it' : 'Tag again'}
-              icon="sparkle"
-              size="small"
-              onPress={guardPress(() => retag())}
-              loading={isRunning}
-            />
-          )
-        }
-      />
-      <View style={styles.section}>
-        <PhotoTagsField asset={asset} disabled={isRunning} guardPress={guardPress} />
-        {!!error && <Text style={listTextStyles.subtitle}>{error}</Text>}
-      </View>
-    </View>
+    <TagsSection
+      title="Tags"
+      isFlush
+      tagItLabel={asset.tags === null ? 'Tag it' : 'Tag again'}
+      onTagIt={guardPress(() => retag())}
+      isTagging={isRunning}
+      error={error}
+    >
+      <PhotoTagsField asset={asset} disabled={isRunning} guardPress={guardPress} />
+    </TagsSection>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    gap: space.sm,
-  },
-});
