@@ -144,6 +144,21 @@ which handle the link itself is. Needs SSRF guards for user-given URLs (no priva
 and time caps) and a photo from any host. Pages behind a login wall (Instagram, OnlyFans, X's hidden
 profiles) get the "try From screenshot" alert. X may keep its own page read, as its data is cleaner.
 
+### [ ] Look places up in a place database
+
+A contact's place is matched only against the user's own contacts (`citySuggestions`,
+`autofillPlace`, `filledFrom`'s spelling step), so a new library gets places as the AI reads them
+(no state outside the US) and a messy one copies its most used spelling, even a wrong one. Looking
+cities up in a real place database (Apple Maps' place search or similar) would give official names
+and states for both. Investigation: `contact-locations-cleanup/autofill-proposal.md` in the project
+files.
+
+### [ ] Merge places in Settings
+
+A screen that lists the places the contacts use, with their counts, and merges spellings and copies
+of one place into one (as the one-off cleanup of Nov 10 did by script), so a messy library can be
+cleaned up in the app.
+
 ### [ ] Saved assistant chats
 
 Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`) lives only while
