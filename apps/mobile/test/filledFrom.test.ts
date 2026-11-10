@@ -53,6 +53,13 @@ describe('filledFrom', () => {
     expect(filledFrom(read(squamish), draft({ places: [squamish] })).places).toBeUndefined();
   });
 
+  it('completes a place it read from the places the contacts know', () => {
+    const known = [{ city: 'São Paulo', state: 'São Paulo', country: 'Brazil' }];
+    expect(filledFrom(read({ city: 'São Paulo', country: 'Brazil' }), draft(), known).places).toEqual([
+      { city: 'São Paulo', state: 'São Paulo', country: 'Brazil' },
+    ]);
+  });
+
   it('leaves the notes to the user, whatever the bio and website say', () => {
     expect(
       filledFrom(read({ bio: 'Trail runs <3', website: 'https://onlyfans.com/mayal' }), draft()).notes,

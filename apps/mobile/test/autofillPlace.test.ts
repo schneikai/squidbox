@@ -47,6 +47,18 @@ describe('autofillPlace', () => {
     expect(autofillPlace(place('Portland'), 'city', KNOWN)).toEqual(place('Portland'));
   });
 
+  it('counts only the known places in the country already filled', () => {
+    const known = [
+      ...KNOWN,
+      { city: 'Bogotá', state: '', country: 'Colombia' },
+      { city: 'Bogotá', state: 'California', country: 'United States' },
+    ];
+    expect(autofillPlace(place('Bogotá', '', 'Colombia'), 'city', known)).toEqual(place('Bogotá', '', 'Colombia'));
+    expect(autofillPlace(place('Bogotá', '', 'United States'), 'city', known)).toEqual(
+      place('Bogotá', 'California', 'United States'),
+    );
+  });
+
   it('keeps the parts the user already filled', () => {
     expect(autofillPlace(place('Squamish', 'BC'), 'city', KNOWN)).toEqual(place('Squamish', 'BC', 'Canada'));
   });

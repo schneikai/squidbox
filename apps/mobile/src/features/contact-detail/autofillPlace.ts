@@ -14,7 +14,8 @@ const same = (a: string, b: string) => comparable(a) === comparable(b);
  * that lies in exactly one known country fills the country: only from the specific to the general, so a
  * country fills nothing and a state never a city. A known place that only lacks parts of another
  * ("São Paulo, Brazil" beside "São Paulo, São Paulo, Brazil") is the same place, so the fuller one
- * fills. A part already filled is never changed, and a city or state known in two places fills nothing.
+ * fills. Known places in another country than the one filled don't count. A part already filled is
+ * never changed, and a city or state known in two places fills nothing.
  */
 export default function autofillPlace(
   place: ContactPlace,
@@ -24,7 +25,16 @@ export default function autofillPlace(
   const typed = place[part];
   if (!typed.trim() || part === 'country') return place;
   const fills: PlacePart[] = part === 'city' ? ['state', 'country'] : ['country'];
-  const matches = known.map(placeParts).filter((candidate) => same(candidate[part], typed));
+  // Only the known places in the country already filled, if one is: "Bogotá" with Colombia set never
+  // takes a state from a Bogotá elsewhere. A state already filled doesn't narrow them, so a typed "BC"
+  // still finds British Columbia's country.
+  const country = place.country.trim();
+  const matches = known
+    .map(placeParts)
+    .filter(
+      (candidate) =>
+        same(candidate[part], typed) && (!country || !candidate.country.trim() || same(candidate.country, country)),
+    );
   const fullest = matches.filter(
     (match) =>
       !matches.some(
