@@ -24,7 +24,7 @@ const PARTS: { part: keyof ContactPlace; label: string; placeholder: string }[] 
  * both on once the place has a part set and, for Save, changed. Its City, State and Country offer
  * what the user's contacts have (usePlaceSuggestions), and a known city or state fills the empty
  * parts it implies (autofillPlace); a city known in several places is offered once per place, and
- * picking one fills its state and country. `onSave(place, from)` gets it trimmed, with the place as the sheet
+ * picking one sets its state and country. `onSave(place, from)` gets it trimmed, with the place as the sheet
  * opened with it (null for a new one); Remove location, for one being edited, asks first and calls
  * `onRemove(from)`. Both write what the screen around it holds and ask for a sync if that needs one:
  * the sheet asks for none.
@@ -54,14 +54,11 @@ export default function PlaceEditor({ place: seed, onSave, onRemove }: PlaceEdit
     setDraft((current) => autofillPlace({ ...current, [part]: text }, part, knownPlaces));
   }
 
-  // A city picked as one of its places fills that place's state and country where they are empty.
+  // A city picked as one of its places is that place: its state and country replace what the fields
+  // hold, so picking another of its places switches to it.
   function pickCity({ text, place: picked }: CitySuggestion) {
     if (!picked) return setPart('city', text);
-    setDraft((current) => ({
-      city: text,
-      state: current.state.trim() ? current.state : picked.state,
-      country: current.country.trim() ? current.country : picked.country,
-    }));
+    setDraft({ city: text, state: picked.state, country: picked.country });
   }
 
   async function handleRemove() {
