@@ -17,6 +17,12 @@ describe('autofillPlace', () => {
     expect(autofillPlace(place('Denver'), 'city', KNOWN)).toEqual(place('Denver', 'Colorado', 'United States'));
   });
 
+  it('matches a known city blind to its accents', () => {
+    expect(
+      autofillPlace(place('Sao Paulo'), 'city', [{ city: 'São Paulo', state: 'São Paulo', country: 'Brazil' }]),
+    ).toEqual(place('Sao Paulo', 'São Paulo', 'Brazil'));
+  });
+
   it('a state in one known country fills an empty country', () => {
     expect(autofillPlace(place('', 'Oregon'), 'state', KNOWN)).toEqual(place('', 'Oregon', 'United States'));
   });

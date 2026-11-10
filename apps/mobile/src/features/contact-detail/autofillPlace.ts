@@ -1,8 +1,12 @@
 import { type ContactPlace, placeParts } from '@squidbox/shared';
 
+import { searchForms } from '@/sync/matchingIds';
+
 type PlacePart = keyof ContactPlace;
 
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+// A part as it is compared: blind to case and accents, as a search is ("Sao Paulo" is "São Paulo").
+const comparable = (text: string) => searchForms(text.trim())[0]!;
+const same = (a: string, b: string) => comparable(a) === comparable(b);
 
 /**
  * `place` once its `part` was typed or picked, its empty parts filled from the `known` places (the
@@ -29,7 +33,7 @@ export default function autofillPlace(
   return filled;
 }
 
-// Each value once, ignoring case.
+// Each value once, ignoring case and accents.
 function unique(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.toLowerCase()))];
+  return [...new Set(values.map(comparable))];
 }
