@@ -35,6 +35,7 @@ const palette = {
   violet100: '#EFE7FD',
   violet250: '#C4AAFF', // light and saturated, the rim light on the violet
   violet300: '#C4B5FD',
+  violet400: '#A78BFA',
   violet600: '#7C3AED',
   violet650: '#6640E9', // between violet600 and indigo600
   indigo600: '#4F46E5',
@@ -63,6 +64,8 @@ export const colors = {
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
     border: alpha(palette.violet600, 0.3), // the thread's connector line
     onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
+    shine: palette.violet300, // the light band sweeping across the assistant at work (WorkingSparkle, the tray's title)
+    spark: palette.violet400, // the little stars around the assistant's sparkle at work
     gradient: [palette.violet600, palette.indigo600] as const,
     frame: palette.violet650, // the frame of a toolbar that is only the primary (FloatingPill), between the gradient's ends
   },
@@ -215,6 +218,9 @@ export const sizes = {
   },
   // Fits typical labels on one line, never wider than the screen minus the side gutters.
   popoverWidth: Math.min(scale(250), SCREEN_WIDTH - 2 * SIDE_GUTTER),
+  // An idea card of the assistant's tray (IdeasCarousel): its width, so the next one peeks in, and
+  // the height it has at least, a short idea's card as tall as a skeleton's.
+  ideaCard: { width: scale(230), minHeight: scale(132) },
 };
 
 const BAR_HEIGHT = sizes.iconButton + BAR_MARGIN * 2;
@@ -352,6 +358,18 @@ export const motion = {
   settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
+  // The assistant at work (WorkingSparkle, the tray's title): a light band sweeping across the
+  // sparkle and the title, and four stars around the sparkle, each popping in and out on its own
+  // period and delay, so they never look mechanical. The sparkle breathes on `pulse`.
+  working: {
+    band: { duration: 2000, easing: Easing.linear },
+    stars: [
+      { duration: 2900, delay: 0 },
+      { duration: 3700, delay: 1300 },
+      { duration: 3300, delay: 600 },
+      { duration: 4100, delay: 2200 },
+    ],
+  },
 };
 
 // A layout transition in the move motion: views that make room or close a gap glide to their new place

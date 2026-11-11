@@ -20,5 +20,5 @@ export default function EditPostScreen() {
 
   if (!post) return null;
 
-  return <PostEditor kind="edit" post={post} onSave={handleUpdatePost} />;
+  return <PostEditor kind="edit" ideas="post" post={post} onSave={handleUpdatePost} />;
 }

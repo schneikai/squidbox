@@ -34,7 +34,8 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
  *   error     — what went wrong, in red. `size="small"` for a line under another
  *   assistant — the assistant's violet semibold line, footnote size: an AssistantTray's title
  * `tone` gives the role another of the text colors: primary (a hint or label in the text's color),
- * secondary, inverse (on the accent, danger or a picture), accent, danger.
+ * secondary, inverse (on the accent, danger or a picture), accent, danger, shine (the band sweeping
+ * across the assistant's title at work).
  * `selectable` lets it be copied, `numberOfLines` cuts a long one short. style is for layout only.
  * A nested Text takes its own role and tone inside the line (a bold `label` part of a `hint`).
  */
@@ -105,4 +106,6 @@ const toneStyles = StyleSheet.create({
   inverse: { color: colors.text.inverse },
   accent: { color: colors.accent.base },
   danger: { color: colors.status.danger },
+  // The light band sweeping across the assistant's title at work (AssistantTray).
+  shine: { color: colors.accent.shine },
 });

@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import ChatTagsSheet from './ChatTagsSheet';
 import EditableLine from './EditableLine';
 import postTags from './postTags';
+import seesLine from './seesLine';
 import type { LiveChat } from './useChatSession';
 import type { ChatTagging } from './useChatTags';
 import type { ListEdits } from './withEdits';
@@ -46,8 +47,8 @@ export default function ItSeesRow({
     const attempt = attempts[row.id];
     return row.tags === null && attempt?.status === 'error' ? [{ id: row.id, error: attempt.error }] : [];
   });
-  const isTagged = rows.some((row) => row.tags !== null);
   const tags = postTags(rows, tagEdits);
+  const { tagsText, isLooking } = seesLine(rows, isTagging, tags);
 
   function retryAll(list: readonly Pick<AssetRow, 'id'>[]) {
     for (const row of list) onRetry(row.id);
@@ -55,12 +56,12 @@ export default function ItSeesRow({
 
   return (
     <>
-      {(isTagged || !isTagging) && (
+      {tagsText !== null && (
         <EditableLine label="Sees" editHint="Edits the tags" onPress={() => setIsEditing(true)}>
-          {tags.length > 0 ? tags.join(', ') : 'no tags'}
+          {tagsText}
         </EditableLine>
       )}
-      {isTagging && (
+      {isLooking && (
         <View style={styles.line}>
           <ActivityIndicator size="small" color={colors.text.secondary} />
           <IntroText style={styles.text}>Looking at the photos…</IntroText>

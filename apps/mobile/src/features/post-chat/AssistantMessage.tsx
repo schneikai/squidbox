@@ -3,12 +3,13 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
 import ChatOptionCard, { type ChatOptionCardProps } from './ChatOptionCard';
+import ReplyError from './ReplyError';
 import type { AssistantChatMessage } from './chatSessions';
 
-import Button from '@/components/Button';
 import Card from '@/components/Card';
+import Icon from '@/components/Icon';
 import Text from '@/components/Text';
-import { colors, layout } from '@/styles/designTokens';
+import { colors, layout, sizes, space } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
 const SLOW_MS = 20_000;
@@ -16,33 +17,39 @@ const SLOW_MS = 20_000;
 type AssistantMessageProps = Pick<ChatOptionCardProps, 'onMoreLikeThis' | 'onUse'> & {
   reply: AssistantChatMessage;
   onRetry: (() => void) | null;
+  // The line under the options once one was used (usedNote), or null.
+  usedNote: string | null;
 };
 
 /**
  * One of the assistant's replies (`reply`, a chat message): a spinner while it's written, what went
  * wrong with Retry (`onRetry`, for the last reply only), or what it says (AssistantBubble) and its
- * options for the post as ChatOptionCards.
+ * options for the post as ChatOptionCards, with `usedNote` under them once one was used.
  */
-function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse }: AssistantMessageProps) {
+function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse, usedNote }: AssistantMessageProps) {
   if (reply.status === 'loading') return <ThinkingCard />;
 
-  if (reply.status === 'error') {
-    return (
-      <Card padded style={styles.status}>
-        <Text variant="status" style={styles.statusText}>
-          {reply.error}
-        </Text>
-        {onRetry && <Button label="Retry" size="small" onPress={onRetry} />}
-      </Card>
-    );
-  }
+  if (reply.status === 'error') return <ReplyError error={reply.error} onRetry={onRetry} />;
 
   return (
     <View style={styles.reply}>
       {!!reply.reply && <AssistantBubble text={reply.reply} />}
       {reply.postOptions.map((text, index) => (
-        <ChatOptionCard key={`${index}:${text}`} text={text} onMoreLikeThis={onMoreLikeThis} onUse={onUse} />
+        <ChatOptionCard
+          key={`${index}:${text}`}
+          text={text}
+          replyId={reply.id}
+          index={index}
+          onMoreLikeThis={onMoreLikeThis}
+          onUse={onUse}
+        />
       ))}
+      {usedNote && (
+        <View style={styles.used}>
+          <Icon name="check" size={sizes.menuIcon} color={colors.text.secondary} />
+          <Text variant="hint">{usedNote}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -80,5 +87,11 @@ const styles = StyleSheet.create({
   },
   reply: {
     gap: layout.cardGap,
+  },
+  used: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: layout.cardInset,
   },
 });

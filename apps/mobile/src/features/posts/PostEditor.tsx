@@ -1,4 +1,4 @@
-import type { ChatSubjectKind } from '@squidbox/shared';
+import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -7,6 +7,8 @@ import postedAtToSave, { type PickedPostedAt } from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
 import ThreadConnector from '@/components/ThreadConnector';
+import IdeasTray from '@/features/post-ideas/IdeasTray';
+import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import type { PostWithAssets } from '@/features/post-list/postQuery';
 import type { PostFields } from '@/features/posts-context/PostsContext';
 import useEditSheet, { type EditSheetOptions } from '@/hooks/useEditSheet';
@@ -29,6 +31,7 @@ export type EditedPost = Required<Pick<PostFields, 'text' | 'assetRefs' | 'poste
 
 type PostEditorProps = {
   kind: PostEditorKind;
+  ideas: IdeasKind;
   post: PostEditorPost;
   onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
 };
@@ -42,9 +45,11 @@ type Draft = { cards: PostCardData[]; postedAt: EditedPost['postedAt']; pickedPo
 // every post has text or a photo (and, for Save, something changed), and the seed in the same shape,
 // so an edit can save only what changed; a save that throws says so and keeps the editor open. A new
 // post that opens empty has the cursor in its text, keyboard up. × or a swipe down with changes asks
-// first. `kind` is also what each card's assistant chat is about
-// (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one).
-export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
+// first. `kind` is also what the assistant's one chat for all the cards is about
+// (chatSubjectKindSchema: 'draft' a new post, 'edit' a saved one), and `ideas` which ideas the first
+// card's tray offers (Post ideas, Repost ideas), started on their own for a new post (useEditorIdeas);
+// the card being edited shows the tray (IdeasTray), whose Use fills the card its turn wrote for.
+export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProps) {
   const nextKey = useRef(0);
   const newKey = () => `card-${nextKey.current++}`;
   const [cards, setCards] = useState(() => seedCards(post).map((card) => ({ ...card, key: newKey() })));
@@ -65,6 +70,13 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
     setCards((current) => current.map((card) => (card.key === key ? { ...card, ...changes } : card)));
     setActiveKey(key);
   }, []);
+  const setText = useCallback((key: string, text: string) => updateCard(key, { text }), [updateCard]);
+  // The cards as the chat takes them.
+  const posts = useMemo(
+    () => cards.map(({ key, text, postAssets }) => ({ key, text, assets: postAssets.map(({ asset }) => asset) })),
+    [cards],
+  );
+  const postIdeas = useEditorIdeas({ kind, ideas, posts, activeKey, setText });
 
   // The posts store syncs by itself.
   const { sheetProps } = useEditSheet({
@@ -101,7 +113,6 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
           <View key={card.key}>
             {index > 0 && <ThreadConnector />}
             <PostCard
-              kind={kind}
               card={card}
               isFirst={index === 0}
               isActive={card.key === activeKey}
@@ -113,6 +124,11 @@ export default function PostEditor({ kind, post, onSave }: PostEditorProps) {
               onActivate={setActiveKey}
               onRemove={index > 0 ? removeCard : undefined}
               onAddToThread={index === cards.length - 1 ? addToThread : undefined}
+              tray={
+                card.key === activeKey && (
+                  <IdeasTray postIdeas={postIdeas} target={card.key} ideas={index === 0 ? ideas : null} />
+                )
+              }
             />
           </View>
         ))}

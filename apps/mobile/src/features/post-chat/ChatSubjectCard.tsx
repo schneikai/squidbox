@@ -21,6 +21,8 @@ const SUBJECTS: Record<ChatSubjectKind, string> = { draft: 'New post', edit: 'Ed
 
 type ChatSubjectCardProps = {
   kind: ChatSubjectKind;
+  // The posts of the thread, the post's own included.
+  postCount: number;
   assets: AssetRecord[];
   tagging: ChatTagging;
   tagEdits: ListEdits;
@@ -31,13 +33,15 @@ type ChatSubjectCardProps = {
 
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
- * album named when every photo is in it; "Edit post" for a saved post), what the assistant sees in
+ * album named when every photo is in it; "Edit post" for a saved post; "· thread of 3" after the
+ * name for a thread, the photos those of all its posts), what the assistant sees in
  * them (ItSeesRow, from `tagging`, useChatTags', with the post's tag edits `tagEdits`, changed with
  * `onEditTags`) and the handles it may mention (`mentions`, usePostChat's, changed with `onEditMentions`), as grey
  * lines.
  */
 export default function ChatSubjectCard({
   kind,
+  postCount,
   assets,
   tagging,
   tagEdits,
@@ -50,7 +54,14 @@ export default function ChatSubjectCard({
 
   const albumName = albums?.find((album) => album.heldCount === new Set(assetIds).size)?.name;
   const counts = countMediaTypes(assets);
-  const title = [SUBJECTS[kind], assets.length > 0 && getAssetCountInfo(counts), albumName].filter(Boolean).join(' · ');
+  const title = [
+    SUBJECTS[kind],
+    postCount > 1 && `thread of ${postCount}`,
+    assets.length > 0 && getAssetCountInfo(counts),
+    albumName,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   // The handles come from every album holding any of the photos, so the album is named only when it
   // is the one.
   const mentionsFrom = mentions?.fromAlbum ? (albums?.length === 1 && albumName) || 'your albums' : 'your posts';

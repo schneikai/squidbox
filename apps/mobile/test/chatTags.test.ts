@@ -48,4 +48,21 @@ describe('chatTags', () => {
     ];
     expect(chatTags.withTags(rows, { c2: ['guess'] })).toEqual(rows);
   });
+
+  it('before a turn, tags each photo never tagged and waits for it, saying it waits', async () => {
+    await repo.createMany(current.db!, [makeAssetRecord({ id: 'c4' }), makeAssetRecord({ id: 'c5', tags: ['lake'] })]);
+    const onWait = vi.fn();
+    await chatTags.tagMissingAsync(['c4', 'c5'], { deps, isAvailable: true }, onWait);
+    expect(onWait).toHaveBeenCalledTimes(1);
+    expect(tagPhotoAsync).toHaveBeenCalledTimes(1);
+    expect(chatTags.tags.get().c4).toEqual(['forest', 'morning fog']);
+  });
+
+  it('before a turn, tags nothing while the assistant is unavailable', async () => {
+    await repo.createMany(current.db!, [makeAssetRecord({ id: 'c6' })]);
+    const onWait = vi.fn();
+    await chatTags.tagMissingAsync(['c6'], { deps, isAvailable: false }, onWait);
+    expect(tagPhotoAsync).not.toHaveBeenCalled();
+    expect(onWait).not.toHaveBeenCalled();
+  });
 });
