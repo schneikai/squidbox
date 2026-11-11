@@ -190,7 +190,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     });
 
     // POST /ai/chat — the assistant chat: the user's writing model answers the transcript, with post
-    // options when asked, about the chat's post (Write with AI in the post editor). Nothing is stored.
+    // options when asked, about the chat's post (the post's ideas and its chat). Nothing is stored.
     r.route({
       method: 'POST',
       url: '/ai/chat',

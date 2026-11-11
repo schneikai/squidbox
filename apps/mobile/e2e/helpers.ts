@@ -50,12 +50,13 @@ export async function dragCell(page: Page, from: Locator, to: Locator) {
   await page.mouse.up();
 }
 
-// In an open Add media menu: From Squidbox, then the first `count` photos of the picker, added.
-export async function pickFromSquidbox(page: Page, count: number) {
+// In an open Add media menu: From Squidbox, then `count` photos of the picker from the `from`th
+// (the first by default), added.
+export async function pickFromSquidbox(page: Page, count: number, from = 0) {
   await page.getByRole('menuitem', { name: 'From Squidbox' }).click();
   const picker = page.getByTestId('asset-picker');
   const cells = assetCells(picker);
-  for (let index = 0; index < count; index++) await cells.nth(index).click();
+  for (let index = from; index < from + count; index++) await cells.nth(index).click();
   await button(picker, `Add ${count}`).click();
   await picker.waitFor({ state: 'detached' });
 }

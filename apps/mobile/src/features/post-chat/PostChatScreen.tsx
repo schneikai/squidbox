@@ -144,7 +144,7 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   }
 
   return (
-    <ModalSheet>
+    <ModalSheet testID="post-chat">
       <ChatHeader
         isAiAdmin={isAiAdmin}
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}

@@ -59,6 +59,7 @@ export default function Shine({ isOn, children, highlight }: ShineProps) {
           pointerEvents="none"
           importantForAccessibility="no-hide-descendants"
           accessibilityElementsHidden
+          aria-hidden
         >
           <Animated.View style={highlightStyle}>{highlight}</Animated.View>
         </Animated.View>
