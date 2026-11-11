@@ -267,6 +267,13 @@
       "when": 1794158818841,
       "tag": "0037_search_index",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1794386684875,
+      "tag": "0038_idea_settings",
+      "breakpoints": true
     }
   ]
 }
