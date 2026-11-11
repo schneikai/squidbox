@@ -1,47 +1,52 @@
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import Text from '@/components/Text';
-import postTags from '@/features/post-chat/postTags';
-import seesLine from '@/features/post-chat/seesLine';
+import ChatSubjectLines from '@/features/post-chat/ChatSubjectLines';
 import sentMentions from '@/features/post-chat/sentMentions';
 import type { LiveChat } from '@/features/post-chat/useChatSession';
 import useChatTags from '@/features/post-chat/useChatTags';
 import useMentions from '@/features/post-chat/useMentions';
+import useAssetAlbums from '@/hooks/useAssetAlbums';
+import { space } from '@/styles/designTokens';
 
-type SeesLineProps = { chat: Pick<LiveChat, 'assets' | 'tagEdits' | 'mentionEdits'> };
+type SeesLineProps = {
+  chat: Pick<LiveChat, 'assets' | 'tagEdits' | 'mentionEdits' | 'editTags' | 'editMentions'>;
+};
 
 /**
- * What the assistant goes on while it writes the first ideas, as one grey line under the tray's
- * cards: "Looking at the photos…" while they are tagged, "Sees a, b" (seesLine, with the `chat`'s
- * tag edits) and "Mentions @x" (the handles it sends); nothing without any. It reads the photos and
- * mentions only while it shows, and starts no tagging: the turn does.
+ * What the assistant goes on, under the tray's ideas while it is open: the chat card's lines
+ * (ChatSubjectLines) in the assistant's quieter violet, a little apart, "Sees …" and "Mentions …", a tap editing them as on
+ * the card, into the same chat (`chat`), so the next turn sends the edits. It reads the photos,
+ * their albums and the mentions while the tray is there (folded too: the tray keeps its body), and
+ * starts no tagging: a turn does.
  */
 export default function SeesLine({ chat }: SeesLineProps) {
-  const { assets, tagEdits, mentionEdits } = chat;
+  const { assets, mentionEdits } = chat;
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
   const tagging = useChatTags(assets);
   const found = useMentions(assetIds);
-  const rows = tagging.rows ?? [];
-  const tagsText = seesLine(rows, tagging.isTagging, postTags(rows, tagEdits), null);
-  const handles = sentMentions(found, mentionEdits);
-  const parts = [
-    tagging.isTagging && 'Looking at the photos…',
-    tagsText !== null && `Sees ${tagsText}`,
-    handles.length > 0 && `Mentions ${handles.join(', ')}`,
-  ].filter(Boolean);
-
-  if (parts.length === 0) return null;
+  const albums = useAssetAlbums({ assetIds }, { isLive: false });
+  const mentions = useMemo(
+    () => found && { handles: sentMentions(found, mentionEdits), fromAlbum: found.fromAlbum },
+    [found, mentionEdits],
+  );
 
   return (
-    <Text variant="hint" numberOfLines={1} style={styles.line}>
-      {parts.join(' · ')}
-    </Text>
+    <View style={styles.lines}>
+      <ChatSubjectLines
+        assetIds={assetIds}
+        albums={albums}
+        tagging={tagging}
+        mentions={mentions}
+        chat={chat}
+        tone="accentSoft"
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  line: {
-    flexShrink: 1,
+  lines: {
+    gap: space.xs,
   },
 });

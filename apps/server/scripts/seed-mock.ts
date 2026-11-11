@@ -220,9 +220,9 @@ const CONTACT_LISTS: { name: string; notes: string; members: number[] }[] = [
 // His Post ideas and Repost ideas prompts, for Bluesky.
 const IDEA_PROMPTS = {
   postIdeasPrompt:
-    'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
+    'Write 6 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
   repostIdeasPrompt:
-    "Write 3 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
+    "Write 6 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
 };
 
 // The app's default prompt buttons (by name) in his words, for Bluesky: Thread becomes a print teaser,

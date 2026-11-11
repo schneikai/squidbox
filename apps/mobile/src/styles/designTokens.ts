@@ -35,7 +35,7 @@ const palette = {
   violet100: '#EFE7FD',
   violet250: '#C4AAFF', // light and saturated, the rim light on the violet
   violet300: '#C4B5FD',
-  violet400: '#A78BFA',
+  violet500: '#8B5CF6',
   violet600: '#7C3AED',
   violet650: '#6640E9', // between violet600 and indigo600
   indigo600: '#4F46E5',
@@ -62,10 +62,11 @@ export const colors = {
     base: palette.violet600,
     light: alpha(palette.violet600, 0.12),
     surface: palette.violet100, // `light` over white, opaque for a surface over content (the account avatar)
-    border: alpha(palette.violet600, 0.3), // the thread's connector line
+    border: alpha(palette.violet600, 0.3), // the thread's connector line, a skeleton idea's lines
     onDark: palette.violet300, // the accent on a dark surface (the Undo bar's Undo)
-    shine: palette.violet300, // the light band sweeping across the assistant at work (WorkingSparkle, the tray's title)
-    spark: palette.violet400, // the little stars around the assistant's sparkle at work
+    shine: palette.violet300, // the light band sweeping across the assistant at work (the tray's sparkle and title)
+    soft: palette.violet500, // the assistant's quieter text in its tray (the Sees and Mentions lines): 3.4:1 on the tray
+    outline: palette.violet300, // the light outline of the assistant's idea the user used (OptionCard)
     gradient: [palette.violet600, palette.indigo600] as const,
     frame: palette.violet650, // the frame of a toolbar that is only the primary (FloatingPill), between the gradient's ends
   },
@@ -358,17 +359,9 @@ export const motion = {
   settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
-  // The assistant at work (WorkingSparkle, the tray's title): a light band sweeping across the
-  // sparkle and the title, and four stars around the sparkle, each popping in and out on its own
-  // period and delay, so they never look mechanical. The sparkle breathes on `pulse`.
+  // The assistant at work (AssistantTray): one light band sweeping across its sparkle and title.
   working: {
     band: { duration: 2000, easing: Easing.linear },
-    stars: [
-      { duration: 2900, delay: 0 },
-      { duration: 3700, delay: 1300 },
-      { duration: 3300, delay: 600 },
-      { duration: 4100, delay: 2200 },
-    ],
   },
 };
 

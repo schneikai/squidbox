@@ -1,6 +1,6 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { type ReactNode, useCallback, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { type ReactNode, useCallback, useMemo, useRef } from 'react';
+import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
 
@@ -11,6 +11,8 @@ import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
 import useMentionAutocomplete from '@/features/post-mentions/useMentionAutocomplete';
+import type { Point } from '@/lib/Point';
+import isPastTapSlop from '@/lib/isPastTapSlop';
 import { layout, scale, space } from '@/styles/designTokens';
 import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -41,7 +43,8 @@ type PostCardProps = {
  * once it has any, the toolbar, and `tray` under it (the assistant's, IdeasTray). `autoFocus` puts the cursor in its text as it opens. `onChange(key,
  * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
  * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
- * (`onRemove(key)`), the last ⊕ (`onAddToThread`).
+ * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
+ * being edited (its tray shows), without the keyboard.
  */
 export default function PostCard({
   card,
@@ -58,6 +61,9 @@ export default function PostCard({
   tray,
 }: PostCardProps) {
   const { key, text, postAssets } = card;
+  // Where a touch on the card began: a tap anywhere on it (a touch that ends near there, so scrolling
+  // the editor past it doesn't count) makes it the one being edited.
+  const touchStartRef = useRef<Point | null>(null);
   const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
   const autocomplete = useMentionAutocomplete(text, setText);
   // The handle being typed in the card being edited, whose suggestions show.
@@ -72,12 +78,28 @@ export default function PostCard({
     onActivate(key);
   }
 
+  function handleTouchStart({ nativeEvent }: GestureResponderEvent) {
+    touchStartRef.current = { x: nativeEvent.pageX, y: nativeEvent.pageY };
+  }
+  function handleTouchEnd({ nativeEvent }: GestureResponderEvent) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (start && !isPastTapSlop(start, nativeEvent.pageX, nativeEvent.pageY)) activate();
+  }
+
   function addPostAssets(assets: AssetRecord[]) {
     onChange(key, { postAssets: [...postAssets, ...buildPostAssets(assets)] });
   }
 
   return (
-    <Card padded hasControlRow>
+    // Touches, not a press: they take nothing from the controls, the photos' drag or the tray's swipe.
+    <Card
+      padded
+      hasControlRow
+      onTouchStart={isActive ? undefined : handleTouchStart}
+      onTouchEnd={isActive ? undefined : handleTouchEnd}
+      onTouchCancel={() => (touchStartRef.current = null)}
+    >
       <View style={styles.top}>
         <TextInput
           multiline

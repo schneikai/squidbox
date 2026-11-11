@@ -77,6 +77,7 @@ const WRITING_RUN: IdeasRun = {
   isWriting: true,
   error: null,
   canClose: false,
+  isFolded: false,
 };
 const IDEAS_RUN: IdeasRun = {
   ...WRITING_RUN,
@@ -85,7 +86,7 @@ const IDEAS_RUN: IdeasRun = {
     'Golden hour on the ridge. Worth the 5 am start, every single time.',
     'Sunrise or sunset: which one gets you out of bed?',
     'The trail was empty, the coffee was cold, and then the fog lifted all at once.',
-  ].map((text, index) => ({ replyId: 'gallery', index, text })),
+  ].map((text, index) => ({ replyId: 'gallery', index, text, isUsed: false })),
 };
 
 // A popover shown open, as if it had finished growing.

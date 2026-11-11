@@ -20,6 +20,8 @@ type ItSeesRowProps = Pick<ChatTagging, 'attempts' | 'isTagging' | 'untagged'> &
   tagEdits: ListEdits;
   onEditTags: LiveChat['editTags'];
   onRetry: ChatTagging['retry'];
+  // The assistant's violet, inside its tray (EditableLine's).
+  tone?: 'accentSoft';
 };
 
 /**
@@ -39,6 +41,7 @@ export default function ItSeesRow({
   tagEdits,
   onEditTags,
   onRetry,
+  tone,
 }: ItSeesRowProps) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -57,19 +60,21 @@ export default function ItSeesRow({
   return (
     <>
       {tagsText !== null && (
-        <EditableLine label="Sees" editHint="Edits the tags" onPress={() => setIsEditing(true)}>
+        <EditableLine label="Sees" editHint="Edits the tags" onPress={() => setIsEditing(true)} tone={tone}>
           {tagsText}
         </EditableLine>
       )}
       {isTagging && (
         <View style={styles.line}>
-          <ActivityIndicator size="small" color={colors.text.secondary} />
-          <IntroText style={styles.text}>Looking at the photos…</IntroText>
+          <ActivityIndicator size="small" color={tone ? colors.accent.soft : colors.text.secondary} />
+          <IntroText tone={tone} style={styles.text}>
+            Looking at the photos…
+          </IntroText>
         </View>
       )}
       {failed.length > 0 && !isTagging && (
         <View style={styles.line}>
-          <IntroText style={styles.text}>
+          <IntroText tone={tone} style={styles.text}>
             {pluralizeText("Couldn't tag %{count} photo", "Couldn't tag %{count} photos", failed.length)}
             {failed.length === 1 && failed[0].error ? `: ${failed[0].error}` : ''}
           </IntroText>
@@ -78,7 +83,9 @@ export default function ItSeesRow({
       )}
       {untagged.length > 0 && !isTagging && (
         <View style={styles.line}>
-          <IntroText style={styles.text}>Not tagged</IntroText>
+          <IntroText tone={tone} style={styles.text}>
+            Not tagged
+          </IntroText>
           <Button label="Tag" icon="sparkle" size="small" onPress={() => retryAll(untagged)} />
         </View>
       )}

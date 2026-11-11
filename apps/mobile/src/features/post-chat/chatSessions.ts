@@ -77,6 +77,9 @@ type ChatSessionState = {
   // By post, where Back on its tray closed the run of ideas it showed: the id of the chat's last
   // message then (ideasRun shows only a run started after it).
   closedAt: Partial<Record<string, string>>;
+  // By post, where its tray's ideas were folded into one row (by a Use, or the caret): the id of the
+  // chat's last message then. A turn for the post after it unfolds them (ideasRun).
+  foldedAt: Partial<Record<string, string>>;
   // Once the chat was closed: a screen showing it goes.
   isClosed: boolean;
 };
@@ -158,7 +161,7 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
 
 /**
  * One chat about a post and its thread: `getState()` → `{ kind, messages, targets, activeTarget,
- * assets, isSending, isWaiting, canApply, tagEdits, mentionEdits, closedAt, isClosed }`, a new object on each change, which
+ * assets, isSending, isWaiting, canApply, tagEdits, mentionEdits, closedAt, foldedAt, isClosed }`, a new object on each change, which
  * `subscribe(listener)` tells. A message is the user's (UserChatMessage, for one post, its `target`)
  * or a reply (AssistantChatMessage). `isSending` while a reply loads; `isWaiting` while its context
  * waits for the photos' tags. `isClosed` once the chat was closed (its last change). `send` and
@@ -181,6 +184,7 @@ function createSession(kind: ChatSubjectKind) {
     tagEdits: NO_EDITS,
     mentionEdits: NO_EDITS,
     closedAt: {},
+    foldedAt: {},
     isClosed: false,
   });
   let draft: ChatDraft = { posts: [] };
@@ -190,6 +194,16 @@ function createSession(kind: ChatSubjectKind) {
   // long; New chat picks others.
   let chatId = getNewItemId();
   let lastMessageId = 0;
+
+  function fold(target: string, isFolded: boolean) {
+    const { messages, foldedAt } = store.get();
+    const last = messages[messages.length - 1];
+    if (isFolded && last && foldedAt[target] !== last.id) update({ foldedAt: { ...foldedAt, [target]: last.id } });
+    if (!isFolded && foldedAt[target] !== undefined) {
+      const { [target]: _unfolded, ...rest } = foldedAt;
+      update({ foldedAt: rest });
+    }
+  }
 
   function update(changes: Partial<ChatSessionState>) {
     if (store.get().isClosed) return;
@@ -291,7 +305,12 @@ function createSession(kind: ChatSubjectKind) {
       const text = isReply(reply) ? reply.postOptions[index] : undefined;
       if (text === undefined || turn?.role !== 'user') throw new Error(`No option ${index} of the reply ${replyId}`);
       applier?.(turn.target, text);
-      replaceMessage(replyId, { usedOption: index });
+      // Marked and folded in one change, so the trays render once (read again: the applier ran).
+      const { messages: current, foldedAt } = store.get();
+      update({
+        messages: current.map((message) => (message.id === replyId ? { ...message, usedOption: index } : message)),
+        foldedAt: { ...foldedAt, [turn.target]: current[current.length - 1]!.id },
+      });
     },
 
     /**
@@ -340,6 +359,9 @@ function createSession(kind: ChatSubjectKind) {
       update({ mentionEdits: editedLists(store.get().mentionEdits, { add: handles, remove }) });
     },
 
+    /** Folds the ideas on the tray of the post `target` into one row (`isFolded`), or unfolds them. */
+    fold,
+
     /** Back on the tray of the post `target`: its run of ideas so far is closed. */
     closeIdeas(target: string) {
       const { messages, closedAt } = store.get();
@@ -347,12 +369,39 @@ function createSession(kind: ChatSubjectKind) {
       if (last) update({ closedAt: { ...closedAt, [target]: last.id } });
     },
 
+    /**
+     * Drops the reply under way, if any, and the turn it answers, as if never sent (the tray writes
+     * its ideas again after an edit to the tags or mentions).
+     */
+    cancel() {
+      const { messages, closedAt, foldedAt } = store.get();
+      const at = messages.findIndex((message) => isReply(message) && message.status === 'loading');
+      if (at < 1) return;
+      controller?.abort();
+      controller = null;
+      // A tray closed or folded at the dropped messages keeps its place at the message before them.
+      const dropped = new Set([messages[at - 1]!.id, messages[at]!.id]);
+      const before = messages[at - 2]?.id;
+      const moved = (marks: Partial<Record<string, string>>) =>
+        Object.fromEntries(
+          Object.entries(marks).flatMap(([target, id]) =>
+            id === undefined ? [] : !dropped.has(id) ? [[target, id]] : before ? [[target, before]] : [],
+          ),
+        );
+      update({
+        messages: messages.filter((message) => !dropped.has(message.id)),
+        closedAt: moved(closedAt),
+        foldedAt: moved(foldedAt),
+        isWaiting: false,
+      });
+    },
+
     /** Starts over (New chat): the reply under way, if any, is dropped. */
     reset() {
       controller?.abort();
       controller = null;
       chatId = getNewItemId();
-      update({ messages: [], closedAt: {}, isWaiting: false });
+      update({ messages: [], closedAt: {}, foldedAt: {}, isWaiting: false });
     },
 
     close() {

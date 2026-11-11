@@ -89,6 +89,16 @@ describe('ideasRun', () => {
     });
   });
 
+  it('stays folded from where it was folded until the next turn for the post, and marks the used idea', () => {
+    const used = reply(['a', 'b'], { usedOption: 1 });
+    const messages = [user('ideas'), used];
+    const run = ideasRun(messages, 'p1', null, used.id)!;
+    expect(run.isFolded).toBe(true);
+    expect(run.items.map((item) => item.isUsed)).toEqual([false, true]);
+    expect(ideasRun([...messages, user('prompt', 'p2'), reply(['c'])], 'p1', null, used.id)!.isFolded).toBe(true);
+    expect(ideasRun([...messages, user('more'), reply(['c'])], 'p1', null, used.id)!.isFolded).toBe(false);
+  });
+
   it("offers Back on a prompt button's run, and on the post's own ideas only once failed past Retry", () => {
     const failed = reply([], { status: 'error', error: 'Model is busy' });
     expect(ideasRun([user('prompt'), reply(['a'])], 'p1', null)!.canClose).toBe(true);

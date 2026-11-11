@@ -102,7 +102,7 @@ describe('chatMessages', () => {
     expect(content).toContain("What's in the photos (from image recognition): forest, fog");
     expect(content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
     expect(content).toContain('Their post so far: "Fog on the trail"');
-    expect(content).toContain('Use 3 options unless the creator specifies otherwise');
+    expect(content).toContain('Use 6 options unless the creator specifies otherwise');
   });
 
   it("fills the thread under the caption: the post's place and the other posts numbered, an empty one as (empty)", () => {

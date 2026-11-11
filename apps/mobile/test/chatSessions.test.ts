@@ -282,6 +282,35 @@ describe('chatSessions', () => {
     expect(session.getState().messages).toHaveLength(2);
   });
 
+  it('keeps a tray closed at the dropped reply closed, at the message before it', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    const first = await sendNow(session, turn('First', { kind: 'ideas', target: 'p1' }), request);
+    calls[0]!.resolve(REPLY);
+    await first.sending;
+    await sendNow(session, turn('Second', { kind: 'ideas', target: 'p2' }), request);
+    session.closeIdeas('p1');
+    session.cancel();
+    const { messages, closedAt } = session.getState();
+    expect(closedAt.p1).toBe(messages[1]!.id);
+  });
+
+  it('drops the reply under way and its turn on cancel, and a late answer changes nothing', async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    const first = await sendNow(session, turn('First'), request);
+    calls[0]!.resolve(REPLY);
+    await first.sending;
+    const { sending } = await sendNow(session, turn('Second'), request);
+    session.cancel();
+    expect(calls[1]!.signal?.aborted).toBe(true);
+    expect(session.getState().messages.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(session.getState().isSending).toBe(false);
+    calls[1]!.resolve(REPLY);
+    await sending;
+    expect(session.getState().messages).toHaveLength(2);
+  });
+
   it('retries the last user turn once, in place of its failed reply', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();

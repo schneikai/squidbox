@@ -216,7 +216,7 @@ export type AiBalanceResponse = z.infer<typeof aiBalanceResponseSchema>;
 export const COMPARE_MIN_MODELS = 2;
 export const COMPARE_PROMPT_MAX_LENGTH = 2000;
 // The options the chat's writing briefing asks for ({count}); a compare's prompt says its own.
-export const WRITING_TWEET_COUNT = 3;
+export const WRITING_TWEET_COUNT = 6;
 // Photos in one vision compare: each photo is a request per model, each model asked one photo at a
 // time (the vision route's rate limit is 600 a minute).
 export const VISION_COMPARE_MAX_PHOTOS = 50;

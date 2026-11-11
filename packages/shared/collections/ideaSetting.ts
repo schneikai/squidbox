@@ -46,9 +46,9 @@ export const DEFAULT_IDEA_SETTINGS: Readonly<IdeaSettingFields> = Object.freeze(
 
 /** The prompt of each kind while the user hasn't written their own. */
 export const DEFAULT_IDEA_PROMPTS: Readonly<Record<IdeasKind, string>> = Object.freeze({
-  post: 'Write three ideas for this post based on the photos. Make it a mix: one short caption, one that asks my followers a question, and one that tells a tiny story about the moment. Keep each under 200 characters, no hashtags, at most one emoji.',
+  post: 'Write six ideas for this post based on the photos. Make it a mix: two short captions, two that ask my followers a question, and two that tell a tiny story about the moment. Keep each under 200 characters, no hashtags, at most one emoji.',
   repost:
-    "Write 3 fresh posts that repost this for people who missed it. Same content, a new angle each time. Don't repeat the original wording.",
+    "Write 6 fresh posts that repost this for people who missed it. Same content, a new angle each time. Don't repeat the original wording.",
 });
 
 /** A kind's settings as the app uses them. */

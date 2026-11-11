@@ -34,11 +34,11 @@ export default function Shine({ progress, children, highlight }: ShineProps) {
 
 type BandProps = { progress: SharedValue<number>; width: number; children: ReactNode };
 
-// The moving window over the highlight. It goes from past the right edge to past the left one; the
-// highlight moves the other way, so it stays over the content.
+// The moving window over the highlight. It goes from past the left edge to past the right one, as
+// text reads; the highlight moves the other way, so it stays over the content.
 function Band({ progress, width, children }: BandProps) {
   const band = width * BAND;
-  const x = useDerivedValue(() => width - progress.value * (width + band));
+  const x = useDerivedValue(() => progress.value * (width + band) - band);
   const windowStyle = useAnimatedStyle(() => ({ width: band, transform: [{ translateX: x.value }] }));
   const highlightStyle = useAnimatedStyle(() => ({ width, transform: [{ translateX: -x.value }] }));
 

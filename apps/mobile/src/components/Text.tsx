@@ -105,6 +105,8 @@ const toneStyles = StyleSheet.create({
   secondary: { color: colors.text.secondary },
   inverse: { color: colors.text.inverse },
   accent: { color: colors.accent.base },
+  // The assistant's quieter violet, for its lines in the tray (SeesLine).
+  accentSoft: { color: colors.accent.soft },
   danger: { color: colors.status.danger },
   // The light band sweeping across the assistant's title at work (AssistantTray).
   shine: { color: colors.accent.shine },

@@ -10,7 +10,8 @@ export type IntroTextProps = Omit<TextProps, 'variant' | 'size'> & { label?: str
 // cards' edge, with the gap every screen's intro has to what follows it. Otherwise the parent
 // positions it through `style`. `label` leads the line in bold ("Sees coastline, tent"); `selectable`
 // lets the text be copied, `numberOfLines` cuts a long one short, and `accessibilityLabel` is
-// what a screen reader says instead.
+// what a screen reader says instead. `tone="accentSoft"` puts it in the assistant's quieter violet,
+// inside its tray.
 export default function IntroText({
   children,
   label,
@@ -19,10 +20,12 @@ export default function IntroText({
   selectable,
   numberOfLines,
   accessibilityLabel,
+  tone,
 }: IntroTextProps) {
   return (
     <Text
       variant="hint"
+      tone={tone}
       style={[isScreenIntro && styles.screenIntro, style]}
       selectable={selectable}
       numberOfLines={numberOfLines}

@@ -1,12 +1,5 @@
-import { type ComponentRef, memo, useCallback, useEffect, useRef, useState } from 'react';
-import {
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { type ComponentRef, memo, useEffect, useRef } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { interpolate, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import type { IdeasRun } from './ideasRun';
@@ -18,16 +11,15 @@ import Text from '@/components/Text';
 import ChatOptionCard from '@/features/post-chat/ChatOptionCard';
 import ReplyError from '@/features/post-chat/ReplyError';
 import useBreath from '@/hooks/useBreath';
-import usePagerScrollEnd from '@/hooks/usePagerScrollEnd';
 import useTrayInset from '@/hooks/useTrayInset';
-import { colors, disabledOpacity, press, radii, sizes, space } from '@/styles/designTokens';
+import { colors, disabledOpacity, lineHeights, press, radii, sizes, space } from '@/styles/designTokens';
 
 const CARD_GAP = space.sm;
 const INTERVAL = sizes.ideaCard.width + CARD_GAP;
 // The skeleton cards while ideas are written.
 const SKELETONS = [0, 1, 2];
-// The page dots shown at most, around the current card.
-const MAX_DOTS = 9;
+// A skeleton's lines, as wide as an idea's lines of small text, the last one short.
+const SKELETON_LINES = ['100%', '94%', '97%', '58%'] as const;
 
 type IdeasCarouselProps = {
   run: IdeasRun;
@@ -43,17 +35,20 @@ type IdeasCarouselProps = {
  * with Use (`onUse(replyId, index)`; Copy without it) and no ⋯, then one card of the same size,
  * More (`onMore`); while More is written, skeleton cards take its place and the carousel scrolls to
  * the first, and after a failure the error with Retry (`onRetry`, when the run's reply is the chat's
- * last) does. Three skeleton cards while its first reply is written. Page dots under it, one per
- * card, hidden from VoiceOver.
+ * last) does. Three skeleton cards while its first reply is written. It shows the idea last used
+ * (marked Used) as it is used, in the tray or the chat.
  */
 function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const [page, setPage] = useState(0);
   const inset = useTrayInset();
   const breath = useBreath();
-  // The page is read where the snap has settled, not on every scroll event.
-  const settleAt = useCallback((x: number) => setPage(Math.round(x / INTERVAL)), []);
-  usePagerScrollEnd(scrollRef, settleAt);
+  // The idea last used (in the tray or the chat), which the carousel shows when the tray unfolds:
+  // it goes there as the tray folds, unseen.
+  const lastUsed = run.items.findLastIndex((item) => item.isUsed);
+
+  useEffect(() => {
+    if (run.isFolded && lastUsed >= 0) scrollRef.current?.scrollTo({ x: lastUsed * INTERVAL, animated: false });
+  }, [run.isFolded, lastUsed]);
 
   // More was tapped: show where its ideas come in.
   useEffect(() => {
@@ -63,12 +58,6 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
   }, [run.isWriting, run.items.length]);
 
   const { items, isWriting, error } = run;
-  const trailingCount = isWriting ? SKELETONS.length : 1;
-  const pageCount = items.length + trailingCount;
-
-  function handleScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    settleAt(event.nativeEvent.contentOffset.x);
-  }
 
   function trailing() {
     if (isWriting) return SKELETONS.map((key) => <SkeletonCard key={key} breath={breath} />);
@@ -79,35 +68,33 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
   }
 
   return (
-    <View style={styles.carousel}>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={INTERVAL}
-        decelerationRate="fast"
-        onMomentumScrollEnd={handleScrollEnd}
-        contentContainerStyle={[styles.content, { paddingHorizontal: inset }]}
-      >
-        {items.map((item) =>
-          item.index === null ? (
-            <OptionCard key={`${item.replyId}:text`} text={item.text} style={styles.card} />
-          ) : (
-            <ChatOptionCard
-              key={`${item.replyId}:${item.index}`}
-              text={item.text}
-              replyId={item.replyId}
-              index={item.index}
-              onMoreLikeThis={null}
-              onUse={onUse}
-              style={styles.card}
-            />
-          ),
-        )}
-        {trailing()}
-      </ScrollView>
-      {pageCount > 1 && <PageDots count={pageCount} current={Math.min(page, pageCount - 1)} />}
-    </View>
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={INTERVAL}
+      decelerationRate="fast"
+      contentContainerStyle={[styles.content, { paddingHorizontal: inset }]}
+    >
+      {items.map((item) =>
+        item.index === null ? (
+          <OptionCard key={`${item.replyId}:text`} text={item.text} textSize="small" style={styles.card} />
+        ) : (
+          <ChatOptionCard
+            key={`${item.replyId}:${item.index}`}
+            text={item.text}
+            replyId={item.replyId}
+            index={item.index}
+            onMoreLikeThis={null}
+            onUse={onUse}
+            isUsed={item.isUsed}
+            textSize="small"
+            style={styles.card}
+          />
+        ),
+      )}
+      {trailing()}
+    </ScrollView>
   );
 }
 
@@ -134,44 +121,27 @@ function MoreCard({ onPress, disabled }: MoreCardProps) {
 
 type SkeletonCardProps = { breath: SharedValue<number> };
 
-// A card while its idea is written: two bars that breathe (useBreath, one breath for all the cards).
+// A card while its idea is written: bars on the lines of the idea's small text (its line height,
+// about its letters' height), breathing (useBreath, one breath for all the cards).
 function SkeletonCard({ breath }: SkeletonCardProps) {
   const breathStyle = useAnimatedStyle(() => ({ opacity: interpolate(breath.value, [0, 1], [1, 0.45]) }));
 
   return (
     <Card padded style={styles.card} accessibilityLabel="Writing an idea">
-      <Animated.View style={[styles.bars, breathStyle]}>
-        <View style={[styles.bar, styles.barLong]} />
-        <View style={[styles.bar, styles.barShort]} />
+      <Animated.View style={breathStyle}>
+        {SKELETON_LINES.map((width) => (
+          <View key={width} style={styles.line}>
+            <View style={[styles.bar, { width }]} />
+          </View>
+        ))}
       </Animated.View>
     </Card>
   );
 }
 
-type PageDotsProps = { count: number; current: number };
-
-// One dot per card, the current one violet; at most MAX_DOTS, around the current card.
-function PageDots({ count, current }: PageDotsProps) {
-  const start = Math.max(0, Math.min(current - Math.floor(MAX_DOTS / 2), count - MAX_DOTS));
-  const pages = Array.from({ length: Math.min(count, MAX_DOTS) }, (_, index) => start + index);
-
-  return (
-    <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {pages.map((index) => (
-        <View key={index} style={[styles.dot, index === current && styles.dotCurrent]} />
-      ))}
-    </View>
-  );
-}
-
-const DOT = space.xs + space.hair;
-
 export default memo(IdeasCarousel);
 
 const styles = StyleSheet.create({
-  carousel: {
-    gap: space.sm,
-  },
   content: {
     gap: CARD_GAP,
   },
@@ -188,32 +158,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.xs,
   },
-  bars: {
-    gap: space.sm,
+  line: {
+    height: lineHeights.subheadline,
+    justifyContent: 'center',
   },
   bar: {
-    height: space.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent.light,
-  },
-  barLong: {
-    width: '90%',
-  },
-  barShort: {
-    width: '60%',
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: space.xs,
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
+    height: space.sm + space.hair,
     borderRadius: radii.pill,
     backgroundColor: colors.accent.border,
-  },
-  dotCurrent: {
-    backgroundColor: colors.accent.base,
   },
 });

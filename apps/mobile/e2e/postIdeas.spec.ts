@@ -48,10 +48,14 @@ test('a new post gets ideas once it has photos, written after the photos are tag
 
   await button(editor, 'Use').first().click();
   await expect(caption(editor)).toHaveValue(firstIdea(1));
+  // Use folds the tray into its title's row; a tap unfolds it, the used idea marked.
+  await expect(button(editor, 'More')).toHaveCount(0);
+  await button(editor, 'Ideas').click();
+  await expect(editor.getByText('Used', { exact: true })).toBeVisible();
 
   await button(editor, 'More').click();
   await expect(editor.getByText(firstIdea(2))).toBeVisible();
-  await expect(button(editor, 'Use')).toHaveCount(6);
+  await expect(button(editor, 'Use')).toHaveCount(5);
   expect(assistant.chats[1]!.messages.at(-1)).toMatchObject({ role: 'user', moreIdeas: true });
 });
 
@@ -60,6 +64,7 @@ test('the chat holds the ideas, and what is written there comes back to the tray
   await button(editor, 'Add photos').click();
   await pickFromSquidbox(page, 1);
   await button(editor, 'Use').first().click();
+  await button(editor, 'Ideas').click();
   await button(editor, 'More').click();
   await expect(editor.getByText(firstIdea(2))).toBeVisible();
 
@@ -105,8 +110,23 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
 
   await button(editor, 'Use').first().click();
   await expect(caption(editor, 1)).toHaveValue(firstIdea(1));
+  await button(editor, 'Follow-up with link').click();
   await button(editor, 'Back to Write with AI').click();
   await expect(button(editor, 'Follow-up with link')).toBeVisible();
+});
+
+test("the first post's tray keeps its ideas while a thread post is written", async ({ page }) => {
+  const { editor } = await openNewPost(page);
+  await button(editor, 'Add photos').click();
+  await pickFromSquidbox(page, 1);
+  await button(editor, 'Use').first().click();
+  await button(editor, 'Add to thread').click();
+  await button(editor, 'Follow-up with link').click();
+  await button(editor, 'Use').first().click();
+
+  await caption(editor).click();
+  await button(editor, 'Ideas').click();
+  await expect(editor.getByText('Used', { exact: true })).toBeVisible();
 });
 
 test('a repost opens with its text and its ideas', async ({ page, assistant }) => {
