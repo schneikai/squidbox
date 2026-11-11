@@ -51,19 +51,20 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
   const [page, setPage] = useState(0);
   const inset = useTrayInset();
   const breath = useBreath();
-  const { items, isWriting, error } = run;
-  const isWritingMore = isWriting && items.length > 0;
-  const trailingCount = isWriting ? SKELETONS.length : 1;
-  const pageCount = items.length + trailingCount;
-
   // The page is read where the snap has settled, not on every scroll event.
   const settleAt = useCallback((x: number) => setPage(Math.round(x / INTERVAL)), []);
   usePagerScrollEnd(scrollRef, settleAt);
 
   // More was tapped: show where its ideas come in.
   useEffect(() => {
-    if (isWritingMore) scrollRef.current?.scrollTo({ x: items.length * INTERVAL, animated: true });
-  }, [isWritingMore, items.length]);
+    if (run.isWriting && run.items.length > 0) {
+      scrollRef.current?.scrollTo({ x: run.items.length * INTERVAL, animated: true });
+    }
+  }, [run.isWriting, run.items.length]);
+
+  const { items, isWriting, error } = run;
+  const trailingCount = isWriting ? SKELETONS.length : 1;
+  const pageCount = items.length + trailingCount;
 
   function handleScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
     settleAt(event.nativeEvent.contentOffset.x);
@@ -117,7 +118,7 @@ function MoreCard({ onPress, disabled }: MoreCardProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="More ideas"
+      accessibilityLabel="More"
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}

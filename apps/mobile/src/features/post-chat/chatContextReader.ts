@@ -1,14 +1,13 @@
 import { CHAT_LIMITS, type ChatThread } from '@squidbox/shared';
 
-import chatMentions from './chatMentions';
 import type { ChatDraftPost, ChatSession, ContextReader } from './chatSessions';
 import chatTags from './chatTags';
 import postTags from './postTags';
+import readMentions from './readMentions';
+import sentMentions from './sentMentions';
 
-import extractHandles from '@/lib/extractHandles';
 import { readLiveAssets } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
-import { readMentionTexts } from '@/sync/postsRepository';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 
 type ContextSources = {
@@ -21,7 +20,8 @@ type ContextSources = {
  * way (`getSources()`'s tagging, as of the latest render), then takes the target post's text, and
  * over every post of the thread the media, the tags (their tags as saved, or the chat's own for a
  * photo never tagged: chatTags; with the card's edits: postTags) and the handles found in their
- * albums' posts (with the Mentions sheet's edits: chatMentions); and in a thread, the posts' texts
+ * albums' posts (readMentions, as the chat card shows them, with the Mentions sheet's edits:
+ * sentMentions); and in a thread, the posts' texts
  * (threadWindow). A target no longer in the thread fails the turn.
  */
 export default function chatContextReader(session: ChatSession, getSources: () => ContextSources): ContextReader {
@@ -35,16 +35,13 @@ export default function chatContextReader(session: ChatSession, getSources: () =
     if (at === -1) throw new Error('This post was removed');
     const assetIds = assets.map((asset) => asset.id);
     // Read here: the render's rows and handles can be a moment behind the photos added or tagged.
-    const [rows, mentionTexts] = await Promise.all([
-      readLiveAssets(getDb(), assetIds),
-      readMentionTexts(getDb(), assetIds),
-    ]);
+    const [rows, mentions] = await Promise.all([readLiveAssets(getDb(), assetIds), readMentions(getDb(), assetIds)]);
     return {
       kind,
       text: posts[at]!.text.slice(0, CHAT_LIMITS.text),
       media: countMediaTypes(assets),
       tags: postTags(chatTags.withTags(rows, chatTags.tags.get()), tagEdits).slice(0, CHAT_LIMITS.tags),
-      mentions: chatMentions(extractHandles(mentionTexts.texts), mentionEdits),
+      mentions: sentMentions(mentions, mentionEdits),
       ...(posts.length > 1 && { thread: threadWindow(posts, at) }),
     };
   };

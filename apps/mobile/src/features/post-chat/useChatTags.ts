@@ -45,12 +45,17 @@ export default function useChatTags(
   const kept = useSyncExternalStore(chatTags.tags.subscribe, chatTags.tags.get);
   const rows = useMemo(() => storedRows && chatTags.withTags(storedRows, kept), [storedRows, kept]);
 
-  // The chat screen tags its photos as they show, by the rule a turn tags them by.
+  // The photos never tagged nor tried in this app run: the chat screen tags them as they show, by the
+  // rule a turn tags them by. Keyed on their ids, so only a new one starts a read, not each tag landing.
+  const notTriedKey = (rows ?? [])
+    .filter((row) => row.tags === null && !chatTags.attempts.hasRun(row.id))
+    .map((row) => row.id)
+    .join('\n');
   useEffect(() => {
-    if (tagsOnOpen && isAvailable && rows?.some((row) => row.tags === null)) {
-      chatTags.tagMissingAsync(ids, { deps, isAvailable }).catch(() => {});
+    if (tagsOnOpen && isAvailable && notTriedKey) {
+      chatTags.tagMissingAsync(notTriedKey.split('\n'), { deps, isAvailable }).catch(() => {});
     }
-  }, [tagsOnOpen, isAvailable, rows, ids, deps]);
+  }, [tagsOnOpen, isAvailable, notTriedKey, deps]);
 
   return useMemo(() => {
     const attempts = Object.fromEntries(

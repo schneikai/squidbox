@@ -86,6 +86,16 @@ describe('promptButtonsRepository', () => {
     expect(merged.record.deletedAt).toBe(deletedAt);
   });
 
+  it('deletes a retired default that still holds its shipped text, and keeps an edited one', async () => {
+    const db = await syncedDb();
+    await seedPromptButtons(db, [button('c1'), button('c2')], []);
+    await updatePromptButton(db, ID.c2!, { prompt: 'My own prompt' });
+    const retired = [button('c1'), button('c2')];
+    expect(await seedPromptButtons(db, defaults, retired)).toBe(true);
+    expect(await order(db)).toEqual(['c2', 'd1', 'd2', 'd4', 'd5', 'd3']);
+    expect(await seedPromptButtons(db, defaults, retired)).toBe(false);
+  });
+
   it('waits for the first full pull before seeding', async () => {
     const db = makeTestDb();
     expect(await seedPromptButtons(db, defaults)).toBe(false);

@@ -50,3 +50,22 @@ export const DEFAULT_PROMPT_BUTTONS: readonly NewPromptButton[] = [
       'Turn this into a thread of 3 short posts. Open with the strongest line, add one detail each time, and end with a question.',
   },
 ];
+
+/**
+ * Defaults an earlier version seeded and this one retired (Caption and Repost ideas, now the idea
+ * settings), with the text they shipped with: seedPromptButtons deletes a library's row that still
+ * holds that text, as the server's migration 0038 did, so a library seeded by an older build after
+ * the migration loses them too. A row the user edited stays as a button of theirs.
+ */
+export const RETIRED_PROMPT_BUTTONS: readonly Pick<NewPromptButton, 'id' | 'prompt'>[] = [
+  {
+    id: 'e39b0935-7e63-4fd9-8e69-a2011c71edce',
+    prompt:
+      "Write 3 captions for these photos. Short, one line each. Mention who's in them when there's a handle for it.",
+  },
+  {
+    id: '452726e1-35ae-463f-8cab-dcd19bba78df',
+    prompt:
+      "Write 3 fresh posts that repost this for people who missed it. Same content, a new angle each time. Don't repeat the original wording.",
+  },
+];

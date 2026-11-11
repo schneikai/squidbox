@@ -55,9 +55,10 @@ export default function WorkingSparkle({ size = sizes.menuIcon, shine }: Working
   }));
 
   const sparkle = <Icon name="sparkle" size={size} color={colors.accent.base} />;
+  const ratio = size / DESIGN_SIZE;
+
   if (reduceMotion) return sparkle;
 
-  const ratio = size / DESIGN_SIZE;
   return (
     <View
       style={{ width: size, height: size }}

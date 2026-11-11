@@ -11,7 +11,9 @@ export type IdeaItem = { replyId: string; index: number | null; text: string };
  * started the run; `isOwnIdeas`, whether that was the post's own ideas prompt (Post ideas, Repost
  * ideas) rather than a prompt button; `items`, the options of its replies in order; `isWriting`,
  * while its last reply is written; `error`, its last reply's failure, if any, with `canRetry` when
- * that reply is the chat's last (Retry asks again for the last reply only).
+ * that reply is the chat's last (Retry asks again for the last reply only); `canClose`, whether Back
+ * is offered: always for a prompt button's run, for the post's own ideas only once stuck on a
+ * failure Retry can't redo.
  */
 export type IdeasRun = {
   name: string;
@@ -20,6 +22,7 @@ export type IdeasRun = {
   items: IdeaItem[];
   isWriting: boolean;
   error: { message: string | null; canRetry: boolean } | null;
+  canClose: boolean;
 };
 
 /**
@@ -59,12 +62,16 @@ export default function ideasRun(
     }
   }
 
+  const isOwnIdeas = first.kind === 'ideas';
+  const error =
+    last?.status === 'error' ? { message: last.error, canRetry: last === messages[messages.length - 1] } : null;
   return {
     name: first.label ?? '',
     prompt: first.content,
-    isOwnIdeas: first.kind === 'ideas',
+    isOwnIdeas,
     items,
     isWriting: last?.status === 'loading',
-    error: last?.status === 'error' ? { message: last.error, canRetry: last === messages[messages.length - 1] } : null,
+    error,
+    canClose: !isOwnIdeas || (error !== null && !error.canRetry),
   };
 }

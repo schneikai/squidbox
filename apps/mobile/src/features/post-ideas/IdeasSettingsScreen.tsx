@@ -6,6 +6,7 @@ import { Alert, StyleSheet } from 'react-native';
 import ideasText from './ideasText';
 import useIdeaSettings from './useIdeaSettings';
 
+import ActionButtons, { type ActionButtonsProps } from '@/components/ActionButtons';
 import DetailScrollView from '@/components/DetailScrollView';
 import Field from '@/components/Field';
 import Page from '@/components/Page';
@@ -44,7 +45,7 @@ export default function IdeasSettingsScreen() {
 type IdeasSettingsEditorProps = { kind: IdeasKind; userId: string; isOn: boolean; seed: string };
 
 // The switch, saved as it flips, and the prompt, saved as you type from `seed` on: an emptied prompt
-// is the built-in one again, as Restore original puts it back (shown only while the prompt is another).
+// is the built-in one again, as Reset changes puts it back (offered only while the prompt is another).
 function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorProps) {
   const navigation = useNavigation();
   const [prompt, setPrompt] = useState(seed);
@@ -53,6 +54,13 @@ function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorPr
   const { flush } = useSaveAsYouType(prompt.trim(), (next) =>
     saveIdeaSettings(getDb(), userId, kind, { prompt: next || null }),
   );
+
+  const actions: ActionButtonsProps['actions'] =
+    prompt.trim() === builtIn ? [] : [{ label: 'Reset changes', colorPalette: 'danger', onPress: handleReset }];
+
+  function handleReset() {
+    setPrompt(builtIn);
+  }
 
   function handleSwitch(next: boolean) {
     saveIdeaSettings(getDb(), userId, kind, { isOn: next }).then(requestSync, (error) => {
@@ -86,11 +94,7 @@ function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorPr
             minHeight={scale(132)}
           />
         </Field>
-        {prompt.trim() !== builtIn && (
-          <Section>
-            <Row label="Restore original" onPress={() => setPrompt(builtIn)} />
-          </Section>
-        )}
+        <ActionButtons actions={actions} isScreenEnd />
       </DetailScrollView>
     </Page>
   );

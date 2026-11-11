@@ -88,4 +88,11 @@ describe('ideasRun', () => {
       canRetry: false,
     });
   });
+
+  it("offers Back on a prompt button's run, and on the post's own ideas only once failed past Retry", () => {
+    const failed = reply([], { status: 'error', error: 'Model is busy' });
+    expect(ideasRun([user('prompt'), reply(['a'])], 'p1', null)!.canClose).toBe(true);
+    expect(ideasRun([user('ideas'), failed], 'p1', null)!.canClose).toBe(false);
+    expect(ideasRun([user('ideas'), failed, user('prompt', 'p2'), reply(['b'])], 'p1', null)!.canClose).toBe(true);
+  });
 });

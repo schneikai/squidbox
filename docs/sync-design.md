@@ -959,8 +959,9 @@ start once it has media, and a repost's when its editor opens) and `postIdeasPro
 `packages/shared`, and a prompt equal to it is stored as null), resolved by `resolveIdeaSettings`
 (on, and the built-in text, while unset). One record per user, whose id is the user's id, like
 `personas`. The default prompt buttons Caption and Repost ideas they replace are tombstoned by the
-server's migration 0038 where the row still held the shipped text; an edited one stays a prompt
-button of the user's. Server 0037, app 0038.
+server's migration 0038 where the row still held the shipped text, and by the app's
+`seedPromptButtons` (`RETIRED_PROMPT_BUTTONS`) for a library an older build seeds after it; an
+edited one stays a prompt button of the user's. Server 0037, app 0038.
 
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks

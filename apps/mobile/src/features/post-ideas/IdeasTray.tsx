@@ -41,7 +41,7 @@ type IdeasTrayProps = {
  * ideas, the lead chip, with the prompt of `settings`) and the prompt buttons, a tap starting a run,
  * all off while a reply is written. With one, its ideas (IdeasCarousel): under "Writing ideas…" while
  * written and "Ideas" for the post's own, or under a back button with the prompt button's name, which
- * returns to the buttons (the chat's closeIdeas); what the assistant goes on (SeesLine) under the
+ * returns to the buttons (the chat's closeIdeas), as the post's own do once failed past Retry; what the assistant goes on (SeesLine) under the
  * cards while the first are written. Only the tray watches the chat, not the screen holding it.
  * style is for layout only.
  */
@@ -107,7 +107,7 @@ function IdeasTraySection({ chat, sessionId, target, ideas, settings, style }: I
     <AssistantTray
       title={run.isOwnIdeas ? (run.isWriting ? 'Writing ideas…' : 'Ideas') : run.name}
       isWorking={run.isOwnIdeas && run.isWriting}
-      back={run.isOwnIdeas ? null : { label: `Back to ${WRITE_WITH_AI}`, onPress: () => closeIdeas(target) }}
+      back={run.canClose ? { label: `Back to ${WRITE_WITH_AI}`, onPress: () => closeIdeas(target) } : null}
       trailing={chatButton}
       footer={isFirstWriting && <SeesLine chat={chat} />}
       style={style}

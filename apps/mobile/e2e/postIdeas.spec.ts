@@ -49,7 +49,7 @@ test('a new post gets ideas once it has photos, written after the photos are tag
   await button(editor, 'Use').first().click();
   await expect(caption(editor)).toHaveValue(firstIdea(1));
 
-  await button(editor, 'More ideas').click();
+  await button(editor, 'More').click();
   await expect(editor.getByText(firstIdea(2))).toBeVisible();
   await expect(button(editor, 'Use')).toHaveCount(6);
   expect(assistant.chats[1]!.messages.at(-1)).toMatchObject({ role: 'user', moreIdeas: true });
@@ -60,7 +60,7 @@ test('the chat holds the ideas, and what is written there comes back to the tray
   await button(editor, 'Add photos').click();
   await pickFromSquidbox(page, 1);
   await button(editor, 'Use').first().click();
-  await button(editor, 'More ideas').click();
+  await button(editor, 'More').click();
   await expect(editor.getByText(firstIdea(2))).toBeVisible();
 
   await button(editor, 'Chat').click();
@@ -182,7 +182,7 @@ test.describe('Post ideas settings', () => {
     await expect(editor.getByText(firstIdea(1))).toBeVisible();
   });
 
-  test('an edited prompt is what the next ideas ask, and Restore original puts the built-in text back', async ({
+  test('an edited prompt is what the next ideas ask, and Reset changes puts the built-in text back', async ({
     page,
     assistant,
   }) => {
@@ -204,7 +204,7 @@ test.describe('Post ideas settings', () => {
 
     await loadAppAsync(page);
     await openPostIdeas(page);
-    await savedAsync(page, () => button(page, 'Restore original').click());
+    await savedAsync(page, () => button(page, 'Reset changes').click());
     await expect(page.getByRole('textbox')).toHaveValue(DEFAULT_IDEA_PROMPTS.post);
 
     // The mock account's own prompt back, for the flows after this one.

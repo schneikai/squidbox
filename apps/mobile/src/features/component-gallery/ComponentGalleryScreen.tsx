@@ -76,6 +76,7 @@ const WRITING_RUN: IdeasRun = {
   items: [],
   isWriting: true,
   error: null,
+  canClose: false,
 };
 const IDEAS_RUN: IdeasRun = {
   ...WRITING_RUN,
