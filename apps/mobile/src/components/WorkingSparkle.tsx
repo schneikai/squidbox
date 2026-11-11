@@ -80,18 +80,10 @@ export default function WorkingSparkle({ size = sizes.menuIcon }: WorkingSparkle
   );
 }
 
-type StarProps = {
-  index: number;
-  ratio: number;
-  size: number;
-  top?: number;
-  left?: number;
-  right?: number;
-  bottom?: number;
-};
+type StarProps = StarPlace & { index: number; ratio: number };
 
 // One star, popping in and out on its own period and delay (motion.working.stars[index]).
-function Star({ index, ratio, size, ...place }: StarProps) {
+function Star({ index, ratio, size, edgeY, y, edgeX, x }: StarProps) {
   const pop = useSharedValue(0);
 
   useEffect(() => {
