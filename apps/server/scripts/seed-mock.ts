@@ -5,8 +5,8 @@
  * and posts, all by one guy who posts his outdoor photos on Bluesky, the people he shoots and
  * sells prints with (contacts, one with a photo, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
- * as you, the prompt buttons (the app's defaults in his words, and one more) and the
- * Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
+ * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
+ * Repost ideas prompts and the Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
  * are deterministic and anything else in these collections is tombstoned.
  *
  * Run: npm run seed:mock   (from apps/server, with the local stack and `npm run dev` running)
@@ -29,6 +29,7 @@ import {
   type ContactListMemberRecord,
   type ContactListRecord,
   type ContactRecord,
+  type IdeaSettingRecord,
   type InstructionRecord,
   type NewPromptButton,
   type PersonaRecord,
@@ -216,15 +217,17 @@ const CONTACT_LISTS: { name: string; notes: string; members: number[] }[] = [
   { name: 'Print buyers', notes: 'Send them the new prints first.', members: [1, 3, 4] },
 ];
 
+// His Post ideas and Repost ideas prompts, for Bluesky.
+const IDEA_PROMPTS = {
+  postIdeasPrompt:
+    'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
+  repostIdeasPrompt:
+    "Write 3 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
+};
+
 // The app's default prompt buttons (by name) in his words, for Bluesky: Thread becomes a print teaser,
 // Behind the scenes his photo of the week and Funnier Drier, under the same ids. And a trip recap.
 const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'>> = {
-  'Repost ideas': {
-    name: 'Repost ideas',
-    icon: 'repeat',
-    prompt:
-      "Write 3 fresh Bluesky posts that bring this back for people who missed it. Same trip, a new angle each time: the view, the moment, how it felt. Don't repeat the original wording.",
-  },
   'Follow-up with link': {
     name: 'Follow-up with link',
     icon: 'link',
@@ -235,11 +238,6 @@ const OVERRIDES: Record<string, Pick<NewPromptButton, 'name' | 'icon' | 'prompt'
     icon: 'printer',
     prompt:
       'Write a Bluesky post saying this photo is coming as a print. What makes it worth a wall, in one or two lines. No hard sell.',
-  },
-  Caption: {
-    name: 'Caption',
-    icon: 'quote',
-    prompt: 'Write 3 captions for these photos. Short, for Bluesky, one line each. Name the place only by its region.',
   },
   'Behind the scenes': {
     name: 'Photo of the week',
@@ -385,6 +383,11 @@ const instructions: InstructionRecord[] = [
   },
 ];
 
+// His ideas on, in his words (one record per user, like the persona).
+const ideaSettings: IdeaSettingRecord[] = [
+  { ...baseRecord('idea-settings', now), id: userId, postIdeasOn: true, repostIdeasOn: true, ...IDEA_PROMPTS },
+];
+
 const contacts: ContactRecord[] = [];
 for (const [index, contact] of CONTACTS.entries()) {
   const record = baseRecord(`contact:${index}`, now - (index + 3) * 7 * DAY);
@@ -465,6 +468,7 @@ const mockRecords: Record<string, { id: string }[]> = {
   personas,
   prompt_buttons: promptButtons,
   instructions,
+  idea_settings: ideaSettings,
   contacts,
   contact_lists: contactLists,
   contact_list_members: contactListMembers,
@@ -475,7 +479,7 @@ await push(mutations);
 
 console.log(
   `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
-    ` ${promptButtons.length} prompt buttons, default instructions, ${contacts.length} contacts in` +
+    ` ${promptButtons.length} prompt buttons, default instructions, his ideas prompts, ${contacts.length} contacts in` +
     ` ${contactLists.length} lists (${mutations.length} records pushed).`,
 );
 

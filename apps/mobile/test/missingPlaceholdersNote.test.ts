@@ -7,7 +7,7 @@ describe('missingPlaceholdersNote', () => {
     expect(missingPlaceholdersNote('visionTagging', 'Tag this photo.')).toBe(
       "This text has no {themes}, so the assistant won't get it.",
     );
-    const writing = 'Write {count} posts. {aboutYou} {tone} {contentTags} {rules} {posts} {media} {tags}';
+    const writing = 'Write {count} posts. {aboutYou} {tone} {contentTags} {rules} {posts} {media} {tags} {thread}';
     expect(missingPlaceholdersNote('writing', writing)).toBe(
       "This text has no {mentions} or {caption}, so the assistant won't get them.",
     );

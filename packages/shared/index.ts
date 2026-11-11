@@ -21,6 +21,7 @@ export * from './collections/favorite';
 export * from './collections/instruction';
 export * from './collections/modelChoice';
 export * from './collections/contactSetting';
+export * from './collections/ideaSetting';
 export * from './collections/contact';
 export * from './collections/contactList';
 export * from './collections/contactListMember';

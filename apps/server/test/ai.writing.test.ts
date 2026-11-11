@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chatTurnSchema,
   compareWritingRequestSchema,
   DEFAULT_INSTRUCTIONS,
   INSTRUCTION_KINDS,
   INSTRUCTION_LIMITS,
   missingPlaceholders,
 } from '@squidbox/shared';
-import { chatMessages, fillLines, writingMessages } from '../src/ai/prompts.js';
+import { chatMessages, fillLines, judgeMessages, writingMessages } from '../src/ai/prompts.js';
 
 const persona = {
   aboutYou: '34, outdoor photographer from Oregon, a bit dry.',
@@ -104,6 +105,26 @@ describe('chatMessages', () => {
     expect(content).toContain('Use 3 options unless the creator specifies otherwise');
   });
 
+  it("fills the thread under the caption: the post's place and the other posts numbered, an empty one as (empty)", () => {
+    const content = systemOfChat({ context: { ...context, thread: { index: 1, posts: ['Up early.', '', ' '] } } });
+    expect(content).toContain(
+      'Their post so far: "Fog on the trail"\nPost 2 of a thread of 3. The other posts:\n1. "Up early."\n3. (empty)\n',
+    );
+  });
+
+  it('leaves the thread line out without a thread', () => {
+    expect(systemOfChat()).toContain('Their post so far: "Fog on the trail"\n\nThis is the current state');
+  });
+
+  it('adds the thread at the end of a Writing text without {thread}, and nothing without a thread', () => {
+    const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' };
+    const thread = { index: 0, posts: ['Fog on the trail', 'Then the sun.'] };
+    expect(systemOfChat({ instructions, context: { ...context, thread } })).toBe(
+      'Be brief. "Fog on the trail"\n\nPost 1 of a thread of 2. The other posts:\n2. "Then the sun."',
+    );
+    expect(systemOfChat({ instructions })).toBe('Be brief. "Fog on the trail"');
+  });
+
   it('says so for an empty caption and no media, and leaves out empty tags and handles', () => {
     const content = systemOfChat({
       context: { ...context, text: '  ', media: { photo: 0, video: 0 }, tags: [], mentions: [] },
@@ -145,9 +166,42 @@ describe('chatMessages', () => {
     expect(messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\none' });
   });
 
+  it("puts the user's More instruction before a More turn's request", () => {
+    const instructions = { ...DEFAULT_INSTRUCTIONS, moreIdeas: 'Another set.' };
+    const turns = [...transcript, { role: 'user' as const, content: 'Write ideas', moreIdeas: true }];
+    const messages = chatMessages({ instructions, context, transcript: turns, persona, posts });
+    expect(messages.at(-1)).toEqual({ role: 'user', content: 'Another set.\n\nWrite ideas' });
+  });
+
+  it('refuses a turn that is both More like this and More', () => {
+    const turn = { role: 'user', content: 'one', moreLikeThis: true, moreIdeas: true };
+    expect(chatTurnSchema.safeParse(turn).success).toBe(false);
+    expect(chatTurnSchema.safeParse({ ...turn, moreIdeas: false }).success).toBe(true);
+  });
+
   it("uses the user's own Writing text as the briefing", () => {
     const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' } });
     expect(content).toBe('Be brief. "Fog on the trail"');
+  });
+});
+
+describe('judgeMessages', () => {
+  it("quotes the creator's turns as the writing model got them, the More instruction included", () => {
+    const instructions = {
+      ...DEFAULT_INSTRUCTIONS,
+      moreIdeas: 'Another set.',
+      modelCheckJudge: '{transcript}\n---\n{request}',
+    };
+    const [message] = judgeMessages({
+      instructions,
+      context,
+      persona,
+      posts,
+      transcript: [{ role: 'user', content: 'Write ideas', moreIdeas: true }],
+      request: { content: 'Write ideas', moreIdeas: true },
+      reply: { reply: '', postOptions: ['one'] },
+    });
+    expect(message!.content).toBe('Creator: Another set.\n\nWrite ideas\n---\nAnother set.\n\nWrite ideas');
   });
 });
 

@@ -263,6 +263,7 @@ export const instructions = pgTable(
     modelCheckJudge: text('model_check_judge'),
     contactScreenshot: text('contact_screenshot'),
     contactXProfile: text('contact_x_profile'),
+    moreIdeas: text('more_ideas'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('instructions_user_seq_idx').on(t.userId, t.serverSeq)],
 );
@@ -330,6 +331,19 @@ export const contactSettings = pgTable(
     pinnedAt: bigint('pinned_at', { mode: 'number' }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('contact_settings_user_seq_idx').on(t.userId, t.serverSeq)],
+);
+
+// One idea_settings record per user: its id is the user's id. A null prompt is the built-in text.
+export const ideaSettings = pgTable(
+  'idea_settings',
+  {
+    ...syncableBase(),
+    postIdeasOn: boolean('post_ideas_on').notNull(),
+    repostIdeasOn: boolean('repost_ideas_on').notNull(),
+    postIdeasPrompt: text('post_ideas_prompt'),
+    repostIdeasPrompt: text('repost_ideas_prompt'),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('idea_settings_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 
 export const contactListMembers = pgTable(

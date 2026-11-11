@@ -7,6 +7,7 @@ import {
   type ChatContext,
   type ChatReply,
   type ChatTurn,
+  type ChatUserTurn,
   type ContactRead,
   type Instructions,
   type PersonaFields,
@@ -72,10 +73,23 @@ export function writingMessages(prompt: string, earlierRounds: string[][] = []):
 }
 
 /**
+ * A user turn's text as the model gets it: a More like this turn's option after
+ * `instructions.moreLikeThis`, a More turn's request after `instructions.moreIdeas`, any other turn
+ * as it is.
+ */
+function userTurnText(
+  turn: Pick<ChatUserTurn, 'content' | 'moreLikeThis' | 'moreIdeas'>,
+  instructions: Instructions,
+): string {
+  if (turn.moreLikeThis) return `${instructions.moreLikeThis}\n\n${turn.content}`;
+  if (turn.moreIdeas) return `${instructions.moreIdeas}\n\n${turn.content}`;
+  return turn.content;
+}
+
+/**
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
  * persona, their posts and the post) as the whole system message, then the transcript, a past reply in
- * the JSON the model replies in and a More like this turn as `instructions.moreLikeThis` with the
- * option after it.
+ * the JSON the model replies in and a user turn as userTurnText has it.
  */
 export function chatMessages({
   context,
@@ -94,10 +108,7 @@ export function chatMessages({
     { role: 'system', content: writingBriefingText(instructions.writing, { persona, posts, context }) },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
-        ? {
-            role: 'user',
-            content: turn.moreLikeThis ? `${instructions.moreLikeThis}\n\n${turn.content}` : turn.content,
-          }
+        ? { role: 'user', content: userTurnText(turn, instructions) }
         : { role: 'assistant', content: JSON.stringify({ reply: turn.reply, postOptions: turn.postOptions }) },
     ),
   ];
@@ -109,16 +120,16 @@ function replyText({ reply, postOptions }: ChatReply): string {
 }
 
 /**
- * Verify's judge question after a chat turn: `template` (instructions.modelCheckJudge)
- * filled with what the writing model was told about the creator and the post, with the writing
+ * Verify's judge question after a chat turn: instructions.modelCheckJudge filled with what the writing model was told about the creator and the post, with the writing
  * briefing's placeholders (the persona's facts, the posts they wrote, none for a section without them,
  * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given
  * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
  * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
- * judge (`{reply}`), as the one message.
+ * judge (`{reply}`), as the one message. The creator's turns read as the writing model got them
+ * (userTurnText).
  */
 export function judgeMessages({
-  template,
+  instructions,
   context,
   persona,
   posts,
@@ -126,23 +137,23 @@ export function judgeMessages({
   request,
   reply,
 }: {
-  template: string;
+  instructions: Instructions;
   context: ChatContext;
   persona: Persona;
   posts: string[];
   transcript: ChatTurn[];
-  request: string;
+  request: Pick<ChatUserTurn, 'content' | 'moreLikeThis' | 'moreIdeas'>;
   reply: ChatReply;
 }): ChatMessage[] {
   const before = transcript.map((turn) =>
-    turn.role === 'user' ? `Creator: ${turn.content}` : `Assistant: ${replyText(turn)}`,
+    turn.role === 'user' ? `Creator: ${userTurnText(turn, instructions)}` : `Assistant: ${replyText(turn)}`,
   );
-  const content = fillLines(template, {
+  const content = fillLines(instructions.modelCheckJudge, {
     ...personaValues(persona),
     ...postsValues(posts),
     ...postValues(context),
     transcript: before.join('\n\n') || '(none)',
-    request,
+    request: userTurnText(request, instructions),
     reply: replyText(reply),
   });
   // A user message: a model behind Venice (Claude) refuses a request with only a system message.
@@ -209,15 +220,31 @@ function mediaText({ photo, video }: ChatContext['media']): string {
   return [count(photo, 'photo'), count(video, 'video')].filter(Boolean).join(' and ') || 'none yet';
 }
 
+// A post's text as the briefing quotes it: a JSON string, or (empty).
+function quotedText(text: string): string {
+  const trimmed = text.trim();
+  return trimmed ? JSON.stringify(trimmed) : '(empty)';
+}
+
+// The thread the post is one of, for `{thread}`: "Post 2 of a thread of 3. The other posts:" and the
+// others numbered; empty without a thread.
+function threadText(thread: ChatContext['thread']): string {
+  if (!thread) return '';
+  const others = thread.posts.flatMap((text, index) =>
+    index === thread.index ? [] : [`${index + 1}. ${quotedText(text)}`],
+  );
+  return [`Post ${thread.index + 1} of a thread of ${thread.posts.length}. The other posts:`, ...others].join('\n');
+}
+
 // The post's values: none without one (`context` null), so its lines and heading are left out.
 function postValues(context: ChatContext | null): Record<string, string> {
-  if (!context) return { media: '', tags: '', mentions: '', caption: '' };
-  const caption = context.text.trim();
+  if (!context) return { media: '', tags: '', mentions: '', caption: '', thread: '' };
   return {
     media: mediaText(context.media),
     tags: context.tags.join(', '),
     mentions: context.mentions.join(', '),
-    caption: caption ? JSON.stringify(caption) : '(empty)',
+    caption: quotedText(context.text),
+    thread: threadText(context.thread),
   };
 }
 
@@ -225,14 +252,17 @@ function postValues(context: ChatContext | null): Record<string, string> {
  * The writing briefing, `template` (instructions.writing) filled with the creator's persona, their
  * posts (`posts`, as "- " lines like the rules, each on one line) and the chat's
  * post (`context`, null for none): `{caption}` is the caption as a JSON string, or (empty);
- * `{count}` the options to write. A line whose value is empty is left out, with its heading
- * (fillLines).
+ * `{thread}` the thread's other posts; `{count}` the options to write. A line whose value is empty
+ * is left out, with its heading (fillLines). A text without `{thread}` (one published or tried
+ * before it had one) gets the thread at its end when there is one, as contactReadPrompt does for
+ * `{fields}`, so a thread post is never written without it.
  */
 export function writingBriefingText(
   template: string,
   { persona, posts, context }: { persona: Persona; posts: string[]; context: ChatContext | null },
 ): string {
-  return fillLines(template, {
+  const withThread = context?.thread && !template.includes('{thread}') ? `${template.trimEnd()}\n\n{thread}` : template;
+  return fillLines(withThread, {
     ...personaValues(persona),
     ...postsValues(posts),
     ...postValues(context),

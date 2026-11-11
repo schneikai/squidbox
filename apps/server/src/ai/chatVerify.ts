@@ -318,12 +318,12 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           runTask({
             task: judgeTask,
             messages: judgeMessages({
-              template: instructions.modelCheckJudge,
+              instructions,
               context: contextOf(post),
               persona: isBare ? null : MOCK_PERSONA,
               posts: isBare ? [] : MOCK_POSTS,
               transcript,
-              request: content,
+              request: { content },
               reply,
             }),
             model: judge,

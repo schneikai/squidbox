@@ -8,8 +8,8 @@ export const promptButtonPlacementSchema = z.enum(['post', 'newPost', 'caption',
 export type PromptButtonPlacement = z.infer<typeof promptButtonPlacementSchema>;
 export const ONE_LIST_PLACEMENT: PromptButtonPlacement = 'post';
 
-// `prompt_buttons` — the chat's one-tap prompts (Settings → Assistant → Prompt buttons), one list
-// under the post editor's caption and over the chat's message box. `position` is a fractional-index
+// `prompt_buttons` — the assistant's one-tap prompts (Settings → Assistant → Prompt buttons), one
+// list in the post card's assistant tray and over the chat's message box. `position` is a fractional-index
 // key ordering them, by `(position, id)`. Deletion is a tombstone. `icon` is an Icon name or null.
 export const PROMPT_BUTTON_LIMITS = { name: 60, prompt: 2000, icon: 40 } as const;
 
