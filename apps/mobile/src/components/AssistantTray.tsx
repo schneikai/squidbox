@@ -8,6 +8,7 @@ import Icon from '@/components/Icon';
 import Shine from '@/components/Shine';
 import Text from '@/components/Text';
 import WorkingSparkle from '@/components/WorkingSparkle';
+import useShineProgress from '@/hooks/useShineProgress';
 import { colors, layout, radii, raisedShadowRoom, shadows, sizes, space } from '@/styles/designTokens';
 
 // The inset the row's chips keep from the tray's edges.
@@ -23,10 +24,9 @@ const FADE_END = { x: 1, y: 0 };
 export type AssistantTrayProps = {
   title: string;
   isWorking?: boolean;
-  onBack?: (() => void) | null;
-  backLabel?: string;
+  back?: { label: string; onPress: () => void } | null;
   trailing?: ReactNode;
-  children?: ReactNode;
+  children: ReactNode;
   footer?: ReactNode;
   style?: StyleProp<ViewStyle>;
 };
@@ -35,10 +35,10 @@ export type AssistantTrayProps = {
  * The assistant's look for a group of its actions: a lavender tray, lit along its edge, under a
  * violet sparkle and `title` (Write with AI, Ideas), with `trailing` at the end of the title's line
  * (a small button: Chat). While `isWorking` the sparkle is at work (WorkingSparkle) and a light band
- * sweeps across the title in step (Writing ideas…). With `onBack` the title is a back button instead
- * (‹ and `title`, read as `backLabel`), returning to what the tray showed before. `children` is one
+ * sweeps across the title in step (Writing ideas…). With `back` the title is a back button instead
+ * (‹ and `title`, read as `back.label`, `back.onPress`), returning to what the tray showed before. `children` is one
  * row that scrolls sideways across the tray's full width (PromptButtonRow, the ideas' carousel),
- * fading out at its right edge; the tray gives the row its inset and the pen its light violet disc
+ * fading out at its right edge; the tray gives the row its inset
  * (AssistantTrayContext), and draws its lit rim over the row. `footer` follows the row, at the
  * tray's inset (a grey line). The fade is static and only as wide as the inset, so it veils a chip
  * passing under the edge but never one at rest or at the row's end. style is for layout only.
@@ -46,13 +46,13 @@ export type AssistantTrayProps = {
 export default function AssistantTray({
   title,
   isWorking = false,
-  onBack,
-  backLabel,
+  back,
   trailing,
   children,
   footer,
   style,
 }: AssistantTrayProps) {
+  const shine = useShineProgress(isWorking);
   const titleText = (tone?: 'shine') => (
     <Text variant="assistant" tone={tone} numberOfLines={1}>
       {title}
@@ -64,7 +64,7 @@ export default function AssistantTray({
       <View style={[styles.tray, style]}>
         <View style={styles.content}>
           <View style={styles.header}>
-            {onBack ? (
+            {back ? (
               <View style={styles.lead}>
                 <Button
                   icon="chevron-left"
@@ -72,36 +72,28 @@ export default function AssistantTray({
                   variant="tertiary"
                   colorPalette="accent"
                   size="small"
-                  accessibilityLabel={backLabel}
-                  onPress={onBack}
+                  accessibilityLabel={back.label}
+                  onPress={back.onPress}
                 />
               </View>
             ) : (
               <View style={[styles.lead, styles.titleRow]}>
                 {isWorking ? (
-                  <WorkingSparkle size={sizes.menuIcon} />
+                  <WorkingSparkle size={sizes.menuIcon} shine={shine} />
                 ) : (
                   <Icon name="sparkle" size={sizes.menuIcon} color={colors.accent.base} />
                 )}
-                <Shine isOn={isWorking} highlight={titleText('shine')}>
+                <Shine progress={shine} highlight={titleText('shine')}>
                   {titleText()}
                 </Shine>
               </View>
             )}
             {trailing}
           </View>
-          {children !== undefined && (
-            <View>
-              {children}
-              <LinearGradient
-                colors={FADE}
-                start={FADE_START}
-                end={FADE_END}
-                style={styles.fade}
-                pointerEvents="none"
-              />
-            </View>
-          )}
+          <View>
+            {children}
+            <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
+          </View>
           {footer && <View style={styles.footer}>{footer}</View>}
         </View>
         <View style={styles.rim} pointerEvents="none" />

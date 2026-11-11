@@ -1,19 +1,18 @@
-import type { IdeasKind } from '@squidbox/shared';
+import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { useEffect, useRef } from 'react';
 
 import ideasTurns from './ideasTurns';
 import shouldStartIdeas from './shouldStartIdeas';
 import useIdeaSettings from './useIdeaSettings';
-import usePostIdeas from './usePostIdeas';
 
 import type { ChatDraftPost } from '@/features/post-chat/chatSessions';
+import useChatSends from '@/features/post-chat/useChatSends';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
-import type { PostEditorKind } from '@/features/posts/PostEditor';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import { useFirstSyncDone } from '@/sync/useSyncStatus';
 
 type EditorIdeasOptions = {
-  kind: PostEditorKind;
+  kind: Extract<ChatSubjectKind, 'draft' | 'edit'>;
   ideas: IdeasKind;
   posts: ChatDraftPost[];
   activeKey: string;
@@ -21,38 +20,36 @@ type EditorIdeasOptions = {
 };
 
 /**
- * The post editor's one assistant chat for all its posts (useSubjectChat), what its trays share
- * (usePostIdeas), and its ideas starting on their own (shouldStartIdeas): once per sheet, as the
- * first post's turn, with the user's prompt of the kind `ideas`; the chat tags the photos first.
+ * The post editor's one assistant chat for all its posts (useSubjectChat) and its ideas starting on
+ * their own (shouldStartIdeas): once per sheet, as the first post's turn, with the user's prompt of
+ * the kind `ideas`; the chat tags the photos first. It sends without watching the chat (useChatSends),
+ * so the editor doesn't render with each change of it: its trays do (IdeasTray). → the chat's id
+ * (null until open) and the user's ideas `settings`, for the trays.
  */
 export default function useEditorIdeas({ kind, ideas, posts, activeKey, setText }: EditorIdeasOptions) {
   const sessionId = useSubjectChat({ kind, posts, activeKey, setText });
-  const postIdeas = usePostIdeas(sessionId);
+  const { send } = useChatSends(sessionId);
   const settings = useIdeaSettings();
   const isAvailable = useIsAssistantAvailable();
   const isFirstSyncDone = useFirstSyncDone();
   const hasStartedRef = useRef(false);
-  const first = posts[0];
-  const hasMedia = (first?.assets.length ?? 0) > 0;
-  const { send, chat } = postIdeas;
-  const isOpen = chat !== null;
+  const firstKey = posts[0]?.key;
+  const hasMedia = (posts[0]?.assets.length ?? 0) > 0;
+  const setting = settings?.[ideas];
 
   useEffect(() => {
-    const isStarting =
-      isOpen &&
-      first !== undefined &&
-      settings !== undefined &&
-      shouldStartIdeas({
-        kind,
-        ideas,
-        isOn: settings[ideas].isOn,
-        hasMedia,
-        hasStarted: hasStartedRef.current,
-        isAvailable,
-        isFirstSyncDone: isFirstSyncDone === true,
-      });
-    if (isStarting && send(ideasTurns.ideas(ideas, settings[ideas], first.key))) hasStartedRef.current = true;
-  }, [isOpen, first, settings, kind, ideas, hasMedia, isAvailable, isFirstSyncDone, send]);
+    if (hasStartedRef.current || firstKey === undefined || setting === undefined) return;
+    const isStarting = shouldStartIdeas({
+      kind,
+      ideas,
+      isOn: setting.isOn,
+      hasMedia,
+      hasStarted: false,
+      isAvailable,
+      isFirstSyncDone: isFirstSyncDone === true,
+    });
+    if (isStarting && send(ideasTurns.ideas(ideas, setting, firstKey))) hasStartedRef.current = true;
+  }, [firstKey, setting, kind, ideas, hasMedia, isAvailable, isFirstSyncDone, send]);
 
-  return postIdeas;
+  return { sessionId, settings };
 }

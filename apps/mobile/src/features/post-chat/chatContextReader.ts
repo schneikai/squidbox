@@ -4,7 +4,6 @@ import chatMentions from './chatMentions';
 import type { ChatDraftPost, ChatSession, ContextReader } from './chatSessions';
 import chatTags from './chatTags';
 import postTags from './postTags';
-import type { ChatTagging } from './useChatTags';
 
 import extractHandles from '@/lib/extractHandles';
 import { readLiveAssets } from '@/sync/aiStateRepository';
@@ -12,7 +11,9 @@ import { getDb } from '@/sync/db/client';
 import { readMentionTexts } from '@/sync/postsRepository';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 
-type ContextSources = { tagging: Pick<ChatTagging, 'tagMissingAsync'> };
+type ContextSources = {
+  tagging: { tagMissingAsync: (ids: readonly string[], onWait?: () => void) => Promise<void> };
+};
 
 /**
  * How the chat `session` reads what a turn for the post `target` is about (a ContextReader), as the

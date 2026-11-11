@@ -1,6 +1,6 @@
-import type { IdeasKind, NewPromptButton } from '@squidbox/shared';
+import type { IdeasKind, IdeasSetting, NewPromptButton } from '@squidbox/shared';
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 
 import IdeasCarousel from './IdeasCarousel';
@@ -8,14 +8,14 @@ import SeesLine from './SeesLine';
 import ideasRun from './ideasRun';
 import ideasText from './ideasText';
 import ideasTurns from './ideasTurns';
-import useIdeaSettings from './useIdeaSettings';
-import type { PostIdeas } from './usePostIdeas';
 
 import AssistantTray from '@/components/AssistantTray';
 import Chip from '@/components/Chip';
 import type { ChatParams } from '@/features/post-chat/PostChatScreen';
 import { canUseFor } from '@/features/post-chat/chatSessions';
-import promptTurn from '@/features/post-chat/promptTurn';
+import promptSeed from '@/features/post-chat/promptSeed';
+import useChatSends from '@/features/post-chat/useChatSends';
+import useChatSession, { type LiveChat } from '@/features/post-chat/useChatSession';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useHaptics from '@/hooks/useHaptics';
@@ -25,49 +25,56 @@ import useSeedPromptButtons from '@/hooks/useSeedPromptButtons';
 const WRITE_WITH_AI = 'Write with AI';
 
 type IdeasTrayProps = {
-  postIdeas: PostIdeas;
+  sessionId: string | null;
   target: string;
   // The post's own ideas (the lead chip), or null for a post of the thread.
   ideas: IdeasKind | null;
+  // The user's ideas settings (useIdeaSettings'; undefined while reading).
+  settings: Record<IdeasKind, IdeasSetting> | undefined;
   style?: StyleProp<ViewStyle>;
 };
 
 /**
- * The assistant's tray for one post (`target`, of the chat `postIdeas`), for an account with the
+ * The assistant's tray for one post (`target`, of the chat `sessionId`), for an account with the
  * assistant, Chat always at its end (the chat with every turn so far). Without a run (ideasRun) it
  * offers what to write: "Write with AI" over the post's own ideas (`ideas`: Post ideas or Repost
- * ideas, the lead chip) and the prompt buttons, a tap starting a run, all off while a reply is
- * written. With one, its ideas (IdeasCarousel): under "Writing ideas…" while written and "Ideas" for
- * the post's own, or under a back button with the prompt button's name, which returns to the
- * buttons; what the assistant goes on (SeesLine) under the cards while the first are written.
+ * ideas, the lead chip, with the prompt of `settings`) and the prompt buttons, a tap starting a run,
+ * all off while a reply is written. With one, its ideas (IdeasCarousel): under "Writing ideas…" while
+ * written and "Ideas" for the post's own, or under a back button with the prompt button's name, which
+ * returns to the buttons (the chat's closeIdeas); what the assistant goes on (SeesLine) under the
+ * cards while the first are written. Only the tray watches the chat, not the screen holding it.
  * style is for layout only.
  */
-export default function IdeasTray(props: IdeasTrayProps) {
+export default function IdeasTray({ sessionId, ...props }: IdeasTrayProps) {
   const isAvailable = useIsAssistantAvailable();
-  if (!isAvailable || !props.postIdeas.chat) return null;
-  return <IdeasTraySection {...props} />;
+  const chat = useChatSession(sessionId);
+  if (!isAvailable || !chat || sessionId === null) return null;
+  return <IdeasTraySection chat={chat} sessionId={sessionId} {...props} />;
 }
 
+type IdeasTraySectionProps = Omit<IdeasTrayProps, 'sessionId'> & { chat: LiveChat; sessionId: string };
+
 // The tray itself, once the assistant is available and the chat open.
-function IdeasTraySection({ postIdeas, target, ideas, style }: IdeasTrayProps) {
+function IdeasTraySection({ chat, sessionId, target, ideas, settings, style }: IdeasTraySectionProps) {
   const buttons = usePromptButtons();
-  const settings = useIdeaSettings();
   const haptics = useHaptics();
   useSeedPromptButtons();
-  const { chat, send, retry, sessionId, closedAt, closeIdeas, tagging, mentions } = postIdeas;
-  const use = chat?.use;
+  const { send, retry } = useChatSends(sessionId);
+  const { messages, use, closeIdeas } = chat;
+  const closedAt = chat.closedAt[target] ?? null;
+  const run = useMemo(() => ideasRun(messages, target, closedAt), [messages, target, closedAt]);
 
   const handleUse = useCallback(
     (replyId: string, index: number) => {
-      use?.(replyId, index);
+      use(replyId, index);
       haptics.success();
     },
     [use, haptics],
   );
+  const handleMore = useCallback(() => {
+    if (run) send(ideasTurns.more(run, target));
+  }, [run, send, target]);
 
-  if (!chat || sessionId === null) return null;
-
-  const run = ideasRun(chat.messages, target, closedAt[target] ?? null);
   const chatButton = (
     <Chip
       variant="raised"
@@ -78,7 +85,7 @@ function IdeasTraySection({ postIdeas, target, ideas, style }: IdeasTrayProps) {
   );
 
   if (!run) {
-    const sendButton = (button: NewPromptButton) => send(promptTurn(button, target));
+    const sendButton = (button: NewPromptButton) => send({ ...promptSeed(button), kind: 'prompt', target });
     const lead = ideas && (
       <Chip
         variant="lead"
@@ -100,16 +107,15 @@ function IdeasTraySection({ postIdeas, target, ideas, style }: IdeasTrayProps) {
     <AssistantTray
       title={run.isOwnIdeas ? (run.isWriting ? 'Writing ideas…' : 'Ideas') : run.name}
       isWorking={run.isOwnIdeas && run.isWriting}
-      onBack={run.isOwnIdeas ? null : () => closeIdeas(target)}
-      backLabel={`Back to ${WRITE_WITH_AI}`}
+      back={run.isOwnIdeas ? null : { label: `Back to ${WRITE_WITH_AI}`, onPress: () => closeIdeas(target) }}
       trailing={chatButton}
-      footer={isFirstWriting && <SeesLine tagging={tagging} mentions={mentions} tagEdits={chat.tagEdits} />}
+      footer={isFirstWriting && <SeesLine chat={chat} />}
       style={style}
     >
       <IdeasCarousel
         run={run}
         onUse={canUseFor(chat, target) ? handleUse : null}
-        onMore={() => send(ideasTurns.more(run, target))}
+        onMore={handleMore}
         onRetry={retry}
         isBusy={chat.isSending}
       />

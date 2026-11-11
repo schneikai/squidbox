@@ -203,6 +203,21 @@ describe('judgeMessages', () => {
     });
     expect(message!.content).toBe('Creator: Another set.\n\nWrite ideas\n---\nAnother set.\n\nWrite ideas');
   });
+
+  it('gives a judge text without {thread} the thread at its end', () => {
+    const [message] = judgeMessages({
+      instructions: { ...DEFAULT_INSTRUCTIONS, modelCheckJudge: 'Judge {reply}' },
+      context: { ...context, thread: { index: 1, posts: ['Fog first', ''] } },
+      persona,
+      posts,
+      transcript: [],
+      request: { content: 'Write ideas' },
+      reply: { reply: '', postOptions: ['one'] },
+    });
+    expect(message!.content).toBe(
+      'Judge (no reply text)\n1. one\n\nPost 2 of a thread of 2. The other posts:\n1. "Fog first"',
+    );
+  });
 });
 
 describe('writingMessages (the Compare)', () => {

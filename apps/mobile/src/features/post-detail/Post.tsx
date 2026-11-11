@@ -7,9 +7,10 @@ import ThreadParts from '@/components/ThreadParts';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
+import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
-import usePostIdeas from '@/features/post-ideas/usePostIdeas';
+import useIdeaSettings from '@/features/post-ideas/useIdeaSettings';
 import PostRows from '@/features/post-list/PostRows';
 import type { PostDetailRow } from '@/features/post-list/readPost';
 import PostView from '@/features/posts/PostView';
@@ -30,19 +31,11 @@ type PostProps = { post: PostDetailRow; contentPaddingTop?: number; contentPaddi
  */
 export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }: PostProps) {
   // The chat's posts: the post and its thread, each by its id.
-  const posts = useMemo(
-    () =>
-      [post, ...post.threadPosts].map(({ id, text, postAssets }) => ({
-        key: id,
-        text,
-        assets: postAssets.map(({ asset }) => asset),
-      })),
-    [post],
-  );
+  const posts = useMemo(() => [post, ...post.threadPosts].map((each) => toChatDraftPost(each.id, each)), [post]);
   const sessionId = useSubjectChat({ kind: 'post', posts, activeKey: post.id });
-  const postIdeas = usePostIdeas(sessionId);
+  const settings = useIdeaSettings();
 
-  const assetIds = [post, ...post.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
+  const assetIds = posts.flatMap((each) => each.assets.map((asset) => asset.id));
 
   // Pushed, so back returns to the post. A picture opens with the others of its own post.
   function openAsset(postId: string, asset: Pick<AssetRow, 'id'>) {
@@ -62,7 +55,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         )}
       />
 
-      <IdeasTray postIdeas={postIdeas} target={post.id} ideas="repost" style={styles.tray} />
+      <IdeasTray sessionId={sessionId} target={post.id} ideas="repost" settings={settings} style={styles.tray} />
 
       {/* Contacts go on photos: a post without any has none. */}
       {assetIds.length > 0 && <TargetContactsSection of={{ postId: post.id }} isFlush />}

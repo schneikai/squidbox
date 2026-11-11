@@ -7,6 +7,7 @@ import postedAtToSave, { type PickedPostedAt } from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
 import ThreadConnector from '@/components/ThreadConnector';
+import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import type { PostWithAssets } from '@/features/post-list/postQuery';
@@ -19,7 +20,7 @@ import getTimestamp from '@/utils/date-time/getTimestamp';
 import isPresent from '@/utils/isPresent';
 import postAssetsToAssetRefs from '@/utils/posts/postAssetsToAssetRefs';
 
-export type PostEditorKind = Extract<ChatSubjectKind, 'draft' | 'edit'>;
+type PostEditorKind = Extract<ChatSubjectKind, 'draft' | 'edit'>;
 
 // What the editor is seeded with: a post as readPost reads it, or a new post's seed.
 export type PostEditorPost = Pick<PostWithAssets, 'text' | 'postedAt' | 'postAssets'> & {
@@ -72,11 +73,8 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
   }, []);
   const setText = useCallback((key: string, text: string) => updateCard(key, { text }), [updateCard]);
   // The cards as the chat takes them.
-  const posts = useMemo(
-    () => cards.map(({ key, text, postAssets }) => ({ key, text, assets: postAssets.map(({ asset }) => asset) })),
-    [cards],
-  );
-  const postIdeas = useEditorIdeas({ kind, ideas, posts, activeKey, setText });
+  const posts = useMemo(() => cards.map((card) => toChatDraftPost(card.key, card)), [cards]);
+  const { sessionId, settings } = useEditorIdeas({ kind, ideas, posts, activeKey, setText });
 
   // The posts store syncs by itself.
   const { sheetProps } = useEditSheet({
@@ -126,7 +124,12 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
               onAddToThread={index === cards.length - 1 ? addToThread : undefined}
               tray={
                 card.key === activeKey && (
-                  <IdeasTray postIdeas={postIdeas} target={card.key} ideas={index === 0 ? ideas : null} />
+                  <IdeasTray
+                    sessionId={sessionId}
+                    target={card.key}
+                    ideas={index === 0 ? ideas : null}
+                    settings={settings}
+                  />
                 )
               }
             />

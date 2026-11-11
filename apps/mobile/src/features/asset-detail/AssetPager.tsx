@@ -18,8 +18,8 @@ import getSettledPage from './getSettledPage';
 import nextZoomedAssetId from './nextZoomedAssetId';
 import type { AssetVideo } from './useAssetVideo';
 import usePagerEdgeSwipe from './usePagerEdgeSwipe';
-import usePagerScrollEnd from './usePagerScrollEnd';
 
+import usePagerScrollEnd from '@/hooks/usePagerScrollEnd';
 import type { AssetRow } from '@/sync/db/schema';
 
 const keyExtractor = (assetId: string) => assetId;

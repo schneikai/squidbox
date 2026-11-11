@@ -66,15 +66,14 @@ async function tagMissingAsync(
 
 /**
  * The post chat's own tagging of the photos never tagged: `run(asset, deps)` (tags it again, joining
- * one under way), `once(asset, deps)` (unless it was tried in this app run) and
- * `tagMissingAsync(ids, options, onWait)` (before a turn), all keeping the tags in memory only;
+ * one under way) and `tagMissingAsync(ids, options, onWait)` (before a turn, and as the chat screen
+ * opens: each photo never tagged nor tried in this app run), both keeping the tags in memory only;
  * `runningAttempt(id)`; `attempts` (createTagAttempts', the chat's taggings), `tags` (the store of the tags
  * it got, by asset id) and `withTags(rows, byId)`. A photo with stored tags is never tagged here:
  * only Tag it on the photo and the album's Tags store AI tags on a photo.
  */
 const chatTags = {
   run: (asset: VisionAsset, deps: VisionImageReadDeps) => attempts.run(asset.id, () => tagAsync(asset, deps)),
-  once,
   tagMissingAsync,
   runningAttempt,
   attempts,

@@ -1,4 +1,4 @@
-import { DEFAULT_IDEA_PROMPTS, IDEAS_KINDS, type IdeasKind, PROMPT_BUTTON_LIMITS, z } from '@squidbox/shared';
+import { DEFAULT_IDEA_PROMPTS, IDEA_SETTING_LIMITS, IDEAS_KINDS, type IdeasKind, z } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
@@ -44,7 +44,7 @@ export default function IdeasSettingsScreen() {
 type IdeasSettingsEditorProps = { kind: IdeasKind; userId: string; isOn: boolean; seed: string };
 
 // The switch, saved as it flips, and the prompt, saved as you type from `seed` on: an emptied prompt
-// is the built-in one again, as Restore original puts it back.
+// is the built-in one again, as Restore original puts it back (shown only while the prompt is another).
 function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorProps) {
   const navigation = useNavigation();
   const [prompt, setPrompt] = useState(seed);
@@ -82,13 +82,15 @@ function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorPr
             onChangeText={setPrompt}
             onBlur={() => flush()}
             placeholder={builtIn}
-            maxLength={PROMPT_BUTTON_LIMITS.prompt}
+            maxLength={IDEA_SETTING_LIMITS.prompt}
             minHeight={scale(132)}
           />
         </Field>
-        <Section>
-          <Row label="Restore original" onPress={() => setPrompt(builtIn)} disabled={prompt.trim() === builtIn} />
-        </Section>
+        {prompt.trim() !== builtIn && (
+          <Section>
+            <Row label="Restore original" onPress={() => setPrompt(builtIn)} />
+          </Section>
+        )}
       </DetailScrollView>
     </Page>
   );

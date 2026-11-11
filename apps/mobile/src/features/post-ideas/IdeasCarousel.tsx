@@ -1,4 +1,4 @@
-import { type ComponentRef, useContext, useEffect, useRef, useState } from 'react';
+import { type ComponentRef, memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -7,27 +7,20 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { interpolate, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import type { IdeasRun } from './ideasRun';
 
-import AssistantTrayContext from '@/components/AssistantTrayContext';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
 import OptionCard from '@/components/OptionCard';
 import Text from '@/components/Text';
-import { SCREEN_PADDING } from '@/constants';
 import ChatOptionCard from '@/features/post-chat/ChatOptionCard';
 import ReplyError from '@/features/post-chat/ReplyError';
-import useReduceMotion from '@/hooks/useReduceMotion';
-import { colors, motion, press, radii, sizes, space } from '@/styles/designTokens';
+import useBreath from '@/hooks/useBreath';
+import usePagerScrollEnd from '@/hooks/usePagerScrollEnd';
+import useTrayInset from '@/hooks/useTrayInset';
+import { colors, disabledOpacity, press, radii, sizes, space } from '@/styles/designTokens';
 
 const CARD_GAP = space.sm;
 const INTERVAL = sizes.ideaCard.width + CARD_GAP;
@@ -53,28 +46,31 @@ type IdeasCarouselProps = {
  * last) does. Three skeleton cards while its first reply is written. Page dots under it, one per
  * card, hidden from VoiceOver.
  */
-export default function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
-  const tray = useContext(AssistantTrayContext);
+function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [page, setPage] = useState(0);
+  const inset = useTrayInset();
+  const breath = useBreath();
   const { items, isWriting, error } = run;
   const isWritingMore = isWriting && items.length > 0;
   const trailingCount = isWriting ? SKELETONS.length : 1;
   const pageCount = items.length + trailingCount;
-  const inset = tray?.inset ?? SCREEN_PADDING;
+
+  // The page is read where the snap has settled, not on every scroll event.
+  const settleAt = useCallback((x: number) => setPage(Math.round(x / INTERVAL)), []);
+  usePagerScrollEnd(scrollRef, settleAt);
 
   // More was tapped: show where its ideas come in.
   useEffect(() => {
     if (isWritingMore) scrollRef.current?.scrollTo({ x: items.length * INTERVAL, animated: true });
   }, [isWritingMore, items.length]);
 
-  function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    const next = Math.round(event.nativeEvent.contentOffset.x / INTERVAL);
-    setPage((current) => (current === next ? current : next));
+  function handleScrollEnd(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    settleAt(event.nativeEvent.contentOffset.x);
   }
 
   function trailing() {
-    if (isWriting) return SKELETONS.map((key) => <SkeletonCard key={key} />);
+    if (isWriting) return SKELETONS.map((key) => <SkeletonCard key={key} breath={breath} />);
     if (error) {
       return <ReplyError error={error.message} onRetry={error.canRetry ? onRetry : null} style={styles.card} />;
     }
@@ -89,8 +85,7 @@ export default function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: I
         showsHorizontalScrollIndicator={false}
         snapToInterval={INTERVAL}
         decelerationRate="fast"
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+        onMomentumScrollEnd={handleScrollEnd}
         contentContainerStyle={[styles.content, { paddingHorizontal: inset }]}
       >
         {items.map((item) =>
@@ -126,7 +121,7 @@ function MoreCard({ onPress, disabled }: MoreCardProps) {
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && press.flat]}
+      style={({ pressed }) => [styles.card, pressed && press.flat, disabled && styles.disabled]}
     >
       <Card padded style={styles.more}>
         <Icon name="refresh" size={sizes.icon} color={colors.accent.base} />
@@ -136,17 +131,10 @@ function MoreCard({ onPress, disabled }: MoreCardProps) {
   );
 }
 
-// A card while its idea is written: two bars that breathe (motion.pulse), still with Reduce Motion.
-function SkeletonCard() {
-  const reduceMotion = useReduceMotion();
-  const breath = useSharedValue(0);
+type SkeletonCardProps = { breath: SharedValue<number> };
 
-  useEffect(() => {
-    if (reduceMotion) return;
-    breath.value = withRepeat(withTiming(1, motion.pulse), -1, true);
-    return () => cancelAnimation(breath);
-  }, [reduceMotion, breath]);
-
+// A card while its idea is written: two bars that breathe (useBreath, one breath for all the cards).
+function SkeletonCard({ breath }: SkeletonCardProps) {
   const breathStyle = useAnimatedStyle(() => ({ opacity: interpolate(breath.value, [0, 1], [1, 0.45]) }));
 
   return (
@@ -177,6 +165,8 @@ function PageDots({ count, current }: PageDotsProps) {
 
 const DOT = space.xs + space.hair;
 
+export default memo(IdeasCarousel);
+
 const styles = StyleSheet.create({
   carousel: {
     gap: space.sm,
@@ -187,6 +177,9 @@ const styles = StyleSheet.create({
   card: {
     width: sizes.ideaCard.width,
     minHeight: sizes.ideaCard.minHeight,
+  },
+  disabled: {
+    opacity: disabledOpacity,
   },
   more: {
     flex: 1,

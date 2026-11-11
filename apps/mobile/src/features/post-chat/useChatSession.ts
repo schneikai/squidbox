@@ -7,7 +7,7 @@ const getNone = () => null;
 
 /**
  * The chat with this id (chatSessions), live: its state, its draft (`getDraft()`) and its actions
- * (`use(replyId, index)`, `editTags(edit)` and `editMentions(edit)` among them), and `session`, the chat itself, the same
+ * (`use(replyId, index)`, `closeIdeas(target)`, `editTags(edit)` and `editMentions(edit)` among them), and `session`, the chat itself, the same
  * object all chat long (for what must keep its identity while the state changes). null when there
  * is no such chat (closed, or no id yet).
  */
@@ -26,6 +26,7 @@ export default function useChatSession(id: string | null) {
       getDraft: session.getDraft,
       reset: session.reset,
       use: session.use,
+      closeIdeas: session.closeIdeas,
       editTags: session.editTags,
       editMentions: session.editMentions,
     };

@@ -20,15 +20,13 @@ type ChatTagsOptions = {
 /**
  * The tags the post chat sees on `assets` (rows), live: a photo's stored tags, or for a photo never
  * tagged (`tags === null`) the chat's own (chatTags): while the assistant is available, each is tagged
- * once in this app run, when a turn goes (`tagMissingAsync`) or, with `tagsOnOpen`, as soon as it
- * shows, the tags kept in memory, never stored on the photo. A Tag it or Tag again under way for one
+ * once in this app run, when a turn goes (chatTags.tagMissingAsync) or, with `tagsOnOpen`, as soon
+ * as it shows (by the same rule), the tags kept in memory, never stored on the photo. A Tag it or Tag again under way for one
  * of them (tagAttempts) shows and is waited for too. → `rows` (the live assets, in order, with the
  * chat's tags; undefined while reading), `attempts` (the taggings under way, and the chat's that
  * failed, by asset id), `isTagging` (taggingState: with `tagsOnOpen`, also for a photo about to be
  * tagged), `untagged` (the rows never tagged that nothing will tag without a tap: none while the
- * assistant is available), `tagMissingAsync(ids, onWait)` (tags the photos `ids` never tagged nor
- * tried, as saved now, then waits for those and the taggings under way, calling `onWait()` first
- * when there are any) and `retry(id)` (tags one again for the chat: a failed one, or one not tagged).
+ * assistant is available) and `retry(id)` (tags one again for the chat: a failed one, or one not tagged).
  * The result changes only when one of these does.
  */
 export default function useChatTags(
@@ -47,13 +45,12 @@ export default function useChatTags(
   const kept = useSyncExternalStore(chatTags.tags.subscribe, chatTags.tags.get);
   const rows = useMemo(() => storedRows && chatTags.withTags(storedRows, kept), [storedRows, kept]);
 
+  // The chat screen tags its photos as they show, by the rule a turn tags them by.
   useEffect(() => {
-    if (!tagsOnOpen || !isAvailable || !rows) return;
-    for (const row of rows) {
-      // A Tag it under way stores the photo's tags: the chat waits for those instead.
-      if (row.tags === null && storedAttempts[row.id]?.status !== 'loading') chatTags.once(row, deps);
+    if (tagsOnOpen && isAvailable && rows?.some((row) => row.tags === null)) {
+      chatTags.tagMissingAsync(ids, { deps, isAvailable }).catch(() => {});
     }
-  }, [tagsOnOpen, isAvailable, rows, deps, storedAttempts]);
+  }, [tagsOnOpen, isAvailable, rows, ids, deps]);
 
   return useMemo(() => {
     const attempts = Object.fromEntries(
@@ -68,17 +65,12 @@ export default function useChatTags(
       hasRun: chatTags.attempts.hasRun,
     });
 
-    // Read when called, as saved then, so a photo added or tagged since the last render counts.
-    function tagMissingAsync(assetIds: readonly string[], onWait?: () => void) {
-      return chatTags.tagMissingAsync(assetIds, { deps, isAvailable }, onWait);
-    }
-
     function retry(id: string) {
       const row = rows?.find((each) => each.id === id);
       if (row) chatTags.run(row, deps).catch(() => {});
     }
 
-    return { rows, attempts, isTagging, untagged, tagMissingAsync, retry };
+    return { rows, attempts, isTagging, untagged, retry };
   }, [ids, rows, chatAttempts, storedAttempts, deps, isAvailable, tagsOnOpen]);
 }
 

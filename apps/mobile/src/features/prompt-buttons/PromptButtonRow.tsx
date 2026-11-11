@@ -1,11 +1,10 @@
 import type { NewPromptButton } from '@squidbox/shared';
-import { useContext, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import PromptButtonChip from './PromptButtonChip';
 
-import AssistantTrayContext from '@/components/AssistantTrayContext';
-import { SCREEN_PADDING } from '@/constants';
+import useTrayInset from '@/hooks/useTrayInset';
 import { raisedShadowRoom, space } from '@/styles/designTokens';
 
 type PromptButtonRowProps = {
@@ -24,8 +23,8 @@ type PromptButtonRowProps = {
  * the chips' distance from those edges: the AssistantTray's inside one, else the screen's padding.
  */
 export default function PromptButtonRow({ buttons, onPress, disabled, inset, lead, children }: PromptButtonRowProps) {
-  const tray = useContext(AssistantTrayContext);
-  const padding = { paddingHorizontal: inset ?? tray?.inset ?? SCREEN_PADDING };
+  const paddingHorizontal = useTrayInset(inset);
+  const padding = { paddingHorizontal };
 
   return (
     <ScrollView

@@ -10,6 +10,7 @@ import ChatSubjectCard from './ChatSubjectCard';
 import SystemMessageSheet from './SystemMessageSheet';
 import UserMessage from './UserMessage';
 import { type AssistantChatMessage, type ChatMessage, type ChatSeed, canUseFor } from './chatSessions';
+import promptSeed from './promptSeed';
 import type { LiveChat } from './useChatSession';
 import usePostChat, { type PostChatState } from './usePostChat';
 import useWritingModelName from './useWritingModelName';
@@ -96,6 +97,17 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   // A thread names the post each turn wrote for, where that changes.
   const isThread =
     targets.length > 1 || messages.some((message) => message.role === 'user' && !targets.includes(message.target));
+  // The user's turns for another post than the turn before them (the first among them).
+  const postChanges = useMemo(() => {
+    const ids = new Set<string>();
+    let previous: string | null = null;
+    for (const message of messages) {
+      if (message.role !== 'user') continue;
+      if (message.target !== previous) ids.add(message.id);
+      previous = message.target;
+    }
+    return ids;
+  }, [messages]);
   // More like this writes for the post the option was written for: one callback per post, so the
   // replies keep theirs (memo).
   const moreLikeThisFor = useMemo(() => {
@@ -116,7 +128,7 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   );
 
   function handlePromptButton(button: NewPromptButton) {
-    setSeed((current) => ({ key: current.key + 1, turn: { label: button.name, content: button.prompt } }));
+    setSeed((current) => ({ key: current.key + 1, turn: promptSeed(button) }));
   }
 
   function handleSend(turn: Required<ChatSeed>) {
@@ -183,8 +195,7 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
         )}
         {messages.map((message, index) => {
           if (message.role === 'user') {
-            const before = messages.slice(0, index).findLast((each) => each.role === 'user');
-            const isNewPost = isThread && before?.target !== message.target;
+            const isNewPost = isThread && postChanges.has(message.id);
             const number = postNumber(message.target);
             return (
               <Fragment key={message.id}>

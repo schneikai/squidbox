@@ -1,25 +1,33 @@
+import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 
 import Text from '@/components/Text';
 import postTags from '@/features/post-chat/postTags';
 import seesLine from '@/features/post-chat/seesLine';
-import type { PostIdeas } from '@/features/post-ideas/usePostIdeas';
+import sentMentions from '@/features/post-chat/sentMentions';
+import type { LiveChat } from '@/features/post-chat/useChatSession';
+import useChatTags from '@/features/post-chat/useChatTags';
+import useMentions from '@/features/post-chat/useMentions';
 
-type SeesLineProps = Pick<PostIdeas, 'tagging' | 'mentions'> & { tagEdits: NonNullable<PostIdeas['chat']>['tagEdits'] };
+type SeesLineProps = { chat: Pick<LiveChat, 'assets' | 'tagEdits' | 'mentionEdits'> };
 
 /**
  * What the assistant goes on while it writes the first ideas, as one grey line under the tray's
- * cards: "Sees a, b · Mentions @x" (seesLine's tags with the chat's `tagEdits`, `mentions`, those it
- * sends), or "Looking at the photos…" while they are tagged; nothing without either. It starts no
- * tagging: the turn does.
+ * cards: "Looking at the photos…" while they are tagged, "Sees a, b" (seesLine, with the `chat`'s
+ * tag edits) and "Mentions @x" (the handles it sends); nothing without any. It reads the photos and
+ * mentions only while it shows, and starts no tagging: the turn does.
  */
-export default function SeesLine({ tagging, mentions, tagEdits }: SeesLineProps) {
+export default function SeesLine({ chat }: SeesLineProps) {
+  const { assets, tagEdits, mentionEdits } = chat;
+  const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
+  const tagging = useChatTags(assets);
+  const found = useMentions(assetIds);
   const rows = tagging.rows ?? [];
-  const tags = postTags(rows, tagEdits);
-  const { isLooking } = seesLine(rows, tagging.isTagging, tags);
-  const handles = mentions?.handles ?? [];
+  const tagsText = seesLine(rows, tagging.isTagging, postTags(rows, tagEdits), null);
+  const handles = sentMentions(found, mentionEdits);
   const parts = [
-    isLooking ? 'Looking at the photos…' : tags.length > 0 && `Sees ${tags.join(', ')}`,
+    tagging.isTagging && 'Looking at the photos…',
+    tagsText !== null && `Sees ${tagsText}`,
     handles.length > 0 && `Mentions ${handles.join(', ')}`,
   ].filter(Boolean);
 

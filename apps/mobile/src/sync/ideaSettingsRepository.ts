@@ -1,5 +1,6 @@
 import {
   DEFAULT_IDEA_PROMPTS,
+  DEFAULT_IDEA_SETTINGS,
   IDEA_SETTING_FIELDS,
   type IdeaSettingFields,
   type IdeaSettingRecord,
@@ -16,13 +17,6 @@ import { saveUserRecord } from './userRecord';
 // text (resolveIdeaSettings).
 
 const t = schema.ideaSettings;
-
-const EMPTY_SETTINGS: IdeaSettingFields = Object.freeze({
-  postIdeasOn: true,
-  repostIdeasOn: true,
-  postIdeasPrompt: null,
-  repostIdeasPrompt: null,
-});
 
 /** The user's idea settings, or null before the first save. */
 export async function readIdeaSettings(db: SyncDb, userId: string): Promise<IdeaSettingRecord | null> {
@@ -54,12 +48,12 @@ export function saveIdeaSettings(
     t,
     userId,
     (stored: IdeaSettingFields | null): Partial<IdeaSettingFields> => {
-      const current = stored ?? EMPTY_SETTINGS;
+      const current = stored ?? DEFAULT_IDEA_SETTINGS;
       return {
         ...(isOn !== undefined && isOn !== current[fields.isOn] && { [fields.isOn]: isOn }),
         ...(prompt !== undefined && value !== current[fields.prompt] && { [fields.prompt]: value }),
       };
     },
-    EMPTY_SETTINGS,
+    DEFAULT_IDEA_SETTINGS,
   );
 }

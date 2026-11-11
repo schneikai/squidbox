@@ -12,6 +12,7 @@ import {
 import withEdits, { type ListEdits } from './withEdits';
 
 import createStore from '@/lib/createStore';
+import sameOrder from '@/lib/sameOrder';
 import type chatAsync from '@/utils/cloud-api/ai/chatAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import errorResponse from '@/utils/cloud-api/errorResponse';
@@ -73,6 +74,9 @@ type ChatSessionState = {
   canApply: boolean;
   tagEdits: ListEdits;
   mentionEdits: ListEdits;
+  // By post, where Back on its tray closed the run of ideas it showed: the id of the chat's last
+  // message then (ideasRun shows only a run started after it).
+  closedAt: Partial<Record<string, string>>;
   // Once the chat was closed: a screen showing it goes.
   isClosed: boolean;
 };
@@ -154,7 +158,7 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
 
 /**
  * One chat about a post and its thread: `getState()` → `{ kind, messages, targets, activeTarget,
- * assets, isSending, isWaiting, canApply, isClosed }`, a new object on each change, which
+ * assets, isSending, isWaiting, canApply, tagEdits, mentionEdits, closedAt, isClosed }`, a new object on each change, which
  * `subscribe(listener)` tells. A message is the user's (UserChatMessage, for one post, its `target`)
  * or a reply (AssistantChatMessage). `isSending` while a reply loads; `isWaiting` while its context
  * waits for the photos' tags. `isClosed` once the chat was closed (its last change). `send` and
@@ -176,6 +180,7 @@ function createSession(kind: ChatSubjectKind) {
     canApply: false,
     tagEdits: NO_EDITS,
     mentionEdits: NO_EDITS,
+    closedAt: {},
     isClosed: false,
   });
   let draft: ChatDraft = { posts: [] };
@@ -254,8 +259,8 @@ function createSession(kind: ChatSubjectKind) {
       const keys = next.posts.map((post) => post.key);
       const assets = [...new Map(next.posts.flatMap((post) => post.assets).map((asset) => [asset.id, asset])).values()];
       const changes: Partial<ChatSessionState> = {
-        ...(!isSameList(keys, state.targets) && { targets: keys }),
-        ...(!isSameList(
+        ...(!sameOrder(keys, state.targets) && { targets: keys }),
+        ...(!sameOrder(
           assets.map((asset) => asset.id),
           state.assets.map((asset) => asset.id),
         ) && { assets }),
@@ -335,12 +340,19 @@ function createSession(kind: ChatSubjectKind) {
       update({ mentionEdits: editedLists(store.get().mentionEdits, { add: handles, remove }) });
     },
 
+    /** Back on the tray of the post `target`: its run of ideas so far is closed. */
+    closeIdeas(target: string) {
+      const { messages, closedAt } = store.get();
+      const last = messages[messages.length - 1];
+      if (last) update({ closedAt: { ...closedAt, [target]: last.id } });
+    },
+
     /** Starts over (New chat): the reply under way, if any, is dropped. */
     reset() {
       controller?.abort();
       controller = null;
       chatId = getNewItemId();
-      update({ messages: [], isWaiting: false });
+      update({ messages: [], closedAt: {}, isWaiting: false });
     },
 
     close() {
@@ -353,11 +365,6 @@ function createSession(kind: ChatSubjectKind) {
 // A reply, not one of the user's turns (or no message at all): only a reply has a status.
 export function isReply(message: ChatMessage | undefined): message is AssistantChatMessage {
   return message?.role === 'assistant';
-}
-
-// Whether two lists hold the same items in the same order.
-function isSameList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
 /** Whether Use is offered for a turn written for `target`: the chat has an applier and the post is still there. */

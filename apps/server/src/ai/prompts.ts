@@ -72,15 +72,24 @@ export function writingMessages(prompt: string, earlierRounds: string[][] = []):
   ];
 }
 
+// A user turn without its role, as the creator's turns are read for the model and the judge.
+type UserTurn = Omit<ChatUserTurn, 'role'>;
+
+/**
+ * `template` with `{name}` at its end when it lacks it and `when` holds: a text published or tried
+ * before it had the placeholder still gets its value.
+ */
+function withPlaceholder(template: string, name: string, when = true): string {
+  const placeholder = `{${name}}`;
+  return when && !template.includes(placeholder) ? `${template.trimEnd()}\n\n${placeholder}` : template;
+}
+
 /**
  * A user turn's text as the model gets it: a More like this turn's option after
  * `instructions.moreLikeThis`, a More turn's request after `instructions.moreIdeas`, any other turn
  * as it is.
  */
-function userTurnText(
-  turn: Pick<ChatUserTurn, 'content' | 'moreLikeThis' | 'moreIdeas'>,
-  instructions: Instructions,
-): string {
+function userTurnText(turn: UserTurn, instructions: Instructions): string {
   if (turn.moreLikeThis) return `${instructions.moreLikeThis}\n\n${turn.content}`;
   if (turn.moreIdeas) return `${instructions.moreIdeas}\n\n${turn.content}`;
   return turn.content;
@@ -126,7 +135,7 @@ function replyText({ reply, postOptions }: ChatReply): string {
  * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
  * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
  * judge (`{reply}`), as the one message. The creator's turns read as the writing model got them
- * (userTurnText).
+ * (userTurnText). A judge text without `{thread}` gets the thread at its end, as the briefing does.
  */
 export function judgeMessages({
   instructions,
@@ -142,13 +151,13 @@ export function judgeMessages({
   persona: Persona;
   posts: string[];
   transcript: ChatTurn[];
-  request: Pick<ChatUserTurn, 'content' | 'moreLikeThis' | 'moreIdeas'>;
+  request: UserTurn;
   reply: ChatReply;
 }): ChatMessage[] {
   const before = transcript.map((turn) =>
     turn.role === 'user' ? `Creator: ${userTurnText(turn, instructions)}` : `Assistant: ${replyText(turn)}`,
   );
-  const content = fillLines(instructions.modelCheckJudge, {
+  const content = fillLines(withPlaceholder(instructions.modelCheckJudge, 'thread', Boolean(context.thread)), {
     ...personaValues(persona),
     ...postsValues(posts),
     ...postValues(context),
@@ -261,8 +270,7 @@ export function writingBriefingText(
   template: string,
   { persona, posts, context }: { persona: Persona; posts: string[]; context: ChatContext | null },
 ): string {
-  const withThread = context?.thread && !template.includes('{thread}') ? `${template.trimEnd()}\n\n{thread}` : template;
-  return fillLines(withThread, {
+  return fillLines(withPlaceholder(template, 'thread', Boolean(context?.thread)), {
     ...personaValues(persona),
     ...postsValues(posts),
     ...postValues(context),
@@ -280,8 +288,7 @@ export type XProfileText = { handle: string; name: string; bio: string; location
  * or tried before it had one) gets it at its end, so the reply's keys always follow the contact's.
  */
 export function contactReadPrompt(template: string, values: Record<string, string> = {}): string {
-  const withFields = template.includes('{fields}') ? template : `${template.trimEnd()}\n\n{fields}`;
-  return fillTemplate(withFields, { ...values, fields: CONTACT_FIELDS_FORMAT });
+  return fillTemplate(withPlaceholder(template, 'fields'), { ...values, fields: CONTACT_FIELDS_FORMAT });
 }
 
 /**

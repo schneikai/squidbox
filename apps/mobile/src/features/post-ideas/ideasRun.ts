@@ -1,4 +1,4 @@
-import { type ChatMessage, isReply } from '@/features/post-chat/chatSessions';
+import { type AssistantChatMessage, type ChatMessage, isReply } from '@/features/post-chat/chatSessions';
 
 /**
  * One item of a run's carousel: the option `index` of the reply `replyId`, or with `index` null a
@@ -45,30 +45,26 @@ export default function ideasRun(
   if (!first || first.role !== 'user') return null;
 
   const items: IdeaItem[] = [];
-  let last: ChatMessage | undefined;
-  messages.forEach((message, index) => {
-    if (index < start || message.role !== 'user' || message.target !== target) return;
+  let last: AssistantChatMessage | undefined;
+  for (let index = start; index < messages.length; index++) {
+    const message = messages[index]!;
     const reply = messages[index + 1];
-    if (!isReply(reply)) return;
+    if (message.role !== 'user' || message.target !== target || !isReply(reply)) continue;
     last = reply;
-    if (reply.status !== 'done') return;
+    if (reply.status !== 'done') continue;
     if (reply.postOptions.length > 0) {
       reply.postOptions.forEach((text, optionIndex) => items.push({ replyId: reply.id, index: optionIndex, text }));
     } else if (reply.reply) {
       items.push({ replyId: reply.id, index: null, text: reply.reply });
     }
-  });
-  const lastReply = isReply(last) ? last : null;
+  }
 
   return {
     name: first.label ?? '',
     prompt: first.content,
     isOwnIdeas: first.kind === 'ideas',
     items,
-    isWriting: lastReply?.status === 'loading',
-    error:
-      lastReply?.status === 'error'
-        ? { message: lastReply.error, canRetry: lastReply === messages[messages.length - 1] }
-        : null,
+    isWriting: last?.status === 'loading',
+    error: last?.status === 'error' ? { message: last.error, canRetry: last === messages[messages.length - 1] } : null,
   };
 }

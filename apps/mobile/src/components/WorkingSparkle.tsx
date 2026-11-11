@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   interpolate,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -14,6 +15,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import Icon from '@/components/Icon';
 import Shine from '@/components/Shine';
+import useBreath from '@/hooks/useBreath';
 import useReduceMotion from '@/hooks/useReduceMotion';
 import { colors, motion, sizes } from '@/styles/designTokens';
 
@@ -36,22 +38,16 @@ const RISE = 0.25;
 const HOLD = 0.32;
 const FALL = 0.55;
 
-type WorkingSparkleProps = { size?: number };
+type WorkingSparkleProps = { size?: number; shine: SharedValue<number> | null };
 
 /**
  * The assistant's sparkle at work (an AssistantTray writing ideas): it breathes (motion.pulse), a
- * light band sweeps across it (Shine, in step with the tray's title) and four little stars around it
+ * light band sweeps across it (Shine, on `shine`, the tray title's progress, so the two go in step) and four little stars around it
  * pop in and out, each on its own period (motion.working). The still sparkle with Reduce Motion.
  */
-export default function WorkingSparkle({ size = sizes.menuIcon }: WorkingSparkleProps) {
+export default function WorkingSparkle({ size = sizes.menuIcon, shine }: WorkingSparkleProps) {
   const reduceMotion = useReduceMotion();
-  const breath = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    breath.value = withRepeat(withTiming(1, motion.pulse), -1, true);
-    return () => cancelAnimation(breath);
-  }, [reduceMotion, breath]);
+  const breath = useBreath();
 
   const breathStyle = useAnimatedStyle(() => ({
     opacity: interpolate(breath.value, [0, 1], [0.45, 1]),
@@ -69,7 +65,7 @@ export default function WorkingSparkle({ size = sizes.menuIcon }: WorkingSparkle
       importantForAccessibility="no-hide-descendants"
     >
       <Animated.View style={breathStyle}>
-        <Shine isOn highlight={<Icon name="sparkle" size={size} color={colors.accent.shine} />}>
+        <Shine progress={shine} highlight={<Icon name="sparkle" size={size} color={colors.accent.shine} />}>
           {sparkle}
         </Shine>
       </Animated.View>

@@ -48,7 +48,7 @@ export default function ItSeesRow({
     return row.tags === null && attempt?.status === 'error' ? [{ id: row.id, error: attempt.error }] : [];
   });
   const tags = postTags(rows, tagEdits);
-  const { tagsText, isLooking } = seesLine(rows, isTagging, tags);
+  const tagsText = seesLine(rows, isTagging, tags);
 
   function retryAll(list: readonly Pick<AssetRow, 'id'>[]) {
     for (const row of list) onRetry(row.id);
@@ -61,7 +61,7 @@ export default function ItSeesRow({
           {tagsText}
         </EditableLine>
       )}
-      {isLooking && (
+      {isTagging && (
         <View style={styles.line}>
           <ActivityIndicator size="small" color={colors.text.secondary} />
           <IntroText style={styles.text}>Looking at the photos…</IntroText>
