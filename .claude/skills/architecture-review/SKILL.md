@@ -68,7 +68,7 @@ Then tell the owner, in plain words and no file paths: what went wrong, what was
 
 ## Rules
 
-- Thorough model (`fable` in Claude Code today) for every subagent; set it on each dispatch.
+- Thorough model (`fable` in Claude Code today) for every subagent; set it on each dispatch. The exception is the three task agents of Discoverability by task: their brief reads as a reasoning probe to the thorough model's safeguards, which stop them; dispatch those on the standard model (`opus`).
 - The run never writes `todo.md` or CLAUDE.md. A new rule is a finding; the build that implements it adds its line through the `add-rule` skill.
 - The briefs name folders, item kinds, scenarios and tasks as they are today; the map is the truth. Swap a scenario or task that no longer fits and say so in the report.
 - No health score, no average: named counts, their trend, and the tail (the worst files, the worst screens).
