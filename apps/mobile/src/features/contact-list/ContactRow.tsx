@@ -3,7 +3,7 @@ import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ContactListPills from './ContactListPills';
-import contactPlace from './contactPlace';
+import contactPlaces from './contactPlaces';
 import type { ContactSummary } from './contactQuery';
 
 import Divider from '@/components/Divider';
@@ -21,7 +21,7 @@ import listTextStyles from '@/styles/listTextStyles';
 const AVATAR_INSET = layout.rowInset + sizes.avatar.row + layout.rowLeadingGap;
 
 /**
- * A contact in a list of contacts: its avatar (with the favorite's heart), name, place (wrapping
+ * A contact in a list of contacts: its avatar (with the favorite's heart), name, places (wrapping
  * onto more lines rather than cut off) and, when the row has them (contactQuery's `withLists`), its
  * lists as pills (ContactListPills), and `trailing` at its end, beside the row's press area (a
  * Restore button); without one, a row that opens the contact ends with Row's chevron. `onLongPress` opens its menu (ContactRowMenu's `openFromLongPress`). The rows of one list
@@ -42,7 +42,7 @@ type ContactRowProps = {
 function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFirst, isLast }: ContactRowProps) {
   const { toggleFavoriteContact } = useContacts();
   const haptics = useHaptics();
-  const subtitle = contactPlace(contact);
+  const subtitle = contactPlaces(contact);
   // A picker's row (isSelected given) only picks; a browsing row's avatar favorites on a double tap.
   const canFavorite = isSelected === undefined;
 
