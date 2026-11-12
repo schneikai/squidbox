@@ -44,7 +44,8 @@ export type SearchBarState = Pick<
  *   • Tapping search opens the field and brings up the keyboard (focus only ever follows a tap).
  *   • The clear button inside the field empties the query.
  *   • A separate round ✕ next to the field is Cancel: it leaves search, clears the query and hides
- *     the keyboard. The sort/filter button shows only while search is closed (as in Photos).
+ *     the keyboard. The sort/filter button stays at the field's trailing edge, so a search can be
+ *     sorted and filtered without leaving it.
  *   • Scrolling the list hides the keyboard but keeps the query (lists use keyboardDismissMode).
  *   • Leaving the screen hides the keyboard; coming back keeps the query without reopening it.
  * Screens get these props as `searchBar` from `useListControls`.
@@ -109,12 +110,6 @@ export default function SearchOptionsBar({
     bottom: bottom + keyboardInset.value - safeBottom,
   }));
 
-  const collapsedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(expandProgress.value, [0, 0.3], [1, 0], Extrapolation.CLAMP),
-    width: interpolate(expandProgress.value, [0, 0.4], [sizes.iconButton, 0], Extrapolation.CLAMP),
-    overflow: 'hidden',
-  }));
-
   const expandedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(expandProgress.value, [0.4, 1], [0, 1], Extrapolation.CLAMP),
     flex: expandProgress.value > 0.4 ? 1 : 0,
@@ -133,20 +128,6 @@ export default function SearchOptionsBar({
         {/* Search icon — always visible */}
         <Button icon="search" onPress={handleOpen} accessibilityLabel="Search" />
 
-        {/* Collapsed: options button */}
-        {optionsMenu && (
-          <Animated.View style={collapsedStyle}>
-            <MenuButton
-              icon="options"
-              variant={hasActiveState ? 'secondary' : 'tertiary'}
-              isSelected={hasActiveState}
-              accessibilityLabel="Sort and filter"
-            >
-              {optionsMenu}
-            </MenuButton>
-          </Animated.View>
-        )}
-
         {/* Expanded: the field, with the native clear button inside */}
         <Animated.View style={[styles.expandedRow, expandedStyle]}>
           <SearchInput
@@ -159,6 +140,18 @@ export default function SearchOptionsBar({
             clearButtonMode="always"
           />
         </Animated.View>
+
+        {/* The options button, at the field's trailing edge while search is open */}
+        {optionsMenu && (
+          <MenuButton
+            icon="options"
+            variant={hasActiveState ? 'secondary' : 'tertiary'}
+            isSelected={hasActiveState}
+            accessibilityLabel="Sort and filter"
+          >
+            {optionsMenu}
+          </MenuButton>
+        )}
       </FloatingPill>
 
       {/* Cancel: a separate round button next to the field */}
