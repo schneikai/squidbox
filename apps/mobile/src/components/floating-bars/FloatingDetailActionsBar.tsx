@@ -23,6 +23,8 @@ type DetailAsset = Pick<AssetRecord, 'id' | 'deletedAt' | 'mediaType' | 'isFavor
 export type FloatingDetailActionsBarProps = {
   asset: DetailAsset;
   onDeleteAsset: (asset: DetailAsset) => void;
+  // Opens the asset's details (Info); no Info button without it.
+  onShowDetails?: () => void;
   children?: ReactNode;
 };
 
@@ -30,16 +32,23 @@ export type FloatingDetailActionsBarProps = {
  * Bottom floating action bar for the asset detail screen. `children` (e.g. video controls) go
  * above its row, full width.
  *
- * Layout:
- *   [⇪  ♥  ↓]                               [🗑]
- *   left pill (share + favorite + download)   right pill (delete)
- *   (Share only in a build with expo-sharing's native module)
+ * Layout, as Apple Photos:
+ *   [⇪  ♥  ⓘ]                               [🗑]
+ *   left pill (share + favorite + info)       right pill (delete)
+ *
+ * The share sheet saves to the camera roll (on web, Share downloads), so Save to camera roll (↓) only
+ * takes Share's place in a build without expo-sharing's native module.
  *
  * A trashed asset (shown in a post) gets the Deleted album's actions instead (DeletedNote, under
  * the header, says where it is):
- *   [⇪  ↓]                                  [↺  🗑]
+ *   [⇪  ⓘ]                                  [↺  🗑]
  */
-export default function FloatingDetailActionsBar({ asset, onDeleteAsset, children }: FloatingDetailActionsBarProps) {
+export default function FloatingDetailActionsBar({
+  asset,
+  onDeleteAsset,
+  onShowDetails,
+  children,
+}: FloatingDetailActionsBarProps) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
@@ -87,9 +96,13 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, childre
     <View style={[styles.container, { bottom: insets.bottom + layout.barMargin }]} pointerEvents="box-none">
       {children}
       <View style={styles.row} pointerEvents="box-none">
-        {/* Left pill — share + favorite + download */}
+        {/* Left pill — share (or save) + favorite + info */}
         <FloatingPill>
-          {canShareFiles && <Button icon="share" onPress={handleShare} accessibilityLabel="Share" />}
+          {canShareFiles ? (
+            <Button icon="share" onPress={handleShare} accessibilityLabel="Share" />
+          ) : (
+            <Button icon="cloud-download" onPress={handleDownload} accessibilityLabel="Save to camera roll" />
+          )}
           {!isDeleted && (
             <Button
               icon="heart"
@@ -100,12 +113,7 @@ export default function FloatingDetailActionsBar({ asset, onDeleteAsset, childre
               accessibilityLabel={asset.isFavorite ? 'Unfavorite' : 'Favorite'}
             />
           )}
-          <Button
-            icon="cloud-download"
-            onPress={handleDownload}
-
-            accessibilityLabel="Save to camera roll"
-          />
+          {!!onShowDetails && <Button icon="info" onPress={onShowDetails} accessibilityLabel="Info" />}
         </FloatingPill>
 
         {/* Right pill — delete, or restore + delete permanently */}
