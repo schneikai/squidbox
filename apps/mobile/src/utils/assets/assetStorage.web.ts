@@ -9,6 +9,7 @@ export {
   getAssetFilesDirectory,
   getAssetThumbnailsDirectory,
   getDownloadsDirectory,
+  getDownloadFolderUri,
   getAssetFileUri,
   getFileFolderUri,
   createAssetDirectoriesAsync,
@@ -44,3 +45,10 @@ export async function hasThumbnailAsync(thumbnailFilename: string | null | undef
   if (!thumbnailFilename) return true;
   return webFileUrls.has(thumbnailFilename);
 }
+
+// Web keeps no files: neither originals nor downloads.
+export async function findLocalAssetFileAsync(): Promise<{ uri: string; isKeptDownload: boolean } | null> {
+  return null;
+}
+
+export function markDownloadUsed(): void {}

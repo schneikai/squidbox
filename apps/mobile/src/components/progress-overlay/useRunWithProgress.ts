@@ -15,7 +15,10 @@ export type ProgressOptions = Required<BatchOptions> & {
 // Resolves `false` when it stopped early, as writeInBatches does; otherwise it finished.
 export type ProgressAction = (options: ProgressOptions) => Promise<boolean | void>;
 
-export type RunWithProgress = (action: ProgressAction, options?: { failureTitle?: string }) => Promise<boolean>;
+// `countsDone: false` for an action whose items only count once all are through (files gathered for
+// one share sheet): a failure then shows only its error, and a Cancel nothing.
+export type RunWithProgressOptions = { failureTitle?: string; countsDone?: boolean };
+export type RunWithProgress = (action: ProgressAction, options?: RunWithProgressOptions) => Promise<boolean>;
 
 /**
  * Runs an action behind the progress overlay with a Cancel button: `run((options) => …, { failureTitle })`
@@ -23,18 +26,19 @@ export type RunWithProgress = (action: ProgressAction, options?: { failureTitle?
  * writeInBatches). `onProgress(done, total, current)` moves the ring: `done` items finished plus
  * `current`, the running one's share (0–1). Cancel aborts `signal`: bulk writes stop between batches,
  * a download stops at once (rejecting with an `AbortError`). A failure, or a Cancel after some items,
- * is shown here with how many were done, so every caller gets it; resolves to whether the action
- * finished (the action resolves to `false` when it stopped early, as writeInBatches does).
+ * is shown here with how many were done (unless `countsDone: false`), so every caller gets it;
+ * resolves to whether the action finished (the action resolves to `false` when it stopped early, as
+ * writeInBatches does).
  */
 export default function useRunWithProgress(): RunWithProgress {
   const { show, hide, updateProgress } = useProgressOverlay();
   const haptics = useHaptics();
 
-  return async function runWithProgress(action, { failureTitle = "Couldn't finish" } = {}) {
+  return async function runWithProgress(action, { failureTitle = "Couldn't finish", countsDone = true } = {}) {
     const controller = new AbortController();
     let progress: Progress | null = null;
     const onProgress = (done: number, total: number, current = 0) => {
-      progress = { done, total };
+      if (countsDone) progress = { done, total };
       updateProgress(((done + current) / total) * 100);
     };
 

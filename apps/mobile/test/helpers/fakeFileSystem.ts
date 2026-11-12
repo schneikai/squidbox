@@ -10,6 +10,8 @@ type Hooks = {
   move?(from: string, to: string): void | Promise<void>;
   copy?(from: string, to: string): void | Promise<void>;
   download?(url: string, uri: string): void | Promise<void>;
+  read?(uri: string): string;
+  write?(uri: string, content: string): void;
 };
 
 type Part = string | { uri: string };
@@ -38,6 +40,13 @@ export function fakeFileSystem(hooks: Hooks) {
   }
 
   class File extends Entry {
+    textSync() {
+      if (!hooks.read) throw new Error(`${this.uri} can't be read`);
+      return hooks.read(this.uri);
+    }
+    writeSync(content: string) {
+      hooks.write?.(this.uri, content);
+    }
     async move(destination: { uri: string }) {
       await hooks.move?.(this.uri, destination.uri);
       this.uri = destination.uri;

@@ -44,7 +44,7 @@ const baseConfig = {
     version: '0.0.1',
     // Bump whenever native modules change, so an OTA bundle is never delivered to a binary that
     // lacks a module it needs.
-    runtimeVersion: '1.1.0',
+    runtimeVersion: '1.2.0',
     orientation: 'portrait',
     // Deep links (squidbox://post/…) open the screen at that URL (Expo Router).
     scheme: 'squidbox',
