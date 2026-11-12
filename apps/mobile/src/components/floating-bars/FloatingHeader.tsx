@@ -13,19 +13,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AccountButton from './AccountButton';
 import FloatingPill from './FloatingPill';
 import ToolbarTitle from './ToolbarTitle';
+import useTitleReveal from './useTitleReveal';
 
 import Button from '@/components/Button';
 import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
 import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
 
-// Scroll offsets (pt): the large title is gone by COMPACT_FROM, the small one fully in by COMPACT_TO.
+// The scroll offset (pt) by which the large title is gone and the small one starts to show.
 const COMPACT_FROM = 40;
-const COMPACT_TO = 64;
 
 export type FloatingHeaderProps = {
   title: string;
-  /** The screen's own scroll offset (useFloatingBarScrollHandler): the title fades as it scrolls. */
+  /** The screen's own scroll offset (useScrollY): the title fades as it scrolls. */
   scrollY: SharedValue<number>;
   onAdd: () => void;
 } & (
@@ -65,13 +65,7 @@ export default function FloatingHeader({
     };
   });
 
-  const compactTitleStyle = useAnimatedStyle(() => {
-    const progress = interpolate(scrollY.value, [COMPACT_FROM, COMPACT_TO], [0, 1], Extrapolation.CLAMP);
-    return {
-      opacity: isSelectMode ? withTiming(0, motion.move) : progress,
-      transform: [{ scale: interpolate(progress, [0, 1], [0.9, 1]) }],
-    };
-  });
+  const compactTitle = useTitleReveal({ scrollY, from: COMPACT_FROM }, isSelectMode);
 
   // Normal controls (action pill + account) fade out in select mode
   const normalStyle = useAnimatedStyle(() => ({
@@ -100,14 +94,16 @@ export default function FloatingHeader({
       </Animated.Text>
 
       {/* Small title, once the list is scrolled */}
-      <Animated.View
-        style={[styles.compactTitle, compactTitleStyle]}
-        pointerEvents="none"
-        importantForAccessibility="no-hide-descendants"
-        accessibilityElementsHidden
-      >
-        <ToolbarTitle title={title} />
-      </Animated.View>
+      {compactTitle.isMounted && (
+        <Animated.View
+          style={[styles.compactTitle, compactTitle.style]}
+          pointerEvents="none"
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          <ToolbarTitle title={title} />
+        </Animated.View>
+      )}
 
       {/* Normal mode: action pill + account */}
       <Animated.View style={[styles.rightGroup, normalStyle]}>

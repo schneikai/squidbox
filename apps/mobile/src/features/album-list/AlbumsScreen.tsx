@@ -41,7 +41,7 @@ export default function AlbumsScreen() {
     onSort: sortAlbums,
   });
 
-  const { onScroll: scrollHandler, scrollY } = useScrollY();
+  const { onScroll, scrollY } = useScrollY();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
   // Searching or filtering shows only the grid.
@@ -98,7 +98,7 @@ export default function AlbumsScreen() {
         header={header}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
         renderItem={renderItem}
         reorderEnabled={reorderEnabled}
         onReorder={handleReorder}

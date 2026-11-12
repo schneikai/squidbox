@@ -152,8 +152,7 @@ export default function Album({ album }: AlbumProps) {
     <Page testID="album-screen">
       <FloatingDetailHeader
         title={album.name}
-        scrollY={scrollY}
-        titleRevealY={nameEnd}
+        titleReveal={{ scrollY, from: nameEnd }}
         onBack={() => navigation.goBack()}
         isSelectMode={isSelectMode}
         menuSlot={

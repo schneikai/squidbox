@@ -40,7 +40,7 @@ export default function AssetsScreen() {
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
   useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
 
-  const { onScroll: scrollHandler, scrollY } = useScrollY();
+  const { onScroll, scrollY } = useScrollY();
 
   const { show, hide, updateProgress } = useProgressOverlay();
   const runWithProgress = useRunWithProgress();
@@ -86,7 +86,7 @@ export default function AssetsScreen() {
         loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
         scrollY={scrollY}
         isSelectMode={isSelectMode}
         selectedAssetIds={selectedAssetIds}

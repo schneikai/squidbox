@@ -18,7 +18,7 @@ export default function PostsScreen() {
     defaultSort: 'postedAt:desc',
   });
 
-  const { onScroll: scrollHandler, scrollY } = useScrollY();
+  const { onScroll, scrollY } = useScrollY();
 
   const query = postQuery({ scope: 'all', sort: sortOrder, search: searchText });
   const { rows, loadMore } = usePagedQuery(query, 20);
@@ -35,7 +35,7 @@ export default function PostsScreen() {
         rows={rows}
         loadMore={loadMore}
         contentContainerStyle={{ paddingTop, paddingBottom }}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
       />
       <FloatingActionsBar
         search={searchBar}

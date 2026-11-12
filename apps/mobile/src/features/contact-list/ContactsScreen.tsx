@@ -36,7 +36,7 @@ export default function ContactsScreen() {
   const { sortOrder, setSortOrder } = useContactSort('contacts');
   const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
-  const { onScroll: scrollHandler, scrollY } = useScrollY();
+  const { onScroll, scrollY } = useScrollY();
 
   // Trimmed, so a trailing space doesn't read the list again.
   const isSearching = !!search;
@@ -116,7 +116,7 @@ export default function ContactsScreen() {
         contentContainerStyle={[styles.content, { paddingTop, paddingBottom }]}
         onEndReached={rows ? loadMore : undefined}
         onEndReachedThreshold={2}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
         scrollEventThrottle={16}
         keyboardDismissMode="on-drag"
         style={styles.list}
