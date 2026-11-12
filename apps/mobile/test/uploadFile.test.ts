@@ -2,13 +2,23 @@ import { describe, expect, it, vi } from 'vitest';
 
 import uploadFileAsync from '../src/features/cloud/assets/uploadFileAsync';
 
-// The upload task is expo-file-system's native one: it resolves the response it is given here.
-const upload = vi.hoisted(() => ({ result: undefined as { status: number; body: string } | undefined }));
+// The upload task is expo-file-system's native one: it reports the progress and resolves the
+// response it is given here.
+type Progress = { bytesSent: unknown; totalBytes: unknown };
+const upload = vi.hoisted(() => ({
+  result: undefined as { status: number; body: string } | undefined,
+  progress: [] as Progress[],
+}));
 vi.mock('expo-file-system', () => ({
   UploadType: { BINARY_CONTENT: 0 },
   File: class {
-    createUploadTask() {
-      return { uploadAsync: async () => upload.result };
+    createUploadTask(_url: string, options: { onProgress?: (progress: Progress) => void }) {
+      return {
+        uploadAsync: async () => {
+          for (const progress of upload.progress) options.onProgress?.(progress);
+          return upload.result;
+        },
+      };
     }
   },
 }));
@@ -33,5 +43,14 @@ describe('uploadFileAsync', () => {
     await expect(uploadFileAsync('a.jpg', 'file:///a.jpg', identity)).rejects.toThrow(
       /^Upload failed with status 502$/,
     );
+  });
+
+  it('reports the byte counts as numbers when the native task sends BigInts', async () => {
+    upload.result = { status: 200, body: '' };
+    upload.progress = [{ bytesSent: BigInt(512), totalBytes: BigInt(2048) }];
+    const onProgress = vi.fn();
+    await uploadFileAsync('a.jpg', 'file:///a.jpg', identity, { onProgress });
+    expect(onProgress).toHaveBeenCalledWith({ bytesSent: 512, totalBytes: 2048 });
+    upload.progress = [];
   });
 });

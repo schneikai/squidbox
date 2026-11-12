@@ -56,7 +56,9 @@ async function doUploadAsync(
     httpMethod: 'PUT',
     headers: clientHeader(),
     uploadType: UploadType.BINARY_CONTENT,
-    onProgress,
+    // expo-modules-core hands the native task's Int64 byte counts (and the File.size of the
+    // task's own final report) to JS as BigInts, though UploadProgress types them as numbers.
+    onProgress: onProgress && (({ bytesSent, totalBytes }) => onProgress(byteCounts(bytesSent, totalBytes))),
     signal,
   });
 
@@ -66,6 +68,11 @@ async function doUploadAsync(
     if (signal?.aborted) throw cancelled(filename);
     throw error;
   }
+}
+
+// Byte counts as numbers, whether the native side sent numbers or BigInts.
+function byteCounts(bytesSent: number | bigint, totalBytes: number | bigint): UploadProgress {
+  return { bytesSent: Number(bytesSent), totalBytes: Number(totalBytes) };
 }
 
 function assertSuccess(result: UploadResult | undefined, filename: string, signal?: AbortSignal) {

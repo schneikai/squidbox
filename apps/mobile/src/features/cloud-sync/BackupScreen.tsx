@@ -33,6 +33,12 @@ export default function BackupScreen() {
   const { unsyncedCount, syncErrorCount } = counts;
   const [showErrors, setShowErrors] = useState(false);
 
+  // Retry All backs the failed photos up again right away, not only on the next Back up now.
+  async function handleRetryAll() {
+    await clearSyncErrors();
+    syncNow();
+  }
+
   return (
     <Page>
       <FloatingDetailHeader title="Backup" onBack={() => navigation.goBack()} />
@@ -87,11 +93,7 @@ export default function BackupScreen() {
         </LogBlock>
 
         {showErrors && (
-          <SyncErrorViewer
-            query={uploadFailuresQuery}
-            onRetryAll={clearSyncErrors}
-            close={() => setShowErrors(false)}
-          />
+          <SyncErrorViewer query={uploadFailuresQuery} onRetryAll={handleRetryAll} close={() => setShowErrors(false)} />
         )}
       </DetailScrollView>
     </Page>

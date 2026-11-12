@@ -24,8 +24,12 @@ export default async function downloadAssetFileAsync(
 
   // We throttle the progress updates because the frequent rerendering slows down the download.
   let lastUpdateTime = 0;
-  function throttledProgress({ bytesWritten, totalBytes }: DownloadProgress) {
+  function throttledProgress(progress: DownloadProgress) {
     const currentTime = Date.now();
+    // expo-modules-core hands the native task's Int64 byte counts to JS as BigInts, though
+    // DownloadProgress types them as numbers.
+    const bytesWritten = Number(progress.bytesWritten);
+    const totalBytes = Number(progress.totalBytes);
     // The total is unknown (0 or less) when the response has no Content-Length.
     if (currentTime - lastUpdateTime > PROGRESS_THROTTLE && totalBytes > 0) {
       onProgress(bytesWritten / totalBytes);
