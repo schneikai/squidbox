@@ -9,7 +9,7 @@ export default function ContactListPills({ names }: ContactListPillsProps) {
   return (
     <View style={styles.pills} accessibilityLabel={`Lists: ${names.join(', ')}`}>
       {names.map((name, index) => (
-        <Text key={`${index}-${name}`} style={styles.pill} numberOfLines={1}>
+        <Text key={`${index}-${name}`} style={[textStyles.footnoteBold, styles.pill]} numberOfLines={1}>
           {name}
         </Text>
       ))}
@@ -25,7 +25,6 @@ const styles = StyleSheet.create({
     marginTop: space.xs,
   },
   pill: {
-    ...textStyles.footnoteBold,
     overflow: 'hidden',
     borderRadius: radii.pill,
     paddingHorizontal: layout.capsulePaddingX,
