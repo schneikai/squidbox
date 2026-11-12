@@ -1,22 +1,19 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import Octopus from '@/components/octopus/Octopus';
-import { splashOctopusFrame } from '@/components/octopus/splashOctopusFrame';
-import { colors, motion } from '@/styles/designTokens';
+import SplashStage from '@/components/SplashStage';
+import { motion } from '@/styles/designTokens';
 
 export type BootScreenProps = { leaving: boolean };
 
 // Takes over from the native splash, pixel for pixel, so the octopus can come alive while the app
 // boots: it hides the native splash once it has been drawn, fades out once `leaving`, and is gone then.
 export default function BootScreen({ leaving }: BootScreenProps) {
-  const window = useWindowDimensions();
   const opacity = useSharedValue(1);
   const [gone, setGone] = useState(false);
-  const octopus = splashOctopusFrame(window);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   useEffect(() => {
@@ -28,13 +25,11 @@ export default function BootScreen({ leaving }: BootScreenProps) {
 
   return (
     <Animated.View
-      style={[StyleSheet.absoluteFill, styles.root, fadeStyle]}
+      style={[StyleSheet.absoluteFill, fadeStyle]}
       pointerEvents={leaving ? 'none' : 'auto'}
       onLayout={hideNativeSplash}
     >
-      <View style={{ position: 'absolute', left: octopus.left, top: octopus.top }}>
-        <Octopus size={octopus.width} />
-      </View>
+      <SplashStage />
     </Animated.View>
   );
 }
@@ -43,7 +38,3 @@ export default function BootScreen({ leaving }: BootScreenProps) {
 function hideNativeSplash() {
   requestAnimationFrame(() => SplashScreen.hideAsync().catch(() => {}));
 }
-
-const styles = StyleSheet.create({
-  root: { backgroundColor: colors.background.splash },
-});

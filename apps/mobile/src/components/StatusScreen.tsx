@@ -13,6 +13,8 @@ export type StatusScreenProps = { busy?: boolean; title: string; children?: Reac
 // A full-screen status while the app can't show its content: a title, centred on the app
 // background, the octopus above it while `busy`, and whatever details the caller adds below it.
 // With Reduce Motion the octopus stands still, so a spinner shows that something is going on.
+// SplashStage is its sibling on the splash's violet (same title, progress bar and spinner): a change to
+// one belongs in both.
 export default function StatusScreen({ busy = false, title, children = null }: StatusScreenProps) {
   const reduceMotion = useReduceMotion();
 

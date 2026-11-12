@@ -9,12 +9,13 @@ import { Circle, Path } from 'react-native-svg';
 
 import parts from './octopusParts.json';
 
-import { colors, motion } from '@/styles/designTokens';
+import { motion } from '@/styles/designTokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-const COLORS = { fill: colors.background.splash, edge: '#8EDDF0', shine: '#FFFFFF' };
+// The bubble's own art colours, light cyan so it shows on the violet splash and the light app alike.
+const COLORS = { fill: '#B1F1FF', edge: '#8EDDF0', shine: '#FFFFFF' };
 const FILL_OPACITY = 0.35;
 const FAST = motion.duration.fast;
 const [MOUTH_X, MOUTH_Y] = parts.mouthCenter;

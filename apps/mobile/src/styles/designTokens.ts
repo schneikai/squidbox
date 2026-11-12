@@ -43,7 +43,6 @@ const palette = {
   rose600: '#E11D48',
   green500: '#34C759',
   blue600: '#2563EB',
-  cyan100: '#B1F1FF',
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
 };
@@ -98,7 +97,7 @@ export const colors = {
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen
-    splash: palette.cyan100, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot screen
+    splash: palette.violet900, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot and first-sync screens (SplashStage)
   },
   border: {
     glass: alpha(palette.black, 0.08),

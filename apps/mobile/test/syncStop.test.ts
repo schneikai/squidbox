@@ -13,7 +13,7 @@ import { pulledShape } from '../src/sync/clientCollections';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { startRun } from '../src/sync/runGate';
-import { getCursor, isFirstSyncDone, pullCursor, setCursor } from '../src/sync/status';
+import { getCursor, getStatus, isFirstSyncDone, markFirstSyncDone, pullCursor, setCursor } from '../src/sync/status';
 import type { SyncTransport } from '../src/sync/transport';
 import {
   APPLY_BATCH,
@@ -326,5 +326,63 @@ describe('a pull downloading the next batch while it applies one', () => {
     expect(await getCursor(db)).toBe(APPLY_BATCH + 2000);
     expect(await db.select().from(schema.assets)).toHaveLength(APPLY_BATCH + 2000);
     expect(await isFirstSyncDone(db)).toBe(false);
+  });
+});
+
+describe("the first sync's pull step", () => {
+  // A server of `total` records whose page at `heldAt` waits for `held` to be released.
+  function holdingServer(total: number, heldAt: number, held: { hold: () => Promise<unknown> }): SyncTransport {
+    const base = server(total);
+    return {
+      ...base,
+      pull: async (req) => {
+        if (req.cursor === heldAt) await held.hold();
+        return base.pull(req);
+      },
+    };
+  }
+
+  it('is downloading while batches arrive, and gone once the pull is done', async () => {
+    const held = gate(); // the second batch's first page, requested only after the first batch's step
+    const run = runSyncOnce(db, holdingServer(APPLY_BATCH * 2, APPLY_BATCH, held));
+    await held.entered;
+    expect(await getStatus(db)).toMatchObject({ phase: 'pulling', pullStep: 'downloading' });
+    held.release();
+    await run;
+
+    const status = await getStatus(db);
+    expect(status.phase).toBe('idle');
+    expect(status.pullStep).toBeUndefined();
+  });
+
+  // The last batch's apply fails (a record the database refuses), so the run ends with the step it stored.
+  it.each([
+    ['over two batches', APPLY_BATCH * 2],
+    ['that fits one batch', APPLY_BATCH],
+  ])('is finishing while the last batch applies, for a first sync %s', async (_, total) => {
+    const base = server(total);
+    const transport: SyncTransport = {
+      ...base,
+      pull: async (req) => {
+        const page = await base.pull(req);
+        if (!page.hasMore) (page.changes.assets!.records[0] as { width: unknown }).width = null;
+        return page;
+      },
+    };
+
+    await expect(runSyncOnce(db, transport)).rejects.toThrow('NOT NULL');
+
+    expect(await getStatus(db)).toMatchObject({ phase: 'pulling', pullStep: 'finishing' });
+  });
+
+  it('is never stored by a pull after the first sync is done', async () => {
+    await markFirstSyncDone(db);
+    const held = gate();
+    const run = runSyncOnce(db, holdingServer(APPLY_BATCH * 2, APPLY_BATCH, held));
+    await held.entered;
+    expect((await getStatus(db)).pullStep).toBeUndefined();
+    held.release();
+    await run;
+    expect((await getStatus(db)).pullStep).toBeUndefined();
   });
 });

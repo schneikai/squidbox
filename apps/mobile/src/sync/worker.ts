@@ -26,7 +26,16 @@ import {
 import { planPushOutcome } from './pushPlan';
 import { pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
-import { pullCursor, setCursor, patchStatus, appendSyncLog, markFirstSyncDone, clearFirstSyncDone } from './status';
+import {
+  pullCursor,
+  setCursor,
+  patchStatus,
+  appendSyncLog,
+  markFirstSyncDone,
+  clearFirstSyncDone,
+  isFirstSyncDone,
+  type PullStep,
+} from './status';
 import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
@@ -347,8 +356,12 @@ async function pullPhase(
   signal: AbortSignal,
   notes: string[],
 ): Promise<{ pulled: number; stopped: boolean }> {
-  await patchStatus(db, { phase: 'pulling' });
+  // Clears a step a failed run left behind, in the same write.
+  await patchStatus(db, { phase: 'pulling', pullStep: undefined });
   if (signal.aborted) return { pulled: 0, stopped: true };
+  // Only the first sync's setup screen shows the steps, so a regular pull writes no more than the phase.
+  const reportSteps = !(await isFirstSyncDone(db));
+  let reported: PullStep | undefined;
   const start = await pullCursor(db, pulledShape());
   // Noted before the pull, so a run that fails on the way still logs the restart.
   if (start.newFields)
@@ -362,6 +375,12 @@ async function pullPhase(
   try {
     while (next) {
       const batch: PulledBatch = await next;
+      // Stored before the next batch is requested, so batch N's step is written before page N+1 is asked for.
+      const step: PullStep = batch.hasMore ? 'downloading' : 'finishing';
+      if (reportSteps && step !== reported) {
+        await patchStatus(db, { pullStep: step });
+        reported = step;
+      }
       next = batch.hasMore && !signal.aborted ? fetchBatch(transport, batch.cursor, stop) : null;
       next?.catch(() => {}); // awaited next round, unless this apply fails or the run stops
       if (batch.buffered > 0 || batch.cursor !== cursor) pulled += await applyChanges(db, batch.changes, batch.cursor);
@@ -374,7 +393,7 @@ async function pullPhase(
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
-  await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
+  await patchStatus(db, { phase: 'idle', lastPullAt: Date.now(), pullStep: undefined });
   return { pulled, stopped: false };
 }
 

@@ -34,8 +34,11 @@ function requirePushedSnapshot(commit) {
   }
 }
 
-// Matched by colors.background.splash, for BootScreen, which takes over from the splash.
-const SPLASH_BACKGROUND = '#B1F1FF';
+// Matched by colors.background.splash, for BootScreen, which takes over from the splash, and the
+// first-sync screen after it (SplashStage).
+const SPLASH_BACKGROUND = '#2E108C';
+// The Android app icon's background, the light cyan of the icon art (not the splash's).
+const ICON_BACKGROUND = '#B1F1FF';
 
 const baseConfig = {
   expo: {
@@ -62,11 +65,18 @@ const baseConfig = {
       config: {
         usesNonExemptEncryption: false,
       },
+      infoPlist: {
+        // Light status bar text on the violet launch screen. React Native's StatusBar takes over after
+        // launch (SplashStage sets light while it shows; once its last <StatusBar> unmounts, RN
+        // restores its default, dark on the light app), which the second key lets it do app-wide.
+        UIStatusBarStyle: 'UIStatusBarStyleLightContent',
+        UIViewControllerBasedStatusBarAppearance: false,
+      },
     },
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: SPLASH_BACKGROUND,
+        backgroundColor: ICON_BACKGROUND,
       },
     },
     web: {

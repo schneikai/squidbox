@@ -4,6 +4,7 @@ import Animated, {
   type FrameInfo,
   type SharedValue,
   interpolate,
+  makeMutable,
   useAnimatedStyle,
   useDerivedValue,
   useFrameCallback,
@@ -79,6 +80,12 @@ const WAVE_END = Math.max(WAVE_MS, SQUEEZE_MS);
 const BUBBLES_END = Math.max(...BUBBLES.map(({ delay, duration }) => delay + duration + BUBBLE_POPPED_MS));
 const STOPPED = -1;
 
+// One idle clock for every octopus: the frame timestamp of the first frame any octopus drew. Two
+// octopuses on screen at once (the boot screen's fading out over the first-sync screen's) then show
+// the same pose; the first eases in from the drawn pose, as the splash shows it, and a later one joins
+// mid-sway.
+const CLOCK_ORIGIN = makeMutable(STOPPED);
+
 // Bending the arms rebuilds their paths, so at rest they bend anew only at about 30 Hz (every other
 // frame at 60 Hz, every fourth at 120 Hz; a little under 1/30 s so frame jitter never skips one more),
 // and on every frame while a tap plays.
@@ -95,12 +102,14 @@ function Octopus({ size }: OctopusProps) {
   const bendTime = useSharedValue(0); // `time`, as of the arms' last bend
   const sinceWave = useSharedValue(STOPPED);
   const sinceBubbles = useSharedValue(STOPPED);
-  // Stable, and adding up frame times: a re-registered frame callback starts its own clock from 0.
+  // Stable. The idle time is read off the shared clock; the tap clocks add up frame times, as a
+  // re-registered frame callback's first frame has no time since the previous one.
   const advance = useCallback(
     (frame: FrameInfo) => {
       'worklet';
       const elapsed = frame.timeSincePreviousFrame ?? 0;
-      time.value += elapsed;
+      if (CLOCK_ORIGIN.value === STOPPED) CLOCK_ORIGIN.value = frame.timestamp;
+      time.value = frame.timestamp - CLOCK_ORIGIN.value;
       const waving = tick(sinceWave, elapsed, WAVE_END);
       const blowing = tick(sinceBubbles, elapsed, BUBBLES_END);
       if (waving || blowing || time.value - bendTime.value >= IDLE_BEND_MS) bendTime.value = time.value;
@@ -109,7 +118,8 @@ function Octopus({ size }: OctopusProps) {
   );
   const frames = useFrameCallback(advance, false);
 
-  // Moves unless Reduce Motion is on, and turning it on puts the octopus back as drawn.
+  // Moves unless Reduce Motion is on, and turning it on puts the octopus back as drawn; turning it
+  // off again rejoins the shared clock.
   useEffect(() => {
     frames.setActive(!reduceMotion);
     if (!reduceMotion) return;
@@ -204,8 +214,8 @@ function tick(clock: SharedValue<number>, elapsed: number, end: number) {
   return true;
 }
 
-// How much of the idle motion plays: it eases in over the first half breath, so the octopus starts
-// exactly as drawn on the splash screen.
+// How much of the idle motion plays, by the shared clock: it eases in over the first half breath of
+// the first octopus drawn, so it starts exactly as drawn on the splash screen.
 function idleAt(time: number) {
   'worklet';
   return time >= PULSE ? 1 : motion.pulse.easing(time / PULSE);

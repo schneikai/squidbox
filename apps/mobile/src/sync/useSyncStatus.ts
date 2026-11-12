@@ -1,12 +1,13 @@
 import * as schema from './db/schema';
 import { countOutbox } from './outbox';
-import { getCursor, getStatus, isFirstSyncDone, type SyncPhase } from './status';
+import { getCursor, getStatus, isFirstSyncDone, type PullStep, type SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
 
 // Reactive sync status for the dev status surface + Inspector: the phase + pending outbox count
 // (failed rows included) and how many of those the server rejected, live from SQLite.
 export interface LiveSyncStatus {
   phase: SyncPhase;
+  pullStep?: PullStep;
   pendingCount: number;
   failedCount: number;
   cursor: number;
@@ -24,6 +25,7 @@ export function useSyncStatus(): LiveSyncStatus {
 
   return {
     phase: meta?.phase ?? 'idle',
+    pullStep: meta?.pullStep,
     pendingCount: outbox?.pending ?? 0,
     failedCount: outbox?.failed ?? 0,
     cursor: meta?.cursor ?? 0,
