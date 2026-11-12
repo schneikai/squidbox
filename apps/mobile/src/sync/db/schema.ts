@@ -232,6 +232,7 @@ export const instructions = sqliteTable('instructions', {
   modelCheckJudge: text('model_check_judge'),
   contactScreenshot: text('contact_screenshot'),
   contactXProfile: text('contact_x_profile'),
+  moreIdeas: text('more_ideas'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 
@@ -303,6 +304,20 @@ export const contactSettings = sqliteTable('contact_settings', {
   pinnedAt: integer('pinned_at'),
 });
 export type ContactSettingRow = typeof contactSettings.$inferSelect;
+
+// One record per user (its id is the user's id): the Post ideas and Repost ideas switches and
+// prompts (mirror @squidbox/shared idea_settings); a null prompt is the built-in text.
+export const ideaSettings = sqliteTable('idea_settings', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  postIdeasOn: integer('post_ideas_on', { mode: 'boolean' }).notNull(),
+  repostIdeasOn: integer('repost_ideas_on', { mode: 'boolean' }).notNull(),
+  postIdeasPrompt: text('post_ideas_prompt'),
+  repostIdeasPrompt: text('repost_ideas_prompt'),
+});
+export type IdeaSettingRow = typeof ideaSettings.$inferSelect;
 
 export const contactListMembers = sqliteTable(
   'contact_list_members',

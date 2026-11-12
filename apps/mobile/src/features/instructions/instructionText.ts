@@ -14,7 +14,11 @@ const instructionText: Record<InstructionKind, InstructionText> = {
   },
   moreLikeThis: {
     title: 'More like this',
-    description: 'The system instructions for the assistant when you choose More like this on a post suggestion.',
+    description: 'The system instructions for the assistant when you choose More like this on an idea.',
+  },
+  moreIdeas: {
+    title: 'More',
+    description: 'What the assistant is asked when you tap More after the ideas.',
   },
   modelCheckJudge: {
     title: 'Verify judge',

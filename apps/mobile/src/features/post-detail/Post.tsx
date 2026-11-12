@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
@@ -6,8 +7,10 @@ import ThreadParts from '@/components/ThreadParts';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
-import WriteWithAi from '@/features/post-chat/WriteWithAi';
+import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
+import IdeasTray from '@/features/post-ideas/IdeasTray';
+import useIdeaSettings from '@/features/post-ideas/useIdeaSettings';
 import PostRows from '@/features/post-list/PostRows';
 import type { PostDetailRow } from '@/features/post-list/readPost';
 import PostView from '@/features/posts/PostView';
@@ -21,14 +24,18 @@ type PostProps = { post: PostDetailRow; contentPaddingTop?: number; contentPaddi
 
 /**
  * A post and its thread: the post's card (PostView; a long press copies a post's text), then each following post's card
- * joined by a short line, then the contacts on it, Write with AI about the post, the albums of the thread's pictures and
+ * joined by a short line, then the contacts on it, the assistant's tray about the post and its thread
+ * (IdeasTray, Repost ideas and the prompt buttons, written for the post; Copy, as nothing is edited here), the albums of the thread's pictures and
  * the other posts from the thread's albums. `post` is a postQuery row read by id (with its
  * `threadPosts`).
  */
 export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }: PostProps) {
-  const sessionId = useSubjectChat({ kind: 'post', text: post.text, postAssets: post.postAssets });
+  // The chat's posts: the post and its thread, each by its id.
+  const posts = useMemo(() => [post, ...post.threadPosts].map((each) => toChatDraftPost(each.id, each)), [post]);
+  const sessionId = useSubjectChat({ kind: 'post', posts, activeKey: post.id });
+  const settings = useIdeaSettings();
 
-  const assetIds = [post, ...post.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset.id));
+  const assetIds = posts.flatMap((each) => each.assets.map((asset) => asset.id));
 
   // Pushed, so back returns to the post. A picture opens with the others of its own post.
   function openAsset(postId: string, asset: Pick<AssetRow, 'id'>) {
@@ -48,7 +55,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         )}
       />
 
-      <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />
+      <IdeasTray sessionId={sessionId} target={post.id} ideas="repost" settings={settings} style={styles.tray} />
 
       {/* Contacts go on photos: a post without any has none. */}
       {assetIds.length > 0 && <TargetContactsSection of={{ postId: post.id }} isFlush />}
@@ -66,7 +73,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
   },
-  writeWithAi: {
+  tray: {
     marginTop: space.xxl,
   },
 });

@@ -70,6 +70,7 @@ export { default as Play } from 'lucide-react-native/icons/play';
 export { default as Plus } from 'lucide-react-native/icons/plus';
 export { default as Printer } from 'lucide-react-native/icons/printer';
 export { default as Quote } from 'lucide-react-native/icons/quote';
+export { default as RefreshCw } from 'lucide-react-native/icons/refresh-cw';
 export { default as Repeat2 } from 'lucide-react-native/icons/repeat-2';
 export { default as Scissors } from 'lucide-react-native/icons/scissors';
 export { default as Search } from 'lucide-react-native/icons/search';

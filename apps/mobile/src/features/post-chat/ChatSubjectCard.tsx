@@ -1,8 +1,8 @@
 import type { AssetRecord, ChatSubjectKind } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
-import ItSeesRow from './ItSeesRow';
-import MentionsRow from './MentionsRow';
+import ChatSubjectLines from './ChatSubjectLines';
+import fullAlbumName from './fullAlbumName';
 import type { LiveChat } from './useChatSession';
 import type { ChatTagging } from './useChatTags';
 import type { Mentions } from './useMentions';
@@ -21,6 +21,8 @@ const SUBJECTS: Record<ChatSubjectKind, string> = { draft: 'New post', edit: 'Ed
 
 type ChatSubjectCardProps = {
   kind: ChatSubjectKind;
+  // The posts of the thread, the post's own included.
+  postCount: number;
   assets: AssetRecord[];
   tagging: ChatTagging;
   tagEdits: ListEdits;
@@ -31,13 +33,15 @@ type ChatSubjectCardProps = {
 
 /**
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
- * album named when every photo is in it; "Edit post" for a saved post), what the assistant sees in
- * them (ItSeesRow, from `tagging`, useChatTags', with the post's tag edits `tagEdits`, changed with
- * `onEditTags`) and the handles it may mention (`mentions`, usePostChat's, changed with `onEditMentions`), as grey
- * lines.
+ * album named when every photo is in it; "Edit post" for a saved post; "· thread of 3" after the
+ * name for a thread, the photos those of all its posts), what the assistant sees in
+ * them and the handles it may mention, as grey lines a tap edits (ChatSubjectLines: `tagging`,
+ * useChatTags', with the post's tag edits `tagEdits`, changed with `onEditTags`; `mentions`,
+ * usePostChat's, changed with `onEditMentions`).
  */
 export default function ChatSubjectCard({
   kind,
+  postCount,
   assets,
   tagging,
   tagEdits,
@@ -48,12 +52,16 @@ export default function ChatSubjectCard({
   const assetIds = assets.map((asset) => asset.id);
   const albums = useAssetAlbums({ assetIds }, { isLive: false });
 
-  const albumName = albums?.find((album) => album.heldCount === new Set(assetIds).size)?.name;
+  const albumName = fullAlbumName(albums, assetIds);
   const counts = countMediaTypes(assets);
-  const title = [SUBJECTS[kind], assets.length > 0 && getAssetCountInfo(counts), albumName].filter(Boolean).join(' · ');
-  // The handles come from every album holding any of the photos, so the album is named only when it
-  // is the one.
-  const mentionsFrom = mentions?.fromAlbum ? (albums?.length === 1 && albumName) || 'your albums' : 'your posts';
+  const title = [
+    SUBJECTS[kind],
+    postCount > 1 && `thread of ${postCount}`,
+    assets.length > 0 && getAssetCountInfo(counts),
+    albumName,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <Card padded>
@@ -69,18 +77,13 @@ export default function ChatSubjectCard({
           {title}
         </Text>
       </View>
-      {tagging.rows && tagging.rows.length > 0 && (
-        <ItSeesRow
-          rows={tagging.rows}
-          attempts={tagging.attempts}
-          isTagging={tagging.isTagging}
-          untagged={tagging.untagged}
-          tagEdits={tagEdits}
-          onEditTags={onEditTags}
-          onRetry={tagging.retry}
-        />
-      )}
-      {mentions && <MentionsRow mentions={mentions} from={mentionsFrom} onEditMentions={onEditMentions} />}
+      <ChatSubjectLines
+        assetIds={assetIds}
+        albums={albums}
+        tagging={tagging}
+        mentions={mentions}
+        chat={{ tagEdits, editTags: onEditTags, editMentions: onEditMentions }}
+      />
     </Card>
   );
 }

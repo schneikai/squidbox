@@ -952,6 +952,17 @@ pinned on its own record's `pinnedAt`) and `pinnedAt`, one field group. One reco
 id is the user's id; the latest pin of either kind shows (`pinnedList`), and pinning one unpins the
 others in the same write (`contactListsRepository.pin`). Server 0035, app 0035.
 
+**idea_settings** (Settings → Assistant → Post ideas and Repost ideas: the ideas the post editor
+writes without being asked). Synced: `postIdeasOn` and `repostIdeasOn` (whether a new post's ideas
+start once it has media, and a repost's when its editor opens) and `postIdeasPrompt` and
+`repostIdeasPrompt` (the prompt each sends; null is the built-in text, `DEFAULT_IDEA_PROMPTS` in
+`packages/shared`, and a prompt equal to it is stored as null), resolved by `resolveIdeaSettings`
+(on, and the built-in text, while unset). One record per user, whose id is the user's id, like
+`personas`. The default prompt buttons Caption and Repost ideas they replace are tombstoned by the
+server's migration 0038 where the row still held the shipped text, and by the app's
+`seedPromptButtons` (`RETIRED_PROMPT_BUTTONS`) for a library an older build seeds after it; an
+edited one stays a prompt button of the user's. Server 0037, app 0038.
+
 **personas** ("Writing as you", Settings → Assistant). Synced: `aboutYou`, `tone`,
 `contentTags` (string[]), `rules` (string[]), `adultContent` (the Adult content switch, which picks
 the default writing model while none is chosen, `resolveModelId` on the server and in the app;
@@ -967,8 +978,8 @@ new clock. A save names only the fields the user changed in the editor, the firs
 (its record goes whole, but only those fields carry clocks), so a device that hasn't pulled
 another's persona yet never overwrites it with empty fields. No field groups.
 
-**prompt_buttons** (the chat's one-tap prompts, one list under the post editor's caption and over
-the chat's message box). Synced: `name`, `prompt`, `icon` (an Icon name or null), `position` (a
+**prompt_buttons** (the assistant's one-tap prompts, one list in the post card's assistant tray and
+over the chat's message box). Synced: `name`, `prompt`, `icon` (an Icon name or null), `position` (a
 fractional-index key, the order by `(position, id)`), plus the base columns. `placement` is retired:
 the app writes `ONE_LIST_PLACEMENT` and reads none, and the field stays so an older build still
 syncs. The defaults have fixed ids (`DEFAULT_PROMPT_BUTTONS`). After the library's first full pull
@@ -1000,7 +1011,8 @@ instead, without them), `moreLikeThis` (what the chat's More like this sends) an
 a writing Verify asks its judge after each chat turn) and `contactScreenshot` (the system message of a
 New contact's From screenshot, no placeholders; optional, server 0031, app 0031) and `contactXProfile` (what a New
 contact's From link asks the writing model about the X profile the server read, `{profile}` its fields as labelled
-lines; optional, server 0032, app 0032), templates the server fills in, each that
+lines; optional, server 0032, app 0032) and `moreIdeas` (what More after a set of ideas sends before the request the
+ideas answered; optional, server 0037, app 0038), templates the server fills in, each that
 account's override or null for the app's default (the text published for every account in the
 server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
 `resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
@@ -1032,11 +1044,12 @@ are) and uses the published default for that switch, from the server's `model_de
 The per-user records are written by `saveUserRecord` (`userRecord.ts`), which brings a tombstoned
 record back instead of inserting it again.
 
-A library merge (`mergeLibrary.ts`) leaves all five alone: a device library has none (the assistant
+A library merge (`mergeLibrary.ts`) leaves all six alone: a device library has none (the assistant
 needs an account), and an account library's rows are on the server already. `seed-mock.ts`'s reset
-leaves `model_choices` as it is and sets the other four to its Bluesky outdoor photographer's setup
+leaves `model_choices` as it is and sets the other five to its Bluesky outdoor photographer's setup
 like the media collections (the default prompt buttons, `DEFAULT_PROMPT_BUTTONS` in `packages/shared`,
-under their fixed ids; the instructions all null, on the defaults), so the app, which seeds only an
+under their fixed ids; his Post ideas and Repost ideas prompts in `idea_settings`; the instructions
+all null, on the defaults), so the app, which seeds only an
 empty table, adds nothing on top.
 
 Edges have a parent index on both sides (`album_assets_album_idx`, `post_assets_post_idx`).

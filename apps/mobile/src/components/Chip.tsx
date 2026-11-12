@@ -28,7 +28,7 @@ export type ChipProps = Pick<
  * (white and lifted by a soft shadow, with a violet label and icon: a prompt button in the
  * assistant's tray, which is tinted),
  * `lead` (light violet with a semibold violet label, lifted like `raised`, the assistant's own
- * action at the end of a row of prompt buttons: Ask anything), `add` (the grey dashed Add at the
+ * action leading a row of prompt buttons: Post ideas, Repost ideas), `add` (the grey dashed Add at the
  * end of a row, with its plus) or `mixed` (a tag on only some of the items, such as an album's
  * photos: no fill and a dashed outline; VoiceOver reads it as mixed). Every variant has the same
  * frame, so a tag tapped on never changes its width and moves the chips after it.

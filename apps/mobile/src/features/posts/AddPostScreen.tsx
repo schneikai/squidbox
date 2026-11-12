@@ -43,7 +43,7 @@ export default function AddPostScreen() {
 
   if (!seed) return null;
 
-  return <PostEditor kind="draft" post={seed} onSave={handleAddPost} />;
+  return <PostEditor kind="draft" ideas={rePostId ? 'repost' : 'post'} post={seed} onSave={handleAddPost} />;
 }
 
 async function readSeed(

@@ -216,7 +216,7 @@ export type AiBalanceResponse = z.infer<typeof aiBalanceResponseSchema>;
 export const COMPARE_MIN_MODELS = 2;
 export const COMPARE_PROMPT_MAX_LENGTH = 2000;
 // The options the chat's writing briefing asks for ({count}); a compare's prompt says its own.
-export const WRITING_TWEET_COUNT = 3;
+export const WRITING_TWEET_COUNT = 6;
 // Photos in one vision compare: each photo is a request per model, each model asked one photo at a
 // time (the vision route's rate limit is 600 a minute).
 export const VISION_COMPARE_MAX_PHOTOS = 50;
@@ -324,6 +324,8 @@ export const CHAT_LIMITS = {
   mentions: 30,
   mention: 80,
   posts: 10,
+  // The posts of a thread the context carries (`thread.posts`).
+  threadPosts: 25,
 } as const;
 
 // The chat's subject: a post open in the editor ('draft' a new one, 'edit' one of the user's posts)
@@ -331,16 +333,29 @@ export const CHAT_LIMITS = {
 export const chatSubjectKindSchema = z.enum(['draft', 'edit', 'post']);
 export type ChatSubjectKind = z.infer<typeof chatSubjectKindSchema>;
 
+// A thread the post belongs to: its posts' texts in order (each cut like `text`), and `index`, the
+// place of the post being written among them.
+export const chatThreadSchema = z
+  .object({
+    index: z.number().int().min(0),
+    posts: z.array(z.string().max(CHAT_LIMITS.text)).min(2).max(CHAT_LIMITS.threadPosts),
+  })
+  .refine((thread) => thread.index < thread.posts.length, 'The post being written is one of the thread');
+export type ChatThread = z.infer<typeof chatThreadSchema>;
+
 // What the chat is about, as the app sees it when it sends: the server fills the briefing with its
-// media, tags, mentions and `text` (the {caption}); `kind` is only the app's (ChatSubjectCard), the
-// default briefing doesn't name it. The app cuts `text` to CHAT_LIMITS.text (a post's text has no
-// cap) so a long caption never makes a 400.
+// media, tags, mentions (of every post of the thread), `text` (the {caption}: the post being
+// written) and `thread` (the {thread}, when the post is one of a thread); `kind` is only the app's
+// (ChatSubjectCard), the default briefing doesn't name it. The app cuts `text` to CHAT_LIMITS.text
+// (a post's text has no cap) so a long caption never makes a 400. `thread` is optional: older
+// builds don't send it.
 export const chatContextSchema = z.object({
   kind: chatSubjectKindSchema,
   text: z.string().max(CHAT_LIMITS.text),
   media: z.object({ photo: z.number().int().min(0), video: z.number().int().min(0) }),
   tags: z.array(assetTagSchema).max(CHAT_LIMITS.tags),
   mentions: z.array(z.string().min(1).max(CHAT_LIMITS.mention)).max(CHAT_LIMITS.mentions),
+  thread: chatThreadSchema.optional(),
 });
 export type ChatContext = z.infer<typeof chatContextSchema>;
 
@@ -361,15 +376,21 @@ export type ChatResponse = z.infer<typeof chatResponseSchema>;
 
 // The transcript so far: the user's turns and the assistant's replies, oldest first, ending with the
 // user's new turn. A user turn with `moreLikeThis` is More like this on an option (`content`): the
-// server puts the user's More like this instruction before it.
-export const chatTurnSchema = z.union([
-  z.object({
+// server puts the user's More like this instruction before it. One with `moreIdeas` is More after a
+// set of ideas, `content` the request they answered: the server puts the More instruction
+// (instructions.moreIdeas) before it. A turn is one or the other, never both. Both optional: older
+// builds send neither.
+export const chatUserTurnSchema = z
+  .object({
     role: z.literal('user'),
     content: z.string().trim().min(1).max(CHAT_LIMITS.message),
     moreLikeThis: z.boolean().optional(),
-  }),
-  chatReplySchema.extend({ role: z.literal('assistant') }),
-]);
+    moreIdeas: z.boolean().optional(),
+  })
+  .refine((turn) => !(turn.moreLikeThis && turn.moreIdeas), 'A turn is More like this or More, not both');
+export type ChatUserTurn = z.infer<typeof chatUserTurnSchema>;
+
+export const chatTurnSchema = z.union([chatUserTurnSchema, chatReplySchema.extend({ role: z.literal('assistant') })]);
 export type ChatTurn = z.infer<typeof chatTurnSchema>;
 
 export const chatRequestSchema = z.object({

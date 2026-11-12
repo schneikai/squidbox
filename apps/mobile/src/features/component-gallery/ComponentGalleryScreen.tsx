@@ -40,7 +40,8 @@ import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
+import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
+import type { IdeasRun } from '@/features/post-ideas/ideasRun';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
@@ -65,6 +66,28 @@ const GALLERY_TAGS = ['Hiking', 'Sunrise', 'Coast'];
 
 // The prompt buttons a library starts with, for the AssistantTray's row.
 const PROMPT_BUTTONS = DEFAULT_PROMPT_BUTTONS.slice(0, 4);
+
+// The AssistantTray's Chat, and its ideas while written and once they came.
+const CHAT_CHIP = <Chip variant="raised" icon="message-circle" label="Chat" onPress={noop} />;
+const WRITING_RUN: IdeasRun = {
+  name: 'Post ideas',
+  prompt: '',
+  isOwnIdeas: true,
+  items: [],
+  isWriting: true,
+  error: null,
+  canClose: false,
+  isFolded: false,
+};
+const IDEAS_RUN: IdeasRun = {
+  ...WRITING_RUN,
+  isWriting: false,
+  items: [
+    'Golden hour on the ridge. Worth the 5 am start, every single time.',
+    'Sunrise or sunset: which one gets you out of bed?',
+    'The trail was empty, the coffee was cold, and then the fog lifted all at once.',
+  ].map((text, index) => ({ replyId: 'gallery', index, text, isUsed: false })),
+};
 
 // A popover shown open, as if it had finished growing.
 const POPOVER_SHOWN = new Animated.Value(1);
@@ -187,7 +210,7 @@ export default function ComponentGalleryScreen() {
               onRemove={noop}
               removeLabel="Remove Sam Rivera"
             />
-            <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
+            <Chip variant="lead" icon="sparkle" label="Post ideas" onPress={noop} />
             <Chip variant="raised" icon="scissors" label="Shorter" onPress={noop} />
             <Chip variant="mixed" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
@@ -206,11 +229,23 @@ export default function ComponentGalleryScreen() {
             <Text>A card resting on the page, with text inside it.</Text>
           </Card>
         </Specimen>
-        <Specimen name="AssistantTray">
-          <AssistantTray title="Write with AI" trailing={<EditPromptButtonsButton />} style={styles.fill}>
-            <PromptButtonRow buttons={PROMPT_BUTTONS} onPress={noop}>
-              <Chip variant="lead" icon="sparkle" label="Ask anything" onPress={noop} />
-            </PromptButtonRow>
+        <Specimen name="AssistantTray: pick">
+          <AssistantTray title="Write with AI" trailing={CHAT_CHIP} style={styles.fill}>
+            <PromptButtonRow
+              buttons={PROMPT_BUTTONS}
+              onPress={noop}
+              lead={<Chip variant="lead" icon="sparkle" label="Post ideas" onPress={noop} />}
+            />
+          </AssistantTray>
+        </Specimen>
+        <Specimen name="AssistantTray: writing">
+          <AssistantTray title="Writing ideas…" isWorking trailing={CHAT_CHIP} style={styles.fill}>
+            <IdeasCarousel run={WRITING_RUN} onUse={null} onMore={noop} onRetry={noop} isBusy />
+          </AssistantTray>
+        </Specimen>
+        <Specimen name="AssistantTray: ideas">
+          <AssistantTray title="Ideas" trailing={CHAT_CHIP} style={styles.fill}>
+            <IdeasCarousel run={IDEAS_RUN} onUse={noop} onMore={noop} onRetry={noop} isBusy={false} />
           </AssistantTray>
         </Specimen>
         <Specimen name="OptionCard">

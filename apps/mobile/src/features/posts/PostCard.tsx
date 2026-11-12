@@ -1,19 +1,18 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { useCallback, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { type ReactNode, useCallback, useMemo, useRef } from 'react';
+import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
-import type { PostEditorKind } from './PostEditor';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import TextInput from '@/components/TextInput';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
-import WriteWithAi from '@/features/post-chat/WriteWithAi';
-import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
 import useMentionAutocomplete from '@/features/post-mentions/useMentionAutocomplete';
+import type { Point } from '@/lib/Point';
+import isPastTapSlop from '@/lib/isPastTapSlop';
 import { layout, scale, space } from '@/styles/designTokens';
 import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -27,7 +26,6 @@ export type PostCardData = PostCardContent & { key: string };
 export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'postAssets'>>;
 
 type PostCardProps = {
-  kind: PostEditorKind;
   card: PostCardData;
   isFirst: boolean;
   isActive: boolean;
@@ -35,19 +33,20 @@ type PostCardProps = {
   onChange: (key: string, changes: PostCardChange) => void;
   onActivate: (key: string) => void;
   onRemove?: (key: string) => void;
+  // The assistant's tray under the toolbar (the card being edited has it).
+  tray?: ReactNode;
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
  * One post of the post editor (`card`: { key, text, postAssets }): its text, the contacts an @handle
  * being typed may mean while it `isActive` (MentionSuggestions, a tap writes the handle), its photos
- * once it has any, the toolbar, and Write with AI while it `isActive` (the card being edited), whose
- * chat's Use fills this card. `autoFocus` puts the cursor in its text as it opens. `onChange(key,
+ * once it has any, the toolbar, and `tray` under it (the assistant's, IdeasTray). `autoFocus` puts the cursor in its text as it opens. `onChange(key,
  * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
  * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
- * (`onRemove(key)`), the last ⊕ (`onAddToThread`).
+ * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
+ * being edited (its tray shows), without the keyboard.
  */
 export default function PostCard({
-  kind,
   card,
   isFirst,
   isActive,
@@ -59,10 +58,13 @@ export default function PostCard({
   onActivate,
   onRemove,
   onAddToThread,
+  tray,
 }: PostCardProps) {
   const { key, text, postAssets } = card;
+  // Where a touch on the card began: a tap anywhere on it (a touch that ends near there, so scrolling
+  // the editor past it doesn't count) makes it the one being edited.
+  const touchStartRef = useRef<Point | null>(null);
   const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
-  const sessionId = useSubjectChat({ kind, text, postAssets, setText });
   const autocomplete = useMentionAutocomplete(text, setText);
   // The handle being typed in the card being edited, whose suggestions show.
   const mention = isActive ? autocomplete.mention : null;
@@ -76,12 +78,28 @@ export default function PostCard({
     onActivate(key);
   }
 
+  function handleTouchStart({ nativeEvent }: GestureResponderEvent) {
+    touchStartRef.current = { x: nativeEvent.pageX, y: nativeEvent.pageY };
+  }
+  function handleTouchEnd({ nativeEvent }: GestureResponderEvent) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (start && !isPastTapSlop(start, nativeEvent.pageX, nativeEvent.pageY)) activate();
+  }
+
   function addPostAssets(assets: AssetRecord[]) {
     onChange(key, { postAssets: [...postAssets, ...buildPostAssets(assets)] });
   }
 
   return (
-    <Card padded hasControlRow>
+    // Touches, not a press: they take nothing from the controls, the photos' drag or the tray's swipe.
+    <Card
+      padded
+      hasControlRow
+      onTouchStart={isActive ? undefined : handleTouchStart}
+      onTouchEnd={isActive ? undefined : handleTouchEnd}
+      onTouchCancel={() => (touchStartRef.current = null)}
+    >
       <View style={styles.top}>
         <TextInput
           multiline
@@ -119,7 +137,7 @@ export default function PostCard({
         onAddToThread={onAddToThread}
         onActivate={activate}
       />
-      {isActive && <WriteWithAi sessionId={sessionId} style={styles.writeWithAi} />}
+      {tray && <View style={styles.tray}>{tray}</View>}
     </Card>
   );
 }
@@ -140,7 +158,7 @@ const styles = StyleSheet.create({
   },
   // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
   // gap, and keeps the card's side inset below it.
-  writeWithAi: {
+  tray: {
     marginTop: layout.cardGap - layout.controlRowSlack,
     marginBottom: layout.cardInset - layout.controlRowSlack,
   },
