@@ -12,11 +12,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AccountButton from './AccountButton';
 import FloatingPill from './FloatingPill';
+import ToolbarTitle from './ToolbarTitle';
 
 import Button from '@/components/Button';
 import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
 import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
+
+// Scroll offsets (pt): the large title is gone by COMPACT_FROM, the small one fully in by COMPACT_TO.
+const COMPACT_FROM = 40;
+const COMPACT_TO = 64;
 
 export type FloatingHeaderProps = {
   title: string;
@@ -48,13 +53,23 @@ export default function FloatingHeader({
   const isSelectMode = selection?.isSelectMode ?? false;
 
   // ── Animated styles (must be called before any conditional return) ─────────
+  // As the list scrolls, the large title gives way to a small one in a pill (ToolbarTitle), so the tab
+  // keeps its name on screen over the content (HIG, Toolbars: a large title turns into a standard one).
   const titleStyle = useAnimatedStyle(() => {
-    const scrollOpacity = interpolate(scrollY.value, [0, 60], [1, 0], Extrapolation.CLAMP);
-    const scrollY_ = interpolate(scrollY.value, [0, 60], [0, -8], Extrapolation.CLAMP);
+    const scrollOpacity = interpolate(scrollY.value, [0, COMPACT_FROM], [1, 0], Extrapolation.CLAMP);
+    const scrollY_ = interpolate(scrollY.value, [0, COMPACT_FROM], [0, -8], Extrapolation.CLAMP);
     return {
       opacity: withTiming(isSelectMode ? 0 : scrollOpacity, motion.move),
       transform: [{ translateY: scrollY_ }, { translateX: withTiming(isSelectMode ? -24 : 0, motion.move) }],
       pointerEvents: isSelectMode ? 'none' : 'auto',
+    };
+  });
+
+  const compactTitleStyle = useAnimatedStyle(() => {
+    const progress = interpolate(scrollY.value, [COMPACT_FROM, COMPACT_TO], [0, 1], Extrapolation.CLAMP);
+    return {
+      opacity: isSelectMode ? withTiming(0, motion.move) : progress,
+      transform: [{ scale: interpolate(progress, [0, 1], [0.9, 1]) }],
     };
   });
 
@@ -83,6 +98,16 @@ export default function FloatingHeader({
       <Animated.Text style={[styles.title, titleStyle]} accessibilityRole="header">
         {title}
       </Animated.Text>
+
+      {/* Small title, once the list is scrolled */}
+      <Animated.View
+        style={[styles.compactTitle, compactTitleStyle]}
+        pointerEvents="none"
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      >
+        <ToolbarTitle title={title} />
+      </Animated.View>
 
       {/* Normal mode: action pill + account */}
       <Animated.View style={[styles.rightGroup, normalStyle]}>
@@ -119,6 +144,13 @@ const styles = StyleSheet.create({
     ...textStyles.title1,
     color: colors.text.primary,
     flex: 1,
+  },
+  compactTitle: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
   },
   rightGroup: {
     flexDirection: 'row',

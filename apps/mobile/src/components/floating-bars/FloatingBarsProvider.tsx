@@ -1,5 +1,4 @@
 import { type ReactNode, useState, useMemo } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
 
 import FloatingBarsContext, { type FloatingBarsValue } from './FloatingBarsContext';
 
@@ -14,9 +13,6 @@ export default function FloatingBarsProvider({ children }: FloatingBarsProviderP
   // selection change doesn't re-render every floating bar ─────────────────────────────────────
   const [isSelectMode, setIsSelectMode] = useState(false);
 
-  // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
-  const isNavBarHidden = useSharedValue(0); // 0 = visible, 1 = hidden
-
   // Memoized: the provider sits above the screens and re-renders with navigation and app-level
   // updates, which must not re-render every screen that uses the floating bars.
   const value = useMemo<FloatingBarsValue>(
@@ -28,11 +24,8 @@ export default function FloatingBarsProvider({ children }: FloatingBarsProviderP
       // Select mode
       isSelectMode,
       setIsSelectMode,
-
-      // Scroll animation values (passed to animated components)
-      isNavBarHidden,
     }),
-    [isSearchActive, isSelectMode, isNavBarHidden],
+    [isSearchActive, isSelectMode],
   );
 
   return <FloatingBarsContext value={value}>{children}</FloatingBarsContext>;

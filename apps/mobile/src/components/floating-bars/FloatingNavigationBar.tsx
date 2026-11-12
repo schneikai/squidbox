@@ -23,28 +23,22 @@ const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]))
 // The main tabs' bar (the tab navigator's `tabBar`), floating over the tab. Settings has none.
 export default function FloatingNavigationBar({ state }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { isNavBarHidden, isSearchActive, isSelectMode } = useFloatingBars();
+  const { isSearchActive, isSelectMode } = useFloatingBars();
 
   const activeTab = state.routes[state.index].name;
   const hideBar = isSearchActive || activeTab === 'settings' || isSelectMode;
 
-  // Toggle-driven: search / select / Settings — animated both ways via shared value
+  // Hidden only while search or select mode is on, and on Settings: never on scroll, so people always
+  // see which tab they're in (HIG, Tab bars).
   const contextHidden = useSharedValue(hideBar ? 1 : 0);
   useEffect(() => {
     contextHidden.value = withTiming(hideBar ? 1 : 0, hideBar ? motion.exit : motion.enter);
   }, [hideBar]);
 
   const navBarStyle = useAnimatedStyle(() => {
-    // Scroll-driven: isNavBarHidden is already animated at the source (scroll handler)
-    const scrollTranslate = interpolate(isNavBarHidden.value, [0, 1], [0, 100]);
-    const scrollOpacity = interpolate(isNavBarHidden.value, [0, 1], [1, 0]);
-    // Toggle-driven: search / select / Settings
-    const contextTranslate = interpolate(contextHidden.value, [0, 1], [0, 100]);
-    const contextOpacity = interpolate(contextHidden.value, [0, 1], [1, 0]);
-    // Most-hidden value wins
     return {
-      transform: [{ translateY: Math.max(scrollTranslate, contextTranslate) }],
-      opacity: Math.min(scrollOpacity, contextOpacity),
+      transform: [{ translateY: interpolate(contextHidden.value, [0, 1], [0, 100]) }],
+      opacity: interpolate(contextHidden.value, [0, 1], [1, 0]),
     };
   });
 

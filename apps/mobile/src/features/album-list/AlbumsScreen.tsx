@@ -6,7 +6,6 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
-import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import type { ReorderChange } from '@/components/sortable-grid/useDragReorder';
 import type { AlbumListProps } from '@/features/album-list/AlbumList';
@@ -25,6 +24,7 @@ import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import { layout } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 import pluralizeText from '@/utils/pluralizeText';
@@ -41,7 +41,7 @@ export default function AlbumsScreen() {
     onSort: sortAlbums,
   });
 
-  const { onScroll: scrollHandler, scrollY } = useFloatingBarScrollHandler();
+  const { onScroll: scrollHandler, scrollY } = useScrollY();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
   // Searching or filtering shows only the grid.

@@ -16,10 +16,10 @@ import IntroText from '@/components/IntroText';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
-import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useListControls from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import { layout } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
@@ -36,7 +36,7 @@ export default function ContactsScreen() {
   const { sortOrder, setSortOrder } = useContactSort('contacts');
   const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
-  const { onScroll: scrollHandler, scrollY } = useFloatingBarScrollHandler();
+  const { onScroll: scrollHandler, scrollY } = useScrollY();
 
   // Trimmed, so a trailing space doesn't read the list again.
   const isSearching = !!search;
