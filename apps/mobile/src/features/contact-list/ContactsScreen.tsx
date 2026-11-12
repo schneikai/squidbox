@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { type ListRenderItemInfo, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -47,19 +47,23 @@ export default function ContactsScreen() {
   const pinned = pin.pinned ?? null;
   const canChangePin = pin.canPinBuiltIn || !!pin.lists?.length;
   // Paged as the row scrolls: Tagged can hold nearly everyone.
-  const { rows: pinnedContacts, loadMore: loadMorePinned } = usePagedQuery(
-    contactQuery({ scope: pinned?.scope ?? 'favorites' }),
-    PINNED_PAGE_SIZE,
-    { isLive: !isSearching },
-  );
+  const {
+    rows: pinnedContacts,
+    isCurrent: isPinnedCurrent,
+    loadMore: loadMorePinned,
+  } = usePagedQuery(contactQuery({ scope: pinned?.scope ?? 'favorites' }), PINNED_PAGE_SIZE, { isLive: !isSearching });
+  // The tab first shows once the pin and its contacts are read too, so the pinned row doesn't land a moment
+  // after the list and push it down. From then on it stays: a new pin or search keeps the last rows until its own land.
+  const [isShown, setIsShown] = useState(false);
+  if (!isShown && rows && pin.pinned !== undefined && isPinnedCurrent) setIsShown(true);
   // The pinned row's header (its name, All lists) heads the tab whenever it isn't searching; the row under it once there
   // are contacts, even while it is empty, so its name can change it.
-  const hasPinnedHeader = !isSearching && !!pinnedContacts;
+  const hasPinnedHeader = isShown && !isSearching && !!pinnedContacts;
   const hasPinned = hasPinnedHeader && (pinnedContacts.length > 0 || !!pinned || !!count);
   const emptyTitle = builtInContactList(pinned?.id ?? 'favorites')?.emptyTitle ?? 'No contacts in this list yet';
   const pinnedEmptyText = pinned ? `${emptyTitle}.` : `${emptyTitle}. Double-tap a contact's photo to add one.`;
 
-  const data = rows ?? [];
+  const data = (isShown && rows) || [];
   const lastIndex = data.length - 1;
   // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
   const renderItem = useCallback(
@@ -87,14 +91,14 @@ export default function ContactsScreen() {
         ) : (
           <IntroText isScreenIntro>{pinnedEmptyText}</IntroText>
         ))}
-      {!!count && (
+      {isShown && !!count && (
         <ScreenSectionHeader
           title={pluralizeText('1 contact', `${count.toLocaleString()} contacts`, count)}
           size="small"
           isFirst={!hasPinnedHeader}
         />
       )}
-      {count === 0 && (
+      {isShown && count === 0 && (
         <EmptyState
           icon={isSearching ? 'search' : 'contacts'}
           title={isSearching ? 'No contacts match' : 'No contacts yet'}
