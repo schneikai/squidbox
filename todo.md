@@ -280,7 +280,7 @@ device justifies an iOS-only setting (web's OPFS storage measured slower with WA
 
 The app promises not to clutter the phone's storage, so check every place it writes and whether
 each is cleaned up: originals of uploaded assets (`assetFiles`, kept after upload?), thumbnails,
-cloud downloads for Save/Share (cache, swept after an hour), each library's SQLite database and
+cloud downloads for Share (cache, kept a day for reuse), each library's SQLite database and
 WAL, parked libraries (see below), the image and video players' caches, the picker's and the
 thumbnail makers' temporary copies (`pickImageFromMediaLibrary`, `createImageThumbnail`,
 `createVideoThumbnail`) and whatever a crash or kill leaves mid-write. Outcome: a list of what
