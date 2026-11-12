@@ -1,7 +1,8 @@
 /**
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
- * picsum.photos, stock videos with music from mixkit.co (all free to use, baked into
- * scripts/mock-videos by bake-mock-videos.sh), albums (including the smart Favorites/Deleted albums)
+ * picsum.photos and stock videos with music from mixkit.co (all free to use, baked into
+ * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
+ * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky, the people he shoots and
  * sells prints with (contacts, one with a photo, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
@@ -47,10 +48,9 @@ const email = process.env.SEED_USER_EMAIL;
 const password = process.env.SEED_USER_PASSWORD;
 
 const DAY = 24 * 60 * 60 * 1000;
-const FULL_SIZE = 2048;
-const THUMBNAIL_SIZE = 1000; // matches the app's createImageThumbnail
+const MOCK_PHOTOS = new URL('./mock-photos/', import.meta.url);
 const MOCK_VIDEOS = new URL('./mock-videos/', import.meta.url);
-// Mixkit clip ids, each baked into scripts/mock-videos.
+// Picsum photo ids and Mixkit clip ids, each baked into scripts/mock-photos or scripts/mock-videos.
 type MockMedia = ({ picsum: number } | { video: number }) & { deleted?: boolean };
 
 // Newest first, landscape and portrait photos mixed with videos. Albums and posts refer to media by
@@ -157,8 +157,8 @@ const POSTS: {
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
-// The people he hikes, shoots and sells prints with. `avatar`: a picsum id, uploaded as the contact's
-// photo; `on`: the photo (media index), album (ALBUMS index) or post (POSTS index) they are on.
+// The people he hikes, shoots and sells prints with. `avatar`: a picsum id baked into
+// scripts/mock-photos, uploaded as the contact's photo; `on`: the photo (media index), album (ALBUMS index) or post (POSTS index) they are on.
 const CONTACTS: {
   name: string;
   fields: Partial<ContactRecord>;
@@ -275,6 +275,11 @@ if (!['localhost', '127.0.0.1'].includes(new URL(API_URL).hostname)) {
 }
 
 const now = Date.now();
+// Full size per photo, as bake-mock-photos.sh fitted it.
+const photoInfo = JSON.parse(await readFile(new URL('photos.json', MOCK_PHOTOS), 'utf8')) as Record<
+  number,
+  { width: number; height: number }
+>;
 // Size and duration (ms) per clip, as bake-mock-videos.sh measured them.
 const videoInfo = JSON.parse(await readFile(new URL('videos.json', MOCK_VIDEOS), 'utf8')) as Record<
   number,
@@ -394,11 +399,7 @@ for (const [index, contact] of CONTACTS.entries()) {
   let avatarFilename: string | null = null;
   if (contact.avatar !== undefined) {
     avatarFilename = `avatar-${record.id}-1.jpg`;
-    await upload(
-      avatarFilename,
-      await download(`https://picsum.photos/id/${contact.avatar}/512/512.jpg`),
-      'image/jpeg',
-    );
+    await upload(avatarFilename, await readMockPhoto(`${contact.avatar}-avatar.jpg`), 'image/jpeg');
   }
   contacts.push({
     ...record,
@@ -487,16 +488,11 @@ async function createPhotoAsset(
   index: number,
   { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean },
 ): Promise<AssetRecord> {
-  const { width, height } = (await fetchJson(`https://picsum.photos/id/${picsumId}/info`)) as {
-    width: number;
-    height: number;
-  };
-  const full = fitWithin(width, height, FULL_SIZE);
-  const thumbnail = fitWithin(width, height, THUMBNAIL_SIZE);
-  const url = `https://picsum.photos/id/${picsumId}`;
+  const info = photoInfo[picsumId];
+  if (!info) throw new Error(`Mock photo ${picsumId} isn't baked: add it to scripts/bake-mock-photos.sh and run it`);
   const [file, thumbnailFile] = await Promise.all([
-    download(`${url}/${full.width}/${full.height}.jpg`),
-    download(`${url}/${thumbnail.width}/${thumbnail.height}.jpg`),
+    readMockPhoto(`${picsumId}.jpg`),
+    readMockPhoto(`${picsumId}-thumb.jpg`),
   ]);
   return {
     ...(await uploadMedia(index, `asset:${picsumId}`, {
@@ -508,8 +504,7 @@ async function createPhotoAsset(
     })),
     mediaLibraryAssetId: `mock-${picsumId}`,
     mediaType: 'photo',
-    width: full.width,
-    height: full.height,
+    ...info,
     duration: null,
   };
 }
@@ -592,9 +587,8 @@ function mockUuid(seed: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
-function fitWithin(width: number, height: number, maxSide: number) {
-  const scale = Math.min(1, maxSide / Math.max(width, height));
-  return { width: Math.round(width * scale), height: Math.round(height * scale) };
+function readMockPhoto(name: string): Promise<Buffer> {
+  return readFile(new URL(name, MOCK_PHOTOS));
 }
 
 function toMutations(recordsByCollection: Record<string, object[]>): PushMutation[] {
@@ -664,14 +658,4 @@ async function upload(key: string, bytes: Buffer, contentType: string): Promise<
     body: bytes,
   });
   if (!res.ok) throw new Error(`Upload of ${key} failed: ${res.status} ${await res.text()}`);
-}
-
-async function download(url: string): Promise<Buffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Download of ${url} failed: ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
-}
-
-async function fetchJson(url: string): Promise<unknown> {
-  return JSON.parse((await download(url)).toString());
 }

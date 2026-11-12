@@ -86,10 +86,12 @@ photo, in two lists, on a photo, an album and a post), and the assistant setup o
 buttons, Favorites, Instructions on the defaults). Ids are deterministic, so re-running resets the account to exactly that set. It refuses to run
 against a non-local API.
 
-The videos are committed in `scripts/mock-videos/`: Mixkit clips with a Mixkit music track under
-them, cut to 12 seconds, with their thumbnails and a `videos.json` of sizes and durations. To change
-the set, edit `scripts/bake-mock-videos.sh` (needs ffmpeg) and run it, then the `MEDIA` list in
-`scripts/seed-mock.ts`.
+The photos and videos are committed, so seeding needs no network. `scripts/mock-photos/` has the
+picsum photos at 2048 px with their thumbnails, the contact photos and a `photos.json` of sizes;
+`scripts/mock-videos/` has Mixkit clips with a Mixkit music track under them, cut to 12 seconds, with
+their thumbnails and a `videos.json` of sizes and durations. To change the set, edit
+`scripts/bake-mock-photos.sh` or `scripts/bake-mock-videos.sh` (both need ffmpeg) and run it, then
+the `MEDIA` or `CONTACTS` list in `scripts/seed-mock.ts`.
 
 `S3_PUBLIC_ENDPOINT` makes the server sign download URLs for a public address (Metro's tunnel) while
 it still talks to MinIO on localhost. `npm run dev:local` at the repo root sets it and starts the
