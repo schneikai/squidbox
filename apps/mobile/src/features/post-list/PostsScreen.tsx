@@ -18,7 +18,7 @@ export default function PostsScreen() {
     defaultSort: 'postedAt:desc',
   });
 
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll: scrollHandler, scrollY } = useFloatingBarScrollHandler();
 
   const query = postQuery({ scope: 'all', sort: sortOrder, search: searchText });
   const { rows, loadMore } = usePagedQuery(query, 20);
@@ -29,7 +29,7 @@ export default function PostsScreen() {
 
   return (
     <View testID="posts-screen" style={{ flex: 1 }}>
-      <FloatingHeader title="Posts" onAdd={handleAdd} />
+      <FloatingHeader title="Posts" scrollY={scrollY} onAdd={handleAdd} />
       <PostList
         listRef={listRef}
         rows={rows}

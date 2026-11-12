@@ -8,7 +8,6 @@ export type FloatingBarsValue = {
   setIsSearchActive: Dispatch<SetStateAction<boolean>>;
   isSelectMode: boolean;
   setIsSelectMode: Dispatch<SetStateAction<boolean>>;
-  scrollY: SharedValue<number>;
   isNavBarHidden: SharedValue<number>;
 };
 

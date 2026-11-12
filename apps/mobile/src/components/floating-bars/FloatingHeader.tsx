@@ -1,11 +1,16 @@
 import { useNavigation } from 'expo-router';
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, interpolate, Extrapolation, withTiming } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AccountButton from './AccountButton';
-import { useFloatingBars } from './FloatingBarsContext';
 import FloatingPill from './FloatingPill';
 
 import Button from '@/components/Button';
@@ -15,6 +20,8 @@ import { colors, layout, motion, space, textStyles } from '@/styles/designTokens
 
 export type FloatingHeaderProps = {
   title: string;
+  /** The screen's own scroll offset (useFloatingBarScrollHandler): the title fades as it scrolls. */
+  scrollY: SharedValue<number>;
   onAdd: () => void;
 } & (
   | {
@@ -27,11 +34,17 @@ export type FloatingHeaderProps = {
 
 // The main screens' header. `title` is the screen's title. A screen with select mode passes its `selection`
 // (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
-export default function FloatingHeader({ title, onAdd, selection, selectionActions, onDelete }: FloatingHeaderProps) {
+export default function FloatingHeader({
+  title,
+  scrollY,
+  onAdd,
+  selection,
+  selectionActions,
+  onDelete,
+}: FloatingHeaderProps) {
   const insets = useSafeAreaInsets();
   // Typed routes are off, so the tab's name goes untyped.
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
-  const { scrollY } = useFloatingBars();
   const isSelectMode = selection?.isSelectMode ?? false;
 
   // ── Animated styles (must be called before any conditional return) ─────────

@@ -15,7 +15,6 @@ export default function FloatingBarsProvider({ children }: FloatingBarsProviderP
   const [isSelectMode, setIsSelectMode] = useState(false);
 
   // ── Scroll-driven visibility (Reanimated shared values) ───────────────────
-  const scrollY = useSharedValue(0);
   const isNavBarHidden = useSharedValue(0); // 0 = visible, 1 = hidden
 
   // Memoized: the provider sits above the screens and re-renders with navigation and app-level
@@ -31,10 +30,9 @@ export default function FloatingBarsProvider({ children }: FloatingBarsProviderP
       setIsSelectMode,
 
       // Scroll animation values (passed to animated components)
-      scrollY,
       isNavBarHidden,
     }),
-    [isSearchActive, isSelectMode, scrollY, isNavBarHidden],
+    [isSearchActive, isSelectMode, isNavBarHidden],
   );
 
   return <FloatingBarsContext value={value}>{children}</FloatingBarsContext>;

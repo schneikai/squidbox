@@ -34,13 +34,13 @@ export default function AssetsScreen() {
     onSort: setLibrarySortOrder,
   });
 
-  const { setIsSelectMode, scrollY } = useFloatingBars();
+  const { setIsSelectMode } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
   useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
 
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll: scrollHandler, scrollY } = useFloatingBarScrollHandler();
 
   const { show, hide, updateProgress } = useProgressOverlay();
   const runWithProgress = useRunWithProgress();
@@ -74,6 +74,7 @@ export default function AssetsScreen() {
     <View testID="library-screen" style={{ flex: 1 }}>
       <FloatingHeader
         title="Library"
+        scrollY={scrollY}
         onAdd={handleAdd}
         selection={selection}
         selectionActions={actions}

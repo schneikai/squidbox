@@ -41,7 +41,7 @@ export default function AlbumsScreen() {
     onSort: sortAlbums,
   });
 
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll: scrollHandler, scrollY } = useFloatingBarScrollHandler();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
   // Searching or filtering shows only the grid.
@@ -90,7 +90,7 @@ export default function AlbumsScreen() {
 
   return (
     <View testID="albums-screen" style={{ flex: 1 }}>
-      <FloatingHeader title="Albums" onAdd={promptAddAlbum} />
+      <FloatingHeader title="Albums" scrollY={scrollY} onAdd={promptAddAlbum} />
       <SortableAlbumList
         listRef={listRef}
         albums={albums}

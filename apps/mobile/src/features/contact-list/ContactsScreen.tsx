@@ -36,7 +36,7 @@ export default function ContactsScreen() {
   const { sortOrder, setSortOrder } = useContactSort('contacts');
   const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll: scrollHandler, scrollY } = useFloatingBarScrollHandler();
 
   // Trimmed, so a trailing space doesn't read the list again.
   const isSearching = !!search;
@@ -106,7 +106,7 @@ export default function ContactsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <FloatingHeader title="Contacts" onAdd={() => router.navigate('/new-contact')} />
+      <FloatingHeader title="Contacts" scrollY={scrollY} onAdd={() => router.navigate('/new-contact')} />
       <Animated.FlatList
         ref={attachList}
         data={data}
