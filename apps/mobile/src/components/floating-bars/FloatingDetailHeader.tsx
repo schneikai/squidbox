@@ -1,15 +1,17 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
 import ToolbarTitle from './ToolbarTitle';
+import useSelectModeProgress from './useSelectModeProgress';
 import useTitleMaxWidth from './useTitleMaxWidth';
+import useTitleReveal, { type TitleReveal } from './useTitleReveal';
 
 import Button from '@/components/Button';
 import useSheetRoute from '@/hooks/useSheetRoute';
-import { layout, motion, space } from '@/styles/designTokens';
+import { layout, sizes, space } from '@/styles/designTokens';
 
 export type FloatingDetailHeaderProps = {
   title?: string;
@@ -17,6 +19,9 @@ export type FloatingDetailHeaderProps = {
   onBack: () => void;
   menuSlot?: ReactNode;
   isSelectMode?: boolean;
+  /** For a screen whose title is in the page (with useScreenPadding('detail')): the list's offset, and
+   * where that title ends, from the content's top. The title pill shows once it has gone under the bar. */
+  titleReveal?: TitleReveal;
   children?: ReactNode;
 };
 
@@ -32,6 +37,7 @@ export type FloatingDetailHeaderProps = {
  *   onBack       — called when the back chevron is pressed (× when the screen opens a sheet)
  *   menuSlot     — element(s) rendered inside the right FloatingPill
  *   isSelectMode — when true, back + info animate out to the left
+ *   titleReveal  — the title shows only once the page's own title has scrolled away
  *   children     — centred under the row (a note about what the screen shows)
  */
 export default function FloatingDetailHeader({
@@ -40,6 +46,7 @@ export default function FloatingDetailHeader({
   onBack,
   menuSlot,
   isSelectMode = false,
+  titleReveal,
   children,
 }: FloatingDetailHeaderProps) {
   const insets = useSafeAreaInsets();
@@ -47,24 +54,40 @@ export default function FloatingDetailHeader({
   const closesSheet = useSheetRoute()?.isFirstScreen ?? false;
   const { maxWidth, onRowLayout, onLeftLayout, onRightLayout } = useTitleMaxWidth();
 
+  const selectProgress = useSelectModeProgress(isSelectMode);
   const leftStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
-    transform: [{ translateX: withTiming(isSelectMode ? -24 : 0, motion.move) }],
+    opacity: 1 - selectProgress.value,
+    transform: [{ translateX: -24 * selectProgress.value }],
   }));
+
+  // The page's content starts at useScreenPadding('detail')'s top, below this bar: its title has gone
+  // under the bar once it has scrolled that gap further than where it ends.
+  const top = Math.max(insets.top + space.sm, layout.barMargin);
+  const gapUnderBar = insets.top + layout.contentTop - (top + sizes.iconButton);
+  const titleArea = useTitleReveal(
+    titleReveal && { scrollY: titleReveal.scrollY, from: titleReveal.from + gapUnderBar },
+    selectProgress,
+  );
 
   return (
     <View
       // Inside a modal sheet the top safe-area inset is ~0, so insets.top + space.sm would leave the
       // pills hugging the sheet's top edge. Floor the offset at layout.barMargin so it matches
       // ModalHeader's top gap in sheets, while full screens (large insets.top) keep insets.top + space.sm.
-      style={[styles.container, { top: Math.max(insets.top + space.sm, layout.barMargin) }]}
+      style={[styles.container, { top }]}
       pointerEvents="box-none"
     >
       <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
         {/* Centre — rendered first so it sits below the pills in z-order;
           pointerEvents="none" ensures touches pass through to the pills above */}
-        {(!!title || !!subtitle) && (
-          <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
+        {(!!title || !!subtitle) && titleArea.isMounted && (
+          <Animated.View
+            style={[styles.infoArea, titleArea.style]}
+            pointerEvents="none"
+            // A scroll-revealed title repeats the page's own, which screen readers already read.
+            accessibilityElementsHidden={!!titleReveal}
+            importantForAccessibility={titleReveal ? 'no-hide-descendants' : 'auto'}
+          >
             <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
           </Animated.View>
         )}

@@ -64,7 +64,7 @@ export default function AssetList({
   );
 
   // Track scroll offset internally when the screen doesn't already provide a
-  // handler (e.g. album detail). When one is provided (library floating bars) we
+  // handler. When one is provided (a screen's useScrollY, for its header) we
   // reuse its shared value so drag-select reads an always-current offset.
   const internal = useScrollY();
   const effectiveScrollY = scrollY ?? internal.scrollY;

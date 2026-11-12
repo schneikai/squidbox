@@ -100,7 +100,7 @@ export default function SortableGrid<Row extends GridRow>({
 
   const { headerView, cellsTop } = useScrollingHeader(header, paddingTop);
 
-  // The grid's own offset: a screen's shared one (the floating bars') is reset on tab switches.
+  // The grid's own offset, for the window of mounted cells and the drag gestures.
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollY = useSharedValue(0);
   // Within two screens of the end: ask for the next page on arriving there and again whenever the

@@ -27,6 +27,7 @@ import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionAct
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import { layout, space } from '@/styles/designTokens';
 import type { AssetSort } from '@/sync/assetSql';
 import { countByMediaType } from '@/sync/assetsRepository';
@@ -77,12 +78,15 @@ export default function Album({ album }: AlbumProps) {
 
   const actions = useAssetSelectionActions(selection, query, count);
   const isSmart = isSmartAlbum(album);
+  // The header bar shows the album's name once the name in the page has scrolled under it.
+  const { onScroll, scrollY } = useScrollY();
+  const [nameEnd, setNameEnd] = useState(0);
   // The album's name, its contacts and its posts, scrolling away with the grid: the same element
   // while they are, so a selection or a keystroke doesn't render it again.
   const header = useMemo(
     () => (
       <View style={styles.header}>
-        <AlbumHeader album={album} assetCount={albumCount} />
+        <AlbumHeader album={album} assetCount={albumCount} onNameEnd={setNameEnd} />
       </View>
     ),
     [album, albumCount],
@@ -147,6 +151,8 @@ export default function Album({ album }: AlbumProps) {
   return (
     <Page testID="album-screen">
       <FloatingDetailHeader
+        title={album.name}
+        titleReveal={{ scrollY, from: nameEnd }}
         onBack={() => navigation.goBack()}
         isSelectMode={isSelectMode}
         menuSlot={
@@ -184,6 +190,8 @@ export default function Album({ album }: AlbumProps) {
           paddingTop={paddingTop}
           paddingBottom={paddingBottom}
           header={header}
+          onScroll={onScroll}
+          scrollY={scrollY}
           selectAssets={selectAssets}
           isSortable={!isSmart}
           reorderEnabled={reorderEnabled}
