@@ -4,26 +4,29 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import ChatTagsSheet from './ChatTagsSheet';
 import EditableLine from './EditableLine';
 import postTags from './postTags';
+import seesLine from './seesLine';
 import type { LiveChat } from './useChatSession';
+import type { ChatTagging } from './useChatTags';
 import type { ListEdits } from './withEdits';
 
 import Button from '@/components/Button';
 import IntroText from '@/components/IntroText';
-import type { AssetTagging } from '@/features/photo-tags/useAssetTags';
 import { colors, space } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
 import pluralizeText from '@/utils/pluralizeText';
 
-type ItSeesRowProps = Pick<AssetTagging, 'attempts' | 'isTagging' | 'untagged'> & {
-  rows: NonNullable<AssetTagging['rows']>;
+type ItSeesRowProps = Pick<ChatTagging, 'attempts' | 'isTagging' | 'untagged'> & {
+  rows: NonNullable<ChatTagging['rows']>;
   tagEdits: ListEdits;
   onEditTags: LiveChat['editTags'];
-  onRetry: AssetTagging['retry'];
+  onRetry: ChatTagging['retry'];
+  // The assistant's violet, inside its tray (EditableLine's).
+  tone?: 'accentSoft';
 };
 
 /**
  * What the assistant sees in the chat's photos (`rows`, the live assets, their `attempts` and
- * `isTagging` and `untagged`, as useAssetTags gives them), as grey lines: "Sees" and the post's tags
+ * `isTagging` and `untagged`, as useChatTags gives them), as grey lines: "Sees" and the post's tags
  * the chat sends (postTags, with the chat's `tagEdits`), a tap opening ChatTagsSheet to edit them
  * (`onEditTags({ add, remove })`, the chat's editTags; the post's tags only, never the photos');
  * "Looking at the photos…" while any is tagged; the photos whose tagging failed, with Retry
@@ -38,6 +41,7 @@ export default function ItSeesRow({
   tagEdits,
   onEditTags,
   onRetry,
+  tone,
 }: ItSeesRowProps) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -46,8 +50,8 @@ export default function ItSeesRow({
     const attempt = attempts[row.id];
     return row.tags === null && attempt?.status === 'error' ? [{ id: row.id, error: attempt.error }] : [];
   });
-  const isTagged = rows.some((row) => row.tags !== null);
   const tags = postTags(rows, tagEdits);
+  const tagsText = seesLine(rows, isTagging, tags);
 
   function retryAll(list: readonly Pick<AssetRow, 'id'>[]) {
     for (const row of list) onRetry(row.id);
@@ -55,20 +59,22 @@ export default function ItSeesRow({
 
   return (
     <>
-      {(isTagged || !isTagging) && (
-        <EditableLine label="Sees" editHint="Edits the tags" onPress={() => setIsEditing(true)}>
-          {tags.length > 0 ? tags.join(', ') : 'no tags'}
+      {tagsText !== null && (
+        <EditableLine label="Sees" editHint="Edits the tags" onPress={() => setIsEditing(true)} tone={tone}>
+          {tagsText}
         </EditableLine>
       )}
       {isTagging && (
         <View style={styles.line}>
-          <ActivityIndicator size="small" color={colors.text.secondary} />
-          <IntroText style={styles.text}>Looking at the photos…</IntroText>
+          <ActivityIndicator size="small" color={tone ? colors.accent.soft : colors.text.secondary} />
+          <IntroText tone={tone} style={styles.text}>
+            Looking at the photos…
+          </IntroText>
         </View>
       )}
       {failed.length > 0 && !isTagging && (
         <View style={styles.line}>
-          <IntroText style={styles.text}>
+          <IntroText tone={tone} style={styles.text}>
             {pluralizeText("Couldn't tag %{count} photo", "Couldn't tag %{count} photos", failed.length)}
             {failed.length === 1 && failed[0].error ? `: ${failed[0].error}` : ''}
           </IntroText>
@@ -77,7 +83,9 @@ export default function ItSeesRow({
       )}
       {untagged.length > 0 && !isTagging && (
         <View style={styles.line}>
-          <IntroText style={styles.text}>Not tagged</IntroText>
+          <IntroText tone={tone} style={styles.text}>
+            Not tagged
+          </IntroText>
           <Button label="Tag" icon="sparkle" size="small" onPress={() => retryAll(untagged)} />
         </View>
       )}

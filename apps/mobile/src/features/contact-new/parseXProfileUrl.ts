@@ -1,34 +1,17 @@
-import { CONTACT_HANDLE_BY_FIELD, X_HANDLE_PATTERN } from '@squidbox/shared';
-
-// The hosts an X profile is linked from (CONTACT_HANDLES, which normalizeHandle strips too).
-const X_HOSTS = CONTACT_HANDLE_BY_FIELD.xHandle.hosts;
-// What follows the host in a profile link: an X handle, then nothing but a query or fragment. A
-// post's link has more path.
-const PROFILE_PATH = new RegExp(String.raw`^@?(${X_HANDLE_PATTERN.source})\/?(?:[?#].*)?$`);
-// Paths of x.com that are pages, not profiles.
-const NOT_PROFILES = new Set([
-  'home',
-  'explore',
-  'search',
-  'notifications',
-  'messages',
-  'settings',
-  'i',
-  'intent',
-  'share',
-]);
+import { parseHandle } from '@squidbox/shared';
 
 /**
- * The profile an X link points at (`https://x.com/MayaL?s=21`, a twitter.com one too): `{ handle,
- * url }` with the handle lowercased, or null for anything else (a post's link, another site).
+ * The profile an X link points at (`https://x.com/MayaL?s=21`, a twitter.com one or a post's link
+ * too, parseHandle): `{ handle, url }` with the handle's case as in the link, or null for anything
+ * else (a page of X that is no profile, another site, a handle typed without a link).
  */
 export type XProfileLink = { handle: string; url: string };
 
 export default function parseXProfileUrl(text: string | null | undefined): XProfileLink | null {
-  const url = text?.trim();
-  const address = url?.match(/^https?:\/\/(?:www\.)?(.*)$/i)?.[1];
-  const host = address && X_HOSTS.find((prefix) => address.toLowerCase().startsWith(prefix));
-  const handle = host ? address.slice(host.length).match(PROFILE_PATH)?.[1] : undefined;
-  if (!url || !handle || NOT_PROFILES.has(handle.toLowerCase())) return null;
-  return { handle: handle.toLowerCase(), url };
+  const url = text?.trim() ?? '';
+  const parsed = parseHandle(url, 'xHandle');
+  // The clipboard holds a link with its scheme (parseHandle adds one to a link typed without), not a
+  // handle or an address someone typed.
+  if (parsed.kind !== 'link' || parsed.url !== url || parsed.field !== 'xHandle' || !parsed.handle) return null;
+  return { handle: parsed.handle, url };
 }

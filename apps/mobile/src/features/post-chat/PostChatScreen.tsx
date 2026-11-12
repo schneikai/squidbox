@@ -1,6 +1,6 @@
 import type { NewPromptButton } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
+import { type ComponentRef, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
@@ -9,16 +9,19 @@ import ChatComposer from './ChatComposer';
 import ChatSubjectCard from './ChatSubjectCard';
 import SystemMessageSheet from './SystemMessageSheet';
 import UserMessage from './UserMessage';
-import type { AssistantChatMessage, ChatMessage, ChatSeed } from './chatSessions';
-import promptTurn from './promptTurn';
+import { type AssistantChatMessage, type ChatMessage, type ChatSeed, canUseFor } from './chatSessions';
+import promptSeed from './promptSeed';
 import type { LiveChat } from './useChatSession';
 import usePostChat, { type PostChatState } from './usePostChat';
 import useWritingModelName from './useWritingModelName';
+import usedNote from './usedNote';
 
 import Button from '@/components/Button';
+import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
 import ModalHeader, { type ModalHeaderProps } from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
+import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
@@ -35,61 +38,46 @@ import confirmAsync from '@/utils/confirmAsync';
 const ASK_ANYTHING = 'Ask anything';
 const WRITING_AS_YOU = 'Writing as you';
 
-export type ChatParams = { sessionId: string; label?: string; prompt?: string };
+export type ChatParams = { sessionId: string };
 
 /**
- * The assistant chat about the post being written (`sessionId`, the editor's chat; `label` and
- * `prompt`, a prompt button's name and prompt, wait in the composer): what it's about (ChatSubjectCard,
- * left out for a new post without photos yet), the user's turns and the assistant's replies with
- * their options, and the prompt buttons over the composer, a tap putting the prompt in it
- * (usePostChat does the sending). Use puts an option into the caption and goes back to the editor.
- * The chat lasts while the editor or the post's screen is open; a posted post's options have Copy.
+ * The assistant chat about the post being written and its thread (`sessionId`, the editor's one
+ * chat, or the post screen's): what it's about (ChatSubjectCard, left out for a new post without
+ * photos yet), every turn so far (the tray's ideas and More among them) with the post it wrote for
+ * named where that changes in a thread, the assistant's replies with their options, and the prompt
+ * buttons over the composer, a tap putting the prompt in it; the composer writes for the post being
+ * edited (usePostChat does the sending). Use puts an option into the post its turn wrote for and goes
+ * back to the editor. The chat lasts while the editor or the post's screen is open; a posted post's
+ * options, and a removed post's, have Copy. Opening it tags its photos never tagged.
  */
 export default function PostChatScreen() {
-  const { sessionId, label, prompt } = useLocalSearchParams<ChatParams>();
+  const { sessionId } = useLocalSearchParams<ChatParams>();
   const userId = useAvailableUserId();
-  const postChat = usePostChat(sessionId);
+  const postChat = usePostChat(sessionId, { tagsOnOpen: true });
   useCloseWhen(postChat.chat === null);
 
   const { chat } = postChat;
 
   if (userId === null || !chat) return null;
 
-  return <PostChat {...postChat} chat={chat} userId={userId} label={label} prompt={prompt} />;
+  return <PostChat {...postChat} chat={chat} userId={userId} />;
 }
 
-type PostChatProps = Omit<PostChatState, 'chat'> & { chat: LiveChat; userId: string } & Pick<
-    ChatParams,
-    'label' | 'prompt'
-  >;
+type PostChatProps = Omit<PostChatState, 'chat'> & { chat: LiveChat; userId: string };
 
 // The open chat: everything the screen shows once it has one.
-function PostChat({
-  chat,
-  assets,
-  tagging,
-  mentions,
-  send,
-  moreLikeThis,
-  retry,
-  userId,
-  label,
-  prompt,
-}: PostChatProps) {
+function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, userId }: PostChatProps) {
   const navigation = useNavigation();
   const haptics = useHaptics();
   const buttons = usePromptButtons();
   // What waits in the composer: a new `key` remounts it with the prompt a button put there.
-  const [seed, setSeed] = useState<{ key: number; turn: ChatSeed | undefined }>(() => ({
-    key: 0,
-    turn: prompt ? { label, content: prompt } : undefined,
-  }));
+  const [seed, setSeed] = useState<{ key: number; turn: ChatSeed | undefined }>({ key: 0, turn: undefined });
   const isAiAdmin = useHasFeature('ai_admin');
   const [isSystemMessageOpen, setIsSystemMessageOpen] = useState(false);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const shouldScrollRef = useRef(false);
   const bottomInset = useKeyboardInset();
-  const { messages } = chat;
+  const { messages, targets, activeTarget } = chat;
 
   // A new turn or a reply that landed: show the end of the chat once it's laid out.
   useEffect(() => {
@@ -105,19 +93,52 @@ function PostChat({
   const systemMessage = messages.findLast(hasSystemMessage)?.systemMessage ?? null;
   // A new post's card would say only "New post" until it has photos.
   const hasSubject = chat.kind !== 'draft' || assets.length > 0;
-  const { applyText, canApply } = chat;
+  const { use } = chat;
+  // A thread names the post each turn wrote for, where that changes.
+  const isThread =
+    targets.length > 1 || messages.some((message) => message.role === 'user' && !targets.includes(message.target));
+  // The user's turns for another post than the turn before them (the first among them).
+  const postChanges = useMemo(() => {
+    const ids = new Set<string>();
+    let previous: string | null = null;
+    for (const message of messages) {
+      if (message.role !== 'user') continue;
+      if (message.target !== previous) ids.add(message.id);
+      previous = message.target;
+    }
+    return ids;
+  }, [messages]);
+  // More like this writes for the post the option was written for: one callback per post, so the
+  // replies keep theirs (memo).
+  const moreLikeThisFor = useMemo(() => {
+    const byTarget = new Map<string, (text: string) => void>();
+    return (target: string) => {
+      if (!byTarget.has(target)) byTarget.set(target, (text) => moreLikeThis(text, target));
+      return byTarget.get(target)!;
+    };
+  }, [moreLikeThis]);
 
   const handleUse = useCallback(
-    (text: string) => {
-      applyText(text);
+    (replyId: string, index: number) => {
+      use(replyId, index);
       haptics.success();
       navigation.goBack();
     },
-    [applyText, haptics, navigation],
+    [use, haptics, navigation],
   );
 
   function handlePromptButton(button: NewPromptButton) {
-    setSeed((current) => ({ key: current.key + 1, turn: promptTurn(button) }));
+    setSeed((current) => ({ key: current.key + 1, turn: promptSeed(button) }));
+  }
+
+  function handleSend(turn: Required<ChatSeed>) {
+    return activeTarget !== null && send({ ...turn, kind: 'message', target: activeTarget });
+  }
+
+  // The post's number from 1 in the thread, null outside one or once it was removed.
+  function postNumber(target: string) {
+    const at = targets.indexOf(target);
+    return isThread && at !== -1 ? at + 1 : null;
   }
 
   // There is no chat history yet, so a cleared chat is gone for good: ask, unless it's empty.
@@ -135,7 +156,7 @@ function PostChat({
   }
 
   return (
-    <ModalSheet>
+    <ModalSheet testID="post-chat">
       <ChatHeader
         isAiAdmin={isAiAdmin}
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
@@ -163,6 +184,7 @@ function PostChat({
         {hasSubject && (
           <ChatSubjectCard
             kind={chat.kind}
+            postCount={targets.length}
             assets={assets}
             tagging={tagging}
             tagEdits={chat.tagEdits}
@@ -171,19 +193,35 @@ function PostChat({
             onEditMentions={chat.editMentions}
           />
         )}
-        {messages.map((message, index) =>
-          message.role === 'user' ? (
-            <UserMessage key={message.id} label={message.label} content={message.content} userId={userId} />
-          ) : (
+        {messages.map((message, index) => {
+          if (message.role === 'user') {
+            const isNewPost = isThread && postChanges.has(message.id);
+            const number = postNumber(message.target);
+            return (
+              <Fragment key={message.id}>
+                {isNewPost && (
+                  <PostDivider title={number === null ? 'A removed post' : `Post ${number} of the thread`} />
+                )}
+                <UserMessage label={message.label} content={message.content} userId={userId} />
+              </Fragment>
+            );
+          }
+          const turn = messages[index - 1];
+          const target = turn?.role === 'user' ? turn.target : null;
+          const isLive = target !== null && targets.includes(target);
+          return (
             <AssistantMessage
               key={message.id}
               reply={message}
               onRetry={message === last ? retry : null}
-              onMoreLikeThis={moreLikeThis}
-              onUse={canApply ? handleUse : null}
+              onMoreLikeThis={isLive ? moreLikeThisFor(target) : null}
+              onUse={target !== null && canUseFor(chat, target) ? handleUse : null}
+              usedNote={
+                message.usedOption === null || target === null ? null : usedNote(message.usedOption, postNumber(target))
+              }
             />
-          ),
-        )}
+          );
+        })}
       </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
         <PromptButtonRow buttons={buttons ?? []} onPress={handlePromptButton}>
@@ -196,7 +234,7 @@ function PostChat({
             placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
             disabled={chat.isSending}
             isWaiting={chat.isWaiting}
-            onSend={send}
+            onSend={handleSend}
           />
         </View>
       </Animated.View>
@@ -206,6 +244,19 @@ function PostChat({
         systemMessage={systemMessage}
       />
     </ModalSheet>
+  );
+}
+
+type PostDividerProps = { title: string };
+
+// Where the chat's turns go on to another post of the thread: its name between two lines.
+function PostDivider({ title }: PostDividerProps) {
+  return (
+    <View style={styles.divider}>
+      <Divider variant="menuRow" style={styles.dividerLine} />
+      <Text variant="hint">{title}</Text>
+      <Divider variant="menuRow" style={styles.dividerLine} />
+    </View>
   );
 }
 
@@ -248,5 +299,13 @@ const styles = StyleSheet.create({
   },
   composerInset: {
     paddingHorizontal: SCREEN_PADDING,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  dividerLine: {
+    flex: 1,
   },
 });

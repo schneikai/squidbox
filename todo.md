@@ -24,11 +24,22 @@ remove the account's copy; unsynced changes need a warning first so nothing is l
 
 ## Features
 
+### [ ] Record which builds are installed, before the App Store launch
+
+Every request names its build and install (`x-squidbox-client: <commit> <device>`,
+`apps/mobile/src/utils/cloud-api/clientHeader.ts`, name in `packages/shared/contracts/client.ts`);
+the server ignores it (`apps/server/src/auth/authenticate.ts`). Before other people install the app:
+a `devices` table written per account and install from the header, and a script listing them
+(device, account, build, first and last seen), so a build's contract snapshot
+(`docs/sync-design.md` §15) is retired only once no device runs it. Until then the owner is the
+only user and knows his phone's build.
+
 ### [ ] Search suggestions as you type, like Apple Photos
 
 Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
 matching terms above the field, each with how many assets it finds (Apple Photos: "mvp 3",
-"mvz 1"). Terms would come from the words of the assets' notes, which is what `assetQuery` searches.
+"mvz 1"). Terms would come from the words of the assets' notes, tags and tagged contacts' names,
+which is what `assetQuery` searches.
 
 ### [ ] Share several assets at once
 
@@ -125,6 +136,21 @@ which handle the link itself is. Needs SSRF guards for user-given URLs (no priva
 and time caps) and a photo from any host. Pages behind a login wall (Instagram, OnlyFans, X's hidden
 profiles) get the "try From screenshot" alert. X may keep its own page read, as its data is cleaner.
 
+### [ ] Look places up in a place database
+
+A contact's place is matched only against the user's own contacts (`citySuggestions`,
+`autofillPlace`, `filledFrom`'s spelling step), so a new library gets places as the AI reads them
+(no state outside the US) and a messy one copies its most used spelling, even a wrong one. Looking
+cities up in a real place database (Apple Maps' place search or similar) would give official names
+and states for both. Investigation: `contact-locations-cleanup/autofill-proposal.md` in the project
+files.
+
+### [ ] Merge places in Settings
+
+A screen that lists the places the contacts use, with their counts, and merges spellings and copies
+of one place into one (as the one-off cleanup of Nov 10 did by script), so a messy library can be
+cleaned up in the app.
+
 ### [ ] Saved assistant chats
 
 Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`) lives only while
@@ -211,17 +237,11 @@ The chat's Mentions sheet lists every handle the owner ever mentioned: while it'
 with an @, again on each post change, and `extractHandles` parses them all. Fine now, but costly
 with thousands of posts. Keeping the handles with their counts in a table would avoid it.
 
-### [ ] Bump INSTALLED with each preview build
-
-`INSTALLED` in `apps/mobile/test/mainClient.e2e.test.ts` is the commit of the preview build on the
-owner's phone (b8171cf): move it to the new build's commit whenever a preview build is installed, so
-the suite tests the real upgrade path.
-
 ### [ ] Drop the outbox's whole-record rows
 
 `outbox.whole_record` (`sync/db/schema.ts`, the `fields` it leaves out in `sync/worker.ts`) exists
 only for rows queued by a build before per-field sync (0011_outbox_fields). The phone is past it
-and mainClient.e2e no longer covers it: a migration can drop the column once no such row can be left.
+and installedBuilds.e2e no longer covers it: a migration can drop the column once no such row can be left.
 
 ### [ ] Widen what CI checks
 
@@ -386,6 +406,13 @@ deleted or restored.
 
 ## Ideas
 
+- **Album search by tags (maybe).** The album search (`albumSearchQuery`, `matchedAlbumIds`) matches
+  an album's name, notes and the contacts on its photos, not the assistant's tags. Broad tags ("sky",
+  "trail") would match nearly every album; if wanted, count a tag only when it's on a good share of
+  the album's photos. Apple and Google Photos also find albums by name only.
+- **Post search by tagged contacts (maybe).** The post search (`postQuery` `matchedIds`) matches only
+  the post's text (an @mention included). Matching the contacts tagged on its photos, as the album
+  search does (`contactAlbumIds`), would find a post by the person in it.
 - **Backup progress ring.** The Backup screen shows a running backup as "sent / total" text.
   `components/ProgressRing` (now a shared component, used by the progress overlay) could show it
   there too. Owner to decide.

@@ -6,6 +6,7 @@ import Chip from '@/components/Chip';
 import Icon from '@/components/Icon';
 import SuperPressable from '@/components/SuperPressable';
 import Text from '@/components/Text';
+import albumAssetCountText from '@/features/album-list/albumAssetCountText';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import useAlbums from '@/features/albums-context/useAlbums';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
@@ -23,6 +24,9 @@ const STACKED = 3;
 type AlbumHeaderProps = {
   album: AlbumRow;
   assetCount: number | undefined;
+  /** Where the name ends, from the header's top (the name is its first line): the screen's header
+   * shows the name once it has scrolled past there. */
+  onNameEnd?: (y: number) => void;
 };
 
 /**
@@ -33,7 +37,7 @@ type AlbumHeaderProps = {
  * contacts chip. The name, the line under it and the notes open Edit album; a double-tap on the name or
  * the line under it stars or unstars it.
  */
-export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
+export default function AlbumHeader({ album, assetCount, onNameEnd }: AlbumHeaderProps) {
   const { toggleFavoriteAlbum } = useAlbums();
   const isSmart = isSmartAlbum(album);
   // A smart album has no contacts of its own: read once, not kept live.
@@ -46,7 +50,7 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   const names = people?.map((contact) => contact.name) ?? [];
   const lastPostedAt = posts.rows?.[0]?.postedAt ?? null;
   const details = [
-    pluralizeText('1 Asset', '%{count} Assets', assetCount ?? 0),
+    albumAssetCountText(assetCount ?? 0),
     ...(posts.rows ? [albumLastPostedText({ lastPostedAt })] : []),
   ].join(' · ');
 
@@ -69,7 +73,12 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   return (
     <View style={styles.header}>
       <View>
-        <SuperPressable {...nameTaps} style={({ pressed }) => pressed && press.flat} accessibilityRole="header">
+        <SuperPressable
+          {...nameTaps}
+          style={({ pressed }) => pressed && press.flat}
+          accessibilityRole="header"
+          onLayout={(e) => onNameEnd?.(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+        >
           <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
             {album.name}
           </NativeText>

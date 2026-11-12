@@ -51,15 +51,18 @@ All paths are under `apps/mobile/src/`.
     `favorite`), `isSelected` a toggle that is on, `isInverse` a dark surface. A close is
     `icon="close"`. `MenuButton` (a Button trigger from Button props, or a custom `trigger`) with
     `popup-menu-options/MenuOption` (anchored menus). `Chip` for tags (`variant` `tag`, `action`,
-    `raised`, `lead`, `add`, with `isSelected`); `raised` and `lead` are the assistant's (CLAUDE.md).
+    `raised`, `lead`, `add`, with `isSelected`); `raised` and `lead` are the assistant's (CLAUDE.md): `lead` is the post's own ideas leading the tray's row (Post ideas, Repost ideas).
   - Text: `Text` with `variant` `reading` (a post, an answer), `hint` (small grey text that
     explains), `label` (a field's name), `error` or `assistant` (an AssistantTray's title);
     `IntroText` and `SectionFooter` are hints that also set a screen's spacing. `Divider` (`list` or `menu`) between rows.
   - Floating chrome (`floating-bars/`): `FloatingPill` (a toolbar: a glass pill that groups
     buttons), `FloatingHeader` (main screens), `FloatingDetailHeader` (detail screens),
-    `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchOptionsBar`,
-    `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
+    `FloatingNavigationBar` and `FloatingSegmentPill` (both `SegmentedPill`), `SearchSortFilterBar` (search,
+    sort and filter at the bottom left, on main and pushed screens, and the photo picker; built on
+    `SearchOptionsBar`), `SortFilterMenu` (its options button's menu, with a drill-down filter panel).
   - Modals: `ModalSheet`, `ModalHeader`, `EditSheet`, `TextEditSheet`. `ToolbarTitle` for a title in a toolbar pill.
+    `SheetSearchField` for a picker sheet's search, pinned under its header, with `hooks/useSearchText` (its text) and
+    `hooks/useSheetSearchList` (the list's padding and keyboard props).
   - Forms and lists: `Field`, `TextInput` (`variant` inline or field, `multiline`), `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
@@ -77,8 +80,8 @@ All paths are under `apps/mobile/src/`.
   outside any pill: it stands for the user, not for an action.
 - Icon colors: every icon button is `muted` grey (Button's default), in the headers, the bottom bars
   and the tab bar alike; `colorPalette="danger"` for destructive actions and `isSelected` for a
-  setting that is on; `colorPalette="accent"` for the editor card's toolbar. The pen on the
-  assistant's tray is a `secondary` disc with `colorPalette="accent"` (light violet, violet pen).
+  setting that is on; `colorPalette="accent"` for the editor card's toolbar. The tray carries no pen: Edit prompt
+  buttons is a muted pen beside the chat's row of prompt buttons, like every icon button.
 
 ## Known conflicts: our decision wins
 

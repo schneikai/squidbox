@@ -2,13 +2,13 @@ import { router } from 'expo-router';
 import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
+import albumAssetCountText from '@/features/album-list/albumAssetCountText';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
 import type { AlbumSubsetScope } from '@/features/album-list/albumQuery';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
 import unguarded, { type GuardPress } from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
 import type { LiveOptions } from '@/sync/useLiveQuery';
-import pluralizeText from '@/utils/pluralizeText';
 
 type AssetAlbumsProps = { scope: AlbumSubsetScope; emptyText: string; guardPress?: GuardPress } & Pick<
   LiveOptions,
@@ -33,7 +33,7 @@ export default function AssetAlbums({ scope, emptyText, guardPress = unguarded, 
       key={album.id}
       asset={album.cover}
       title={album.name}
-      subtitle={`${pluralizeText('1 Asset', '%{count} Assets', album.assetCount)} · ${albumLastPostedText(album)}`}
+      subtitle={`${albumAssetCountText(album.assetCount)} · ${albumLastPostedText(album)}`}
       isLast={index === albums.length - 1}
       onPress={guardPress(() => router.push(`/album/${album.id}`))}
     />

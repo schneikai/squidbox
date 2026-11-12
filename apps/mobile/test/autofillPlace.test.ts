@@ -17,6 +17,21 @@ describe('autofillPlace', () => {
     expect(autofillPlace(place('Denver'), 'city', KNOWN)).toEqual(place('Denver', 'Colorado', 'United States'));
   });
 
+  it('matches a known city blind to its accents', () => {
+    expect(
+      autofillPlace(place('Sao Paulo'), 'city', [{ city: 'São Paulo', state: 'São Paulo', country: 'Brazil' }]),
+    ).toEqual(place('Sao Paulo', 'São Paulo', 'Brazil'));
+  });
+
+  it('a known place that only lacks parts of another fills from the fuller one', () => {
+    const known = [
+      { city: 'São Paulo', state: '', country: 'Brazil' },
+      { city: 'São Paulo', state: 'São Paulo', country: 'Brazil' },
+      { city: 'São Paulo', state: '', country: '' },
+    ];
+    expect(autofillPlace(place('São Paulo'), 'city', known)).toEqual(place('São Paulo', 'São Paulo', 'Brazil'));
+  });
+
   it('a state in one known country fills an empty country', () => {
     expect(autofillPlace(place('', 'Oregon'), 'state', KNOWN)).toEqual(place('', 'Oregon', 'United States'));
   });
@@ -30,6 +45,18 @@ describe('autofillPlace', () => {
 
   it('a city known in two places fills nothing', () => {
     expect(autofillPlace(place('Portland'), 'city', KNOWN)).toEqual(place('Portland'));
+  });
+
+  it('counts only the known places in the country already filled', () => {
+    const known = [
+      ...KNOWN,
+      { city: 'Bogotá', state: '', country: 'Colombia' },
+      { city: 'Bogotá', state: 'California', country: 'United States' },
+    ];
+    expect(autofillPlace(place('Bogotá', '', 'Colombia'), 'city', known)).toEqual(place('Bogotá', '', 'Colombia'));
+    expect(autofillPlace(place('Bogotá', '', 'United States'), 'city', known)).toEqual(
+      place('Bogotá', 'California', 'United States'),
+    );
   });
 
   it('keeps the parts the user already filled', () => {

@@ -3,9 +3,7 @@ import { type SharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import gridSlotOrigin, { type GridLayout, type GridRow } from './gridSlotOrigin';
-import isPastTapSlop from './isPastTapSlop';
 import mergeRowIds from './mergeRowIds';
-import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useGridLongPressPan, { type UseGridLongPressPanOptions } from './useGridLongPressPan';
 import usePeekAfterLift, { type UsePeekAfterLiftOptions } from './usePeekAfterLift';
@@ -13,6 +11,8 @@ import usePeekAfterLift, { type UsePeekAfterLiftOptions } from './usePeekAfterLi
 import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import type { Point } from '@/lib/Point';
+import isPastTapSlop from '@/lib/isPastTapSlop';
+import sameOrder from '@/lib/sameOrder';
 import { motion } from '@/styles/designTokens';
 
 // A drop: the moved row's id, the row it now follows (`null` at the top) and the slots' new order.

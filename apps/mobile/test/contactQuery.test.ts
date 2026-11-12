@@ -61,6 +61,20 @@ describe('contactQuery', () => {
     });
   });
 
+  it('withLists names Tagged for a contact on a photo still there, by name with its lists, but not inside Tagged', async () => {
+    await lists.create(db, { id: 'l1', createdAt: 1, updatedAt: 1, deletedAt: null, name: 'Zine', notes: null });
+    await contactListMembers.addToEach(db, [{ listId: 'l1' }], ['maya'], newId);
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'gone' }, ['ben'], newId);
+    const names = async (scope: 'all' | 'tagged') =>
+      Object.fromEntries(
+        (await contactQuery({ scope, withLists: true }).read(db)).rows.map((r) => [r.id, r.listNames]),
+      );
+    expect(await names('all')).toEqual({ ana: ['Tagged'], ben: [], maya: ['Tagged', 'Zine'] });
+    expect(await names('tagged')).toEqual({ ana: [], maya: ['Zine'] });
+  });
+
   it('Tagged lists the contacts on any photo still there, once each', async () => {
     await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'gone', deletedAt: 5 })]);
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
@@ -130,6 +144,22 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ search: 'squam' }))).toEqual(['maya']);
     expect(await ids(contactQuery({ search: 'british columbia' }))).toEqual(['maya']);
     expect(await ids(contactQuery({ search: 'BENCLIMBS' }))).toEqual(['ben']);
+  });
+
+  it('search finds a handle typed as a handle field takes it: with @ or as a profile URL', async () => {
+    expect(await ids(contactQuery({ search: '@BenClimbs ' }))).toEqual(['ben']);
+    expect(await ids(contactQuery({ search: 'https://x.com/BenClimbs?s=21' }))).toEqual(['ben']);
+  });
+
+  it('search finds a handle stored with @ and capitals under any spelling', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'todo', name: 'Todo', xHandle: '@TodoesMorb0' }));
+    for (const search of ['todoesmorb0', '@todoesmorb0', 'x.com/TodoesMorb0'])
+      expect(await ids(contactQuery({ search }))).toEqual(['todo']);
+  });
+
+  it("a pasted link that isn't a profile finds no contact by its first segment", async () => {
+    await contacts.create(db, makeContactRecord({ id: 'eye', name: 'Eye', xHandle: 'i' }));
+    expect(await ids(contactQuery({ search: 'https://x.com/i/lists/1' }))).toEqual([]);
   });
 
   it('search ignores accents both ways', async () => {

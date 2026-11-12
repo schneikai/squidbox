@@ -3,13 +3,14 @@ import {
   keyBetween,
   movePositions,
   promptButtonCollection,
+  RETIRED_PROMPT_BUTTONS,
   type NewPromptButton,
   type PromptButtonFields,
   type PromptButtonRecord,
 } from '@squidbox/shared';
 import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 
-import { nextVersion } from './clock';
+import { nextVersion, tombstone } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { readByIdMap } from './readByIds';
@@ -111,21 +112,36 @@ export async function movePromptButton(db: SyncDb, id: string, afterId: string |
  * converge on one row each. A seeded button carries the lowest clock (SEED_CLOCK): a device can seed
  * before this launch's pull has brought another device's deletion or move of that default, and any
  * real edit, tombstone included, then wins over the seed on the server (the push answers
- * `skipped-lww` with the stored row). Returns whether it seeded any.
+ * `skipped-lww` with the stored row). It also deletes each of `retired` the table still holds, live
+ * and with the text it shipped with (RETIRED_PROMPT_BUTTONS). Returns whether it changed any.
  */
 export async function seedPromptButtons(
   db: SyncDb,
   defaults: readonly NewPromptButton[] = DEFAULT_PROMPT_BUTTONS,
+  retired: readonly Pick<NewPromptButton, 'id' | 'prompt'>[] = RETIRED_PROMPT_BUTTONS,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     if (!(await isFirstSyncDone(tx))) return false;
+    const heldRetired = await readByIdMap(
+      tx,
+      t,
+      retired.map((button) => button.id),
+    );
+    const unedited = retired.flatMap(({ id, prompt }) => {
+      const row = heldRetired.get(id);
+      return row && row.deletedAt === null && row.prompt === prompt ? [row] : [];
+    });
+    if (unedited.length > 0) {
+      await saveRecords(tx, 'prompt_buttons', t, unedited.map(tombstone), { previous: unedited });
+    }
+
     const held = await readByIdMap(
       tx,
       t,
       defaults.map((button) => button.id),
     );
     const missing = defaults.filter((button) => !held.has(button.id));
-    if (missing.length === 0) return false;
+    if (missing.length === 0) return unedited.length > 0;
     let position = await positionAtEnd(tx);
     const records = [];
     for (const button of missing) {

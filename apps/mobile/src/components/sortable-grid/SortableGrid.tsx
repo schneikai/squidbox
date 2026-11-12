@@ -24,7 +24,6 @@ import SortableGridCell from './SortableGridCell';
 import SortableGridLiftedCell from './SortableGridLiftedCell';
 import type { GridRow } from './gridSlotOrigin';
 import heldOrder, { type Hold } from './heldOrder';
-import sameOrder from './sameOrder';
 import slotPositions from './slotPositions';
 import useDragReorder, { type ReorderChange } from './useDragReorder';
 import useDragSelect from './useDragSelect';
@@ -33,6 +32,7 @@ import type { UsePeekAfterLiftOptions } from './usePeekAfterLift';
 import useHaptics from '@/hooks/useHaptics';
 import type { ScrollableList } from '@/hooks/useListControls';
 import useScrollingHeader from '@/hooks/useScrollingHeader';
+import sameOrder from '@/lib/sameOrder';
 
 // A grid whose cells can be dragged into a new order, Apple Photos-style (an album's photos, the
 // albums). Cells are absolutely positioned so they can be dragged and reflowed, and only the rows
@@ -100,7 +100,7 @@ export default function SortableGrid<Row extends GridRow>({
 
   const { headerView, cellsTop } = useScrollingHeader(header, paddingTop);
 
-  // The grid's own offset: a screen's shared one (the floating bars') is reset on tab switches.
+  // The grid's own offset, for the window of mounted cells and the drag gestures.
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollY = useSharedValue(0);
   // Within two screens of the end: ask for the next page on arriving there and again whenever the

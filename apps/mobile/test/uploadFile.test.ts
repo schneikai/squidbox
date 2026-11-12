@@ -12,6 +12,8 @@ vi.mock('expo-file-system', () => ({
     }
   },
 }));
+// expo-constants, which the header reads, needs React Native.
+vi.mock('../src/utils/cloud-api/clientHeader', () => ({ clientHeader: () => ({}) }));
 vi.mock('../src/utils/cloud-api/apiBaseUrl', () => ({ API_BASE_URL: 'https://api.test/api/v1' }));
 vi.mock('../src/utils/cloud-api/requireSession', () => ({
   default: () => ({ tokens: { accessToken: 'access', refreshToken: 'refresh' } }),

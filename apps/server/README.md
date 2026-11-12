@@ -17,7 +17,7 @@ The TypeScript backend: Fastify + Drizzle + Postgres + S3, deployed on Fly.io (s
 - **AI:** `/ai/models` (Venice's live model list, cached 5 minutes), the blind model compare
   `/ai/compare/writing` and `/ai/compare/vision`, `POST /ai/contact-from-screenshot` (a New
   contact's From screenshot: the name, handles and place read from a profile screenshot, the
-  handles normalized) and `POST /ai/contact-from-link` (From link, below), behind Venice's chat API
+  handles bare, case kept) and `POST /ai/contact-from-link` (From link, below), behind Venice's chat API
   (`src/ai/`). `VENICE_API_KEY` is server-side only; without it the server runs and these routes
   answer 503 `ai_not_configured`. `VENICE_BASE_URL` defaults to `https://api.venice.ai/api/v1`.
   Only accounts with the `ai` feature may use them (others get 403 `ai_not_allowed`), and the

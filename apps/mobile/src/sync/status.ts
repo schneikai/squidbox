@@ -1,5 +1,6 @@
 import { eq, like, sql } from 'drizzle-orm';
 
+import type { PulledShape } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { newestOutboxId, oldestOutboxId } from './outbox';
@@ -15,6 +16,7 @@ const MERGE_TARGET_KEY = 'mergedInto'; // the merge marker: the library (and acc
 const MARKS_KEY = 'mergeMarks:'; // + a source library's database name (getMergeMarks)
 const COMMITTED_KEY = 'mergeCommitted:'; // + a source library's database name (getMergeCommit)
 const KEPT_FOR_KEY = 'keptFor'; // the library a kept source library joined (getKeptFor)
+const PULLED_SHAPE_KEY = 'pulledShape'; // the collections and fields the cursor's pulls filled (pullCursor)
 
 export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 export interface SyncStatus {
@@ -44,6 +46,38 @@ async function setMeta(db: SyncDb, key: string, value: string): Promise<void> {
 
 export async function getCursor(db: SyncDb): Promise<number> {
   return Number((await getMeta(db, CURSOR_KEY)) ?? 0);
+}
+
+/**
+ * Where a pull of `shape` (clientCollections pulledShape) starts: the stored cursor while the shape adds
+ * nothing to the one stored with it, else the beginning, with the new shape stored (sync-design §13, §15): the
+ * records pulled before were stored without the fields or collections this build learned. `newFields`
+ * names them (`assets.tags`, a whole collection by its name) when a cursor above 0 was dropped.
+ */
+export async function pullCursor(
+  db: SyncDb,
+  shape: PulledShape,
+): Promise<{ cursor: number; newFields: string[] | null }> {
+  const stored = await getMeta(db, PULLED_SHAPE_KEY);
+  const cursor = await getCursor(db);
+  const text = JSON.stringify(shape);
+  if (stored === text) return { cursor, newFields: null };
+  // A shape that only lost columns or collections has nothing new to fetch: it is stored, the cursor kept.
+  const newFields = newIn(stored ? (JSON.parse(stored) as PulledShape) : {}, shape);
+  const restart = stored === null || newFields.length > 0;
+  await db.transaction(async (tx) => {
+    if (restart) await setCursor(tx, 0);
+    await setMeta(tx, PULLED_SHAPE_KEY, text);
+  });
+  return restart ? { cursor: 0, newFields: cursor > 0 ? newFields : null } : { cursor, newFields: null };
+}
+
+// What `shape` has that `before` lacks: a collection by its name, a column as `collection.column`.
+function newIn(before: PulledShape, shape: PulledShape): string[] {
+  return Object.entries(shape).flatMap(([name, columns]) => {
+    const had = before[name];
+    return had ? columns.filter((column) => !had.includes(column)).map((column) => `${name}.${column}`) : [name];
+  });
 }
 
 // First-sync flag: the initial full pull (the big one after first login) has fully drained. Used to

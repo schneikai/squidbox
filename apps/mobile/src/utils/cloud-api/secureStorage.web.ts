@@ -3,7 +3,12 @@ export async function getItemAsync(key: string): Promise<string | null> {
   return localStorage.getItem(key);
 }
 
-export async function setItemAsync(key: string, value: string): Promise<void> {
+// `thisDeviceOnly` is the native keychain's; localStorage stays in this browser anyway.
+export async function setItemAsync(
+  key: string,
+  value: string,
+  _options: { thisDeviceOnly?: boolean } = {},
+): Promise<void> {
   localStorage.setItem(key, value);
 }
 

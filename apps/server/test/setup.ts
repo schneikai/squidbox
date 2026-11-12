@@ -1,14 +1,9 @@
 // Provide a complete config env for tests so loadConfig() succeeds. No real Postgres/S3 is
 // contacted: the DB client is lazy (pg.Pool connects only on first query) and DB/S3 modules
-// are mocked in route tests. These are throwaway test values.
-process.env.JWT_SECRET ??= 'test-secret-key';
-process.env.SERVER_ID ??= '0f3a1b2c-4d5e-4f60-8a7b-9c0d1e2f3a4b';
-process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
-process.env.AWS_REGION ??= 'eu-west-1';
-process.env.AWS_ACCESS_KEY_ID ??= 'test-access-key';
-process.env.AWS_SECRET_ACCESS_KEY ??= 'test-secret-key';
-process.env.S3_SHARED_BUCKET ??= 'test-shared-bucket';
-process.env.LOG_LEVEL ??= 'silent';
+// are mocked in route tests.
+import { setThrowawayEnv } from '../src/throwawayEnv.js';
+
+setThrowawayEnv();
 // Tests mock Venice: a key or address exported in the shell (for the live smoke test) must not
 // reach them.
 delete process.env.VENICE_API_KEY;

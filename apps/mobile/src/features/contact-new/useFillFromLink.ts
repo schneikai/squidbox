@@ -7,6 +7,7 @@ import useClipboardXLink from './useClipboardXLink';
 import useNewContactDraft from './useNewContactDraft';
 
 import type { ContactDraft } from '@/features/contact-detail/contactFields';
+import usePlaceSuggestions from '@/features/contact-detail/usePlaceSuggestions';
 import readContactFromLinkAsync from '@/utils/cloud-api/ai/readContactFromLinkAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
@@ -25,6 +26,7 @@ export default function useFillFromLink(onScreenshot: () => void): {
 } {
   const { fillFields } = useNewContactDraft();
   const { readAsync } = useClipboardXLink();
+  const { knownPlaces } = usePlaceSuggestions();
   const [isReading, setIsReading] = useState(false);
 
   async function fillFromLinkAsync() {
@@ -55,7 +57,7 @@ export default function useFillFromLink(onScreenshot: () => void): {
     fillFields(
       'link',
       (draft: ContactDraft) => ({
-        ...filledFrom(contact, draft),
+        ...filledFrom(contact, draft, knownPlaces),
         ...(contact.name || draft.name.trim() ? {} : { name: handle }),
       }),
       photoUri,

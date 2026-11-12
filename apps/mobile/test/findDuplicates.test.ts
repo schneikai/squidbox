@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import findDuplicates, { type DuplicateMatch } from '../src/features/contact-new/findDuplicates';
+import duplicateCandidates from '../src/features/contact-new/duplicateCandidates';
+import findDuplicatesIn, { type DuplicateMatch } from '../src/features/contact-new/findDuplicates';
 
 const fields = (over: Record<string, string | null>) => ({
   name: '',
@@ -11,6 +12,8 @@ const fields = (over: Record<string, string | null>) => ({
   instagramHandle: null,
   ...over,
 });
+const findDuplicates = (typed: Parameters<typeof findDuplicatesIn>[0], contacts: DuplicateMatch['contact'][]) =>
+  findDuplicatesIn(typed, duplicateCandidates(contacts));
 const maya: DuplicateMatch['contact'] = {
   id: 'maya',
   name: 'Maya Lindqvist',
@@ -32,6 +35,15 @@ describe('findDuplicates', () => {
   it('finds a shared Bluesky handle under another name', () => {
     const { matches } = findDuplicates(fields({ name: 'Maya L', blueskyHandle: 'maya.bsky.social' }), [maya]);
     expect(matches.map((match) => match.reason)).toEqual(['Same Bluesky handle']);
+  });
+
+  it('finds the same handle under another spelling', () => {
+    for (const xHandle of ['@MayaL', 'https://x.com/mayal'])
+      expect(findDuplicates(fields({ xHandle }), [maya]).matches.map((match) => match.reason)).toEqual([
+        'Same X handle',
+      ]);
+    const i = { ...maya, xHandle: 'i', blueskyHandle: null };
+    expect(findDuplicates(fields({ xHandle: 'https://x.com/i/lists/1' }), [i]).matches).toEqual([]);
   });
 
   it('a same name alone is no duplicate', () => {

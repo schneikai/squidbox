@@ -20,6 +20,7 @@ export const instructionCollection = defineCollection({
     modelCheckJudge: instructionText.optional(),
     contactScreenshot: instructionText.optional(),
     contactXProfile: instructionText.optional(),
+    moreIdeas: instructionText.optional(),
   }),
 });
 
@@ -30,13 +31,16 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  * (a line whose placeholder is empty is left out, and so is a heading left with nothing under it):
  * - `writing`, the chat's whole system message: `{aboutYou}`, `{tone}`, `{contentTags}`, `{rules}`,
  *   `{posts}` (Writing as you and a sample of their posts), `{media}`, `{tags}`, `{mentions}`, `{caption}`
- *   (the post), `{count}` (the options to write). A Compare sends only its prompt box;
+ *   (the post), `{thread}` (the thread's other posts, when the post is one of a thread; a text
+ *   without it gets them at its end), `{count}` (the options to write). A Compare sends only its
+ *   prompt box;
  * - `visionTagging`, the system message of every photo tags request: `{themes}` (Your content). A
  *   Compare sends its prompt box in its place, without the themes;
  * - `moreLikeThis`, what the chat's More like this sends, with the option after it;
+ * - `moreIdeas`, what More after a set of ideas sends, with the request the ideas answered after it;
  * - `modelCheckJudge`, what a writing Verify (ai_admin) asks its judge after each chat turn: the
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
- *   `{caption}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
+ *   `{caption}`, `{thread}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
  *   last message), `{reply}`;
  * - `contactScreenshot`, the system message of a New contact's From screenshot: `{fields}`, the
  *   fields to return and how (CONTACT_FIELDS_FORMAT on the server, not editable: the owner's call);
@@ -48,6 +52,7 @@ export const INSTRUCTION_KINDS = [
   'writing',
   'visionTagging',
   'moreLikeThis',
+  'moreIdeas',
   'modelCheckJudge',
   'contactScreenshot',
   'contactXProfile',
@@ -55,11 +60,23 @@ export const INSTRUCTION_KINDS = [
 
 // The placeholders the server fills in each kind (see INSTRUCTION_KINDS); a text without one leaves
 // that out of what the assistant gets.
-const CREATOR_AND_POST = ['aboutYou', 'tone', 'contentTags', 'rules', 'posts', 'media', 'tags', 'mentions', 'caption'];
+const CREATOR_AND_POST = [
+  'aboutYou',
+  'tone',
+  'contentTags',
+  'rules',
+  'posts',
+  'media',
+  'tags',
+  'mentions',
+  'caption',
+  'thread',
+];
 export const INSTRUCTION_PLACEHOLDERS: Readonly<Record<InstructionKind, readonly string[]>> = Object.freeze({
   writing: [...CREATOR_AND_POST, 'count'],
   visionTagging: ['themes'],
   moreLikeThis: [],
+  moreIdeas: [],
   modelCheckJudge: [...CREATOR_AND_POST, 'transcript', 'request', 'reply'],
   contactScreenshot: ['fields'],
   contactXProfile: ['fields', 'profile'],
@@ -108,6 +125,7 @@ Media: {media}
 What's in the photos (from image recognition): {tags}
 People they've tagged in posts from the same album: {mentions}
 Their post so far: {caption}
+{thread}
 
 This is the current state of the post. Use conversation history for context and previous suggestions, but prefer the current post context when details differ.
 
@@ -138,6 +156,9 @@ Write handles exactly as given.`,
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
+  // What More after a set of ideas sends; the app adds the request the ideas answered after it.
+  moreIdeas:
+    'Write another set for the request below: a fresh mix, every one different from all the posts you wrote in this chat so far.',
   // Verify's judge (VERIFY_JUDGE_MODEL_ID in contracts/ai.ts): its whole question after each turn.
   modelCheckJudge: [
     'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, posts they wrote and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
@@ -158,6 +179,7 @@ Write handles exactly as given.`,
     "What's in the photos (from image recognition): {tags}",
     "People they've tagged in posts from the same album: {mentions}",
     'Caption so far: {caption}',
+    '{thread}',
     '',
     '# The conversation so far',
     '{transcript}',

@@ -6,7 +6,6 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
-import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import reorderUnderSort from '@/components/sortable-grid/reorderUnderSort';
 import type { ReorderChange } from '@/components/sortable-grid/useDragReorder';
 import type { AlbumListProps } from '@/features/album-list/AlbumList';
@@ -18,12 +17,14 @@ import albumFilterOptions from '@/features/album-list/actions/filter-albums-acti
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
+import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import starredAlbums from '@/features/album-list/starredAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useAlbums from '@/features/albums-context/useAlbums';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import { layout } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 import pluralizeText from '@/utils/pluralizeText';
@@ -35,12 +36,12 @@ export default function AlbumsScreen() {
   const promptAddAlbum = useAddAlbumAction();
   const { paddingTop, paddingBottom } = useScreenPadding('main');
 
-  const { sortOrder, sortAlbums, isSortedByLastPosted } = useSortAlbumsAction();
+  const { sortOrder, sortAlbums } = useSortAlbumsAction();
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
     onSort: sortAlbums,
   });
 
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll, scrollY } = useScrollY();
 
   const { albums, rows, readAt } = usePreparedAlbums({ sortOrder, activeFilter, searchText });
   // Searching or filtering shows only the grid.
@@ -53,10 +54,10 @@ export default function AlbumsScreen() {
         onPress={() => router.navigate(`/album/${album.id}`)}
         onDoublePress={() => toggleFavoriteAlbum(album)}
       >
-        <AlbumListItem album={album} elementWidth={elementWidth} showLastPostedAt={isSortedByLastPosted} />
+        <AlbumListItem album={album} elementWidth={elementWidth} />
       </SuperPressable>
     ),
-    [toggleFavoriteAlbum, isSortedByLastPosted],
+    [toggleFavoriteAlbum],
   );
 
   // Dragging arranges the whole list, so it runs unfiltered and unsearched only.
@@ -89,7 +90,7 @@ export default function AlbumsScreen() {
 
   return (
     <View testID="albums-screen" style={{ flex: 1 }}>
-      <FloatingHeader title="Albums" onAdd={promptAddAlbum} />
+      <FloatingHeader title="Albums" scrollY={scrollY} onAdd={promptAddAlbum} />
       <SortableAlbumList
         listRef={listRef}
         albums={albums}
@@ -97,14 +98,14 @@ export default function AlbumsScreen() {
         header={header}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
         renderItem={renderItem}
         reorderEnabled={reorderEnabled}
         onReorder={handleReorder}
       />
       <FloatingActionsBar
         search={searchBar}
-        placeholder="Search albums…"
+        placeholder={ALBUM_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={albumSortOptions}
         activeFilter={activeFilter}

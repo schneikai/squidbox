@@ -6,8 +6,9 @@ import { albumHoldsAny } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { readPhotoIdsOf } from '@/sync/photoContacts';
 import { readByIds } from '@/sync/readByIds';
+import readLiveAlbum from '@/sync/readLiveAlbum';
+import readPhotoIdsOf from '@/sync/readPhotoIdsOf';
 
 /** What Add contacts adds to: a photo, an album's or post's photos (ContactsOf), or a list. */
 export type AddContactsTarget = ContactsOf | { listId: string };
@@ -51,8 +52,8 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       return { linkedTitle: 'On this photo', linked, related };
     }
     if ('albumId' in target) {
-      const [album] = await readByIds(tx, schema.albums, [target.albumId]);
-      if (!album || album.deletedAt || album.smartAlbumType) return null;
+      const album = await readLiveAlbum(tx, target.albumId);
+      if (!album || album.smartAlbumType) return null;
     } else {
       const [post] = await readByIds(tx, schema.posts, [target.postId]);
       if (!post || post.deletedAt) return null;

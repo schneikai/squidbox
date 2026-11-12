@@ -21,6 +21,7 @@ export * from './collections/favorite';
 export * from './collections/instruction';
 export * from './collections/modelChoice';
 export * from './collections/contactSetting';
+export * from './collections/ideaSetting';
 export * from './collections/contact';
 export * from './collections/contactList';
 export * from './collections/contactListMember';
@@ -36,7 +37,8 @@ export * from './positionsInOrder';
 export * from './chunk';
 export * from './uniqueTags';
 export * from './contacts/formatPlace';
-export * from './contacts/normalizeHandle';
+export * from './contacts/parseHandle';
+export * from './contacts/handleKey';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';
@@ -46,3 +48,4 @@ export * from './contracts/ai';
 export * from './contracts/contacts';
 export * from './contracts/image';
 export * from './contracts/server';
+export * from './contracts/client';

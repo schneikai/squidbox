@@ -5,7 +5,7 @@ import {
   assetTagSchema,
   CHAT_LIMITS,
   CONTACT_HANDLE_FIELDS,
-  normalizeHandle,
+  parseHandle,
   uniqueTags,
   type ContactRead,
   type AiModelKind,
@@ -116,11 +116,11 @@ export const photoTagsTask: AiTask<{ tags: string[] }> = {
   check: ({ tags }) => ({ tags: fitTags(tags) }),
 };
 
-// A contact's read fields as contacts store them: the handles normalized, the name and the place's
-// parts trimmed.
+// A contact's read fields: the handles bare, case kept (a profile link's handle; nothing for another
+// link, so one the model made up fills nothing), the name and the place's parts trimmed.
 function checkContactFields(read: ContactRead): ContactRead {
   const checked = { ...read };
-  for (const field of CONTACT_HANDLE_FIELDS) checked[field] = normalizeHandle(read[field] ?? '');
+  for (const field of CONTACT_HANDLE_FIELDS) checked[field] = parseHandle(read[field] ?? '', field).handle ?? '';
   for (const field of ['name', 'city', 'state', 'country'] as const) checked[field] = read[field].trim();
   return checked;
 }

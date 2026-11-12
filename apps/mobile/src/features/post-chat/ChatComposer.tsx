@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import type { ChatSeed } from './chatSessions';
-import type { PostChatState } from './usePostChat';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
@@ -17,7 +16,7 @@ type ChatComposerProps = {
   placeholder: string;
   disabled: boolean;
   isWaiting: boolean;
-  onSend: PostChatState['send'];
+  onSend: (seed: Required<ChatSeed>) => boolean;
 };
 
 /**

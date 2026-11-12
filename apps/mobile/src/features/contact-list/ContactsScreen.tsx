@@ -16,10 +16,10 @@ import IntroText from '@/components/IntroText';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
-import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useListControls from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import { layout } from '@/styles/designTokens';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
@@ -34,12 +34,11 @@ const keyExtractor = (contact: ContactSummary) => contact.id;
 export default function ContactsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
   const { sortOrder, setSortOrder } = useContactSort('contacts');
-  const { listRef, sort, searchBar, searchText } = useListControls({ onSort: setSortOrder });
+  const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll, scrollY } = useScrollY();
 
   // Trimmed, so a trailing space doesn't read the list again.
-  const search = searchText.trim();
   const isSearching = !!search;
   const query = contactQuery({ scope: 'all', search, sort: sortOrder, withLists: true });
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
@@ -107,7 +106,7 @@ export default function ContactsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <FloatingHeader title="Contacts" onAdd={() => router.navigate('/new-contact')} />
+      <FloatingHeader title="Contacts" scrollY={scrollY} onAdd={() => router.navigate('/new-contact')} />
       <Animated.FlatList
         ref={attachList}
         data={data}
@@ -117,7 +116,7 @@ export default function ContactsScreen() {
         contentContainerStyle={[styles.content, { paddingTop, paddingBottom }]}
         onEndReached={rows ? loadMore : undefined}
         onEndReachedThreshold={2}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
         scrollEventThrottle={16}
         keyboardDismissMode="on-drag"
         style={styles.list}

@@ -102,6 +102,8 @@ function describe(
       return `Contact on ${LINK_TARGETS[String(payload.targetType)] ?? 'a photo'}`;
     case 'contact_settings':
       return 'Pinned list on Contacts';
+    case 'idea_settings':
+      return 'Post ideas and Repost ideas';
     default:
       return `${collection} ${recordId}`;
   }

@@ -22,10 +22,12 @@ import assetFilterOptions from '@/features/asset-list/actions/filter-assets-acti
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
+import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import { layout, space } from '@/styles/designTokens';
 import type { AssetSort } from '@/sync/assetSql';
 import { countByMediaType } from '@/sync/assetsRepository';
@@ -68,7 +70,7 @@ export default function Album({ album }: AlbumProps) {
   });
   const { rows, count, readAt, loadMore, keepLimit } = usePagedQuery(query, 150, { withReadAt: true });
   // The album's own count, for its header and menu: a filter or search narrows only the grid's.
-  const isNarrowed = activeFilter.length > 0 || !!searchText.trim();
+  const isNarrowed = activeFilter.length > 0 || !!searchText;
   const unnarrowed = usePagedQuery(assetQuery({ scope: getAlbumAssetScope(album), sort: sortOrder }), 1, {
     isLive: isNarrowed,
   });
@@ -76,12 +78,15 @@ export default function Album({ album }: AlbumProps) {
 
   const actions = useAssetSelectionActions(selection, query, count);
   const isSmart = isSmartAlbum(album);
+  // The header bar shows the album's name once the name in the page has scrolled under it.
+  const { onScroll, scrollY } = useScrollY();
+  const [nameEnd, setNameEnd] = useState(0);
   // The album's name, its contacts and its posts, scrolling away with the grid: the same element
   // while they are, so a selection or a keystroke doesn't render it again.
   const header = useMemo(
     () => (
       <View style={styles.header}>
-        <AlbumHeader album={album} assetCount={albumCount} />
+        <AlbumHeader album={album} assetCount={albumCount} onNameEnd={setNameEnd} />
       </View>
     ),
     [album, albumCount],
@@ -89,7 +94,7 @@ export default function Album({ album }: AlbumProps) {
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
   // nowhere to persist for smart albums, so it stays off otherwise.
-  const reorderEnabled = !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText.trim();
+  const reorderEnabled = !isSelectMode && !isSmart && activeFilter.length === 0 && !searchText;
 
   // Smart albums have no stored order, so no Custom order; Deleted lists the most recently deleted first.
   const sortOptions = isDeletedAssetsAlbum(album) ? [] : isSmart ? assetSortOptions : ALBUM_SORT_OPTIONS;
@@ -146,6 +151,8 @@ export default function Album({ album }: AlbumProps) {
   return (
     <Page testID="album-screen">
       <FloatingDetailHeader
+        title={album.name}
+        titleReveal={{ scrollY, from: nameEnd }}
         onBack={() => navigation.goBack()}
         isSelectMode={isSelectMode}
         menuSlot={
@@ -183,6 +190,8 @@ export default function Album({ album }: AlbumProps) {
           paddingTop={paddingTop}
           paddingBottom={paddingBottom}
           header={header}
+          onScroll={onScroll}
+          scrollY={scrollY}
           selectAssets={selectAssets}
           isSortable={!isSmart}
           reorderEnabled={reorderEnabled}
@@ -194,7 +203,7 @@ export default function Album({ album }: AlbumProps) {
       {!isSelectMode && (
         <SearchSortFilterBar
           search={searchBar}
-          placeholder="Search notes…"
+          placeholder={ASSET_SEARCH_PLACEHOLDER}
           sortOrder={sortOrder}
           sortOptions={sortOptions}
           activeFilter={activeFilter}

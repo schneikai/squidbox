@@ -11,6 +11,7 @@ import {
   uniqueName,
   withDialog,
 } from './helpers';
+import { ALBUM_SEARCH_PLACEHOLDER } from '../src/features/album-list/albumSearchPlaceholder';
 
 // Adds an album named `name` from the Albums tab (its name asked in an alert prompt).
 async function createAlbum(page: Page, name: string) {
@@ -38,8 +39,10 @@ test('Add in Albums creates an album with the given name', async ({ page }) => {
 
   await createAlbum(page, name);
 
+  // Its asset count sits on the cover; when it was last posted, under its name.
   const tile = page.getByTestId('albums-screen').getByTestId('album-tile').filter({ hasText: name });
-  await expect(tile.getByText('0 Assets', { exact: true })).toBeVisible();
+  await expect(tile.getByText('0', { exact: true })).toBeVisible();
+  await expect(tile.getByText('Never posted', { exact: true })).toBeVisible();
 });
 
 test('From Squidbox adds the picked photos to the album', async ({ page }) => {
@@ -114,4 +117,71 @@ test('the Starred row lists the last starred album first', async ({ page }) => {
   await screen.getByTestId('album-tile').filter({ hasText: first }).dblclick();
 
   await expect(row.getByRole('button').first()).toHaveAccessibleName(first);
+});
+
+test('Add to Album finds an album by search and adds the photo to it', async ({ page }) => {
+  const name = uniqueName('Tarn camp');
+  await createAlbum(page, name);
+  await openTab(page, 'Library');
+  const library = page.getByTestId('library-screen');
+
+  await button(library, 'Select').click();
+  await assetCells(library).first().click();
+  await button(library, 'Add to Album').click();
+  const sheet = page.getByTestId('add-to-album-sheet');
+  await sheet.getByPlaceholder(ALBUM_SEARCH_PLACEHOLDER).fill(name);
+  await sheet.getByText(name, { exact: true }).click();
+
+  await expect(sheet).toBeHidden();
+  await openTab(page, 'Albums');
+  await page.getByTestId('albums-screen').getByText(name, { exact: true }).click();
+  await expect(page.getByTestId('album-screen').getByText(/^1 Asset · /)).toBeVisible();
+});
+
+test("Tags in the album's menu puts a typed tag on all its photos, and a dashed one on all once tapped", async ({
+  page,
+}) => {
+  const name = uniqueName('Granite slabs');
+  // A tag of its own, taken off again at the end, so runs leave the account's photos as they were.
+  const tag = uniqueName('granite');
+  await createAlbum(page, name);
+  const album = await addPhotos(page, name, 2);
+  const sheet = page.getByTestId('album-tags-sheet');
+  const mixedChip = sheet.locator('[aria-checked="mixed"]', { hasText: tag });
+  async function openTags() {
+    await button(album, 'More options').click();
+    await page.getByRole('menuitem', { name: 'Tags' }).click();
+    await expect(sheet).toBeVisible();
+  }
+  async function save() {
+    await button(sheet, 'Save').click();
+    await expect(sheet).toBeHidden();
+  }
+
+  await openTags();
+  await expect(sheet.getByText('on all 2 photos', { exact: true })).toBeVisible();
+  await expect(button(sheet, 'Save')).toBeDisabled();
+  await button(sheet, 'Add a tag').click();
+  await sheet.getByPlaceholder('Tag').fill(tag);
+  await sheet.getByPlaceholder('Tag').press('Enter');
+  await save();
+
+  // A third photo lacks the tag, so it is dashed; a tap puts it on all three.
+  await button(album, 'Add').click();
+  await pickFromSquidbox(page, 1);
+  await expect(assetCells(album)).toHaveCount(3);
+  await openTags();
+  await mixedChip.click();
+  await expect(mixedChip).toHaveCount(0);
+  await save();
+
+  await openTags();
+  await expect(sheet.getByText(tag, { exact: true })).toBeVisible();
+  await expect(mixedChip).toHaveCount(0);
+  await expect(button(sheet, 'Save')).toBeDisabled();
+
+  await button(sheet, `Remove ${tag}`).click();
+  await save();
+  await openTags();
+  await expect(sheet.getByText(tag, { exact: true })).toHaveCount(0);
 });

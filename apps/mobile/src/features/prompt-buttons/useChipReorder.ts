@@ -6,11 +6,11 @@ import { scheduleOnRN } from 'react-native-worklets';
 import isPastMiddle from './isPastMiddle';
 
 import mergeRowIds from '@/components/sortable-grid/mergeRowIds';
-import sameOrder from '@/components/sortable-grid/sameOrder';
 import useGridLongPressPan from '@/components/sortable-grid/useGridLongPressPan';
 import { DRAG_LIFT_SCALE, DRAG_LONG_PRESS_MS } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
 import type { Point } from '@/lib/Point';
+import sameOrder from '@/lib/sameOrder';
 import { motion } from '@/styles/designTokens';
 
 // The press that ends a drag (a click on web) mustn't open the chip it lands on.

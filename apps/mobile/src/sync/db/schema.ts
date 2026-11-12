@@ -1,6 +1,23 @@
 import type { ContactPlace, FieldClocks } from '@squidbox/shared';
-import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, real, index, primaryKey, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { isNotNull, or, sql, type SQL } from 'drizzle-orm';
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  index,
+  primaryKey,
+  uniqueIndex,
+  type SQLiteColumn,
+} from 'drizzle-orm/sqlite-core';
+
+/**
+ * The assets a search reads (assetQuery), and assets_search_idx keeps: those with notes or tags ("No
+ * tags", [], has none). One predicate for both, as SQLite uses the index only for the same one.
+ */
+export function hasSearchText(t: { notes: SQLiteColumn; tags: SQLiteColumn }): SQL | undefined {
+  return or(isNotNull(t.notes), sql`${t.tags} != '[]'`);
+}
 
 // Client (SQLite) mirror of the shared asset collection descriptor. Synced fields match
 // @squidbox/shared assetCollection.schema; syncError is the local-only field. Booleans are
@@ -57,9 +74,10 @@ export const assets = sqliteTable(
     index('assets_sync_error_idx')
       .on(t.id)
       .where(sql`${t.syncError} is not null and ${t.deletedAt} is null`),
-    index('assets_notes_idx')
-      .on(t.id, t.notes)
-      .where(sql`${t.notes} is not null and ${t.deletedAt} is null`),
+    // The search's rows (assetQuery).
+    index('assets_search_idx')
+      .on(t.id, t.notes, t.tags)
+      .where(sql`${hasSearchText(t)} and ${t.deletedAt} is null`),
     // The purged assets whose files this device still has: the sweep's work (sweepPurgedFiles).
     index('assets_purged_files_idx')
       .on(t.id)
@@ -214,6 +232,7 @@ export const instructions = sqliteTable('instructions', {
   modelCheckJudge: text('model_check_judge'),
   contactScreenshot: text('contact_screenshot'),
   contactXProfile: text('contact_x_profile'),
+  moreIdeas: text('more_ideas'),
 });
 export type InstructionRow = typeof instructions.$inferSelect;
 
@@ -285,6 +304,20 @@ export const contactSettings = sqliteTable('contact_settings', {
   pinnedAt: integer('pinned_at'),
 });
 export type ContactSettingRow = typeof contactSettings.$inferSelect;
+
+// One record per user (its id is the user's id): the Post ideas and Repost ideas switches and
+// prompts (mirror @squidbox/shared idea_settings); a null prompt is the built-in text.
+export const ideaSettings = sqliteTable('idea_settings', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  postIdeasOn: integer('post_ideas_on', { mode: 'boolean' }).notNull(),
+  repostIdeasOn: integer('repost_ideas_on', { mode: 'boolean' }).notNull(),
+  postIdeasPrompt: text('post_ideas_prompt'),
+  repostIdeasPrompt: text('repost_ideas_prompt'),
+});
+export type IdeaSettingRow = typeof ideaSettings.$inferSelect;
 
 export const contactListMembers = sqliteTable(
   'contact_list_members',

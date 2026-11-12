@@ -1,4 +1,4 @@
-import { aiModelKindSchema } from '@squidbox/shared';
+import { aiModelKindSchema, IDEAS_KINDS, type IdeasKind } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 import type { ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
@@ -8,12 +8,14 @@ import personaSummary from './personaSummary';
 import ChangedBadge from '@/components/ChangedBadge';
 import DetailScrollView from '@/components/DetailScrollView';
 import GradientFill from '@/components/GradientFill';
-import Icon from '@/components/Icon';
+import Icon, { type IconName } from '@/components/Icon';
 import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import modelKindText from '@/features/model-compare/modelKindText';
+import ideasText from '@/features/post-ideas/ideasText';
+import useIdeaSettings from '@/features/post-ideas/useIdeaSettings';
 import useHasFeature from '@/hooks/useHasFeature';
 import useInstructions from '@/hooks/useInstructions';
 import useLeaveWhenUnavailable from '@/hooks/useLeaveWhenUnavailable';
@@ -26,8 +28,13 @@ import { schema } from '@/sync/db/client';
 import { countPromptButtons } from '@/sync/promptButtonsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
-// Settings → Assistant: how the assistant writes as you, its prompt buttons, its Rules, and for an ai_admin account the Admin section (the model lists, what it is
-// told before each request: Instructions, what is left on the Venice account).
+// Each kind of ideas' row icon.
+const IDEAS_ICONS: Record<IdeasKind, IconName> = { post: 'image', repost: 'repeat' };
+
+// Settings → Assistant: how the assistant writes as you, the ideas it writes without being asked
+// (Post ideas, Repost ideas), its prompt buttons, its Rules, and for an ai_admin account the Admin
+// section (the model lists, what it is told before each request: Instructions, what is left on the
+// Venice account).
 export default function AssistantScreen() {
   const navigation = useNavigation();
   const isAvailable = useLeaveWhenUnavailable();
@@ -35,6 +42,7 @@ export default function AssistantScreen() {
   const promptButtonCount = useLiveQuery((db) => countPromptButtons(db), [schema.promptButtons]);
   useSeedPromptButtons();
   const isAiAdmin = useHasFeature('ai_admin');
+  const ideaSettings = useIdeaSettings();
 
   if (!isAvailable) return null;
 
@@ -52,6 +60,16 @@ export default function AssistantScreen() {
           />
         </Section>
         <Section isHeaderless>
+          {IDEAS_KINDS.map((kind) => (
+            <Row
+              key={kind}
+              leading={<Icon name={IDEAS_ICONS[kind]} color={colors.text.secondary} />}
+              label={ideasText[kind].name}
+              value={ideaSettings === undefined ? null : ideaSettings[kind].isOn ? 'On' : 'Off'}
+              onPress={() => router.navigate(`/settings/assistant/ideas/${kind}`)}
+              hasChevron
+            />
+          ))}
           <Row
             leading={<Icon name="prompt-buttons" color={colors.text.secondary} />}
             label="Prompt buttons"

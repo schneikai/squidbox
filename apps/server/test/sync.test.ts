@@ -390,6 +390,13 @@ d('sync engine (Postgres)', () => {
       contact_list_members: () => ({ ...base(), listId: randomUUID(), contactId: randomUUID() }),
       contact_links: () => ({ ...base(), contactId: randomUUID(), targetType: 'album', targetId: randomUUID() }),
       contact_settings: () => ({ ...base(), pinnedListId: 'tagged', pinnedAt: 1000 }),
+      idea_settings: () => ({
+        ...base(),
+        postIdeasOn: false,
+        repostIdeasOn: true,
+        postIdeasPrompt: 'Three captions for the trail photos.',
+        repostIdeasPrompt: null,
+      }),
     };
 
     for (const name of collectionNames) {

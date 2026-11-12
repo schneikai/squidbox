@@ -60,7 +60,7 @@ export type SearchBarState = Pick<
  *   onCloseSearch    – () => void  (Cancel: leave search and clear the query)
  *   onChangeSearch   – (text: string) => void
  *   optionsMenu      – the options button's menu (MenuOption rows); without it the bar is search only
- *   hasActiveState   – boolean  (options button highlighted while a filter is active)
+ *   hasActiveState   – boolean  (while a filter is active the options button is a light violet disc)
  *   placeholder      – string   (default "Search…")
  *   bottom           – number
  *   left             – number
@@ -136,7 +136,12 @@ export default function SearchOptionsBar({
         {/* Collapsed: options button */}
         {optionsMenu && (
           <Animated.View style={collapsedStyle}>
-            <MenuButton icon="options" isSelected={hasActiveState} accessibilityLabel="Sort and filter">
+            <MenuButton
+              icon="options"
+              variant={hasActiveState ? 'secondary' : 'tertiary'}
+              isSelected={hasActiveState}
+              accessibilityLabel="Sort and filter"
+            >
               {optionsMenu}
             </MenuButton>
           </Animated.View>

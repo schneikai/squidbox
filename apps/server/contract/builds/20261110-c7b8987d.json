@@ -1,0 +1,4089 @@
+{
+ "commit": "c7b8987d5fd82598bf075a3f94bdab0cda22ec57",
+ "builtAt": "2026-11-10",
+ "contract": {
+  "routes": [
+   {
+    "method": "GET",
+    "url": "/api/v1/ai/balance",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "usd": {
+        "type": "number"
+       },
+       "diem": {
+        "type": "number"
+       },
+       "nextResetAt": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      },
+      "required": [
+       "usd",
+       "diem",
+       "nextResetAt"
+      ]
+     }
+    }
+   },
+   {
+    "method": "GET",
+    "url": "/api/v1/ai/models",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "models": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "supportsVision": {
+           "type": "boolean"
+          },
+          "isUncensored": {
+           "type": "boolean"
+          },
+          "isVeniceUncensored": {
+           "type": "boolean"
+          },
+          "verifiedKinds": {
+           "type": "array",
+           "items": {
+            "type": "string",
+            "enum": [
+             "writing",
+             "vision"
+            ]
+           }
+          },
+          "uncensoredOverride": {
+           "type": [
+            "boolean",
+            "null"
+           ]
+          },
+          "reasoning": {
+           "type": "object",
+           "properties": {
+            "supported": {
+             "type": "boolean"
+            },
+            "defaultEffort": {
+             "type": [
+              "string",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "supported",
+            "defaultEffort"
+           ]
+          },
+          "costPerReplyUsd": {
+           "type": "number"
+          },
+          "costPer100PhotosUsd": {
+           "type": [
+            "number",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "name",
+          "supportsVision",
+          "isUncensored",
+          "isVeniceUncensored",
+          "verifiedKinds",
+          "uncensoredOverride",
+          "reasoning",
+          "costPerReplyUsd",
+          "costPer100PhotosUsd"
+         ]
+        }
+       },
+       "defaults": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         },
+         "vision": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         }
+        },
+        "required": [
+         "writing",
+         "vision"
+        ]
+       },
+       "instructions": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "string"
+         },
+         "visionTagging": {
+          "type": "string"
+         },
+         "moreLikeThis": {
+          "type": "string"
+         },
+         "modelCheckJudge": {
+          "type": "string"
+         },
+         "contactScreenshot": {
+          "type": "string"
+         },
+         "contactXProfile": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "writing",
+         "visionTagging",
+         "moreLikeThis",
+         "modelCheckJudge",
+         "contactScreenshot",
+         "contactXProfile"
+        ]
+       }
+      },
+      "required": [
+       "models",
+       "defaults",
+       "instructions"
+      ]
+     }
+    }
+   },
+   {
+    "method": "GET",
+    "url": "/api/v1/ai/verify-photos",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "photos": {
+        "type": "object",
+        "additionalProperties": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "photos"
+      ]
+     }
+    }
+   },
+   {
+    "method": "GET",
+    "url": "/api/v1/ai/verify/:kind/:modelId",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "writing",
+        "vision"
+       ]
+      },
+      "modelId": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "kind",
+      "modelId"
+     ]
+    },
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "run": {
+        "type": [
+         "object",
+         "null"
+        ],
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "writing",
+           "vision"
+          ]
+         },
+         "modelId": {
+          "type": "string"
+         },
+         "status": {
+          "type": "string",
+          "enum": [
+           "running",
+           "done",
+           "stopped"
+          ]
+         },
+         "startedAt": {
+          "type": "string"
+         },
+         "finishedAt": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "turnsDone": {
+          "type": "integer"
+         },
+         "turnsTotal": {
+          "type": "integer"
+         },
+         "result": {
+          "type": [
+           "object",
+           "null"
+          ],
+          "properties": {
+           "sections": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "id": {
+               "type": "string"
+              },
+              "title": {
+               "type": "string"
+              },
+              "systemMessage": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "post": {
+               "type": [
+                "object",
+                "null"
+               ],
+               "properties": {
+                "photos": {
+                 "type": "integer"
+                },
+                "videos": {
+                 "type": "integer"
+                },
+                "tags": {
+                 "type": "array",
+                 "items": {
+                  "type": "string"
+                 }
+                },
+                "mentions": {
+                 "type": "array",
+                 "items": {
+                  "type": "string"
+                 }
+                },
+                "caption": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "photos",
+                "videos",
+                "tags",
+                "mentions",
+                "caption"
+               ]
+              },
+              "turns": {
+               "type": "array",
+               "items": {
+                "type": "object",
+                "properties": {
+                 "prompt": {
+                  "type": "string"
+                 },
+                 "note": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 },
+                 "seconds": {
+                  "type": [
+                   "number",
+                   "null"
+                  ]
+                 },
+                 "unreadable": {
+                  "type": "boolean"
+                 },
+                 "reply": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 },
+                 "items": {
+                  "type": "array",
+                  "items": {
+                   "type": "string"
+                  }
+                 },
+                 "checks": {
+                  "type": "array",
+                  "items": {
+                   "type": "object",
+                   "properties": {
+                    "name": {
+                     "type": "string"
+                    },
+                    "ok": {
+                     "type": "boolean"
+                    },
+                    "reason": {
+                     "type": [
+                      "string",
+                      "null"
+                     ]
+                    }
+                   },
+                   "required": [
+                    "name",
+                    "ok",
+                    "reason"
+                   ]
+                  }
+                 },
+                 "error": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 }
+                },
+                "required": [
+                 "prompt",
+                 "note",
+                 "seconds",
+                 "unreadable",
+                 "reply",
+                 "items",
+                 "checks",
+                 "error"
+                ]
+               }
+              }
+             },
+             "required": [
+              "id",
+              "title",
+              "systemMessage",
+              "post",
+              "turns"
+             ]
+            }
+           },
+           "passes": {
+            "type": "number"
+           },
+           "fails": {
+            "type": "number"
+           },
+           "unreadable": {
+            "type": "number"
+           },
+           "medianSeconds": {
+            "type": "number"
+           },
+           "slowestSeconds": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "sections",
+           "passes",
+           "fails",
+           "unreadable",
+           "medianSeconds",
+           "slowestSeconds"
+          ]
+         },
+         "error": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "id",
+         "kind",
+         "modelId",
+         "status",
+         "startedAt",
+         "finishedAt",
+         "turnsDone",
+         "turnsTotal",
+         "result",
+         "error"
+        ]
+       },
+       "plan": {
+        "type": "object",
+        "properties": {
+         "sections": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string"
+            },
+            "title": {
+             "type": "string"
+            },
+            "prompts": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "id",
+            "title",
+            "prompts"
+           ]
+          }
+         }
+        },
+        "required": [
+         "sections"
+        ]
+       }
+      },
+      "required": [
+       "run",
+       "plan"
+      ]
+     }
+    }
+   },
+   {
+    "method": "GET",
+    "url": "/api/v1/me",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "user": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "email": {
+          "type": "string"
+         },
+         "features": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "id",
+         "email"
+        ]
+       },
+       "serverId": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "user",
+       "serverId"
+      ]
+     }
+    }
+   },
+   {
+    "method": "GET",
+    "url": "/up",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "ok"
+        ]
+       },
+       "serverId": {
+        "type": "string",
+        "format": "uuid"
+       }
+      },
+      "required": [
+       "status",
+       "serverId"
+      ]
+     }
+    }
+   },
+   {
+    "method": "PATCH",
+    "url": "/api/v1/me/features",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "feature": {
+       "type": "string",
+       "enum": [
+        "ai",
+        "ai_admin"
+       ]
+      },
+      "isOn": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "feature",
+      "isOn"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "user": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "email": {
+          "type": "string"
+         },
+         "features": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "id",
+         "email"
+        ]
+       },
+       "serverId": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "user",
+       "serverId"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/chat",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "context": {
+       "type": "object",
+       "properties": {
+        "kind": {
+         "type": "string",
+         "enum": [
+          "draft",
+          "edit",
+          "post"
+         ]
+        },
+        "text": {
+         "type": "string",
+         "maxLength": 4000
+        },
+        "media": {
+         "type": "object",
+         "properties": {
+          "photo": {
+           "type": "integer",
+           "minimum": 0
+          },
+          "video": {
+           "type": "integer",
+           "minimum": 0
+          }
+         },
+         "required": [
+          "photo",
+          "video"
+         ]
+        },
+        "tags": {
+         "type": "array",
+         "items": {
+          "type": "string",
+          "patterns": [
+           "^[^\\0]*$"
+          ],
+          "minLength": 1,
+          "maxLength": 40
+         },
+         "maxItems": 100
+        },
+        "mentions": {
+         "type": "array",
+         "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+         },
+         "maxItems": 30
+        }
+       },
+       "required": [
+        "kind",
+        "text",
+        "media",
+        "tags",
+        "mentions"
+       ]
+      },
+      "chatId": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 64
+      },
+      "messages": {
+       "type": "array",
+       "items": {
+        "anyOf": [
+         {
+          "type": "object",
+          "properties": {
+           "role": {
+            "type": "string",
+            "enum": [
+             "user"
+            ]
+           },
+           "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+           },
+           "moreLikeThis": {
+            "type": "boolean"
+           }
+          },
+          "required": [
+           "role",
+           "content"
+          ]
+         },
+         {
+          "type": "object",
+          "properties": {
+           "reply": {
+            "type": "string",
+            "maxLength": 4000
+           },
+           "postOptions": {
+            "type": "array",
+            "items": {
+             "type": "string",
+             "minLength": 1,
+             "maxLength": 4000
+            },
+            "maxItems": 10
+           },
+           "role": {
+            "type": "string",
+            "enum": [
+             "assistant"
+            ]
+           }
+          },
+          "required": [
+           "reply",
+           "postOptions",
+           "role"
+          ]
+         }
+        ]
+       },
+       "minItems": 1,
+       "maxItems": 30
+      }
+     },
+     "required": [
+      "context",
+      "messages"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "reply": {
+        "type": "string",
+        "maxLength": 4000
+       },
+       "postOptions": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 4000
+        },
+        "maxItems": 10
+       },
+       "systemMessage": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "reply",
+       "postOptions"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/compare/vision",
+    "bodyLimit": 2097152,
+    "body": {
+     "type": "object",
+     "properties": {
+      "prompt": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 2000
+      },
+      "image": {
+       "type": "object",
+       "properties": {
+        "base64": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 1500000
+        },
+        "mimeType": {
+         "type": "string",
+         "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp"
+         ]
+        }
+       },
+       "required": [
+        "base64",
+        "mimeType"
+       ]
+      },
+      "modelIds": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1
+       },
+       "minItems": 1
+      },
+      "earlierRounds": {
+       "type": "array",
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "required": [
+      "prompt",
+      "image",
+      "modelIds"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "results": {
+        "type": "array",
+        "items": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "modelId": {
+             "type": "string"
+            },
+            "tags": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "modelId",
+            "tags"
+           ]
+          },
+          {
+           "type": "object",
+           "properties": {
+            "modelId": {
+             "type": "string"
+            },
+            "error": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "modelId",
+            "error"
+           ]
+          }
+         ]
+        }
+       }
+      },
+      "required": [
+       "results"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/compare/writing",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "prompt": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 2000
+      },
+      "modelIds": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "minLength": 1
+       },
+       "minItems": 1
+      },
+      "earlierRounds": {
+       "type": "array",
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "required": [
+      "prompt",
+      "modelIds"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "results": {
+        "type": "array",
+        "items": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "modelId": {
+             "type": "string"
+            },
+            "tweets": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "modelId",
+            "tweets"
+           ]
+          },
+          {
+           "type": "object",
+           "properties": {
+            "modelId": {
+             "type": "string"
+            },
+            "error": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "modelId",
+            "error"
+           ]
+          }
+         ]
+        }
+       }
+      },
+      "required": [
+       "results"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/contact-from-link",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "handle": {
+       "type": "string",
+       "patterns": [
+        "^[A-Za-z0-9_]{1,50}$"
+       ]
+      }
+     },
+     "required": [
+      "handle"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "status": {
+        "type": "string",
+        "enum": [
+         "found",
+         "unavailable",
+         "notFound",
+         "failed"
+        ]
+       },
+       "contact": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "xHandle": {
+          "type": "string"
+         },
+         "instagramHandle": {
+          "type": "string"
+         },
+         "blueskyHandle": {
+          "type": "string"
+         },
+         "onlyFansHandle": {
+          "type": "string"
+         },
+         "jffHandle": {
+          "type": "string"
+         },
+         "city": {
+          "type": "string"
+         },
+         "state": {
+          "type": "string"
+         },
+         "country": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "name",
+         "xHandle",
+         "instagramHandle",
+         "blueskyHandle",
+         "onlyFansHandle",
+         "jffHandle",
+         "city",
+         "state",
+         "country"
+        ]
+       },
+       "avatar": {
+        "type": [
+         "object",
+         "null"
+        ],
+        "properties": {
+         "base64": {
+          "type": "string"
+         },
+         "mimeType": {
+          "type": "string",
+          "enum": [
+           "image/jpeg",
+           "image/png",
+           "image/webp"
+          ]
+         }
+        },
+        "required": [
+         "base64",
+         "mimeType"
+        ]
+       }
+      },
+      "required": [
+       "status",
+       "contact",
+       "avatar"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/contact-from-screenshot",
+    "bodyLimit": 2097152,
+    "body": {
+     "type": "object",
+     "properties": {
+      "image": {
+       "type": "object",
+       "properties": {
+        "base64": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 1500000
+        },
+        "mimeType": {
+         "type": "string",
+         "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp"
+         ]
+        }
+       },
+       "required": [
+        "base64",
+        "mimeType"
+       ]
+      }
+     },
+     "required": [
+      "image"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "xHandle": {
+        "type": "string"
+       },
+       "instagramHandle": {
+        "type": "string"
+       },
+       "blueskyHandle": {
+        "type": "string"
+       },
+       "onlyFansHandle": {
+        "type": "string"
+       },
+       "jffHandle": {
+        "type": "string"
+       },
+       "city": {
+        "type": "string"
+       },
+       "state": {
+        "type": "string"
+       },
+       "country": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "name",
+       "xHandle",
+       "instagramHandle",
+       "blueskyHandle",
+       "onlyFansHandle",
+       "jffHandle",
+       "city",
+       "state",
+       "country"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/tags",
+    "bodyLimit": 2097152,
+    "body": {
+     "type": "object",
+     "properties": {
+      "image": {
+       "type": "object",
+       "properties": {
+        "base64": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 1500000
+        },
+        "mimeType": {
+         "type": "string",
+         "enum": [
+          "image/jpeg",
+          "image/png",
+          "image/webp"
+         ]
+        }
+       },
+       "required": [
+        "base64",
+        "mimeType"
+       ]
+      }
+     },
+     "required": [
+      "image"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "tags": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "patterns": [
+          "^[^\\0]*$"
+         ],
+         "minLength": 1,
+         "maxLength": 40
+        },
+        "maxItems": 20
+       }
+      },
+      "required": [
+       "tags"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/ai/verify/:kind/:modelId",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "writing",
+        "vision"
+       ]
+      },
+      "modelId": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "kind",
+      "modelId"
+     ]
+    },
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "run": {
+        "type": [
+         "object",
+         "null"
+        ],
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "kind": {
+          "type": "string",
+          "enum": [
+           "writing",
+           "vision"
+          ]
+         },
+         "modelId": {
+          "type": "string"
+         },
+         "status": {
+          "type": "string",
+          "enum": [
+           "running",
+           "done",
+           "stopped"
+          ]
+         },
+         "startedAt": {
+          "type": "string"
+         },
+         "finishedAt": {
+          "type": [
+           "string",
+           "null"
+          ]
+         },
+         "turnsDone": {
+          "type": "integer"
+         },
+         "turnsTotal": {
+          "type": "integer"
+         },
+         "result": {
+          "type": [
+           "object",
+           "null"
+          ],
+          "properties": {
+           "sections": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "id": {
+               "type": "string"
+              },
+              "title": {
+               "type": "string"
+              },
+              "systemMessage": {
+               "type": [
+                "string",
+                "null"
+               ]
+              },
+              "post": {
+               "type": [
+                "object",
+                "null"
+               ],
+               "properties": {
+                "photos": {
+                 "type": "integer"
+                },
+                "videos": {
+                 "type": "integer"
+                },
+                "tags": {
+                 "type": "array",
+                 "items": {
+                  "type": "string"
+                 }
+                },
+                "mentions": {
+                 "type": "array",
+                 "items": {
+                  "type": "string"
+                 }
+                },
+                "caption": {
+                 "type": "string"
+                }
+               },
+               "required": [
+                "photos",
+                "videos",
+                "tags",
+                "mentions",
+                "caption"
+               ]
+              },
+              "turns": {
+               "type": "array",
+               "items": {
+                "type": "object",
+                "properties": {
+                 "prompt": {
+                  "type": "string"
+                 },
+                 "note": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 },
+                 "seconds": {
+                  "type": [
+                   "number",
+                   "null"
+                  ]
+                 },
+                 "unreadable": {
+                  "type": "boolean"
+                 },
+                 "reply": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 },
+                 "items": {
+                  "type": "array",
+                  "items": {
+                   "type": "string"
+                  }
+                 },
+                 "checks": {
+                  "type": "array",
+                  "items": {
+                   "type": "object",
+                   "properties": {
+                    "name": {
+                     "type": "string"
+                    },
+                    "ok": {
+                     "type": "boolean"
+                    },
+                    "reason": {
+                     "type": [
+                      "string",
+                      "null"
+                     ]
+                    }
+                   },
+                   "required": [
+                    "name",
+                    "ok",
+                    "reason"
+                   ]
+                  }
+                 },
+                 "error": {
+                  "type": [
+                   "string",
+                   "null"
+                  ]
+                 }
+                },
+                "required": [
+                 "prompt",
+                 "note",
+                 "seconds",
+                 "unreadable",
+                 "reply",
+                 "items",
+                 "checks",
+                 "error"
+                ]
+               }
+              }
+             },
+             "required": [
+              "id",
+              "title",
+              "systemMessage",
+              "post",
+              "turns"
+             ]
+            }
+           },
+           "passes": {
+            "type": "number"
+           },
+           "fails": {
+            "type": "number"
+           },
+           "unreadable": {
+            "type": "number"
+           },
+           "medianSeconds": {
+            "type": "number"
+           },
+           "slowestSeconds": {
+            "type": "number"
+           }
+          },
+          "required": [
+           "sections",
+           "passes",
+           "fails",
+           "unreadable",
+           "medianSeconds",
+           "slowestSeconds"
+          ]
+         },
+         "error": {
+          "type": [
+           "string",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "id",
+         "kind",
+         "modelId",
+         "status",
+         "startedAt",
+         "finishedAt",
+         "turnsDone",
+         "turnsTotal",
+         "result",
+         "error"
+        ]
+       },
+       "plan": {
+        "type": "object",
+        "properties": {
+         "sections": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "string"
+            },
+            "title": {
+             "type": "string"
+            },
+            "prompts": {
+             "type": "array",
+             "items": {
+              "type": "string"
+             }
+            }
+           },
+           "required": [
+            "id",
+            "title",
+            "prompts"
+           ]
+          }
+         }
+        },
+        "required": [
+         "sections"
+        ]
+       }
+      },
+      "required": [
+       "run",
+       "plan"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/assets/delete",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "keys": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "minItems": 1,
+       "maxItems": 1000
+      }
+     },
+     "required": [
+      "keys"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "deleted": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "deleted"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/assets/download-urls",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "keys": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "minItems": 1
+      },
+      "expiresIn": {
+       "type": "integer",
+       "exclusiveMinimum": 0
+      }
+     },
+     "required": [
+      "keys"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "urls": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "key": {
+           "type": "string"
+          },
+          "url": {
+           "type": "string",
+           "format": "uri"
+          }
+         },
+         "required": [
+          "key",
+          "url"
+         ]
+        }
+       }
+      },
+      "required": [
+       "urls"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/auth/login",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "email": {
+       "type": "string"
+      },
+      "password": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "email",
+      "password"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "accessToken": {
+        "type": "string"
+       },
+       "refreshToken": {
+        "type": "string"
+       },
+       "user": {
+        "type": "object",
+        "properties": {
+         "id": {
+          "type": "string"
+         },
+         "email": {
+          "type": "string"
+         },
+         "features": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         }
+        },
+        "required": [
+         "id",
+         "email"
+        ]
+       },
+       "serverId": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "accessToken",
+       "refreshToken",
+       "user",
+       "serverId"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/auth/logout",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "refreshToken": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "refreshToken"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {}
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/auth/refresh",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "refreshToken": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "refreshToken"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "accessToken": {
+        "type": "string"
+       },
+       "refreshToken": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "accessToken",
+       "refreshToken"
+      ]
+     }
+    }
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/sync/pull",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "cursor": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "limit": {
+       "type": "integer",
+       "exclusiveMinimum": 0,
+       "maximum": 1000
+      }
+     }
+    },
+    "params": {},
+    "querystring": {},
+    "response": {}
+   },
+   {
+    "method": "POST",
+    "url": "/api/v1/sync/push",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "mutations": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "collection": {
+          "type": "string"
+         },
+         "record": {
+          "type": "object",
+          "additionalProperties": {}
+         },
+         "fields": {
+          "type": "object",
+          "additionalProperties": {}
+         }
+        },
+        "required": [
+         "collection",
+         "record"
+        ]
+       },
+       "minItems": 1,
+       "maxItems": 500
+      }
+     },
+     "required": [
+      "mutations"
+     ]
+    },
+    "params": {},
+    "querystring": {},
+    "response": {}
+   },
+   {
+    "method": "PUT",
+    "url": "/api/v1/ai/defaults/:kind",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "regular": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "minLength": 1
+      },
+      "unrestricted": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "minLength": 1
+      }
+     },
+     "required": [
+      "regular",
+      "unrestricted"
+     ]
+    },
+    "params": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "writing",
+        "vision"
+       ]
+      }
+     },
+     "required": [
+      "kind"
+     ]
+    },
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "models": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "supportsVision": {
+           "type": "boolean"
+          },
+          "isUncensored": {
+           "type": "boolean"
+          },
+          "isVeniceUncensored": {
+           "type": "boolean"
+          },
+          "verifiedKinds": {
+           "type": "array",
+           "items": {
+            "type": "string",
+            "enum": [
+             "writing",
+             "vision"
+            ]
+           }
+          },
+          "uncensoredOverride": {
+           "type": [
+            "boolean",
+            "null"
+           ]
+          },
+          "reasoning": {
+           "type": "object",
+           "properties": {
+            "supported": {
+             "type": "boolean"
+            },
+            "defaultEffort": {
+             "type": [
+              "string",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "supported",
+            "defaultEffort"
+           ]
+          },
+          "costPerReplyUsd": {
+           "type": "number"
+          },
+          "costPer100PhotosUsd": {
+           "type": [
+            "number",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "name",
+          "supportsVision",
+          "isUncensored",
+          "isVeniceUncensored",
+          "verifiedKinds",
+          "uncensoredOverride",
+          "reasoning",
+          "costPerReplyUsd",
+          "costPer100PhotosUsd"
+         ]
+        }
+       },
+       "defaults": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         },
+         "vision": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         }
+        },
+        "required": [
+         "writing",
+         "vision"
+        ]
+       },
+       "instructions": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "string"
+         },
+         "visionTagging": {
+          "type": "string"
+         },
+         "moreLikeThis": {
+          "type": "string"
+         },
+         "modelCheckJudge": {
+          "type": "string"
+         },
+         "contactScreenshot": {
+          "type": "string"
+         },
+         "contactXProfile": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "writing",
+         "visionTagging",
+         "moreLikeThis",
+         "modelCheckJudge",
+         "contactScreenshot",
+         "contactXProfile"
+        ]
+       }
+      },
+      "required": [
+       "models",
+       "defaults",
+       "instructions"
+      ]
+     }
+    }
+   },
+   {
+    "method": "PUT",
+    "url": "/api/v1/ai/instructions/:kind",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string",
+       "patterns": [
+        "^[^\\0]*$"
+       ],
+       "minLength": 1,
+       "maxLength": 4000
+      }
+     },
+     "required": [
+      "text"
+     ]
+    },
+    "params": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "writing",
+        "visionTagging",
+        "moreLikeThis",
+        "modelCheckJudge",
+        "contactScreenshot",
+        "contactXProfile"
+       ]
+      }
+     },
+     "required": [
+      "kind"
+     ]
+    },
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "instructions": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "string"
+         },
+         "visionTagging": {
+          "type": "string"
+         },
+         "moreLikeThis": {
+          "type": "string"
+         },
+         "modelCheckJudge": {
+          "type": "string"
+         },
+         "contactScreenshot": {
+          "type": "string"
+         },
+         "contactXProfile": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "writing",
+         "visionTagging",
+         "moreLikeThis",
+         "modelCheckJudge",
+         "contactScreenshot",
+         "contactXProfile"
+        ]
+       }
+      },
+      "required": [
+       "instructions"
+      ]
+     }
+    }
+   },
+   {
+    "method": "PUT",
+    "url": "/api/v1/ai/uncensored/:modelId",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "uncensored": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "uncensored"
+     ]
+    },
+    "params": {
+     "type": "object",
+     "properties": {
+      "modelId": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "modelId"
+     ]
+    },
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "models": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "supportsVision": {
+           "type": "boolean"
+          },
+          "isUncensored": {
+           "type": "boolean"
+          },
+          "isVeniceUncensored": {
+           "type": "boolean"
+          },
+          "verifiedKinds": {
+           "type": "array",
+           "items": {
+            "type": "string",
+            "enum": [
+             "writing",
+             "vision"
+            ]
+           }
+          },
+          "uncensoredOverride": {
+           "type": [
+            "boolean",
+            "null"
+           ]
+          },
+          "reasoning": {
+           "type": "object",
+           "properties": {
+            "supported": {
+             "type": "boolean"
+            },
+            "defaultEffort": {
+             "type": [
+              "string",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "supported",
+            "defaultEffort"
+           ]
+          },
+          "costPerReplyUsd": {
+           "type": "number"
+          },
+          "costPer100PhotosUsd": {
+           "type": [
+            "number",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "name",
+          "supportsVision",
+          "isUncensored",
+          "isVeniceUncensored",
+          "verifiedKinds",
+          "uncensoredOverride",
+          "reasoning",
+          "costPerReplyUsd",
+          "costPer100PhotosUsd"
+         ]
+        }
+       },
+       "defaults": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         },
+         "vision": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         }
+        },
+        "required": [
+         "writing",
+         "vision"
+        ]
+       },
+       "instructions": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "string"
+         },
+         "visionTagging": {
+          "type": "string"
+         },
+         "moreLikeThis": {
+          "type": "string"
+         },
+         "modelCheckJudge": {
+          "type": "string"
+         },
+         "contactScreenshot": {
+          "type": "string"
+         },
+         "contactXProfile": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "writing",
+         "visionTagging",
+         "moreLikeThis",
+         "modelCheckJudge",
+         "contactScreenshot",
+         "contactXProfile"
+        ]
+       }
+      },
+      "required": [
+       "models",
+       "defaults",
+       "instructions"
+      ]
+     }
+    }
+   },
+   {
+    "method": "PUT",
+    "url": "/api/v1/ai/verification/:kind/:modelId",
+    "bodyLimit": 1048576,
+    "body": {
+     "type": "object",
+     "properties": {
+      "isVerified": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "isVerified"
+     ]
+    },
+    "params": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "writing",
+        "vision"
+       ]
+      },
+      "modelId": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     "required": [
+      "kind",
+      "modelId"
+     ]
+    },
+    "querystring": {},
+    "response": {
+     "200": {
+      "type": "object",
+      "properties": {
+       "models": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "supportsVision": {
+           "type": "boolean"
+          },
+          "isUncensored": {
+           "type": "boolean"
+          },
+          "isVeniceUncensored": {
+           "type": "boolean"
+          },
+          "verifiedKinds": {
+           "type": "array",
+           "items": {
+            "type": "string",
+            "enum": [
+             "writing",
+             "vision"
+            ]
+           }
+          },
+          "uncensoredOverride": {
+           "type": [
+            "boolean",
+            "null"
+           ]
+          },
+          "reasoning": {
+           "type": "object",
+           "properties": {
+            "supported": {
+             "type": "boolean"
+            },
+            "defaultEffort": {
+             "type": [
+              "string",
+              "null"
+             ]
+            }
+           },
+           "required": [
+            "supported",
+            "defaultEffort"
+           ]
+          },
+          "costPerReplyUsd": {
+           "type": "number"
+          },
+          "costPer100PhotosUsd": {
+           "type": [
+            "number",
+            "null"
+           ]
+          }
+         },
+         "required": [
+          "id",
+          "name",
+          "supportsVision",
+          "isUncensored",
+          "isVeniceUncensored",
+          "verifiedKinds",
+          "uncensoredOverride",
+          "reasoning",
+          "costPerReplyUsd",
+          "costPer100PhotosUsd"
+         ]
+        }
+       },
+       "defaults": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         },
+         "vision": {
+          "type": "object",
+          "properties": {
+           "regular": {
+            "type": "string",
+            "minLength": 1
+           },
+           "unrestricted": {
+            "type": "string",
+            "minLength": 1
+           }
+          },
+          "required": [
+           "regular",
+           "unrestricted"
+          ]
+         }
+        },
+        "required": [
+         "writing",
+         "vision"
+        ]
+       },
+       "instructions": {
+        "type": "object",
+        "properties": {
+         "writing": {
+          "type": "string"
+         },
+         "visionTagging": {
+          "type": "string"
+         },
+         "moreLikeThis": {
+          "type": "string"
+         },
+         "modelCheckJudge": {
+          "type": "string"
+         },
+         "contactScreenshot": {
+          "type": "string"
+         },
+         "contactXProfile": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "writing",
+         "visionTagging",
+         "moreLikeThis",
+         "modelCheckJudge",
+         "contactScreenshot",
+         "contactXProfile"
+        ]
+       }
+      },
+      "required": [
+       "models",
+       "defaults",
+       "instructions"
+      ]
+     }
+    }
+   },
+   {
+    "method": "PUT",
+    "url": "/api/v1/assets/upload/*",
+    "bodyLimit": 1048576,
+    "body": {},
+    "params": {},
+    "querystring": {},
+    "response": {}
+   }
+  ],
+  "collections": {
+   "album_assets": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "albumId": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "assetId": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "position": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "albumId",
+     "assetId",
+     "position"
+    ]
+   },
+   "albums": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "name": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "isFavorite": {
+      "type": "boolean"
+     },
+     "archivedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "showInPostSuggestionsAfter": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "oldCollectionName": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "notes": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "sortOrder": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "custom"
+      ]
+     },
+     "smartAlbumType": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "FAVORITES",
+       "DELETED"
+      ]
+     },
+     "position": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "favoritedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "name",
+     "isFavorite",
+     "archivedAt",
+     "showInPostSuggestionsAfter",
+     "oldCollectionName",
+     "notes",
+     "sortOrder",
+     "smartAlbumType"
+    ]
+   },
+   "assets": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "mediaLibraryAssetId": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "mediaType": {
+      "type": "string",
+      "enum": [
+       "photo",
+       "video"
+      ]
+     },
+     "width": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+     },
+     "height": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+     },
+     "fileSize": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "duration": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "filename": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "thumbnailFilename": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "isFavorite": {
+      "type": "boolean"
+     },
+     "notes": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "oldFileId": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "isFileSynced": {
+      "type": "boolean"
+     },
+     "isThumbnailSynced": {
+      "type": "boolean"
+     },
+     "isSynced": {
+      "type": "boolean"
+     },
+     "purgedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "favoritedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "takenAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "originalFilename": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "latitude": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "longitude": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "tags": {
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "string",
+       "patterns": [
+        "^[^\\0]*$"
+       ],
+       "minLength": 1,
+       "maxLength": 40
+      },
+      "maxItems": 20
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "mediaLibraryAssetId",
+     "mediaType",
+     "width",
+     "height",
+     "fileSize",
+     "duration",
+     "filename",
+     "thumbnailFilename",
+     "isFavorite",
+     "notes",
+     "oldFileId",
+     "isFileSynced",
+     "isThumbnailSynced",
+     "isSynced"
+    ]
+   },
+   "contact_links": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "contactId": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "targetType": {
+      "type": "string",
+      "enum": [
+       "asset",
+       "album",
+       "post"
+      ]
+     },
+     "targetId": {
+      "type": "string",
+      "format": "uuid"
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "contactId",
+     "targetType",
+     "targetId"
+    ]
+   },
+   "contact_list_members": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "listId": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "contactId": {
+      "type": "string",
+      "format": "uuid"
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "listId",
+     "contactId"
+    ]
+   },
+   "contact_lists": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "name": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 200
+     },
+     "notes": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 5000
+     },
+     "pinnedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "name",
+     "notes"
+    ]
+   },
+   "contact_settings": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "pinnedListId": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 40
+     },
+     "pinnedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "pinnedListId",
+     "pinnedAt"
+    ]
+   },
+   "contacts": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "name": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 200
+     },
+     "isFavorite": {
+      "type": "boolean"
+     },
+     "favoritedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "notes": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 5000
+     },
+     "xHandle": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 200
+     },
+     "instagramHandle": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 200
+     },
+     "blueskyHandle": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 200
+     },
+     "onlyFansHandle": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 200
+     },
+     "jffHandle": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 200
+     },
+     "phoneNumber": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 50
+     },
+     "places": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "city": {
+         "type": "string",
+         "patterns": [
+          "^[^\\0]*$"
+         ],
+         "maxLength": 200
+        },
+        "state": {
+         "type": "string",
+         "patterns": [
+          "^[^\\0]*$"
+         ],
+         "maxLength": 200
+        },
+        "country": {
+         "type": "string",
+         "patterns": [
+          "^[^\\0]*$"
+         ],
+         "maxLength": 200
+        }
+       },
+       "required": [
+        "city",
+        "state",
+        "country"
+       ]
+      },
+      "maxItems": 20
+     },
+     "avatarFilename": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$",
+       "^avatar-[A-Za-z0-9-]+\\.jpg$"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "name",
+     "isFavorite",
+     "favoritedAt",
+     "notes",
+     "xHandle",
+     "blueskyHandle",
+     "onlyFansHandle",
+     "jffHandle",
+     "phoneNumber",
+     "places",
+     "avatarFilename"
+    ]
+   },
+   "favorites": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "text": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 2000
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "text"
+    ]
+   },
+   "instructions": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "writing": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "visionTagging": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "moreLikeThis": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "modelCheckJudge": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "contactScreenshot": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 4000
+     },
+     "contactXProfile": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 4000
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "writing",
+     "visionTagging",
+     "moreLikeThis"
+    ]
+   },
+   "model_choices": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "writingModel": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "id": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "name": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "maxLength": 200
+       }
+      },
+      "required": [
+       "id",
+       "name"
+      ]
+     },
+     "visionModel": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "id": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "name": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "maxLength": 200
+       }
+      },
+      "required": [
+       "id",
+       "name"
+      ]
+     },
+     "writingUncensoredModel": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "id": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "name": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "maxLength": 200
+       }
+      },
+      "required": [
+       "id",
+       "name"
+      ]
+     },
+     "visionUncensoredModel": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "id": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "minLength": 1,
+        "maxLength": 200
+       },
+       "name": {
+        "type": "string",
+        "patterns": [
+         "^[^\\0]*$"
+        ],
+        "maxLength": 200
+       }
+      },
+      "required": [
+       "id",
+       "name"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "writingModel",
+     "visionModel"
+    ]
+   },
+   "personas": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "aboutYou": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 2000
+     },
+     "contentTags": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "patterns": [
+        "^[^\\0]*$"
+       ],
+       "maxLength": 40
+      },
+      "maxItems": 50
+     },
+     "tone": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 1000
+     },
+     "rules": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "patterns": [
+        "^[^\\0]*$"
+       ],
+       "maxLength": 200
+      },
+      "maxItems": 30
+     },
+     "adultContent": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "aboutYou",
+     "contentTags",
+     "tone",
+     "rules"
+    ]
+   },
+   "post_assets": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "postId": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "assetId": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "position": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "postId",
+     "assetId",
+     "position"
+    ]
+   },
+   "posts": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "text": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     },
+     "isFavorite": {
+      "type": "boolean"
+     },
+     "postedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "rePostId": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "uuid"
+     },
+     "isIgnoredForRepost": {
+      "type": "boolean"
+     },
+     "suggestRepostAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "hasBeenReposted": {
+      "type": "boolean"
+     },
+     "threadRootId": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "uuid"
+     },
+     "threadIndex": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -2147483648,
+      "maximum": 2147483647
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "text",
+     "isFavorite",
+     "postedAt",
+     "rePostId",
+     "isIgnoredForRepost",
+     "suggestRepostAt",
+     "hasBeenReposted"
+    ]
+   },
+   "prompt_buttons": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid"
+     },
+     "createdAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "updatedAt": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "deletedAt": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+     },
+     "name": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 60
+     },
+     "prompt": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "minLength": 1,
+      "maxLength": 2000
+     },
+     "placement": {
+      "type": "string",
+      "enum": [
+       "post",
+       "newPost",
+       "caption",
+       "refine"
+      ]
+     },
+     "icon": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "patterns": [
+       "^[^\\0]*$"
+      ],
+      "maxLength": 40
+     },
+     "position": {
+      "type": "string",
+      "patterns": [
+       "^[^\\0]*$"
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "createdAt",
+     "updatedAt",
+     "deletedAt",
+     "name",
+     "prompt",
+     "icon",
+     "position"
+    ]
+   }
+  },
+  "error": {
+   "type": "object",
+   "properties": {
+    "error": {
+     "type": "object",
+     "properties": {
+      "code": {
+       "type": "string",
+       "enum": [
+        "validation_error",
+        "unauthorized",
+        "invalid_credentials",
+        "invalid_token",
+        "not_found",
+        "rate_limited",
+        "purged",
+        "s3_error",
+        "ai_not_configured",
+        "ai_unavailable",
+        "ai_not_allowed",
+        "ai_admin_not_allowed",
+        "developer_only",
+        "read_only_library",
+        "internal"
+       ]
+      },
+      "message": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "code",
+      "message"
+     ]
+    }
+   },
+   "required": [
+    "error"
+   ]
+  },
+  "clientMigrations": [
+   {
+    "tag": "0000_long_cerebro",
+    "hash": "0271f99aa73ffe6cd8cd315725144672e7699e1a934c5ed9df89269afca045c1"
+   },
+   {
+    "tag": "0001_public_wind_dancer",
+    "hash": "3134a858c0432ab001d1e02943962010f923792064b6edb227fdb93b486aeade"
+   },
+   {
+    "tag": "0002_loose_shooting_star",
+    "hash": "8607249d0031aa3d0af6245a2bddf2165dd56dee2656aaa807c937ac4035292b"
+   },
+   {
+    "tag": "0003_dizzy_falcon",
+    "hash": "7ae7a0f3d65b5223ffd51c8f79e5a4ce37578771b8d92338eb7de7a0f02dbbe8"
+   },
+   {
+    "tag": "0004_row_changes",
+    "hash": "412d3804a28e6aba58134a90ee7bcc2a37ecf3e6508a8c784538601c66486916"
+   },
+   {
+    "tag": "0005_tearful_marauders",
+    "hash": "6fef39e06c719b12aa2bf05b345185a6bad81a0e7dd3776dce6f2e77bee01d41"
+   },
+   {
+    "tag": "0006_query_indexes",
+    "hash": "a99af6963c57003ed62c5d32877ece3a2f3737e4e0b5a5e3b04a69fbc83795bc"
+   },
+   {
+    "tag": "0007_drop_row_changes",
+    "hash": "c17eec74d088661e53b675bce81625f8826e4885baf60576c36885cb01774b60"
+   },
+   {
+    "tag": "0008_round_post_timestamps",
+    "hash": "59710669770c7c23bab1a229446ab7ef9a9161c06ab2dfe92b900e97a8474616"
+   },
+   {
+    "tag": "0009_purged_assets",
+    "hash": "6c61b1d87787eb55ee0ab08bbea29da1b881b756d8997533b121d709252b8136"
+   },
+   {
+    "tag": "0010_outbox_errors",
+    "hash": "d6c42d86e220dbae0047d697279906640e66f60ffa142df28c3c07be73c8a8ff"
+   },
+   {
+    "tag": "0011_outbox_fields",
+    "hash": "e42aebc2d455365c85d5a9beb191cad8eb3ff7bc49b6c7e3f958d2c8e8f48c8a"
+   },
+   {
+    "tag": "0012_purged_files",
+    "hash": "cab9b28a818aa7f19a935060c968d40bd2c1947d633ea7bc2b60a63f0664fbfd"
+   },
+   {
+    "tag": "0013_asset_details",
+    "hash": "a0ce58d5c345694fade1f76427400e5f899a28af4bbe656c4baacf4c3bbe7d3e"
+   },
+   {
+    "tag": "0014_ai_tables",
+    "hash": "955b1bed15ad492e4400f715916f04f81b270a1d1eb2f8a57b706e3aa45957c4"
+   },
+   {
+    "tag": "0015_assistant_setup",
+    "hash": "bd89cfdaaa24c0a9ae74a7dec8f07c5b3dc6e7649d54e133d1f03fe9c3f19e15"
+   },
+   {
+    "tag": "0016_favorites",
+    "hash": "154f07e512deeaaa9e084f1220b0901bb4f7d1eeb6a9d923377de18370c21cb4"
+   },
+   {
+    "tag": "0017_instructions",
+    "hash": "a311e581f35aa6dca3bbf1855272a3b5a6cf605b75e3163d5a5a8ae12d9c9d27"
+   },
+   {
+    "tag": "0018_drop_use_emoji",
+    "hash": "15861fedbd32cb6f8d8189803145a407c3d60c74e151bf3c22ae0c77154093b6"
+   },
+   {
+    "tag": "0019_drop_persona_draft_instructions",
+    "hash": "c5035e50f6cc013a253e18d12d28d769f9eb73477be93a45b02b72f45ea6f0c6"
+   },
+   {
+    "tag": "0020_app_prompts",
+    "hash": "d3ae1182792881461b317a30455ff47a3d19d936a45e00e16af55380db94122d"
+   },
+   {
+    "tag": "0021_model_choices",
+    "hash": "867d897201a93a6ecfbbc0360f1dd30c414681b87cca7429cb5c57bca7997102"
+   },
+   {
+    "tag": "0022_photo_tags",
+    "hash": "47e08b9e07a034f96262fd0893c20f624432c16feea334725cb1ebecfc8f7925"
+   },
+   {
+    "tag": "0023_chat_prompts",
+    "hash": "9d95f428fde5cea8e9045c7f477ef903e403713d3cdeaf70c440104d95f20212"
+   },
+   {
+    "tag": "0024_merge_prompts",
+    "hash": "8e8ad729f4127d5421c15eb0d4e02bd5d91925fd4a773fa1f55e327947bd1312"
+   },
+   {
+    "tag": "0025_adult_content",
+    "hash": "a4b26535d5b37b9db010c6fa3d5011df06acf9b62fdf2fbe043c139629610a4c"
+   },
+   {
+    "tag": "0026_model_check_judge",
+    "hash": "0369abfd79f13a3ad524a3db7099fc9a34c79929fc70247f5832c6730557668e"
+   },
+   {
+    "tag": "0027_uncensored_model_picks",
+    "hash": "1542801f7d77c5657ff1c3cf5cec672604b2e0af0c7cbaeb24723446713c511f"
+   },
+   {
+    "tag": "0028_drop_favorite_source",
+    "hash": "1b21903d7b34663529e8f5b2dfa87adfc1cae523e23aaeca282fb73a5fe453b5"
+   },
+   {
+    "tag": "0029_model_notes",
+    "hash": "491cf5bec1d73a4bd1350d4d88425395ea8afc7fabcd9280e8d752103e633ef5"
+   },
+   {
+    "tag": "0030_post_threads",
+    "hash": "bfd23a96bd751dee216c3d7f6579309a4b6f235b5ac6cb81d803cb7698916df7"
+   },
+   {
+    "tag": "0031_contacts",
+    "hash": "f317c4077aab4d0e36b9292d6d07b6ec8a30f1cb44d0cf04babf78698eaf2a7e"
+   },
+   {
+    "tag": "0032_contact_x_profile",
+    "hash": "6687ea196e62dd9027b530477a2f3eae91042cb8a23e58aa761e2b05f6243551"
+   },
+   {
+    "tag": "0033_contact_list_pinned",
+    "hash": "8d5a6929508de0ec719e620ab41190ab6db7854f55a124825d502244025b12ba"
+   },
+   {
+    "tag": "0034_contact_instagram",
+    "hash": "e29a531e86820bad05e0f36260bc6b5455b7b8f381b8e462039b2cf04945094e"
+   },
+   {
+    "tag": "0035_contact_settings",
+    "hash": "5568364ef58d5a508e17d0eaf657390a43f577902143bcdb669cf507018e39b5"
+   },
+   {
+    "tag": "0036_album_favorited_at",
+    "hash": "bafbd1b9aa1013b8ea75618e73ba321ebbfb801bad7016550e676ebe7679d3c7"
+   },
+   {
+    "tag": "0037_search_index",
+    "hash": "46922be165c6fe5141c4ce30faa9e3ca8aec8789cf4e01e0fb523c6cc4a6b321"
+   }
+  ]
+ }
+}

@@ -4,7 +4,6 @@ import { Alert, View } from 'react-native';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
-import useFloatingBarScrollHandler from '@/components/floating-bars/useFloatingBarScrollHandler';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
 import useAppSettings from '@/features/app-settings/useAppSettings';
@@ -13,11 +12,13 @@ import assetFilterOptions from '@/features/asset-list/actions/filter-assets-acti
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
+import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
 import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useScrollY from '@/hooks/useScrollY';
 import type { AssetSort } from '@/sync/assetSql';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
@@ -33,13 +34,13 @@ export default function AssetsScreen() {
     onSort: setLibrarySortOrder,
   });
 
-  const { setIsSelectMode, scrollY } = useFloatingBars();
+  const { setIsSelectMode } = useFloatingBars();
   const selection = useToggleSelectAssetsAction();
   const { isSelectMode, selectedAssetIds, isAssetSelected, selectAssets, exitSelectMode } = selection;
   // The floating bars only need to know whether select mode is on (the navigation bar hides).
   useEffect(() => setIsSelectMode(isSelectMode), [isSelectMode]);
 
-  const scrollHandler = useFloatingBarScrollHandler();
+  const { onScroll, scrollY } = useScrollY();
 
   const { show, hide, updateProgress } = useProgressOverlay();
   const runWithProgress = useRunWithProgress();
@@ -73,6 +74,7 @@ export default function AssetsScreen() {
     <View testID="library-screen" style={{ flex: 1 }}>
       <FloatingHeader
         title="Library"
+        scrollY={scrollY}
         onAdd={handleAdd}
         selection={selection}
         selectionActions={actions}
@@ -84,7 +86,7 @@ export default function AssetsScreen() {
         loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
-        onScroll={scrollHandler}
+        onScroll={onScroll}
         scrollY={scrollY}
         isSelectMode={isSelectMode}
         selectedAssetIds={selectedAssetIds}
@@ -94,7 +96,7 @@ export default function AssetsScreen() {
       />
       <FloatingActionsBar
         search={searchBar}
-        placeholder="Search notes…"
+        placeholder={ASSET_SEARCH_PLACEHOLDER}
         sortOrder={sortOrder}
         sortOptions={assetSortOptions}
         activeFilter={activeFilter}

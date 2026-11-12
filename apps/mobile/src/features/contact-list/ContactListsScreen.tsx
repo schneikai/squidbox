@@ -27,7 +27,7 @@ const NO_ROWS: never[] = [];
 /**
  * The contact lists, pushed from the Contacts tab's All lists: the built-in ones (Favorites, Tagged,
  * Deleted) among the user's, each opening its list, searched by name and sorted with the lists' own
- * sort (useContactSort('lists'), the list picker's too). + adds a list.
+ * sort (useContactSort('lists')). + adds a list.
  */
 export default function ContactListsScreen() {
   const navigation = useNavigation();

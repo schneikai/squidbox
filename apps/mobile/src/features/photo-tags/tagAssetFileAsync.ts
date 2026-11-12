@@ -5,7 +5,7 @@ import readVisionImageAsync, { type VisionAsset, type VisionImageReadDeps } from
 import tagPhotoAsync from '@/utils/cloud-api/ai/tagPhotoAsync';
 
 /**
- * One tagging, outside tagAttempts (callers go through tagAssetAsync or tagAssetOnce): the asset's
+ * One tagging, outside tagAttempts (callers go through tagAssetAsync): the asset's
  * thumbnail to POST /ai/tags, the tags stored on it; fails when the photo was deleted meanwhile.
  */
 export default async function tagAssetFileAsync(asset: VisionAsset, deps: VisionImageReadDeps): Promise<string[]> {

@@ -85,6 +85,8 @@ Run `/ios-build`: it asks what to build and drives EAS for you (no flags or prof
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.ts` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Installing, credentials (an App Store Connect API key, no Mac), signing renewal and the full runbook are in the `ios-build` skill.
 
+A preview or release build starts with `npm run ios:app`, which first records the commit and its contract (`apps/server/contract/builds/`), which `contract.test.ts` holds today's server to; the old-build e2e suite (`installedBuilds.e2e.test.ts`) runs the oldest and the newest of those builds (`docs/sync-design.md` §15).
+
 ### Dev client
 
 The dev client loads JS from Metro at runtime over Expo's tunnel (an `on.expo.app` URL, through your Expo account: signed in with `eas login`, or `EXPO_TOKEN` in the cloud; it works behind the cloud workspace's proxy). It always runs against a local backend filled with stock photos, albums, posts and contacts, so testing never touches your real library. One command starts everything, from the repo root, on a laptop or in the cloud (needs Docker):
@@ -119,7 +121,7 @@ npm run web:preview -- shot.png      # signs in, opens the library, saves a scre
 
 Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/webPreview.mjs` (Playwright): tap, type, navigate and take screenshots. Outside the cloud workspace, run `npx playwright install chromium` once.
 
-The UI flow tests drive it too: `npm run test:ui` runs the Playwright specs in `apps/mobile/e2e/` (sign in and out, the photo pager, a new post, an album, the edit sheet's discard guard).
+The UI flow tests drive it too: `npm run test:ui` runs the Playwright specs in `apps/mobile/e2e/` (sign in and out, the photo pager, a new post, its ideas on a stubbed assistant, an album, the edit sheet's discard guard).
 
 - A run resets the mock account to the mock data set (`seed:mock`) and reuses a running `npm run dev:local -- --web`, or starts one and stops it afterwards.
 - Gestures are stand-ins: a swipe is a sideways mouse wheel, a drag-to-reorder a held mouse drag.

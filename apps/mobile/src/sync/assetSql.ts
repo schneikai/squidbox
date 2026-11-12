@@ -132,10 +132,35 @@ export function heldPhotoIds(of: PhotosOf): SQL {
   return 'albumId' in of ? liveAlbumAssetIds(of.albumId) : postThreadAssetIds(of.postId);
 }
 
-/** The ids of the live, untrashed photos a contact is on, through its live links. */
-export function contactPhotoIds(contactId: string): SQL {
+/** The ids of the live, untrashed photos a contact (or any of several) is on, through its live links. */
+export function contactPhotoIds(contactIds: string | string[]): SQL {
   return sql`(select l.target_id from contact_links l join assets a on a.id = l.target_id and a.deleted_at is null
-    where l.contact_id = ${contactId} and l.target_type = 'asset' and l.deleted_at is null)`;
+    where ${contactPhotoLinks(contactIds)})`;
+}
+
+/**
+ * The ids of the photos any of these contacts is on, trashed ones included, through their live links:
+ * a scope that shows trashed photos (Deleted, a post) keeps its own by their deletion.
+ */
+export function contactLinkedPhotoIds(contactIds: string[]): SQL {
+  return sql`(select l.target_id from contact_links l where ${contactPhotoLinks(contactIds)})`;
+}
+
+/** The ids of the albums holding a live photo a contact (or any of several) is on, through live edges. */
+export function contactAlbumIds(contactIds: string | string[]): SQL {
+  return sql`(select album_id from album_assets where ${contactAlbumEdges(contactIds)})`;
+}
+
+/** The live `album_assets` edges to a live photo a contact (or any of several) is on, as a WHERE over that table. */
+export function contactAlbumEdges(contactIds: string | string[]): SQL {
+  return sql`deleted_at is null and asset_id in ${contactPhotoIds(contactIds)}`;
+}
+
+// The live links `l` of these contacts to photos.
+function contactPhotoLinks(contactIds: string | string[]): SQL {
+  const contact = sql.raw('l.contact_id');
+  const isOfContacts = Array.isArray(contactIds) ? inJson(contact, contactIds) : sql`${contact} = ${contactIds}`;
+  return sql`${isOfContacts} and l.target_type = 'asset' and l.deleted_at is null`;
 }
 
 /**

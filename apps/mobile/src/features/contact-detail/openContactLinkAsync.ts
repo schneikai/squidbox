@@ -1,23 +1,30 @@
-import { CONTACT_HANDLE_BY_FIELD, CONTACT_HANDLES, normalizeHandle } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, parseHandle } from '@squidbox/shared';
 import { Alert, Linking } from 'react-native';
 
 import type { HandleFormField } from './contactFields';
+import handleLink from './handleLink';
 
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
-// A handle as typed ("@maya", a pasted link), as its profile's path.
-const handle = (value: string) => encodeURIComponent(normalizeHandle(value));
-
-// Where each field opens, in the order to try: X in its app when it is installed (its scheme fails
-// otherwise) and else on the web, the others' web profiles, and a WhatsApp chat for the phone number.
+// Where each field opens, in the order to try: X in its app on the handle's profile when it is
+// installed (its scheme fails otherwise) and else on the web, the others' web profiles (a saved link
+// as saved, handleLink), and a WhatsApp chat for the phone number. Nothing for a field with nothing
+// to open.
 const LINKS: Record<HandleFormField, (value: string) => string[]> = {
   ...(Object.fromEntries(
-    CONTACT_HANDLES.map(({ field, profileUrl }) => [field, (value: string) => [profileUrl(handle(value))]]),
+    CONTACT_HANDLE_FIELDS.map((field) => [
+      field,
+      (value: string) => {
+        const link = handleLink(field, value);
+        return link ? [link] : [];
+      },
+    ]),
   ) as Record<HandleFormField, (value: string) => string[]>),
-  xHandle: (value) => [
-    `twitter://user?screen_name=${handle(value)}`,
-    CONTACT_HANDLE_BY_FIELD.xHandle.profileUrl(handle(value)),
-  ],
+  xHandle: (value) => {
+    const { handle } = parseHandle(value, 'xHandle');
+    const link = handleLink('xHandle', value);
+    return [...(handle ? [`twitter://user?screen_name=${encodeURIComponent(handle)}`] : []), ...(link ? [link] : [])];
+  },
   phoneNumber: (value) => [`https://wa.me/${value.replace(/\D/g, '').replace(/^0+/, '')}`],
 };
 

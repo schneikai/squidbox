@@ -2,12 +2,12 @@ import { useNavigation } from 'expo-router';
 import { type RefObject, useEffect, useRef } from 'react';
 
 import type { GridLayout, GridRow } from './gridSlotOrigin';
-import isPastTapSlop from './isPastTapSlop';
 import useGridLongPressPan, { type UseGridLongPressPanOptions } from './useGridLongPressPan';
 import usePeekAfterLift, { type UsePeekAfterLiftOptions } from './usePeekAfterLift';
 
 import useHaptics from '@/hooks/useHaptics';
 import type { Point } from '@/lib/Point';
+import isPastTapSlop from '@/lib/isPastTapSlop';
 
 // Apple Photos-style drag-to-select for a grid (the asset grids).
 //

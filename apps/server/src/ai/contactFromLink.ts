@@ -5,7 +5,6 @@ import type { FastifyBaseLogger } from 'fastify';
 import {
   CONTACT_HANDLE_FIELDS,
   emptyContactRead,
-  normalizeHandle,
   type ContactFromLinkResponse,
   type ContactRead,
 } from '@squidbox/shared';
@@ -55,17 +54,16 @@ export async function readContactFromLinkAsync({
   signal?: AbortSignal;
   log: Pick<FastifyBaseLogger, 'info' | 'warn'>;
 }): Promise<ContactFromLinkResponse> {
-  const xHandle = normalizeHandle(handle);
   const budget = withTimeout(X_PROFILE_READ_BUDGET_MS, signal);
   // Read while x.com answers; unused (and its failure ignored) when there is no profile to read.
   const instructions = readInstructions(db, user);
   instructions.catch(() => {});
   const page = await fetchXProfileAsync(handle, { signal: budget, log });
   if (page.status !== 'found')
-    return { status: page.status, contact: { ...emptyContactRead(), xHandle }, avatar: null };
+    return { status: page.status, contact: { ...emptyContactRead(), xHandle: handle }, avatar: null };
 
   const profile: XProfileText = {
-    handle: xHandle,
+    handle,
     name: page.name.trim(),
     bio: page.bio,
     location: page.location,
@@ -85,7 +83,7 @@ export async function readContactFromLinkAsync({
         if (signal?.aborted) throw error;
         // The profile's own name and the photo still fill.
         log.warn({ err: error }, 'From link: the model could not read the profile');
-        return { ...emptyContactRead(), xHandle, name: profile.name };
+        return { ...emptyContactRead(), xHandle: handle, name: profile.name };
       },
     ),
     page.avatarUrl ? fetchAvatarAsync(page.avatarUrl, { signal: budget, log }) : null,
