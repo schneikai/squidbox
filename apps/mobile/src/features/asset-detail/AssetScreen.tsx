@@ -199,8 +199,12 @@ export default function AssetScreen() {
           pointerEvents="box-none"
         >
           {asset && (
-            <FloatingDetailActionsBar asset={asset} onDeleteAsset={(a) => setAssetsDeleted([a.id])}>
-              {/* Opens the details, which only the pager's pages have. */}
+            <FloatingDetailActionsBar
+              asset={asset}
+              onDeleteAsset={(a) => setAssetsDeleted([a.id])}
+              onShowDetails={assetIds ? details.open : undefined}
+            >
+              {/* Opens the details too, and says there is a note. Info and this need the pager's pages. */}
               {!!asset.notes && !!assetIds && (
                 <View style={styles.noteButton}>
                   <FloatingPill>
