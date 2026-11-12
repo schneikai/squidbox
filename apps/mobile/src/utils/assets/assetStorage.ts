@@ -33,11 +33,17 @@ export function getAvatarUri(avatarFilename: string, library: Pick<LibraryPaths,
   return getFieldFileUri('avatarsDir', avatarFilename, library);
 }
 
+// Whether the contact's photo is on this device: a synchronous check, so an avatar can show its photo in
+// its first frame.
+export function hasAvatar(avatarFilename: string, library: Pick<LibraryPaths, 'avatarsDir'>): boolean {
+  return new File(getAvatarUri(avatarFilename, library)).exists;
+}
+
 export async function hasAvatarAsync(
   avatarFilename: string,
   library: Pick<LibraryPaths, 'avatarsDir'>,
 ): Promise<boolean> {
-  return new File(getAvatarUri(avatarFilename, library)).exists;
+  return hasAvatar(avatarFilename, library);
 }
 
 // Removes a contact's old or removed photo from the device (the copy in the user's storage stays).

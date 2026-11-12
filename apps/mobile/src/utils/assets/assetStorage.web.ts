@@ -29,8 +29,12 @@ export function getAvatarUri(avatarFilename: string): string | undefined {
   return webFileUrls.get(avatarFilename);
 }
 
-export async function hasAvatarAsync(avatarFilename: string): Promise<boolean> {
+export function hasAvatar(avatarFilename: string): boolean {
   return webFileUrls.has(avatarFilename);
+}
+
+export async function hasAvatarAsync(avatarFilename: string): Promise<boolean> {
+  return hasAvatar(avatarFilename);
 }
 
 // The web preview keeps no files.
