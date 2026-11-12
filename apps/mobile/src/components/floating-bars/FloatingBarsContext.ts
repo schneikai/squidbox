@@ -1,5 +1,4 @@
 import { type Dispatch, type SetStateAction, createContext } from 'react';
-import type { SharedValue } from 'react-native-reanimated';
 
 import useRequiredContext from '@/hooks/useRequiredContext';
 
@@ -8,9 +7,6 @@ export type FloatingBarsValue = {
   setIsSearchActive: Dispatch<SetStateAction<boolean>>;
   isSelectMode: boolean;
   setIsSelectMode: Dispatch<SetStateAction<boolean>>;
-  scrollY: SharedValue<number>;
-  isNavBarHidden: SharedValue<number>;
-  resetScroll: () => void;
 };
 
 const FloatingBarsContext = createContext<FloatingBarsValue | null>(null);

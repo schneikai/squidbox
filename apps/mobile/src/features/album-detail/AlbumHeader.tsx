@@ -24,6 +24,9 @@ const STACKED = 3;
 type AlbumHeaderProps = {
   album: AlbumRow;
   assetCount: number | undefined;
+  /** Where the name ends, from the header's top (the name is its first line): the screen's header
+   * shows the name once it has scrolled past there. */
+  onNameEnd?: (y: number) => void;
 };
 
 /**
@@ -34,7 +37,7 @@ type AlbumHeaderProps = {
  * contacts chip. The name, the line under it and the notes open Edit album; a double-tap on the name or
  * the line under it stars or unstars it.
  */
-export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
+export default function AlbumHeader({ album, assetCount, onNameEnd }: AlbumHeaderProps) {
   const { toggleFavoriteAlbum } = useAlbums();
   const isSmart = isSmartAlbum(album);
   // A smart album has no contacts of its own: read once, not kept live.
@@ -70,7 +73,12 @@ export default function AlbumHeader({ album, assetCount }: AlbumHeaderProps) {
   return (
     <View style={styles.header}>
       <View>
-        <SuperPressable {...nameTaps} style={({ pressed }) => pressed && press.flat} accessibilityRole="header">
+        <SuperPressable
+          {...nameTaps}
+          style={({ pressed }) => pressed && press.flat}
+          accessibilityRole="header"
+          onLayout={(e) => onNameEnd?.(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+        >
           <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
             {album.name}
           </NativeText>
