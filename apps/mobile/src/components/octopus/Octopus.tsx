@@ -83,8 +83,10 @@ const STOPPED = -1;
 // The splash's idle clock, for the octopuses with `sharedClock` (SplashStage's): the frame timestamp
 // of the first frame one of them drew. The boot screen's octopus fading out over the first-sync
 // screen's then shows the same pose; the first eases in from the drawn pose, as the splash shows it,
-// and a later one joins mid-sway.
+// and one that joins while another moves joins mid-sway. It starts over once none moves, so a lone
+// later one eases in too.
 const CLOCK_ORIGIN = makeMutable(STOPPED);
+let sharedClockUsers = 0; // the `sharedClock` octopuses moving now
 
 // Bending the arms rebuilds their paths, so at rest they bend anew only at about 30 Hz (every other
 // frame at 60 Hz, every fourth at 120 Hz; a little under 1/30 s so frame jitter never skips one more),
@@ -122,7 +124,7 @@ function Octopus({ size, sharedClock = false }: OctopusProps) {
   const frames = useFrameCallback(advance, false);
 
   // Moves unless Reduce Motion is on, and turning it on puts the octopus back as drawn; turning it
-  // off again starts it over (a `sharedClock` one rejoins the splash's clock).
+  // off again starts it over (a `sharedClock` one rejoins the splash's clock, or starts it over).
   useEffect(() => {
     frames.setActive(!reduceMotion);
     if (!reduceMotion) return;
@@ -131,6 +133,15 @@ function Octopus({ size, sharedClock = false }: OctopusProps) {
     sinceWave.value = STOPPED;
     sinceBubbles.value = STOPPED;
   }, [reduceMotion, frames, time, bendTime, sinceWave, sinceBubbles]);
+
+  useEffect(() => {
+    if (!sharedClock || reduceMotion) return undefined;
+    sharedClockUsers += 1;
+    return () => {
+      sharedClockUsers -= 1;
+      if (sharedClockUsers === 0) CLOCK_ORIGIN.value = STOPPED;
+    };
+  }, [sharedClock, reduceMotion]);
 
   const unit = size / WIDTH;
   const angles = useDerivedValue(() => {

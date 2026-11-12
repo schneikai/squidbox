@@ -29,7 +29,7 @@ export default function BootScreen({ leaving }: BootScreenProps) {
       pointerEvents={leaving ? 'none' : 'auto'}
       onLayout={hideNativeSplash}
     >
-      <SplashStage />
+      <SplashStage isLeaving={leaving} />
     </Animated.View>
   );
 }

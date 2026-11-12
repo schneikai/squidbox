@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import Button from '@/components/Button';
 import SplashStage from '@/components/SplashStage';
 import useCloud from '@/features/cloud/useCloud';
-import getFirstSyncStep, { ALMOST_DONE_MS } from '@/features/sync-status/getFirstSyncStep';
+import getFirstSyncStep from '@/features/sync-status/getFirstSyncStep';
+import useAfterDelay from '@/hooks/useAfterDelay';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import { useSyncStatus } from '@/sync/useSyncStatus';
+import type { PullStep } from '@/sync/status';
+import { type LiveSyncStatus, useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 import confirmAsync from '@/utils/confirmAsync';
 
@@ -14,13 +16,14 @@ import confirmAsync from '@/utils/confirmAsync';
 // grids unmounted during the bulk load so the sync isn't fighting the UI. It carries on the splash,
 // with one label for the pull's step (getFirstSyncStep), no counts.
 const RETRY_MS = 5_000;
+// How long "Finishing up" shows before it says "Almost done": the last batch's apply is usually
+// quick, so one that runs on gets a word that it is nearly there.
+const ALMOST_DONE_MS = 5_000;
 
 export default function FirstSyncScreen() {
   const status = useSyncStatus();
   const { logoutAsync } = useCloud();
-  const almostDone = useAlmostDone(status.phase === 'pulling' && status.pullStep === 'finishing');
-
-  const { label, failed } = getFirstSyncStep(status, almostDone);
+  const { label, failed } = useFirstSyncStep(status);
 
   // Never sit dead on an error: auto-retry the pull on a short interval while this screen shows an
   // error, and self-heal without the user restarting. (The normal 30s trigger still runs too.)
@@ -53,16 +56,14 @@ export default function FirstSyncScreen() {
   );
 }
 
-// Whether `finishing` has been true for ALMOST_DONE_MS.
-function useAlmostDone(finishing: boolean) {
-  const [almostDone, setAlmostDone] = useState(false);
-  useEffect(() => {
-    if (!finishing) return undefined;
-    const id = setTimeout(() => setAlmostDone(true), ALMOST_DONE_MS);
-    return () => {
-      clearTimeout(id);
-      setAlmostDone(false);
-    };
-  }, [finishing]);
-  return almostDone;
+// getFirstSyncStep, with what the screen showed last: whether it failed, and how long the finishing
+// step has shown.
+function useFirstSyncStep(status: LiveSyncStatus) {
+  const [shown, setShown] = useState<{ failed: boolean; step?: PullStep }>({ failed: false });
+  const almostDone = useAfterDelay(shown.step === 'finishing', ALMOST_DONE_MS);
+  const current = getFirstSyncStep(status, { wasFailed: shown.failed, almostDone });
+
+  useEffect(() => setShown({ failed: current.failed, step: current.step }), [current.failed, current.step]);
+
+  return current;
 }
