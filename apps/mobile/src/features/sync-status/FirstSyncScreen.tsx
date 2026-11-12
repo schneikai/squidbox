@@ -1,98 +1,69 @@
-import { useEffect, useSyncExternalStore } from 'react';
-import { StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
 
 import Button from '@/components/Button';
-import StatusScreen from '@/components/StatusScreen';
-import Text from '@/components/Text';
+import SplashStage from '@/components/SplashStage';
 import useCloud from '@/features/cloud/useCloud';
-import { onRegistryChange } from '@/library/registry';
+import getFirstSyncStep from '@/features/sync-status/getFirstSyncStep';
+import useAfterDelay from '@/hooks/useAfterDelay';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
-import { schema } from '@/sync/db/client';
-import { useRecordCounts } from '@/sync/useRecordCounts';
-import { useSyncStatus } from '@/sync/useSyncStatus';
+import type { PullStep } from '@/sync/status';
+import { type LiveSyncStatus, useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
 import confirmAsync from '@/utils/confirmAsync';
 
 // Shown once, right after the first login, while the initial library pull runs. Gating the app
 // behind this (a) tells the user it's intentional and one-time, and (b) keeps the heavy asset
-// grids unmounted during the bulk load so the sync isn't fighting the UI. Shows live counts, not rows.
+// grids unmounted during the bulk load so the sync isn't fighting the UI. It carries on the splash,
+// with one label for the pull's step (getFirstSyncStep), no counts.
 const RETRY_MS = 5_000;
-
-// Whether this device's library waits to join the open one: every merge waits for the first pull
-// (mergeWaits in library/mergeLibrary.ts).
-const deviceLibraryWaits = () => Boolean(deviceLibraryToJoin());
-
-function useTotal(table: Parameters<typeof useRecordCounts>[0]) {
-  const { records, tombstones } = useRecordCounts(table);
-  return records + tombstones;
-}
+// How long "Finishing up" shows before it says "Almost done": the last batch's apply is usually
+// quick, so one that runs on gets a word that it is nearly there.
+const ALMOST_DONE_MS = 5_000;
 
 export default function FirstSyncScreen() {
-  const assets = useTotal(schema.assets);
-  const albums = useTotal(schema.albums);
-  const posts = useTotal(schema.posts);
-  const { phase, lastError } = useSyncStatus();
+  const status = useSyncStatus();
   const { logoutAsync } = useCloud();
-  const addsDevicePhotos = useSyncExternalStore(onRegistryChange, deviceLibraryWaits);
-
-  const hasError = phase === 'error' && !!lastError;
-  const started = assets + albums + posts > 0;
-  const counts = `${assets.toLocaleString()} photos · ${albums.toLocaleString()} albums · ${posts.toLocaleString()} posts`;
+  const { label, failed } = useFirstSyncStep(status);
 
   // Never sit dead on an error: auto-retry the pull on a short interval while this screen shows an
   // error, and self-heal without the user restarting. (The normal 30s trigger still runs too.)
   useEffect(() => {
-    if (!hasError) return undefined;
+    if (!failed) return undefined;
     const id = setInterval(() => requestSync(), RETRY_MS);
     return () => clearInterval(id);
-  }, [hasError]);
+  }, [failed]);
 
   // Signing out stops the first pull, so it asks first; watchTokenDrops then opens the library to
-  // show.
+  // show. This device's library waits to join the account's until the first pull is done (mergeWaits
+  // in library/mergeLibrary.ts).
   async function handleSignOut() {
-    const message = addsDevicePhotos
+    const message = deviceLibraryToJoin()
       ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
       : 'Setting up your library goes on the next time you sign in.';
     const title = 'Sign out before setup finishes?';
     if (await confirmAsync({ title, message, action: 'Sign Out', destructive: true })) await logoutAsync();
   }
 
-  function subtitle() {
-    if (hasError) return "We'll keep trying automatically. Check your connection — your data is safe.";
-    return started ? 'Downloading your photos, albums and posts. This happens once.' : 'Connecting to your library…';
-  }
-
   return (
-    <StatusScreen busy={!hasError} title={hasError ? "Can't reach the server" : 'Setting up your library'}>
-      <Text variant="status" style={styles.centred}>
-        {subtitle()}
-      </Text>
-      {started && (
-        <Text variant="title" style={styles.count}>
-          {hasError ? `${counts} so far` : counts}
-        </Text>
-      )}
-      {hasError ? (
-        <Button label="Try again" onPress={() => requestSync()} />
-      ) : (
-        <Text variant="hint" style={styles.hint}>
-          Please keep the app open — it'll finish shortly.
-        </Text>
-      )}
-      {addsDevicePhotos && (
-        <Text variant="hint" style={styles.hint}>
-          This iPhone’s photos are added once this is done.
-        </Text>
-      )}
-      {/* A sign-out stops the pull at its next batch; the library keeps what it pulled. */}
-      <Button label="Sign out" onPress={handleSignOut} colorPalette="muted" />
-    </StatusScreen>
+    <SplashStage
+      label={label}
+      busy={!failed}
+      // A sign-out stops the pull at its next batch; the library keeps what it pulled.
+      footer={<Button label="Sign out" isInverse onPress={handleSignOut} />}
+    >
+      {failed && <Button label="Try again" isInverse colorPalette="neutral" onPress={() => requestSync()} />}
+    </SplashStage>
   );
 }
 
-const styles = StyleSheet.create({
-  centred: { textAlign: 'center' },
-  // StatusScreen's gap spaces the column.
-  count: { textAlign: 'center' },
-  hint: { textAlign: 'center' },
-});
+// getFirstSyncStep, with what the screen showed last: whether it failed, and how long the finishing
+// step has shown.
+function useFirstSyncStep(status: LiveSyncStatus) {
+  const [shown, setShown] = useState<{ failed: boolean; step?: PullStep }>({ failed: false });
+  const almostDone = useAfterDelay(shown.step === 'finishing', ALMOST_DONE_MS);
+  const current = getFirstSyncStep(status, { wasFailed: shown.failed, almostDone });
+
+  useEffect(() => setShown({ failed: current.failed, step: current.step }), [current.failed, current.step]);
+
+  return current;
+}

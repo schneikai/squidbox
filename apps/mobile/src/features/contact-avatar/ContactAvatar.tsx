@@ -7,9 +7,10 @@ import Icon from '@/components/Icon';
 import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/features/cloud/useCloud';
 import { isFileName } from '@/library/fileFields';
+import type { LibraryPaths } from '@/library/libraryPaths';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import { colors, sizes, space } from '@/styles/designTokens';
-import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
+import { getAvatarUri, hasAvatar } from '@/utils/assets/assetStorage';
 
 /**
  * A contact's round avatar: the picture at `uri` when given, else the contact's photo (from the device,
@@ -180,6 +181,13 @@ function rememberFound(uri: string) {
   foundUris.add(uri);
 }
 
+// Whether the photo at `uri` is on the device, remembered once it is.
+function isFoundOnDevice(filename: string, uri: string, library: Pick<LibraryPaths, 'avatarsDir'>): boolean {
+  if (!hasAvatar(filename, library)) return false;
+  rememberFound(uri);
+  return true;
+}
+
 // The uri of the contact's photo once it is on the device: one not on it yet is fetched
 // through the loader while signed in; null until then, and for a contact without a photo (or with a
 // name that isn't a file name, isFileName).
@@ -190,28 +198,18 @@ function useAvatarUri(contact: Partial<Pick<ContactRecord, 'avatarFilename'>>): 
   const { isAuthenticated } = useCloud();
   const { loadAvatar } = useAssetThumbnailLoader();
   const uri = filename ? getAvatarUri(filename, library) : null;
-  const isShown = !!uri && (shown === filename || foundUris.has(uri));
+  // A photo already on the device shows in the first frame, not a moment after its initials: the file
+  // check is synchronous, and a photo found once skips it.
+  const isShown =
+    !!filename && !!uri && (shown === filename || foundUris.has(uri) || isFoundOnDevice(filename, uri, library));
 
   useEffect(() => {
-    if (!filename || isShown) return undefined;
-    let isCancelled = false;
-    let withdraw: (() => void) | undefined;
-    function showFound(found: string) {
-      rememberFound(getAvatarUri(found, library));
-      setShown(found);
-    }
-    (async () => {
-      const isLocal = await hasAvatarAsync(filename, library);
-      if (isCancelled) return;
-      if (isLocal) showFound(filename);
-      else if (isAuthenticated) {
-        withdraw = loadAvatar({ avatarFilename: filename }, (result) => result === 'done' && showFound(filename));
-      }
-    })();
-    return () => {
-      isCancelled = true;
-      withdraw?.();
-    };
+    if (!filename || isShown || !isAuthenticated) return undefined;
+    return loadAvatar({ avatarFilename: filename }, (result) => {
+      if (result !== 'done') return;
+      rememberFound(getAvatarUri(filename, library));
+      setShown(filename);
+    });
   }, [filename, isAuthenticated, isShown, library, loadAvatar]);
 
   return isShown ? uri : null;

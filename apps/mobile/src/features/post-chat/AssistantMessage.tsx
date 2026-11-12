@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import AssistantBubble from './AssistantBubble';
@@ -9,6 +9,7 @@ import type { AssistantChatMessage } from './chatSessions';
 import Card from '@/components/Card';
 import Icon from '@/components/Icon';
 import Text from '@/components/Text';
+import useAfterDelay from '@/hooks/useAfterDelay';
 import { colors, layout, sizes, space } from '@/styles/designTokens';
 
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
@@ -58,12 +59,7 @@ export default memo(AssistantMessage);
 
 // "Thinking…", and "Still writing…" once it takes longer than SLOW_MS.
 function ThinkingCard() {
-  const [isSlow, setIsSlow] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsSlow(true), SLOW_MS);
-    return () => clearTimeout(timer);
-  }, []);
+  const isSlow = useAfterDelay(true, SLOW_MS);
 
   return (
     <Card padded style={styles.status}>

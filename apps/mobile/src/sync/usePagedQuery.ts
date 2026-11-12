@@ -68,6 +68,7 @@ export function pageAfterResult<R>(page: Page, result: PagedResult<R> | undefine
  * `readAt` says how fresh the rows are, updated on every read (see useLiveQueryState); without it the
  * screen renders nothing for a re-read that returns the same rows. `isLive` (default true): false reads
  * once and then only notes writes until it turns true (useLiveQuery), for a list that is hidden for now.
+ * `isCurrent` says the rows were read for this descriptor, not still the previous one's.
  */
 export function usePagedQuery<R>(
   query: PagedQuery<R>,
@@ -93,5 +94,5 @@ export function usePagedQuery<R>(
     [],
   );
 
-  return { rows: result?.rows, count: result?.count, readAt, loadMore, keepLimit };
+  return { rows: result?.rows, count: result?.count, isCurrent: result?.key === key, readAt, loadMore, keepLimit };
 }
