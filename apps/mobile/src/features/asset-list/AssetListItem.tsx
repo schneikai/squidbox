@@ -20,7 +20,7 @@ export type AssetListItemProps = { asset: AssetRow; selection?: SelectionStore }
 function AssetListItem({ asset, selection }: AssetListItemProps) {
   const { duration, isFavorite, isSynced, notes } = asset;
   // The glows darken the corners behind the indicators, so they only show over a loaded picture, as
-  // does the cloud badge: the placeholder says itself when a picture isn't uploaded yet. They are
+  // does the not-uploaded badge: the placeholder says itself when a picture isn't uploaded yet. They are
   // mounted from the start and only hidden: an image appears a few frames after it mounts, so
   // mounting them with the picture, or on the select-mode toggle, would pop them in late.
   const renderOverlay = (hasPicture: boolean) => (
@@ -30,7 +30,7 @@ function AssetListItem({ asset, selection }: AssetListItemProps) {
       {selection && <SelectGlow selection={selection} assetId={asset.id} hasPicture={hasPicture} />}
       <View style={[cornerStyles.topRight, styles.indicators]}>
         <FavoriteAssetIndicator isFavorite={isFavorite} />
-        {hasPicture && <CloudIndicator isSynced={isSynced} />}
+        {hasPicture && <NotUploadedIndicator isSynced={isSynced} />}
         <NoteIndicator hasNote={!!notes} />
       </View>
     </>
@@ -110,12 +110,14 @@ function FavoriteAssetIndicator({ isFavorite }: FavoriteAssetIndicatorProps) {
   return <Icon name="heart" filled size={sizes.icon} color={colors.text.inverse} />;
 }
 
-type CloudIndicatorProps = Pick<AssetRow, 'isSynced'>;
+type NotUploadedIndicatorProps = Pick<AssetRow, 'isSynced'>;
 
-function CloudIndicator({ isSynced }: CloudIndicatorProps) {
-  const iconName = isSynced ? 'cloud-check' : 'cloud-offline';
+// Only a photo that isn't in the cloud yet gets a badge: being uploaded is the normal state, so it
+// shows nothing and leaves the corner to the badges that matter.
+function NotUploadedIndicator({ isSynced }: NotUploadedIndicatorProps) {
+  if (isSynced) return null;
 
-  return <Icon name={iconName} size={sizes.icon} color={colors.text.inverse} />;
+  return <Icon name="cloud-offline" size={sizes.icon} color={colors.text.inverse} />;
 }
 
 type NoteIndicatorProps = { hasNote: boolean };
