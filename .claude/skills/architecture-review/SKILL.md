@@ -1,11 +1,11 @@
 ---
 name: architecture-review
-description: Use when the owner asks to review the architecture, structure or consistency of the app or a part of it against software design best practices, or to find cleanup and alignment work. The periodic part of a three-part system (the build skill prevents defects on every change, CI detects them, this review finds and closes what both missed). It answers three questions with evidence, fixes the most consequential finding with the build skill, ships the lint rules that keep the rest from coming back, and hands the owner only the decisions.
+description: Use when the owner asks to review the architecture, structure or consistency of the app or a part of it against software design best practices, or to find cleanup and alignment work. The periodic part of a three-part system (the build skill prevents defects on every change, CI detects them, this review finds what both missed). Three stages with nothing shared between agents but the scope: a scan by single-concern agents in parallel, a consolidation by a fresh agent into one finding per failure class, and a close that ships the checks which keep each class from coming back and hands the owner at most four decisions.
 ---
 
 # Review the architecture
 
-You are the **coordinator**, the top-level session. The run is complete when at least one important correction is built and verified, not when a report exists. The report is a byproduct. The prompts for every subagent are in [briefs.md](briefs.md); the research behind the rules is in [evidence.md](evidence.md), with sources. Project rules come from CLAUDE.md.
+You are the **coordinator**, the top-level session. You dispatch, you spot-check, you ship the checks, you tell the owner. You do not review code yourself and you do not rank findings yourself: a scanner sees one concern, the consolidator sees every finding, and you see the scope. The prompts for every subagent are in [briefs.md](briefs.md); the research behind the rules is in [evidence.md](evidence.md), with sources. Project rules come from CLAUDE.md.
 
 The code is written and maintained by agents, and the owner reads only the summary in the thread, never the code or the PRs. So the review optimises for the next agent change being correct, cheap, independently verifiable and recoverable, not for how the code looks. Five properties, in order:
 
@@ -19,57 +19,42 @@ Duplication is a finding only when the copies must change together or a third co
 
 ## Scope
 
-The owner names the scope when starting the run: the whole app, an area (`apps/mobile/src/sync` with `library`; the mobile `features` with `components`, `hooks`, `lib` and `utils`; `apps/server` with `packages/shared`), or one feature. A question ("is the contacts code put together right?") is not a run: answer it yourself.
+The owner names the scope when starting the run: the whole app (the default when they say "the app"), an area, or one feature. The scan's code-quality agents work per area; the areas of the whole app are: mobile `features`; mobile `components`, `hooks`, `utils`, `lib`, `styles`; mobile `sync`, `library`, `app`; `apps/server/src`; `packages/shared`. A smaller scope is one of these, or one feature folder with the areas it imports. A question ("is the contacts code put together right?") is not a run: answer it yourself.
 
 ## Workspace
 
-`.work/review-<slug>/` (slug: kebab-case from the scope; `.work/` is gitignored): `map.md`, `reports/<angle>.md`, `screens/` (the UX reviewer's screenshots, `[SCREENSHOT_DIR]` in its brief) and `dropped.md`, one line per finding you dropped and why.
+`.work/review-<slug>/` (slug: kebab-case from the scope; `.work/` is gitignored): `counts.md`, `recent-changes.md`, `map.md`, `findings/<agent>.md` (one file per scanner, never read by another scanner), `screens/` (the UX scanner's screenshots), `report.md` and `dropped.md` (the consolidator's), `spot-check.md` (yours).
 
-## Steps
+## Stage 1: Scan
 
-### 1. Map
+Everything a scanner needs is prepared first, in minutes, then every scanner launches in one message, each with a fresh context and only its brief:
 
-Read CLAUDE.md, `docs/sync-design.md` §8 and §12, `docs/library-ownership-plan.md`, the `squidbox-ui` skill's conflicts table, and every earlier report in `docs/reviews/`. Run the counts over the scope; each goes into the map with the command that produced it:
+1. Read CLAUDE.md, `docs/sync-design.md` §8 and §12, `docs/library-ownership-plan.md`, the `squidbox-ui` skill's conflicts table, and every earlier report in `docs/reviews/`.
+2. Run the counts over the scope into `counts.md`, each with the command that produced it: the import matrix between top-level folders (feature → feature, `utils`/`hooks`/`components` → `features`, `utils` → `library`), aggregated per folder pair; `catch` sites per folder; files over 300 lines, each with how many commits touched it in the last 30 days.
+3. List the recent changes into `recent-changes.md`: the last five PRs merged into main (`git log --first-parent --merges` or the squashed commits), each with its commit, title, the folders its diff touched (`git show --stat`), and the fix-up PRs, reverts, failed CI runs or commits that followed it.
+4. Start `npm run dev:local -- --web` (README.md "Web preview") in the background and wait for the preview URL. When the preview cannot start, the run is blocked, not done: stop and tell the owner.
+5. Dispatch, together: the **Map** writer; **What went wrong** (reads the recent changes' diffs); **Reuse**, **Simplification** and **Efficiency**, one agent per angle per area in scope; **Homes and boundaries**; **Data integrity** (runs the failure scenarios against the real repositories); **Discoverability by task** (three cold agents, one task each); **UX parity** (drives the preview). If the owner named an extra focus, it goes into the common tail's `[ADDITIONAL_FOCUS]` of every scanner.
 
-- the import matrix between top-level folders (feature → feature, `utils`/`hooks`/`components` → `features`, `utils` → `library`), aggregated per folder pair;
-- `catch` sites per folder;
-- files over 300 lines, each with how many commits touched it in the last 30 days: a large file that changes often is the hotspot, a large one nobody touches is not;
-- what went wrong: the last five PRs merged into main (`git log --first-parent --merges` or the squashed commits), each with the folders its diff touched (`git show --stat`) and the fix-up PRs, reverts, failed CI runs or commits that followed it.
+Each scanner writes `findings/<agent>.md` in the common tail's shape and returns one line. A scanner that returns without a file, or whose file has no finding shape, is relaunched once with the same brief; after that its absence is noted in the report.
 
-Dispatch the map writer ([briefs.md](briefs.md), "Map") for the whole scope, or write the map yourself when the scope is one feature. Save it as `map.md`. When an earlier report exists, diff its counts against the new ones, and for each finding it fixed, check that the test it added still runs and still fails when the behaviour is broken, and whether its failure class came back.
+## Stage 2: Consolidate
 
-### 2. Investigate
+When every scanner has returned, dispatch the **Consolidate** agent, fresh, with the findings folder, the map, the counts, the recent changes and the earlier reports. It merges every finding into one finding per failure class (one class, one fix, every site listed under it), sorts risks from friction, ranks, proposes the check that would keep each class from coming back with today's hit count, splits those checks into rules the project already states and rules it would be new, compares the counts and the fixed findings against the earlier report, and writes `report.md` with at most four decisions for the owner, and `dropped.md`.
 
-Three questions, each with its own kind of evidence; a grep answers the third, never the first two. Start `npm run dev:local -- --web` (README.md "Web preview") and launch the reviewers together, in one message, each with a fresh context and its brief:
+Then spot-check it: open the file for every risk and for the five highest friction findings, and for each check proposed as "stated rule" find the sentence it rests on. Write one line per item to `spot-check.md`: holds, or what is wrong. Anything wrong goes back to the consolidator in one message with those lines; it revises once. You do not re-rank and you do not add findings; a finding you think it missed is a line to the consolidator.
 
-- **What actually went wrong?** Every reviewer starts from the recent changes in the map: where did the structure, a missing test or a missing rule make a change cost more than it had to, or let a bug through?
-- **What could still go badly wrong?** **Data integrity** runs the failure scenarios (offline edits on two devices, a crash between writes, replayed or reordered operations, migrations over old data, interrupted uploads, an older app version) against the real repositories and quotes the results; **UX parity** drives the screens in the web preview and inventories labels, flows and one-off styles. When the preview cannot start, the run is blocked, not done: stop and tell the owner.
-- **What makes the next change unnecessarily difficult?** **Homes and boundaries** traces likely changes through the tree; **Discoverability by task** sends three cold agents to find the code for representative tasks.
+## Stage 3: Close
 
-If the owner named an extra focus, put it in the common tail's `[ADDITIONAL_FOCUS]`. Each reviewer checks its own findings against the criteria in the common tail, writes `reports/<angle>.md` and returns one line.
-
-### 3. Rank
-
-Merge duplicates across angles. Sort into **risks** (Data integrity's findings, and anything else that can lose or corrupt data, cross an account boundary or ship a regression) and **friction** (everything else). Rank risks by consequence and likelihood, a scenario that failed when run first; friction by recurring cost per change, tied to a recent change where it can be. Open the file for each finding you keep; drop what fails a criterion into `dropped.md`, one line, and do not argue with it. Turn each task agent's stalls into findings. There is no target count: as many as have a cost, usually fewer than ten.
-
-### 4. Fix
-
-Build the top finding with the build skill, one request: "Build finding R1 (or F1) of the review in `.work/review-<slug>/`", and keep going down the list while a finding is S or M and changes nothing a user sees without the owner's say. A risk's fix is first its test: written from the contract sentence the finding quotes, before reading the implementation; shown to fail with the behaviour deliberately broken and to pass after the fix; both runs quoted in the PR. When the top risk is L, touches a migration or changes what synced data means, build only its reproducing test (marked as expected to fail until the fix lands) and escalate the fix as the owner's first decision: a wrong fix there is worse than the gap. A risk that is not fixed is **open**, never closed, in every place it is mentioned.
-
-### 5. Enforce
-
-For each class of finding, add the lint or check that keeps it from coming back, the way the repo does it: a rule in `apps/mobile/.eslintrc.js` (`no-restricted-syntax` with an AST selector carries UI rules too, as the spacing rule shows; `no-restricted-imports` carries boundaries and primitives), a script beside `scripts/checkNewFiles.mjs`, or a test, each run by `npm run check` and CI. Only rules CLAUDE.md or a design doc already states; a new constraint is a finding the owner picks. A rule ships only with zero hits: fix them when that is under an hour, otherwise the fix is a finding and the rule ships with it. No baselines and no new `eslint-disable` marks: a marked exception becomes the pattern agents copy. When a rule carries a CLAUDE.md sentence completely, the build that ships it removes the sentence with the `tidy-claude-md` skill.
-
-### 6. Report and tell the owner
-
-Write `docs/reviews/<date>-<slug>.md`: the three questions answered in a paragraph each; what was fixed and how it was verified; **open risks**, marked; the remaining friction findings, each a complete build request in the common tail's shape; **Enforce**, with hit counts and what shipped; **Not findings**, from `dropped.md`; **Outcomes**, when an earlier report exists (each fix it shipped: still protected or not, and whether its failure class came back; each count: better, same, worse). Commit it with the enforcement on a branch `review-<slug>` (unless the environment already put you on a branch for this work), push, open the PR.
-
-Then tell the owner, in plain words and no file paths: what went wrong, what was fixed and verified, what is open and why, each open risk's contract sentence so they can say it is wrong, what is now enforced, and the decisions left: numbered, with your recommendation. Nothing else waits on them. The owner answers with numbers; each becomes a build thread with the one-line request "Build finding N of docs/reviews/<date>-<slug>.md".
+1. **Enforce.** Ship every check the report lists under "stated rule" at zero hits, the way the repo does it: a rule in `apps/mobile/.eslintrc.js` (`no-restricted-syntax` with an AST selector carries UI rules too, as the spacing rule shows; `no-restricted-imports` carries boundaries and primitives), a script beside `scripts/checkNewFiles.mjs`, or a test, each run by `npm run check` and CI. Prove each one fires (a negative input through eslint, a test shown red with the behaviour broken), then fix today's hits yourself when that is under an hour; otherwise the hits are a build finding and the check ships with it. No baselines and no new `eslint-disable` marks: a marked exception becomes the pattern agents copy. A check for a new rule waits for the owner's decision. When a rule carries a CLAUDE.md sentence completely, the build that ships it removes the sentence with the `tidy-claude-md` skill.
+2. **Pin each risk.** A risk whose scenario failed when run gets its reproducing test in the tree, marked as expected to fail (`it.fails`), when that is one test file against the existing repositories or server; otherwise the report quotes the scenario run. The fix is never built in this run: a fix to stored or synced data is the owner's decision, built in its own thread where the build skill's reviews can catch a wrong one. A risk is **open**, never closed, in every place it is mentioned.
+3. **Report.** Copy `report.md` to `docs/reviews/<date>-<slug>.md` with what shipped under Enforce and the pinned tests, commit it with the checks on a branch `review-<slug>` (unless the environment already put you on a branch for this work), push, open the PR, and run `npm run check:all` before it.
+4. **Tell the owner**, in plain words and no file paths: what went wrong, what could still go wrong (each open risk with its contract sentence, so they can say it is wrong), what makes the next change hard, what is enforced now, the trend against the earlier run, and the decisions: numbered, at most four, each with your recommendation. The owner answers with numbers; each becomes a build thread with the one-line request "Build finding N of docs/reviews/<date>-<slug>.md". Nothing else waits on them.
 
 ## Rules
 
 - Thorough model (`fable` in Claude Code today) for every subagent; set it on each dispatch. The exception is the three task agents of Discoverability by task: their brief reads as a reasoning probe to the thorough model's safeguards, which stop them; dispatch those on the standard model (`opus`).
-- The run never writes `todo.md` or CLAUDE.md. A new rule is a finding; the build that implements it adds its line through the `add-rule` skill.
+- A scanner reads the code, the map and its brief, never another scanner's file. The consolidator reads findings, never the code beyond what a finding cites. You read what the spot-check needs.
+- The run never writes `todo.md` or CLAUDE.md. A new rule is a decision; the build that implements it adds its line through the `add-rule` skill.
 - The briefs name folders, item kinds, scenarios and tasks as they are today; the map is the truth. Swap a scenario or task that no longer fits and say so in the report.
 - No health score, no average: named counts, their trend, and the tail (the worst files, the worst screens).
-- Narrate at most one line between tool calls; post the owner a short status after the map, the reviews, and each PR.
+- Narrate at most one line between tool calls; post the owner a short status after the scan launches, when the scanners are back, after the consolidation, and with the PR. Stop the preview when the run ends.

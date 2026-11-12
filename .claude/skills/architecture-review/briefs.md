@@ -1,6 +1,6 @@
 # Briefs
 
-One prompt per subagent. Fill the brackets. Every reviewer is read-only and report-only (Data integrity may run tests and write a throwaway one, and leaves the tree as it found it), gets a fresh context, and is told nothing beyond its brief, the scope and (except the task agents) the map. The three angle briefs (Homes and boundaries, Data integrity, UX parity) end with the common tail at the bottom of this file; paste it in. The map writer and the task agents do not get it.
+One prompt per subagent. Fill the brackets. Every scanner is read-only and report-only (Data integrity may run tests and write a throwaway one, and leaves the tree as it found it), gets a fresh context, is told nothing beyond its brief, the scope and (except the task agents) the map, and never reads another scanner's file. Every scanner brief except Map and the task agents ends with the common tail at the bottom of this file; paste it in. The consolidator gets its own brief and no tail.
 
 ## Map
 
@@ -12,14 +12,40 @@ Read CLAUDE.md ("Code layout", "Where data is saved") and docs/sync-design.md §
 No judgements, no findings: what is, in one page. Return the file path.
 ```
 
+## What went wrong
+
+```
+You review the recent changes to [SCOPE] in the repo at [ROOT] for one thing: where did the structure, a missing test or a missing rule make a change cost more than it had to, or let a bug through? Read CLAUDE.md, the map at [MAP_FILE] and [RECENT_CHANGES], then every PR's diff (git show <commit> --stat, then the files). Write your findings to [REPORT_FILE]; change nothing else.
+
+For each PR: the files it touched for no reason of its own (a copy of a default, a factory, a seed, a layout line per group); code it copied because the home was not obvious; ownership it misread (a fix-up or a failed CI run tells you); a boundary it crossed that is not one; the test it added and whether that test fails when the behaviour it covers is broken (break it on purpose, one line, reverted after, and run it); the bug a fix-up fixed and the test or check that would have caught it before CI. Each is a finding whose cost is that PR's extra files, extra commits or extra runs, named. Then the pattern across the five: the same kind of extra cost on two or more PRs is the finding to put first.
+```
+
+## Reuse, Simplification, Efficiency
+
+Three agents per area, one angle each, modelled on the `simplify` skill's review but over an area instead of a diff. Fill `[ANGLE_TEXT]` with the paragraph for the angle.
+
+```
+You review [AREA] (part of [SCOPE]) in the repo at [ROOT] from one angle only: [ANGLE_NAME]. Read CLAUDE.md "Code layout" and the map at [MAP_FILE], then every file in the area. Write your findings to [REPORT_FILE]; change nothing else.
+
+[ANGLE_TEXT]
+
+Work by failure class, not by file: when you find the same thing in several files, that is one finding with every site listed under it, and the fix names the one place the logic should live or the one form it should take. Start from the files the map and [RECENT_CHANGES] show changed most, then the rest.
+```
+
+Reuse: `Flag code that re-implements something the codebase already has: a helper in src/utils, src/lib, src/hooks, src/sync or packages/shared, a component in src/components, a test helper under test/helpers; and the same logic written twice inside the area where the copies must change together (a rule both follow, a fix one got and the other needs) or there are three or more. Grep for the existing helper before you flag, and name it. Two copies in independent features that will never change together may stand; say so in Not findings.`
+
+Simplification: `Flag complexity that does not pay for itself: state that could be derived, copy-paste with slight variation, deep nesting, dead code and unused exports knip would miss, an option, parameter, file or abstraction no caller needs yet, a pass-through wrapper (apply the deletion test: would deleting it and inlining its callers be smaller and clearer?), a special case layered on shared infrastructure where a change to the underlying mechanism would be simpler, and a comment that restates the code or promises what the code does not do. Name the simpler form that does the same job.`
+
+Efficiency: `Flag wasted work: repeated reads or queries where one would do, I/O or computation on a render or scroll path, independent async work run one after another, a read of whole rows to use one column, a list rebuilt on every change, a closure that keeps a large scope alive, a transaction held across I/O, a query without the index it needs (read docs and the schema's indexes). CLAUDE.md measures performance by counting work, never by timing it: count statements, rows, renders or files for each finding, with the command or the trace that produced the count. Name the cheaper alternative.`
+
 ## Homes and boundaries
 
 ```
 You review [SCOPE] in the repo at [ROOT] for one thing: does each kind of thing have one obvious home, are the boundaries between folders the ones the code's changes need, and where does the same code live twice because the home was not obvious? Read CLAUDE.md "Code layout", the map at [MAP_FILE], and then the code. Write your findings to [REPORT_FILE]; change nothing else.
 
-First, the recent changes in the map are real evidence: for each, read its diff (git show --stat and the files), and ask where the structure made it cost more than it had to: a folder it touched for no reason of its own, code it copied because the home was not obvious, ownership it misread (a fix-up tells you), a boundary it crossed that is not one. Each such place is a finding; name the structural change that would have made that PR smaller or safer.
+The recent changes in the map are evidence: where one of them touched a folder for no reason of its own, that is a finding tied to that PR.
 
-Then trace these likely changes through the tree and, for each, list every folder a correct implementation touches:
+Trace these likely changes through the tree and, for each, list every folder a correct implementation touches:
 1. Add a field to a synced collection and show it on its detail screen.
 2. Add a new item kind with a list, a detail screen and an edit sheet.
 3. Add a setting that syncs with the account.
@@ -93,9 +119,37 @@ Then flag:
 - A screen missing one of the four states, or an icon-only button without a label.
 ```
 
-## Common tail for every reviewer
+## Consolidate
+
+One fresh agent, after every scanner has returned. It reads findings, never the code beyond what a finding cites.
 
 ```
-Rules: what can lose or corrupt data or ship a regression is a risk; everything else is friction. Mark each finding as one or the other; a risk quotes the contract sentence it rests on (a design doc or CLAUDE.md) and its fix names the test first. The repo's own rules (CLAUDE.md, the design docs) win over any general principle; when they conflict, say so and propose which should change. Skip anything the lint, the typecheck or knip already enforces. Before you keep a finding, check it: the code does what you say (open the file); it is not a choice CLAUDE.md, docs/sync-design.md §12 or docs/library-ownership-plan.md made on purpose (an earlier report in docs/reviews/ is evidence, not a decision: read its Not findings and Outcomes to check faster, then judge the code yourself); a caller has the case; deleting the thing and inlining its callers would not be smaller and clearer; crossing folders costs only when a folder is not a boundary the change needs. Rank by cost; there is no target count, and a finding without a cost is not one. Each finding, one line per field: location (file:line, or a count with the command that produced it); the rule or principle; the evidence (what the code does, quoted or counted); the cost (what gets harder or breaks because of this, in one sentence, tied where you can to a recent change or a scenario; no cost, no finding); the fix as a target shape in one line; how the next run will see it worked (a test that fails when the behaviour is broken, a lint's hit count, files a cold agent reads, folders a change touches: whichever exists); the files a fix would touch; size S (under an hour), M (half a day), L (a day or more); the test that covers the behaviour, or the test the fix must add (an M or L fix without a test is not done). Where a lint or a one-line check would keep the finding from coming back, name it with today's hit count. Write it to the report file and return one line: finding count, report path.
+You consolidate an architecture review of [SCOPE] in the repo at [ROOT]. Read, in this order: CLAUDE.md; the map at [MAP_FILE]; [COUNTS_FILE]; [RECENT_CHANGES]; every file in [FINDINGS_DIR] (one per scanner, each a list of findings in one shape); the earlier reports in docs/reviews/ (the latest one's Counts and Outcomes above all). Write [REPORT_FILE] and [DROPPED_FILE]; change nothing else.
+
+Merge every finding across scanners into one finding per failure class: one class is one rule broken in one way, with one fix, however many sites it has (seven delete confirms in seven shapes are one finding; raw Text in 23 files is one finding; a query with two homes and the helpers that followed it are one finding). A site already listed under one class is not listed under another. Keep every site, file:line, under its class: a build agent will work from this list.
+
+Sort into risks (can lose or corrupt data, cross an account boundary or ship a regression; a risk quotes its contract sentence) and friction (everything else). Rank risks by consequence and likelihood, a scenario that failed when run first; friction by recurring cost per change, tied to a recent change where a scanner tied it. Drop what fails a criterion in the scanners' common rules (no cost, enforced already, a choice the rules made on purpose, two independent copies) into [DROPPED_FILE], one line each, without arguing.
+
+For every class a machine could spot, name the check that would keep it from coming back (an eslint selector or import restriction, a script, a test) with today's hit count, and say whether CLAUDE.md or a design doc already states the rule (quote the sentence) or it would be new. Checks for stated rules ship in this run; checks for new rules are decisions.
+
+Write [REPORT_FILE]:
+1. The three questions, one paragraph each: what actually went wrong (from the What went wrong and other scanners, tied to the PRs), what could still go badly wrong (the risks), what makes the next change unnecessarily difficult (the top friction).
+2. Risks, each in the finding shape, marked OPEN.
+3. Friction, ranked, each in the finding shape: a complete build request a build agent can take without reading anything else.
+4. Enforce: the checks for stated rules (ship now) and for new rules (decisions), each with its selector or test idea and hit count.
+5. Decisions for the owner: at most four, in plain words a non-reader of code can answer, grouped so that one answer settles one theme (a rule and its lint and its moves are one decision), each with a recommendation. Every finding that needs an owner's choice is attached to one of the four or dropped with a reason.
+6. Outcomes, when an earlier report exists: each count it recorded, better, same or worse, with both numbers; each finding it fixed, still protected or not; each failure class it reported, gone, same or back.
+7. Counts, for the next run: every count a scanner or the counts file produced, with its command.
+8. Not findings: a copy of [DROPPED_FILE].
+
+Return one line: risks, friction findings, checks to ship, decisions, report path.
+```
+
+## Common tail for every scanner
+
+```
+Rules: what can lose or corrupt data or ship a regression is a risk; everything else is friction. Mark each finding as one or the other; a risk quotes the contract sentence it rests on (a design doc or CLAUDE.md) and its fix names the test first. The repo's own rules (CLAUDE.md, the design docs) win over any general principle; when they conflict, say so and propose which should change. Skip anything the lint, the typecheck or knip already enforces. Before you keep a finding, check it: the code does what you say (open the file); it is not a choice CLAUDE.md, docs/sync-design.md §12 or docs/library-ownership-plan.md made on purpose (an earlier report in docs/reviews/ is evidence, not a decision); a caller has the case; deleting the thing and inlining its callers would not be smaller and clearer; crossing folders costs only when a folder is not a boundary the change needs. One finding is one failure class: one rule broken in one way, with one fix, and every site you found listed under it. Rank by cost; there is no target count, and a finding without a cost is not one.
+
+Each finding has these fields, one line each, in this order, with these labels: Class (one line naming the rule broken and how); Sites (every file:line, or a count with the command that produced it); Rule (the CLAUDE.md or design-doc sentence, or the principle); Evidence (what the code does, quoted or counted); Cost (what gets harder or breaks, in one sentence, tied where you can to a recent change or a scenario); Fix (the target shape in one line); Check (a lint selector, script or test that would keep it from coming back, with today's hit count, or "none: judgement"); Seen next run (a test that fails when the behaviour is broken, a hit count, files a cold agent reads, folders a change touches); Files (what a fix touches); Size (S under an hour, M half a day, L a day or more); Test (the test that covers the behaviour, or the one the fix must add; an M or L fix without a test is not done). End with Not findings: what you checked and did not keep, one line each. Write it to the report file and return one line: finding count, report path.
 [ADDITIONAL_FOCUS]
 ```
