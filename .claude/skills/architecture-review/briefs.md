@@ -101,6 +101,22 @@ You are a coding agent landing cold in the repo at [ROOT]. Your task: [TASK]. Do
 
 Default tasks: "find where a contact is deleted and everything else that must change when that behaviour changes"; "add a new setting that syncs with the account and shows in Settings"; "find where a post's media is reordered and every place that order is read".
 
+## Rules
+
+One agent, over the whole scope regardless of the owner's scope. It reads the rulebooks and the code that would enforce them; it changes nothing.
+
+```
+You review the rules of the repo at [ROOT]: every sentence of CLAUDE.md, and every normative sentence (one that says what the code must do) in docs/sync-design.md, docs/library-ownership-plan.md and the project skills' SKILL.md files. The map is at [MAP_FILE]. For each sentence, decide, with evidence, which of these it is:
+- Enforced: a lint rule, the typecheck, a database constraint, a knip setting or a test already holds it (name the rule or test). The sentence can go; CLAUDE.md says a rule a machine holds is not restated in prose.
+- Stale: it names a file, folder, script, command or component that no longer exists, or describes a flow the code no longer has (quote the sentence, name what it points to and what is there now).
+- Duplicate: another sentence says the same thing (quote both, propose the one wording).
+- Contradicted: the code mostly does something else (count the sites that follow the sentence and the sites that don't, with the command). Either the rule or the code is wrong; say which you think and why. This is a decision for the owner, not a fix.
+- Misplaced: a fact, a procedure or open work in a rulebook (it belongs in README, a skill or todo.md).
+- Vague: an agent could not check it against a file ("keep it clean").
+- Missing: a rule the code follows everywhere without a sentence saying so (a convention an agent must guess), and a rule a cold agent would need to find the right code (the task logs in [FINDINGS_DIR]/task-*.md, if present, each end with such a sentence; take them as input).
+A sentence that is none of these is fine; do not list it. Quote every sentence verbatim after finding it with grep; never write a sentence from memory. Each kept item is one finding in the common shape below, with Class = the category above; Fix = the exact edit (delete, the merged wording, the new sentence and where it goes); Check = how the next run sees it (a grep for the name, the lint that now holds it). Rank: contradicted and stale first (they mislead the next agent), then missing, then enforced and duplicate (they cost attention on every run).
+```
+
 ## UX parity
 
 Only when the scope has screens.
@@ -117,6 +133,7 @@ Then flag:
 - A sheet where the rules say push, or the reverse; a Save button or discard prompt on a screen pushed outside a sheet; a sheet that opens a second sheet.
 - A raw primitive or restyled look-alike where a project component exists; a style spread in a screen; a duration or spring not from the motion tokens; a label that names a feature by a second name.
 - A screen missing one of the four states, or an icon-only button without a label.
+Leave the mock account as you found it: do not save, reset, delete or publish anything that syncs; drive a flow up to the confirm and dismiss it, and say so in the finding. If a step would write, screenshot the step before it and note what the next tap would do.
 ```
 
 ## Consolidate
@@ -124,13 +141,13 @@ Then flag:
 One fresh agent, after every scanner has returned. It reads findings, never the code beyond what a finding cites.
 
 ```
-You consolidate an architecture review of [SCOPE] in the repo at [ROOT]. Read, in this order: CLAUDE.md; the map at [MAP_FILE]; [COUNTS_FILE]; [RECENT_CHANGES]; every file in [FINDINGS_DIR] (one per scanner, each a list of findings in one shape); the earlier reports in docs/reviews/ (the latest one's Counts and Outcomes above all). Write [REPORT_FILE] and [DROPPED_FILE]; change nothing else.
+You consolidate an architecture review of [SCOPE] in the repo at [ROOT]. Read, in this order: CLAUDE.md; the map at [MAP_FILE]; [COUNTS_FILE]; [RECENT_CHANGES]; every file in [FINDINGS_DIR] (one per scanner, each a list of findings in one shape; rules.md is the Rules scanner's and feeds section 6); the earlier reports in docs/reviews/ (the latest one's Counts and Outcomes above all). Write [REPORT_FILE] and [DROPPED_FILE]; change nothing else.
 
 Merge every finding across scanners into one finding per failure class: one class is one rule broken in one way, with one fix, however many sites it has (seven delete confirms in seven shapes are one finding; raw Text in 23 files is one finding; a query with two homes and the helpers that followed it are one finding). A site already listed under one class is not listed under another. Keep every site, file:line, under its class: a build agent will work from this list.
 
 Sort into risks (can lose or corrupt data, cross an account boundary or ship a regression; a risk quotes its contract sentence) and friction (everything else). Rank risks by consequence and likelihood, a scenario that failed when run first; friction by recurring cost per change, tied to a recent change where a scanner tied it. Drop what fails a criterion in the scanners' common rules (no cost, enforced already, a choice the rules made on purpose, two independent copies) into [DROPPED_FILE], one line each, without arguing.
 
-For every class a machine could spot, name the check that would keep it from coming back (an eslint selector or import restriction, a script, a test) with today's hit count, and say whether CLAUDE.md or a design doc already states the rule (quote the sentence) or it would be new. A check for a stated rule is its own S build request (the rule, a negative test that it fires, today's hits fixed); a check for a new rule is attached to the decision that would create the rule.
+For every class a machine could spot, name the check that would keep it from coming back (an eslint selector or import restriction, a script, a test) with today's hit count, and say whether CLAUDE.md or a design doc already states the rule (quote the sentence) or it would be new. A quoted sentence is one you found with grep in the file and copied; a sentence you cannot find is not stated, however well you remember it, and the check is then new. The same holds for every Rule field in a finding. A check for a stated rule is its own S build request (the rule, a negative test that it fires, today's hits fixed); a check for a new rule is attached to the decision that would create the rule.
 
 Write [REPORT_FILE]:
 1. The three questions, one paragraph each: what actually went wrong (from the What went wrong and other scanners, tied to the PRs), what could still go badly wrong (the risks), what makes the next change unnecessarily difficult (the top friction).
@@ -138,9 +155,10 @@ Write [REPORT_FILE]:
 3. Friction, ranked, each in the finding shape: a complete build request a build agent can take without reading anything else.
 4. Checks: the checks for stated rules (ready to build) and for new rules (attached to decisions), each with its selector or test idea and hit count.
 5. Decisions for the owner: at most four, in plain words a non-reader of code can answer, grouped so that one answer settles one theme (a rule and its lint and its moves are one decision), each with a recommendation. Every finding that needs an owner's choice is attached to one of the four or dropped with a reason.
-6. Outcomes, when an earlier report exists: each count it recorded, better, same or worse, with both numbers; each finding it fixed, still protected or not; each failure class it reported, gone, same or back.
-7. Counts, for the next run: every count a scanner or the counts file produced, with its command.
-8. Not findings: a copy of [DROPPED_FILE].
+6. Rules: from the Rules scanner, the cold agents' sentences and every new rule a decision would state, one table each: sentences to add (the wording and where), to delete (the lint or test that holds it, or why it is stale), to merge (both quotes and the one wording), and contradicted sentences (the counts; these are decisions). The build for this section is the `tidy-claude-md` skill (deletes and merges) and the `add-rule` skill (adds).
+7. Outcomes, when an earlier report exists: each count it recorded, better, same or worse, with both numbers; each finding it fixed, still protected or not; each failure class it reported, gone, same or back.
+8. Counts, for the next run: every count a scanner or the counts file produced, with its command.
+9. Not findings: a copy of [DROPPED_FILE].
 
 Return one line: risks, friction findings, checks ready to build, decisions, report path.
 ```
