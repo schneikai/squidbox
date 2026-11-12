@@ -49,24 +49,6 @@ matching terms above the field, each with how many assets it finds (Apple Photos
 "mvz 1"). Terms would come from the words of the assets' notes, tags and tagged contacts' names,
 which is what `assetQuery` searches.
 
-### [ ] Share several assets at once
-
-Nice to have, deferred. Share is only on the asset detail screen (`useShareAsset`); select mode has
-none, because `expo-sharing` shares one URL (still so in SDK 58 and on main, no PR or roadmap item)
-and React Native's `Share` takes one `url`. Plan: a small local Expo module
-(`apps/mobile/modules/share-files`, Expo Modules API, autolinked) whose iOS side presents
-`UIActivityViewController(activityItems: urls)` (copy expo-sharing's `SharingModule.swift`,
-including the regular-width popover anchor); Android later with `ACTION_SEND_MULTIPLE` and a
-FileProvider. A `.web.js` uses `navigator.share({ files })` after `navigator.canShare`, falling back to a
-download (Firefox has no file sharing). Web pitfalls: Chromium allows at most 10 files and 50 MB and
-rejects `.mov`/`.heic`; the tap's activation lasts about 5 s, so a slower download needs a second
-"Share N items" tap. Collect all files first (`useRunWithAssetFiles` with kept downloads), name them
-after the asset, and gate the button with `requireOptionalNativeModule`. Skipped
-`react-native-share`: no web, slowing releases, config-plugin bugs. Needs a new build. Then remove
-our own "Save to camera roll" (`useSaveAssetsToMediaLibrary`, the download buttons): the share sheet's
-Save Image / Save Video does it. Check first: it saves without our "Squidbox" album
-(`copyToMediaLibraryAsync`), and web has no Save there (the share fallback downloads).
-
 ### [ ] Make the app work on Android
 
 The app is built and tested only for iOS. Needed:
@@ -75,13 +57,16 @@ The app is built and tested only for iOS. Needed:
   `EAS_BUILD_PROFILE`), Android settings in the `eas.json` profiles (an APK for internal
   installs) and an EAS-managed keystore.
 - Photo access: Android 13+ media permissions and partial access (Android 14) in
-  `useAddAssetsFromCameraRoll` and `copyToMediaLibraryAsync`.
+  `useAddAssetsFromCameraRoll`.
 - Platform differences: edge-to-edge insets, the back button and gesture (closing modals, the
   viewer, select mode), blur (`expo-blur` is slow or flat on Android: FloatingPill,
   BlurPopoverRenderer, QuickViewHost), keyboard events, HEIC display.
 - Device checks of the gesture-heavy screens: pager, zoom, swipe-up details, drag-select, album
   reorder.
-- Pairs with the Android half of "Share several assets at once". Test on an emulator or a phone.
+- Share: `modules/share-files` needs an Android side (`ACTION_SEND_MULTIPLE` with a
+  FileProvider); until then Share is hidden there.
+
+Test on an emulator or a phone.
 
 ### [ ] Show the recorded photo details
 
@@ -96,7 +81,7 @@ sort. Older assets have none of them unless the camera roll or the legacy backup
 expiry such as 30 days, revocable) and serves a short public link (e.g. `/s/<token>`) to a small web
 page that shows the photos and videos and signs fresh S3 download URLs when opened. The app offers
 Copy link and Stop sharing. Needs a server table, endpoints and a deploy plus the page. Also covers
-sharing several assets, which the share sheet can't do yet.
+sharing several assets.
 
 ### [ ] Mouse-friendly triggers on web
 
@@ -295,7 +280,7 @@ device justifies an iOS-only setting (web's OPFS storage measured slower with WA
 
 The app promises not to clutter the phone's storage, so check every place it writes and whether
 each is cleaned up: originals of uploaded assets (`assetFiles`, kept after upload?), thumbnails,
-cloud downloads for Save/Share (cache, swept after an hour), each library's SQLite database and
+cloud downloads for Share (cache, kept a day for reuse), each library's SQLite database and
 WAL, parked libraries (see below), the image and video players' caches, the picker's and the
 thumbnail makers' temporary copies (`pickImageFromMediaLibrary`, `createImageThumbnail`,
 `createVideoThumbnail`) and whatever a crash or kill leaves mid-write. Outcome: a list of what

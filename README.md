@@ -111,6 +111,8 @@ Metro serves the API and file storage through its own tunnel (`apps/mobile/scrip
 
 If Docker pulls fail, or the server can't reach MinIO, see `apps/server/README.md` → "Local development".
 
+`apps/mobile/modules/` holds our own native modules (autolinked by Expo); a change there needs a new dev client.
+
 ### Web preview
 
 There is no iOS Simulator outside macOS, so UI changes can also be checked in the app's web build, at iPhone 15 Pro Max size, against the local backend. With `npm run dev:local` running, from `apps/mobile/`:
@@ -121,7 +123,7 @@ npm run web:preview -- shot.png      # signs in, opens the library, saves a scre
 
 Scripts can drive it through `openWebPreview()` and `settleAsync()` in `scripts/webPreview.mjs` (Playwright): tap, type, navigate and take screenshots. Outside the cloud workspace, run `npx playwright install chromium` once.
 
-The UI flow tests drive it too: `npm run test:ui` runs the Playwright specs in `apps/mobile/e2e/` (sign in and out, the photo pager, a new post, its ideas on a stubbed assistant, an album, the edit sheet's discard guard).
+The UI flow tests drive it too: `npm run test:ui` runs the Playwright specs in `apps/mobile/e2e/` (sign in and out, the photo pager, a new post, its ideas on a stubbed assistant, an album, the edit sheet's discard guard, Share on a stubbed share sheet).
 
 - A run resets the mock account to the mock data set (`seed:mock`) and reuses a running `npm run dev:local -- --web`, or starts one and stops it afterwards.
 - Gestures are stand-ins: a swipe is a sideways mouse wheel, a drag-to-reorder a held mouse drag.

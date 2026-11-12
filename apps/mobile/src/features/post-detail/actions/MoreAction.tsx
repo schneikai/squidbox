@@ -7,8 +7,9 @@ import type { PostListRow } from '@/features/post-list/postQuery';
 import readPost from '@/features/post-list/readPost';
 import usePosts from '@/features/posts-context/usePosts';
 import { getDb } from '@/sync/db/client';
-import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
+import useShareAssets from '@/utils/assets/useShareAssets';
 import confirmAsync from '@/utils/confirmAsync';
+import canShareFiles from '@/utils/files/canShareFiles';
 
 export type MoreActionProps = {
   post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount'>;
@@ -16,12 +17,15 @@ export type MoreActionProps = {
   trigger?: MenuButtonProps['trigger'];
 };
 
-// The post's menu: Download assets, Edit, Repost and Delete (all of a thread's posts; then
-// `afterDelete`). Its ⋯ on the post screen, or `trigger` (MenuButton's): its card in a list of posts,
-// on a long press. Download reads a thread's following posts when tapped.
+// The post's menu: Share (where canShareFiles, when the post or its thread has photos), Edit, Repost
+// and Delete (all of a thread's posts; then `afterDelete`). Its ⋯ on the post screen, or `trigger`
+// (MenuButton's): its card in a list of posts, on a long press. Share reads a thread's following
+// posts when tapped.
 export default function MoreAction({ post, afterDelete, trigger }: MoreActionProps) {
   const { deletePost } = usePosts();
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
+  const shareAssetsAsync = useShareAssets();
+
+  const hasAssets = post.postAssets.length > 0 || post.threadCount > 0;
 
   function handleEditPost() {
     router.navigate(`/post-editor/${post.id}`);
@@ -40,16 +44,14 @@ export default function MoreAction({ post, afterDelete, trigger }: MoreActionPro
     router.navigate({ pathname: '/post-editor', params: { rePostId: post.id } });
   }
 
-  async function handleDownloadAssets() {
+  async function handleShare() {
     const threadPosts = post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : [];
-    await saveAssetsToMediaLibraryAsync(
-      [post, ...threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset)),
-    );
+    await shareAssetsAsync([post, ...threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset)));
   }
 
   return (
     <MenuButton accessibilityLabel="Post options" trigger={trigger}>
-      <MenuOption label="Download assets" icon="cloud-download" onPress={handleDownloadAssets} />
+      {canShareFiles && hasAssets && <MenuOption label="Share" icon="share" onPress={handleShare} />}
       <MenuOption label="Edit" icon="edit" onPress={handleEditPost} />
       <MenuOption label="Repost" icon="repeat" onPress={handleRepost} />
       <Divider variant="menu" />
