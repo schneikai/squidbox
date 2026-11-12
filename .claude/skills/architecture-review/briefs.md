@@ -130,19 +130,19 @@ Merge every finding across scanners into one finding per failure class: one clas
 
 Sort into risks (can lose or corrupt data, cross an account boundary or ship a regression; a risk quotes its contract sentence) and friction (everything else). Rank risks by consequence and likelihood, a scenario that failed when run first; friction by recurring cost per change, tied to a recent change where a scanner tied it. Drop what fails a criterion in the scanners' common rules (no cost, enforced already, a choice the rules made on purpose, two independent copies) into [DROPPED_FILE], one line each, without arguing.
 
-For every class a machine could spot, name the check that would keep it from coming back (an eslint selector or import restriction, a script, a test) with today's hit count, and say whether CLAUDE.md or a design doc already states the rule (quote the sentence) or it would be new. Checks for stated rules ship in this run; checks for new rules are decisions.
+For every class a machine could spot, name the check that would keep it from coming back (an eslint selector or import restriction, a script, a test) with today's hit count, and say whether CLAUDE.md or a design doc already states the rule (quote the sentence) or it would be new. A check for a stated rule is its own S build request (the rule, a negative test that it fires, today's hits fixed); a check for a new rule is attached to the decision that would create the rule.
 
 Write [REPORT_FILE]:
 1. The three questions, one paragraph each: what actually went wrong (from the What went wrong and other scanners, tied to the PRs), what could still go badly wrong (the risks), what makes the next change unnecessarily difficult (the top friction).
 2. Risks, each in the finding shape, marked OPEN.
 3. Friction, ranked, each in the finding shape: a complete build request a build agent can take without reading anything else.
-4. Enforce: the checks for stated rules (ship now) and for new rules (decisions), each with its selector or test idea and hit count.
+4. Checks: the checks for stated rules (ready to build) and for new rules (attached to decisions), each with its selector or test idea and hit count.
 5. Decisions for the owner: at most four, in plain words a non-reader of code can answer, grouped so that one answer settles one theme (a rule and its lint and its moves are one decision), each with a recommendation. Every finding that needs an owner's choice is attached to one of the four or dropped with a reason.
 6. Outcomes, when an earlier report exists: each count it recorded, better, same or worse, with both numbers; each finding it fixed, still protected or not; each failure class it reported, gone, same or back.
 7. Counts, for the next run: every count a scanner or the counts file produced, with its command.
 8. Not findings: a copy of [DROPPED_FILE].
 
-Return one line: risks, friction findings, checks to ship, decisions, report path.
+Return one line: risks, friction findings, checks ready to build, decisions, report path.
 ```
 
 ## Common tail for every scanner
