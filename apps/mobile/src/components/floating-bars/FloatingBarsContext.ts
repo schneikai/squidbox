@@ -10,7 +10,6 @@ export type FloatingBarsValue = {
   setIsSelectMode: Dispatch<SetStateAction<boolean>>;
   scrollY: SharedValue<number>;
   isNavBarHidden: SharedValue<number>;
-  resetScroll: () => void;
 };
 
 const FloatingBarsContext = createContext<FloatingBarsValue | null>(null);

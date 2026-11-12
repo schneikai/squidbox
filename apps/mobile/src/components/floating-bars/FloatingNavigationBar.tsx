@@ -23,7 +23,7 @@ const HREFS = Object.fromEntries(NAV_ITEMS.map((item) => [item.key, item.href]))
 // The main tabs' bar (the tab navigator's `tabBar`), floating over the tab. Settings has none.
 export default function FloatingNavigationBar({ state }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { isNavBarHidden, isSearchActive, isSelectMode, resetScroll } = useFloatingBars();
+  const { isNavBarHidden, isSearchActive, isSelectMode } = useFloatingBars();
 
   const activeTab = state.routes[state.index].name;
   const hideBar = isSearchActive || activeTab === 'settings' || isSelectMode;
@@ -49,7 +49,6 @@ export default function FloatingNavigationBar({ state }: BottomTabBarProps) {
   });
 
   function handleNavigate(tab: string) {
-    resetScroll();
     router.navigate(HREFS[tab]);
   }
 
