@@ -1,10 +1,10 @@
 /**
  * Fills the LOCAL backend with a fixed set of mock data for the dev client: stock photos from
- * picsum.photos and stock videos with music from mixkit.co (all free to use, baked into
+ * unsplash.com and stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky, the people he shoots and
- * sells prints with (contacts, one with a photo, in two lists, on a photo, an album and a post), and
+ * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
  * Repost ideas prompts and the Instructions, left on the app's defaults. Re-running resets the account to exactly this set: ids
@@ -50,62 +50,62 @@ const password = process.env.SEED_USER_PASSWORD;
 const DAY = 24 * 60 * 60 * 1000;
 const MOCK_PHOTOS = new URL('./mock-photos/', import.meta.url);
 const MOCK_VIDEOS = new URL('./mock-videos/', import.meta.url);
-// Picsum photo ids and Mixkit clip ids, each baked into scripts/mock-photos or scripts/mock-videos.
-type MockMedia = ({ picsum: number } | { video: number }) & { deleted?: boolean };
+// Unsplash photo ids and Mixkit clip ids, each baked into scripts/mock-photos or scripts/mock-videos.
+type MockMedia = ({ photo: string } | { video: number }) & { deleted?: boolean };
 
 // Newest first, landscape and portrait photos mixed with videos. Albums and posts refer to media by
 // their index in this list; `deleted` ones are in the Deleted album.
 const MEDIA: MockMedia[] = [
-  { picsum: 10 },
-  { picsum: 11 },
-  { picsum: 195 },
-  { picsum: 13 },
+  { photo: '1445363692815-ebcd599f7621' },
+  { photo: '1472214103451-9374bd1c798e' },
+  { photo: '1500964757637-c85e8a162699' },
+  { photo: '1433086966358-54859d0ed716' },
   { video: 808 },
-  { picsum: 14 },
-  { picsum: 260 },
-  { picsum: 15 },
-  { picsum: 16 },
-  { picsum: 520 },
-  { picsum: 17 },
+  { photo: '1507525428034-b723cf961d3e' },
+  { photo: '1499678329028-101435549a4e' },
+  { photo: '1414609245224-afa02bfb3fda' },
+  { photo: '1501785888041-af3ef285b470' },
+  { photo: '1464822759023-fed622ff2c3b' },
+  { photo: '1504280390367-361c6d9f38f4' },
   { video: 1183 },
-  { picsum: 18 },
-  { picsum: 613 },
-  { picsum: 19 },
-  { picsum: 20 },
-  { picsum: 638 },
-  { picsum: 22 },
+  { photo: '1478131143081-80f7f84ca84d' },
+  { photo: '1454496522488-7a8e488e8606' },
+  { photo: '1551632811-561732d1e306' },
+  { photo: '1441974231531-c6227db76b6e' },
+  { photo: '1447752875215-b2761acb3c5d' },
+  { photo: '1418065460487-3e41a6c84dc5' },
   { video: 4646 },
-  { picsum: 24 },
-  { picsum: 722 },
-  { picsum: 25 },
-  { picsum: 27 },
-  { picsum: 735 },
-  { picsum: 28 },
+  { photo: '1520962922320-2038eebab146' },
+  { photo: '1446329813274-7c9036bd9a1f' },
+  { photo: '1519904981063-b0cf448d479e' },
+  { photo: '1493246507139-91e8fad9978e' },
+  { photo: '1468276311594-df7cb65d8df6' },
+  { photo: '1426604966848-d7adac402bff' },
   { video: 1197 },
-  { picsum: 29 },
-  { picsum: 776 },
-  { picsum: 36 },
-  { picsum: 37 },
-  { picsum: 842 },
-  { picsum: 39 },
+  { photo: '1476514525535-07fb3b4ae5f1' },
+  { photo: '1519681393784-d120267933ba' },
+  { photo: '1500530855697-b586d89ba3ee' },
+  { photo: '1508193638397-1c4234db14d8' },
+  { photo: '1470071459604-3b5ec3a7fe05' },
+  { photo: '1501555088652-021faa106b9b' },
   { video: 529 },
-  { picsum: 42 },
-  { picsum: 870 },
-  { picsum: 43 },
-  { picsum: 49 },
-  { picsum: 873 },
-  { picsum: 50 },
+  { photo: '1506905925346-21bda4d32df4' },
+  { photo: '1510414842594-a61c69b5ae57' },
+  { photo: '1500534314209-a25ddb2bd429' },
+  { photo: '1513836279014-a89f7a76ae86' },
+  { photo: '1518173946687-a4c8892bbd9f' },
+  { photo: '1503614472-8c93d56e92ce' },
   { video: 1214 },
-  { picsum: 53 },
-  { picsum: 1003 },
-  { picsum: 54 },
-  { picsum: 57 },
-  { picsum: 1065 },
-  { picsum: 58 },
+  { photo: '1522163182402-834f871fd851' },
+  { photo: '1487730116645-74489c95b41b' },
+  { photo: '1523712999610-f77fbcfc3843' },
+  { photo: '1470770841072-f978cf4d019e' },
+  { photo: '1511497584788-876760111969' },
+  { photo: '1543039625-14cbd3802e7d' },
   { video: 4132 },
-  { picsum: 63 },
-  { picsum: 64, deleted: true },
-  { picsum: 65, deleted: true },
+  { photo: '1527489377706-5bf97e608852' },
+  { photo: '1482192596544-9eb780fc7f66', deleted: true },
+  { photo: '1494500764479-0c8f2919a3d8', deleted: true },
   { video: 1164 },
 ];
 const assetsFlag = process.argv.indexOf('--assets');
@@ -157,28 +157,29 @@ const POSTS: {
   { text: 'Where it all started', media: [0, 8], postedDaysAgo: 400 },
 ];
 
-// The people he hikes, shoots and sells prints with. `avatar`: a picsum id baked into
+// The people he hikes, shoots and sells prints with. `avatar`: an Unsplash photo id baked into
 // scripts/mock-photos, uploaded as the contact's photo; `on`: the photo (media index), album (ALBUMS index) or post (POSTS index) they are on.
 const CONTACTS: {
   name: string;
   fields: Partial<ContactRecord>;
   isFavorite?: boolean;
-  avatar?: number;
+  avatar?: string;
   on?: { asset?: number; album?: number; post?: number };
 }[] = [
   {
     name: 'Sam Ridge',
+    avatar: '1506794778202-cad84cf45f1d',
     fields: {
       blueskyHandle: 'ridgeline.bsky.social',
       places: [{ city: 'Squamish', state: 'British Columbia', country: 'Canada' }],
       notes: 'Hiking buddy. Shoots on film, knows every trailhead.',
     },
     isFavorite: true,
-    avatar: 1005,
     on: { asset: 14, post: 1 },
   },
   {
     name: 'Maya Lindqvist',
+    avatar: '1438761681033-6461ffad8d80',
     fields: {
       xHandle: 'mayalindqvist',
       blueskyHandle: 'mayalindqvist.bsky.social',
@@ -190,6 +191,7 @@ const CONTACTS: {
   },
   {
     name: 'Theo Park',
+    avatar: '1527980965255-d3b416303d12',
     fields: {
       xHandle: 'theoparkphoto',
       phoneNumber: '+1 303 555 0187',
@@ -199,10 +201,12 @@ const CONTACTS: {
   },
   {
     name: 'Lena Ortiz',
+    avatar: '1494790108377-be9c29b29330',
     fields: { blueskyHandle: 'lenaortiz.bsky.social', places: [{ city: 'Lisbon', state: '', country: 'Portugal' }] },
   },
   {
     name: 'Jonas Weber',
+    avatar: '1560250097-0b93528c311a',
     fields: {
       blueskyHandle: 'jonasweber.bsky.social',
       places: [{ city: 'Innsbruck', state: 'Tyrol', country: 'Austria' }],
@@ -277,7 +281,7 @@ if (!['localhost', '127.0.0.1'].includes(new URL(API_URL).hostname)) {
 const now = Date.now();
 // Full size per photo, as bake-mock-photos.sh fitted it.
 const photoInfo = JSON.parse(await readFile(new URL('photos.json', MOCK_PHOTOS), 'utf8')) as Record<
-  number,
+  string,
   { width: number; height: number }
 >;
 // Size and duration (ms) per clip, as bake-mock-videos.sh measured them.
@@ -486,23 +490,20 @@ console.log(
 
 async function createPhotoAsset(
   index: number,
-  { picsum: picsumId, deleted }: { picsum: number; deleted?: boolean },
+  { photo: id, deleted }: { photo: string; deleted?: boolean },
 ): Promise<AssetRecord> {
-  const info = photoInfo[picsumId];
-  if (!info) throw new Error(`Mock photo ${picsumId} isn't baked: add it to scripts/bake-mock-photos.sh and run it`);
-  const [file, thumbnailFile] = await Promise.all([
-    readMockPhoto(`${picsumId}.jpg`),
-    readMockPhoto(`${picsumId}-thumb.jpg`),
-  ]);
+  const info = photoInfo[id];
+  if (!info) throw new Error(`Mock photo ${id} isn't baked: add it to scripts/bake-mock-photos.sh and run it`);
+  const [file, thumbnailFile] = await Promise.all([readMockPhoto(`${id}.jpg`), readMockPhoto(`${id}-thumb.jpg`)]);
   return {
-    ...(await uploadMedia(index, `asset:${picsumId}`, {
+    ...(await uploadMedia(index, `asset:${id}`, {
       extension: 'jpg',
       contentType: 'image/jpeg',
       file,
       thumbnailFile,
       deleted,
     })),
-    mediaLibraryAssetId: `mock-${picsumId}`,
+    mediaLibraryAssetId: `mock-${id}`,
     mediaType: 'photo',
     ...info,
     duration: null,

@@ -79,15 +79,14 @@ MinIO console: http://localhost:9001 (minioadmin / minioadmin). Tear down with
 
 ### Mock data and the phone dev client
 
-`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from picsum.photos
+`npm run seed:mock` fills the local account (SEED_USER_EMAIL) with stock photos from Unsplash
 (landscape and portrait), short stock videos with music, albums (including Favorites and Deleted),
-posts, the people he hikes, shoots and sells prints with (five contacts, two favorites, one with a
-photo, in two lists, on a photo, an album and a post), and the assistant setup of the guy they belong to, who posts his outdoor photos on Bluesky (Writing as you, the prompt
+posts, the people he hikes, shoots and sells prints with (five contacts with their photos, two favorites, in two lists, on a photo, an album and a post), and the assistant setup of the guy they belong to, who posts his outdoor photos on Bluesky (Writing as you, the prompt
 buttons, Favorites, Instructions on the defaults). Ids are deterministic, so re-running resets the account to exactly that set. It refuses to run
 against a non-local API.
 
 The photos and videos are committed, so seeding needs no network. `scripts/mock-photos/` has the
-picsum photos at 2048 px with their thumbnails, the contact photos and a `photos.json` of sizes;
+Unsplash photos fitted within 2048 px with their thumbnails, the contacts' portraits and a `photos.json` of sizes;
 `scripts/mock-videos/` has Mixkit clips with a Mixkit music track under them, cut to 12 seconds, with
 their thumbnails and a `videos.json` of sizes and durations. To change the set, edit
 `scripts/bake-mock-photos.sh` or `scripts/bake-mock-videos.sh` (both need ffmpeg) and run it, then
