@@ -623,8 +623,8 @@ backs it up and keeps it in sync, and signing out only pauses that.
   joins it, with no prompt, once that library's first full pull has drained: before it, no
   camera-roll item would match (the account's photo arriving beside the copy), and the records an
   earlier pass pushed aren't there to replay onto. Until then the setup screen's Sign out says this
-  iPhone's photos stay and join at the next sign-in (`FirstSyncScreen`, with the list-only check `mergeDeviceLibrary` uses:
-  `deviceLibraryToJoin`), the device library is held by nothing (another account leaves it free),
+  iPhone's photos stay and join at the next sign-in (`FirstSyncScreen`, with the list-only check
+  `mergeDeviceLibrary` uses: `deviceLibraryToJoin`), the device library is held by nothing (another account leaves it free),
   and the end of that pull runs the merges due (`runPendingMerges`, from `usePendingMerges` in
   `AppGate`); a device library holding nothing joins at once (`mergeWaits`). A sign-in also resumes
   a merge already marked for the account's library. The device library stays the open library until
@@ -1110,7 +1110,8 @@ All sync state is local to the device and none of it syncs.
 
 - **Status** in `sync_meta.status`: `{ phase: 'idle' | 'pushing' | 'pulling' | 'error',
 pullStep, lastPushAt, lastPullAt, lastError }`. `pullStep` (`downloading`, `finishing`) is written
-  only during the first sync and shown by the setup screen; it is cleared when a pull starts and ends.
+  only during the first sync and shown by the setup screen while the phase is `pulling`; a pull clears
+  it when it starts.
   The cursor is stored separately under `cursor`.
   `useSyncStatus` exposes both, plus the pending count, as live queries.
 - **Pulled shape** in `sync_meta.pulledShape`: the collections and synced columns the cursor's pulls

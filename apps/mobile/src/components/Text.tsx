@@ -30,6 +30,7 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
  *               one (a video's length on a grid cell)
  *   title     — a card's or a row's bold title. `size="small"` for a smaller one (a pick row's
  *               count)
+ *   heading   — a status screen's large bold title (StatusTitle)
  *   status    — a grey line about what's going on: the assistant thinking, a screen's subtitle
  *   error     — what went wrong, in red. `size="small"` for a line under another
  *   assistant — the assistant's violet semibold line, footnote size: an AssistantTray's title
@@ -76,6 +77,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...textStyles.bodyBold,
+    color: colors.text.primary,
+  },
+  heading: {
+    ...textStyles.title2,
     color: colors.text.primary,
   },
   status: {

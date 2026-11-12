@@ -22,7 +22,8 @@ export type SyncPhase = 'idle' | 'pushing' | 'pulling' | 'error';
 /**
  * Where the first sync's pull is (the setup screen shows it): absent = nothing pulled yet in this run,
  * `downloading` = batches arriving, `finishing` = the last batch (`hasMore: false`) arrived and is being
- * applied. Written only while the first sync isn't done, and only meaningful while `phase` is `pulling`.
+ * applied. Written only while the first sync isn't done, cleared when a pull starts, and only
+ * meaningful while `phase` is `pulling` (the last pull's step stays behind once it's idle).
  */
 export type PullStep = 'downloading' | 'finishing';
 export interface SyncStatus {

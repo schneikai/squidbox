@@ -37,7 +37,8 @@ function requirePushedSnapshot(commit) {
 // Matched by colors.background.splash, for BootScreen, which takes over from the splash, and the
 // first-sync screen after it (SplashStage).
 const SPLASH_BACKGROUND = '#2E108C';
-// The Android app icon's background, the light cyan of the icon art (not the splash's).
+// The Android app icon's background, the light cyan of the icon art (not the splash's); the same
+// cyan as colors.octopus.bubble.
 const ICON_BACKGROUND = '#B1F1FF';
 
 const baseConfig = {

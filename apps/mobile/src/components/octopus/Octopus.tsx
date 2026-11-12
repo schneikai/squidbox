@@ -80,10 +80,10 @@ const WAVE_END = Math.max(WAVE_MS, SQUEEZE_MS);
 const BUBBLES_END = Math.max(...BUBBLES.map(({ delay, duration }) => delay + duration + BUBBLE_POPPED_MS));
 const STOPPED = -1;
 
-// One idle clock for every octopus: the frame timestamp of the first frame any octopus drew. Two
-// octopuses on screen at once (the boot screen's fading out over the first-sync screen's) then show
-// the same pose; the first eases in from the drawn pose, as the splash shows it, and a later one joins
-// mid-sway.
+// The splash's idle clock, for the octopuses with `sharedClock` (SplashStage's): the frame timestamp
+// of the first frame one of them drew. The boot screen's octopus fading out over the first-sync
+// screen's then shows the same pose; the first eases in from the drawn pose, as the splash shows it,
+// and a later one joins mid-sway.
 const CLOCK_ORIGIN = makeMutable(STOPPED);
 
 // Bending the arms rebuilds their paths, so at rest they bend anew only at about 30 Hz (every other
@@ -91,35 +91,38 @@ const CLOCK_ORIGIN = makeMutable(STOPPED);
 // and on every frame while a tap plays.
 const IDLE_BEND_MS = 30;
 
-export type OctopusProps = { size: number };
+export type OctopusProps = { size: number; sharedClock?: boolean };
 
 // The splash octopus, alive: it floats, sways its arms and blinks, and a tap makes it wave and blow
 // bubbles. `size` is its width; the arms and bubbles reach out of that box. With Reduce Motion it
-// stays still, exactly as drawn in assets/splash.png.
-function Octopus({ size }: OctopusProps) {
+// stays still, exactly as drawn in assets/splash.png. Each octopus eases in from the drawn pose on
+// its own clock, unless `sharedClock` puts it on the splash's (CLOCK_ORIGIN).
+function Octopus({ size, sharedClock = false }: OctopusProps) {
   const reduceMotion = useReduceMotion();
   const time = useSharedValue(0);
   const bendTime = useSharedValue(0); // `time`, as of the arms' last bend
   const sinceWave = useSharedValue(STOPPED);
   const sinceBubbles = useSharedValue(STOPPED);
-  // Stable. The idle time is read off the shared clock; the tap clocks add up frame times, as a
-  // re-registered frame callback's first frame has no time since the previous one.
+  // Stable, and adding up frame times (a re-registered frame callback starts its own clock from 0),
+  // except a `sharedClock` octopus's idle time, read off the splash's clock.
   const advance = useCallback(
     (frame: FrameInfo) => {
       'worklet';
       const elapsed = frame.timeSincePreviousFrame ?? 0;
-      if (CLOCK_ORIGIN.value === STOPPED) CLOCK_ORIGIN.value = frame.timestamp;
-      time.value = frame.timestamp - CLOCK_ORIGIN.value;
+      if (sharedClock) {
+        if (CLOCK_ORIGIN.value === STOPPED) CLOCK_ORIGIN.value = frame.timestamp;
+        time.value = frame.timestamp - CLOCK_ORIGIN.value;
+      } else time.value += elapsed;
       const waving = tick(sinceWave, elapsed, WAVE_END);
       const blowing = tick(sinceBubbles, elapsed, BUBBLES_END);
       if (waving || blowing || time.value - bendTime.value >= IDLE_BEND_MS) bendTime.value = time.value;
     },
-    [time, bendTime, sinceWave, sinceBubbles],
+    [sharedClock, time, bendTime, sinceWave, sinceBubbles],
   );
   const frames = useFrameCallback(advance, false);
 
   // Moves unless Reduce Motion is on, and turning it on puts the octopus back as drawn; turning it
-  // off again rejoins the shared clock.
+  // off again starts it over (a `sharedClock` one rejoins the splash's clock).
   useEffect(() => {
     frames.setActive(!reduceMotion);
     if (!reduceMotion) return;
@@ -214,8 +217,8 @@ function tick(clock: SharedValue<number>, elapsed: number, end: number) {
   return true;
 }
 
-// How much of the idle motion plays, by the shared clock: it eases in over the first half breath of
-// the first octopus drawn, so it starts exactly as drawn on the splash screen.
+// How much of the idle motion plays: it eases in over the first half breath, so the octopus starts
+// exactly as drawn on the splash screen.
 function idleAt(time: number) {
   'worklet';
   return time >= PULSE ? 1 : motion.pulse.easing(time / PULSE);

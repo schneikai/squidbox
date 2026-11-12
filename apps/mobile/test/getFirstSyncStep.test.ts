@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 
-import getFirstSyncStep, { ALMOST_DONE_MS } from '../src/features/sync-status/getFirstSyncStep';
+import getFirstSyncStep from '../src/features/sync-status/getFirstSyncStep';
 
 type Status = Parameters<typeof getFirstSyncStep>[0];
 const idle: Status = { phase: 'idle', lastError: null };
-const labelOf = (status: Status, finishingFor = 0) => getFirstSyncStep(status, finishingFor).label;
+const labelOf = (status: Status, almostDone = false) => getFirstSyncStep(status, almostDone).label;
 
 describe('getFirstSyncStep', () => {
   it("says Can't reach the server, failed, on an error", () => {
-    expect(getFirstSyncStep({ phase: 'error', lastError: 'offline' }, 0)).toEqual({
+    expect(getFirstSyncStep({ phase: 'error', lastError: 'offline' }, false)).toEqual({
       label: "Can't reach the server",
       failed: true,
     });
@@ -17,7 +17,7 @@ describe('getFirstSyncStep', () => {
   it('keeps the error while a retry pushes or pulls without a step, and drops it once a step comes', () => {
     expect(labelOf({ phase: 'pushing', lastError: 'offline' })).toBe("Can't reach the server");
     expect(labelOf({ phase: 'pulling', lastError: 'offline' })).toBe("Can't reach the server");
-    expect(getFirstSyncStep({ phase: 'pulling', lastError: 'offline', pullStep: 'downloading' }, 0)).toEqual({
+    expect(getFirstSyncStep({ phase: 'pulling', lastError: 'offline', pullStep: 'downloading' }, false)).toEqual({
       label: 'Downloading your library',
       failed: false,
     });
@@ -33,16 +33,14 @@ describe('getFirstSyncStep', () => {
     expect(labelOf({ ...idle, phase: 'pulling', pullStep: 'downloading' })).toBe('Downloading your library');
   });
 
-  it('says Finishing up for the last batch, and Almost done once that has shown for ALMOST_DONE_MS', () => {
+  it('says Finishing up for the last batch, and Almost done once that has shown a while', () => {
     const finishing: Status = { ...idle, phase: 'pulling', pullStep: 'finishing' };
-    expect(labelOf(finishing, ALMOST_DONE_MS - 1)).toBe('Finishing up');
-    expect(labelOf(finishing, ALMOST_DONE_MS)).toBe('Almost done');
+    expect(labelOf(finishing)).toBe('Finishing up');
+    expect(labelOf(finishing, true)).toBe('Almost done');
   });
 
   it('ignores a step left over while the phase is not pulling', () => {
-    expect(labelOf({ phase: 'idle', lastError: null, pullStep: 'finishing' }, ALMOST_DONE_MS)).toBe(
-      'Setting up your library',
-    );
+    expect(labelOf({ phase: 'idle', lastError: null, pullStep: 'finishing' }, true)).toBe('Setting up your library');
     expect(labelOf({ phase: 'error', lastError: 'boom', pullStep: 'downloading' })).toBe("Can't reach the server");
   });
 });

@@ -1,10 +1,9 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 
 import Button from '@/components/Button';
 import SplashStage from '@/components/SplashStage';
 import useCloud from '@/features/cloud/useCloud';
 import getFirstSyncStep, { ALMOST_DONE_MS } from '@/features/sync-status/getFirstSyncStep';
-import { onRegistryChange } from '@/library/registry';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
 import { useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';
@@ -16,17 +15,12 @@ import confirmAsync from '@/utils/confirmAsync';
 // with one label for the pull's step (getFirstSyncStep), no counts.
 const RETRY_MS = 5_000;
 
-// Whether this device's library waits to join the open one: every merge waits for the first pull
-// (mergeWaits in library/mergeLibrary.ts).
-const deviceLibraryWaits = () => Boolean(deviceLibraryToJoin());
-
 export default function FirstSyncScreen() {
   const status = useSyncStatus();
   const { logoutAsync } = useCloud();
-  const addsDevicePhotos = useSyncExternalStore(onRegistryChange, deviceLibraryWaits);
-  const finishingFor = useFinishingFor(status.phase === 'pulling' && status.pullStep === 'finishing');
+  const almostDone = useAlmostDone(status.phase === 'pulling' && status.pullStep === 'finishing');
 
-  const { label, failed } = getFirstSyncStep(status, finishingFor);
+  const { label, failed } = getFirstSyncStep(status, almostDone);
 
   // Never sit dead on an error: auto-retry the pull on a short interval while this screen shows an
   // error, and self-heal without the user restarting. (The normal 30s trigger still runs too.)
@@ -37,9 +31,10 @@ export default function FirstSyncScreen() {
   }, [failed]);
 
   // Signing out stops the first pull, so it asks first; watchTokenDrops then opens the library to
-  // show.
+  // show. This device's library waits to join the account's until the first pull is done (mergeWaits
+  // in library/mergeLibrary.ts).
   async function handleSignOut() {
-    const message = addsDevicePhotos
+    const message = deviceLibraryToJoin()
       ? 'This iPhone’s photos stay here and join your account the next time you sign in.'
       : 'Setting up your library goes on the next time you sign in.';
     const title = 'Sign out before setup finishes?';
@@ -58,18 +53,16 @@ export default function FirstSyncScreen() {
   );
 }
 
-// How long the finishing step has shown, in ms: 0 until ALMOST_DONE_MS have passed, then at least that
-// (a timer can fire a hair early).
-function useFinishingFor(finishing: boolean) {
-  const [finishingFor, setFinishingFor] = useState(0);
+// Whether `finishing` has been true for ALMOST_DONE_MS.
+function useAlmostDone(finishing: boolean) {
+  const [almostDone, setAlmostDone] = useState(false);
   useEffect(() => {
     if (!finishing) return undefined;
-    const since = Date.now();
-    const id = setTimeout(() => setFinishingFor(Math.max(ALMOST_DONE_MS, Date.now() - since)), ALMOST_DONE_MS);
+    const id = setTimeout(() => setAlmostDone(true), ALMOST_DONE_MS);
     return () => {
       clearTimeout(id);
-      setFinishingFor(0);
+      setAlmostDone(false);
     };
   }, [finishing]);
-  return finishingFor;
+  return almostDone;
 }

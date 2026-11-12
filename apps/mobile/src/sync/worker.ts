@@ -393,7 +393,7 @@ async function pullPhase(
   }
   // The initial full pull has drained — the app can leave the "Setting up…" gate.
   await markFirstSyncDone(db);
-  await patchStatus(db, { phase: 'idle', lastPullAt: Date.now(), pullStep: undefined });
+  await patchStatus(db, { phase: 'idle', lastPullAt: Date.now() });
   return { pulled, stopped: false };
 }
 

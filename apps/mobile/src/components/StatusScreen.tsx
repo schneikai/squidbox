@@ -1,33 +1,25 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import Page from '@/components/Page';
+import StatusTitle from '@/components/StatusTitle';
 import Octopus from '@/components/octopus/Octopus';
-import useReduceMotion from '@/hooks/useReduceMotion';
-import { scale, space, textStyles } from '@/styles/designTokens';
+import { scale, space } from '@/styles/designTokens';
 
 const OCTOPUS_SIZE = scale(150);
 
 export type StatusScreenProps = { busy?: boolean; title: string; children?: ReactNode };
 
-// A full-screen status while the app can't show its content: a title, centred on the app
-// background, the octopus above it while `busy`, and whatever details the caller adds below it.
-// With Reduce Motion the octopus stands still, so a spinner shows that something is going on.
-// SplashStage is its sibling on the splash's violet (same title, progress bar and spinner): a change to
-// one belongs in both.
+// A full-screen status while the app can't show its content: a title (StatusTitle), centred on the
+// app background, the octopus above it while `busy`, and whatever details the caller adds below it.
 export default function StatusScreen({ busy = false, title, children = null }: StatusScreenProps) {
-  const reduceMotion = useReduceMotion();
-
   return (
     <Page>
       <View style={styles.center}>
-        {busy && (
-          <View accessible role="progressbar" aria-label="Loading" aria-busy style={styles.busy}>
-            <Octopus size={OCTOPUS_SIZE} />
-            {reduceMotion && <ActivityIndicator />}
-          </View>
-        )}
-        <Text style={styles.title}>{title}</Text>
+        {busy && <Octopus size={OCTOPUS_SIZE} />}
+        <View style={styles.title}>
+          <StatusTitle title={title} busy={busy} />
+        </View>
         {children}
       </View>
     </Page>
@@ -36,6 +28,5 @@ export default function StatusScreen({ busy = false, title, children = null }: S
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.xxxl, gap: space.md },
-  busy: { alignItems: 'center', gap: space.md },
-  title: { ...textStyles.title2, marginTop: space.lg, textAlign: 'center' },
+  title: { marginTop: space.lg },
 });

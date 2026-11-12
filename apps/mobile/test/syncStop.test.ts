@@ -342,17 +342,26 @@ describe("the first sync's pull step", () => {
     };
   }
 
-  it('is downloading while batches arrive, and gone once the pull is done', async () => {
+  it('is downloading while batches arrive', async () => {
     const held = gate(); // the second batch's first page, requested only after the first batch's step
     const run = runSyncOnce(db, holdingServer(APPLY_BATCH * 2, APPLY_BATCH, held));
     await held.entered;
     expect(await getStatus(db)).toMatchObject({ phase: 'pulling', pullStep: 'downloading' });
     held.release();
     await run;
+    expect((await getStatus(db)).phase).toBe('idle');
+  });
 
+  it('is cleared when the next pull starts', async () => {
+    await runSyncOnce(db, server(APPLY_BATCH)); // the first sync, ending with its last step stored
+    const held = gate(); // the next pull's only page
+    const run = runSyncOnce(db, holdingServer(APPLY_BATCH, APPLY_BATCH, held));
+    await held.entered;
     const status = await getStatus(db);
-    expect(status.phase).toBe('idle');
+    expect(status.phase).toBe('pulling');
     expect(status.pullStep).toBeUndefined();
+    held.release();
+    await run;
   });
 
   // The last batch's apply fails (a record the database refuses), so the run ends with the step it stored.
