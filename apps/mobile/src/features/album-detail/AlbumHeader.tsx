@@ -24,7 +24,8 @@ const STACKED = 3;
 type AlbumHeaderProps = {
   album: AlbumRow;
   assetCount: number | undefined;
-  /** Where the name ends, from the header's top: the screen's header shows the name from there. */
+  /** Where the name ends, from the header's top (the name is its first line): the screen's header
+   * shows the name once it has scrolled past there. */
   onNameEnd?: (y: number) => void;
 };
 

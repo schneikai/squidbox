@@ -1,24 +1,19 @@
 import { useNavigation } from 'expo-router';
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation';
 import { StyleSheet, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, interpolate, Extrapolation, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AccountButton from './AccountButton';
 import FloatingPill from './FloatingPill';
 import ToolbarTitle from './ToolbarTitle';
+import useSelectModeProgress from './useSelectModeProgress';
 import useTitleReveal from './useTitleReveal';
 
 import Button from '@/components/Button';
 import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
 import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import { colors, layout, motion, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 // The scroll offset (pt) by which the large title is gone and the small one starts to show.
 const COMPACT_FROM = 40;
@@ -55,29 +50,31 @@ export default function FloatingHeader({
   // ── Animated styles (must be called before any conditional return) ─────────
   // As the list scrolls, the large title gives way to a small one in a pill (ToolbarTitle), so the tab
   // keeps its name on screen over the content (HIG, Toolbars: a large title turns into a standard one).
+  // The scroll parts follow the finger; select mode animates once per change (selectProgress).
+  const selectProgress = useSelectModeProgress(isSelectMode);
   const titleStyle = useAnimatedStyle(() => {
     const scrollOpacity = interpolate(scrollY.value, [0, COMPACT_FROM], [1, 0], Extrapolation.CLAMP);
     const scrollY_ = interpolate(scrollY.value, [0, COMPACT_FROM], [0, -8], Extrapolation.CLAMP);
     return {
-      opacity: withTiming(isSelectMode ? 0 : scrollOpacity, motion.move),
-      transform: [{ translateY: scrollY_ }, { translateX: withTiming(isSelectMode ? -24 : 0, motion.move) }],
+      opacity: scrollOpacity * (1 - selectProgress.value),
+      transform: [{ translateY: scrollY_ }, { translateX: -24 * selectProgress.value }],
       pointerEvents: isSelectMode ? 'none' : 'auto',
     };
   });
 
-  const compactTitle = useTitleReveal({ scrollY, from: COMPACT_FROM }, isSelectMode);
+  const compactTitle = useTitleReveal({ scrollY, from: COMPACT_FROM }, selectProgress);
 
   // Normal controls (action pill + account) fade out in select mode
   const normalStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
-    transform: [{ translateX: withTiming(isSelectMode ? 30 : 0, motion.move) }],
+    opacity: 1 - selectProgress.value,
+    transform: [{ translateX: 30 * selectProgress.value }],
     pointerEvents: isSelectMode ? 'none' : 'auto',
   }));
 
   // Select pill slides in from right in select mode
   const selectPillStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isSelectMode ? 1 : 0, motion.move),
-    transform: [{ translateX: withTiming(isSelectMode ? 0 : 30, motion.move) }],
+    opacity: selectProgress.value,
+    transform: [{ translateX: 30 * (1 - selectProgress.value) }],
     pointerEvents: isSelectMode ? 'auto' : 'none',
   }));
 
