@@ -17,8 +17,8 @@ export type SearchSortFilterBarProps<Sort extends string, Filter extends string 
  * The bottom-left search + options bar of a screen, with its sort / filter menu (the main tabs
  * use it through FloatingActionsBar). `search` is the `searchBar` from useListControls; pass
  * `expandProgress` to animate a sibling (a segment pill) with the search field. The other props go to
- * SortFilterMenu; the options button lights up while `activeFilter` holds a filter. Without sort,
- * filter or view options the bar is search only.
+ * SortFilterMenu; the options button is a light violet disc while `activeFilter` holds a filter.
+ * Without sort, filter or view options the bar is search only.
  */
 export default function SearchSortFilterBar<Sort extends string, Filter extends string = string>({
   search,
