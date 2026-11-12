@@ -22,14 +22,6 @@ account's library open without them, so its photos, albums, posts and contacts s
 anyone holding the phone. Signed out should show the device's own library (or nothing) and park or
 remove the account's copy; unsynced changes need a warning first so nothing is lost.
 
-### [ ] Restoring a contact can lose a photo that never synced
-
-A contact made with a photo and deleted before any sync pushes a tombstone naming a file the
-storage lacks (`docs/sync-design.md`, file uploads). `restoreContact` (`ContactsProvider`) clears
-only `deletedAt`, so nothing uploads the photo and other devices get a photo that's missing for
-good. A restore should re-upload the photo when this device has it, or drop `avatarFilename` when it
-doesn't.
-
 ## Features
 
 ### [ ] Search suggestions as you type, like Apple Photos

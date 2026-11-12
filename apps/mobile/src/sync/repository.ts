@@ -63,5 +63,16 @@ export function makeRepository<T extends CollectionTable>(collection: string, ta
         await saveRecords(tx, collection, table, previous.map(tombstone), { previous });
       });
     },
+    /**
+     * Brings tombstoned records back, by id: clears `deletedAt`. A live one, or an id without a row,
+     * is skipped.
+     */
+    async restore(db: SyncDb, ids: string[]): Promise<void> {
+      await db.transaction(async (tx) => {
+        const previous = (await readByIds(tx, table, ids)).filter((row) => row.deletedAt != null);
+        const rows = previous.map((prev) => nextVersion(prev, { deletedAt: null } as Partial<Row>));
+        await saveRecords(tx, collection, table, rows, { previous });
+      });
+    },
   };
 }

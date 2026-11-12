@@ -315,9 +315,9 @@ upload that lands is noted on the row at once (`uploaded_files`, `markFileUpload
 as it runs outside any transaction): a coalesced edit keeps the list, so a retried, rejected or
 coalesced row never uploads the same file again. A batch's uploads precede its push, so a batch of
 many photos (a merge) makes the first push wait for all of them; a later change can push the rows
-without file edits first. A `delete` row uploads nothing: a contact made with a photo and deleted
-before any sync pushes a tombstone that may name a file the storage lacks (nothing shows a deleted
-contact; a Restore, when it comes, must treat a named file as possibly missing). A removed photo
+without file edits first. A `delete` row uploads them too: a contact made with a photo and deleted
+before any sync uploads the photo with its tombstone's push, so no pushed record, live or deleted,
+names a file the storage lacks, and a restore on any device finds it. A removed photo
 (null) uploads nothing. The server changes nothing for it.
 
 - **Refused** (`FileUploadRefusedError`): what fails the same way next time, an upload answered
@@ -387,7 +387,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   _different_ field on another device doesn't undelete (a favorite on the iPad doesn't bring back
   an album deleted on the phone, and a reorder doesn't bring back a removed edge); only a restore,
   which sends a newer `deletedAt: null`, does (a whole-record push still carries `deletedAt`, so
-  a newer one undeletes). Restoring a deleted asset clears `deletedAt`.
+  a newer one undeletes). A restore (`makeRepository.restore`) clears `deletedAt`.
 - **Purges** ("Delete permanently", §7a) set `purgedAt`, the write-once `finalField`, sent with
   its deletion as one group (`mergeDeletion` in `mergeRecord.ts` has the cases):
   - **A restore beats a purge made of a deletion it undid.** A restore adds the `deletedAt` it undid
@@ -929,7 +929,9 @@ part set; JSON, merges as one value; a row shows "City, Country", the state too 
 `formatPlace`), `avatarFilename` (the photo's key, a file field:
 §4, §6, §7a), plus the base columns. The app keeps each field within the schema's `CONTACT_LIMITS`
 (a field's length, a place part's length, 20 places), so a push is never rejected for its length. Deleting a contact tombstones it and its edges in one
-transaction (`setContactDeleted`).
+transaction (`contactsRepository.remove`); restoring one (`contactsRepository.restore`) clears
+`deletedAt`. Whether a restore brings the edges back is an open decision
+(`docs/reviews/2026-11-12-whole-app.md`, decision 1); today they stay as they are.
 
 **contact_lists** (Contacts → Lists). Synced: `name`, `notes`, plus the base columns; lists are
 shown by name. Deleting a list
