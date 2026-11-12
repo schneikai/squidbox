@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  type SharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import FloatingPill from './FloatingPill';
@@ -17,8 +23,15 @@ export type FloatingDetailHeaderProps = {
   onBack: () => void;
   menuSlot?: ReactNode;
   isSelectMode?: boolean;
+  /** For a screen whose title is in the page: the list's offset, and the offset by which that title has
+   * scrolled under the header. The title pill shows only from there. */
+  scrollY?: SharedValue<number>;
+  titleRevealY?: number;
   children?: ReactNode;
 };
+
+// How far the title pill takes to fade in, once the page's own title is gone (pt).
+const REVEAL_DISTANCE = 16;
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
@@ -32,6 +45,7 @@ export type FloatingDetailHeaderProps = {
  *   onBack       — called when the back chevron is pressed (× when the screen opens a sheet)
  *   menuSlot     — element(s) rendered inside the right FloatingPill
  *   isSelectMode — when true, back + info animate out to the left
+ *   scrollY, titleRevealY — the title shows only once the page's own title has scrolled away
  *   children     — centred under the row (a note about what the screen shows)
  */
 export default function FloatingDetailHeader({
@@ -40,6 +54,8 @@ export default function FloatingDetailHeader({
   onBack,
   menuSlot,
   isSelectMode = false,
+  scrollY,
+  titleRevealY = 0,
   children,
 }: FloatingDetailHeaderProps) {
   const insets = useSafeAreaInsets();
@@ -51,6 +67,19 @@ export default function FloatingDetailHeader({
     opacity: withTiming(isSelectMode ? 0 : 1, motion.move),
     transform: [{ translateX: withTiming(isSelectMode ? -24 : 0, motion.move) }],
   }));
+
+  const titleStyle = useAnimatedStyle(() => {
+    const reveal = scrollY
+      ? interpolate(scrollY.value, [titleRevealY, titleRevealY + REVEAL_DISTANCE], [0, 1], Extrapolation.CLAMP)
+      : 1;
+    return {
+      opacity: isSelectMode ? withTiming(0, motion.move) : reveal,
+      transform: [
+        { translateX: withTiming(isSelectMode ? -24 : 0, motion.move) },
+        { scale: interpolate(reveal, [0, 1], [0.9, 1]) },
+      ],
+    };
+  });
 
   return (
     <View
@@ -64,7 +93,7 @@ export default function FloatingDetailHeader({
         {/* Centre — rendered first so it sits below the pills in z-order;
           pointerEvents="none" ensures touches pass through to the pills above */}
         {(!!title || !!subtitle) && (
-          <Animated.View style={[styles.infoArea, leftStyle]} pointerEvents="none">
+          <Animated.View style={[styles.infoArea, titleStyle]} pointerEvents="none">
             <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
           </Animated.View>
         )}
