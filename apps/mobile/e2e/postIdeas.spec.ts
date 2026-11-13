@@ -144,11 +144,12 @@ test('a repost opens with its text and its ideas', async ({ page, assistant }) =
   });
 });
 
-test('a posted post and its editor start no ideas', async ({ page, assistant }) => {
+test('a posted post has no tray, and its editor starts no ideas', async ({ page, assistant }) => {
   await openTab(page, 'Posts');
   await page.getByTestId('posts-screen').getByTestId('post-card').first().click();
   const post = page.getByTestId('post-screen');
-  await expect(post.getByText('Write with AI')).toBeVisible();
+  await expect(button(post, 'Post options')).toBeVisible();
+  await expect(post.getByText('Write with AI')).toHaveCount(0);
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   await expect(page.getByTestId('post-editor').getByText('Write with AI')).toBeVisible();
