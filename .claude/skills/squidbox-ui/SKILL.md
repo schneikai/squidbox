@@ -83,6 +83,21 @@ All paths are under `apps/mobile/src/`.
   setting that is on; `colorPalette="accent"` for the editor card's toolbar. The tray carries no pen: Edit prompt
   buttons is a muted pen beside the chat's row of prompt buttons, like every icon button.
 
+## Secondary info
+
+What an item is linked to (its contacts, albums, posts) sits where the screen's main content leaves room,
+always as the same parts: `TargetContactsSection`, `AssetAlbums` and `PostRows` under a
+`ScreenSectionHeader` titled Contacts, Albums, Posts (Other posts for a post's neighbours), in that order.
+
+- **Content fills the screen** (a photo, a video): behind ⓘ and a swipe up, in the details panel, as Apple
+  Photos' Info.
+- **Content scrolls without end** (an album's grid): one line of chips above it, each opening the full list.
+- **Content ends** (a post, a contact): sections below it.
+
+Contacts and albums go on photos only, so an album or a post shows the sum of its photos' and hides the
+sections when it has none. A post with channels shows the whole post's, below the channel card, never
+inside it.
+
 ## Known conflicts: our decision wins
 
 | Skill or generic advice says                                                           | Squidbox does                                                                                                                                                                         |
