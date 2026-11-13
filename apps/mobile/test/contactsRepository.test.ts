@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
@@ -15,12 +15,15 @@ describe('contactsRepository', () => {
   const PHOTO = { targetType: 'asset', targetId: 'photo-1' };
 
   beforeEach(async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(5_000); // every write in one millisecond, as on a fast phone
     db = makeTestDb();
     n = 0;
     await contacts.create(db, makeContactRecord({ id: 'maya', name: 'Maya' }));
     for (const id of ['hikes', 'climbs'])
       await lists.create(db, { id, name: id, notes: null, createdAt: 1, updatedAt: 1, deletedAt: null });
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   const live = async () => [
     ...(await db.select().from(schema.contactListMembers))
