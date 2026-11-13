@@ -65,10 +65,10 @@ jobs:
 
   # The Playwright flows in apps/mobile/e2e on the web build. MinIO can't be a service container (it
   # needs a command, and its buckets a one-shot), so scripts/dev.mjs --web brings up the compose stack
-  # itself (Postgres + MinIO), then the API server and Metro; the mock photos come from picsum.
+  # itself (Postgres + MinIO), then the API server and Metro; the mock photos and videos are committed.
   ui-flows:
     runs-on: ubuntu-latest
-    # Cold Docker pulls, the mock photos and the first web bundle come before the first test.
+    # Cold Docker pulls and the first web bundle come before the first test.
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7

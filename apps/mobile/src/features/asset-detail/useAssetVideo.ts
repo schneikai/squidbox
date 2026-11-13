@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useCloud from '@/features/cloud/useCloud';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import type { AssetRow } from '@/sync/db/schema';
+import { markDownloadUsed } from '@/utils/assets/assetStorage';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 import getAssetFileSourceAsync, { type AssetFileSource } from '@/utils/assets/files/getAssetFileSourceAsync';
 import type {
@@ -112,7 +113,10 @@ async function resolveSourceAsync(
   options: AssetFileLocation,
 ): Promise<AssetFileSource | FailedSource> {
   try {
-    return await getAssetFileSourceAsync(asset, options);
+    const source = await getAssetFileSourceAsync(asset, options);
+    // Played from a kept download: marked used, so the stale sweep doesn't delete it while it plays.
+    if (source.isKeptDownload) markDownloadUsed(asset.filename, options.library);
+    return source;
   } catch {
     return { status: 'error' };
   }

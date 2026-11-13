@@ -344,6 +344,9 @@ export default function ComponentGalleryScreen() {
         <Specimen name="Text · label">
           <Text variant="label">A field's name</Text>
         </Specimen>
+        <Specimen name="Text · heading">
+          <Text variant="heading">Setting up your library</Text>
+        </Specimen>
         <Specimen name="Text · assistant">
           <Text variant="assistant">Write with AI</Text>
         </Specimen>

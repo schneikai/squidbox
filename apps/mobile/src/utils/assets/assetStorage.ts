@@ -1,9 +1,15 @@
 import { File } from 'expo-file-system';
 
-import { getAssetFileUri, getAssetThumbnailsDirectory, getFileFolderUri } from './assetDirectories';
+import {
+  getAssetFileUri,
+  getAssetThumbnailsDirectory,
+  getDownloadFolderUri,
+  getFileFolderUri,
+} from './assetDirectories';
 
 import { type FileFolder, isFileName } from '@/library/fileFields';
 import type { LibraryPaths } from '@/library/libraryPaths';
+import { KEEP_DOWNLOADS_FOR } from '@/utils/assets/constants';
 import deletePath from '@/utils/files/deletePath';
 
 // An asset's files in a library on this device (the folders: assetDirectories). Web keeps no files:
@@ -12,6 +18,7 @@ export {
   getAssetFilesDirectory,
   getAssetThumbnailsDirectory,
   getDownloadsDirectory,
+  getDownloadFolderUri,
   getAssetFileUri,
   getFileFolderUri,
   createAssetDirectoriesAsync,
@@ -33,11 +40,17 @@ export function getAvatarUri(avatarFilename: string, library: Pick<LibraryPaths,
   return getFieldFileUri('avatarsDir', avatarFilename, library);
 }
 
+// Whether the contact's photo is on this device: a synchronous check, so an avatar can show its photo in
+// its first frame.
+export function hasAvatar(avatarFilename: string, library: Pick<LibraryPaths, 'avatarsDir'>): boolean {
+  return new File(getAvatarUri(avatarFilename, library)).exists;
+}
+
 export async function hasAvatarAsync(
   avatarFilename: string,
   library: Pick<LibraryPaths, 'avatarsDir'>,
 ): Promise<boolean> {
-  return new File(getAvatarUri(avatarFilename, library)).exists;
+  return hasAvatar(avatarFilename, library);
 }
 
 // Removes a contact's old or removed photo from the device (the copy in the user's storage stays).
@@ -59,4 +72,48 @@ export async function hasThumbnailAsync(
 ): Promise<boolean> {
   if (!thumbnailFilename) return true;
   return new File(getAssetThumbnailUri(thumbnailFilename, library)).exists;
+}
+
+// When a download folder was last used (written once the file is whole, and on each reuse), as ms
+// since the epoch in a file of its own.
+const LAST_USED = 'last-used';
+
+// An asset's full-resolution file on this device: the original (kept until the backup uploaded it),
+// or else a download of the cloud copy (withAssetFileAsync) that is whole and was used within
+// KEEP_DOWNLOADS_FOR. Null when there is neither.
+export async function findLocalAssetFileAsync(
+  filename: string,
+  library: Pick<LibraryPaths, 'filesDir' | 'downloadsDir'>,
+): Promise<{ uri: string; isKeptDownload: boolean } | null> {
+  if (await assetFileExistsAsync(filename, library)) {
+    return { uri: getAssetFileUri(filename, library), isKeptDownload: false };
+  }
+  // A name that isn't a plain file name has no download folder (getDownloadFolderUri).
+  if (!isFileName(filename)) return null;
+  const folder = getDownloadFolderUri(filename, library);
+  const file = new File(`${folder}${filename}`);
+  return file.exists && isFreshDownload(folder) ? { uri: file.uri, isKeptDownload: true } : null;
+}
+
+// Whether the download folder at `uri` was used within KEEP_DOWNLOADS_FOR. One without a readable
+// mark (cut off mid-download, or an older layout) is not.
+export function isFreshDownload(uri: string): boolean {
+  try {
+    const mark = new File(`${uri.replace(/\/?$/, '/')}${LAST_USED}`);
+    if (!mark.exists) return false;
+    const lastUsed = Number(mark.textSync());
+    return Number.isFinite(lastUsed) && Date.now() - lastUsed <= KEEP_DOWNLOADS_FOR;
+  } catch {
+    return false;
+  }
+}
+
+// Marks an asset's download as used now, so the stale sweep keeps it another KEEP_DOWNLOADS_FOR.
+// Best effort: without the mark it is only downloaded again.
+export function markDownloadUsed(filename: string, library: Pick<LibraryPaths, 'downloadsDir'>): void {
+  try {
+    new File(`${getDownloadFolderUri(filename, library)}${LAST_USED}`).writeSync(String(Date.now()));
+  } catch (error) {
+    console.warn('Could not mark a download as used', error);
+  }
 }

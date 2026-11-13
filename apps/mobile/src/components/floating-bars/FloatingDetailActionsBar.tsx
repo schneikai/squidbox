@@ -12,12 +12,11 @@ import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsA
 import { layout } from '@/styles/designTokens';
 import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
-import useSaveAssetsToMediaLibrary from '@/utils/assets/useSaveAssetsToMediaLibrary';
-import useShareAsset from '@/utils/assets/useShareAsset';
+import useShareAssets from '@/utils/assets/useShareAssets';
 import confirmAsync from '@/utils/confirmAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
-// What the bar reads of the asset, and what sharing and saving it take.
+// What the bar reads of the asset, and what sharing it takes.
 type DetailAsset = Pick<AssetRecord, 'id' | 'deletedAt' | 'mediaType' | 'isFavorite'> & AssetFileAsset;
 
 export type FloatingDetailActionsBarProps = {
@@ -36,8 +35,7 @@ export type FloatingDetailActionsBarProps = {
  *   [⇪  ♥  ⓘ]                               [🗑]
  *   left pill (share + favorite + info)       right pill (delete)
  *
- * The share sheet saves to the camera roll (on web, Share downloads), so Save to camera roll (↓) only
- * takes Share's place in a build without expo-sharing's native module.
+ * The share sheet saves to the camera roll (on web, Share downloads). Share only where canShareFiles.
  *
  * A trashed asset (shown in a post) gets the Deleted album's actions instead (DeletedNote, under
  * the header, says where it is):
@@ -53,8 +51,7 @@ export default function FloatingDetailActionsBar({
   const insets = useSafeAreaInsets();
   const { toggleFavoriteAsset } = useAssets();
   const { restore, deletePermanently } = useDeletedAssetsActions();
-  const saveAssetsToMediaLibraryAsync = useSaveAssetsToMediaLibrary();
-  const shareAssetAsync = useShareAsset();
+  const shareAssetsAsync = useShareAssets();
   const isDeleted = !!asset.deletedAt;
 
   function handleToggleFavorite() {
@@ -62,11 +59,7 @@ export default function FloatingDetailActionsBar({
   }
 
   async function handleShare() {
-    await shareAssetAsync(asset);
-  }
-
-  async function handleDownload() {
-    await saveAssetsToMediaLibraryAsync([asset]);
+    await shareAssetsAsync([asset]);
   }
 
   function handleRestore() {
@@ -96,13 +89,9 @@ export default function FloatingDetailActionsBar({
     <View style={[styles.container, { bottom: insets.bottom + layout.barMargin }]} pointerEvents="box-none">
       {children}
       <View style={styles.row} pointerEvents="box-none">
-        {/* Left pill — share (or save) + favorite + info */}
+        {/* Left pill — share + favorite + info */}
         <FloatingPill>
-          {canShareFiles ? (
-            <Button icon="share" onPress={handleShare} accessibilityLabel="Share" />
-          ) : (
-            <Button icon="cloud-download" onPress={handleDownload} accessibilityLabel="Save to camera roll" />
-          )}
+          {canShareFiles && <Button icon="share" onPress={handleShare} accessibilityLabel="Share" />}
           {!isDeleted && (
             <Button
               icon="heart"

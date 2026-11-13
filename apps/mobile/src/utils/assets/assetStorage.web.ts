@@ -9,6 +9,7 @@ export {
   getAssetFilesDirectory,
   getAssetThumbnailsDirectory,
   getDownloadsDirectory,
+  getDownloadFolderUri,
   getAssetFileUri,
   getFileFolderUri,
   createAssetDirectoriesAsync,
@@ -29,8 +30,12 @@ export function getAvatarUri(avatarFilename: string): string | undefined {
   return webFileUrls.get(avatarFilename);
 }
 
-export async function hasAvatarAsync(avatarFilename: string): Promise<boolean> {
+export function hasAvatar(avatarFilename: string): boolean {
   return webFileUrls.has(avatarFilename);
+}
+
+export async function hasAvatarAsync(avatarFilename: string): Promise<boolean> {
+  return hasAvatar(avatarFilename);
 }
 
 // The web preview keeps no files.
@@ -44,3 +49,10 @@ export async function hasThumbnailAsync(thumbnailFilename: string | null | undef
   if (!thumbnailFilename) return true;
   return webFileUrls.has(thumbnailFilename);
 }
+
+// Web keeps no files: neither originals nor downloads.
+export async function findLocalAssetFileAsync(): Promise<{ uri: string; isKeptDownload: boolean } | null> {
+  return null;
+}
+
+export function markDownloadUsed(): void {}

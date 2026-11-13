@@ -65,6 +65,14 @@ describe('usePagedQuery', () => {
     expect(hook.count).toBeUndefined();
   });
 
+  it('is current only while the rows shown were read for the current descriptor', () => {
+    const query = { descriptor: { scope: 'list' }, read: async () => ({ rows: [], count: 0 }), tables: [] };
+    liveQuery.mockReturnValue({ data: { rows: ['a'], count: 1, limit: 150, key: '{"scope":"favorites"}' }, readAt: 3 });
+    expect(renderHook(query, 150).isCurrent).toBe(false); // the previous descriptor's rows, still shown
+    liveQuery.mockReturnValue({ data: { rows: ['b'], count: 1, limit: 150, key: '{"scope":"list"}' }, readAt: 4 });
+    expect(renderHook(query, 150).isCurrent).toBe(true);
+  });
+
   const page = (over: Partial<Page> = {}): Page => ({ key: 'a', limit: 300, keepFor: null, wantsMore: false, ...over });
   const result = (over = {}) => ({ rows: [], count: 1000, limit: 300, key: 'a', ...over });
 

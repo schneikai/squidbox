@@ -66,7 +66,7 @@ export default function ScreenSectionHeader({
   if (link) {
     return (
       <View style={[styles.row, styles.withLink, spacing]}>
-        {titleInRow}
+        <View style={styles.titleBesideLink}>{titleInRow}</View>
         <Button label={link.label} size="small" colorPalette="muted" hasChevron onPress={link.onPress} />
       </View>
     );
@@ -111,10 +111,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // The link's text sits on the title's baseline.
+  // The link's text sits on the title's baseline: their bottoms line up, the title raised by the small
+  // link's padding. Not alignItems 'baseline', which iOS first lays out a few points taller and then
+  // corrects, moving everything under the header up once it has shown.
   withLink: {
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     gap: space.sm,
+  },
+  titleBesideLink: {
+    flex: 1,
+    paddingBottom: space.xs,
   },
 });
 

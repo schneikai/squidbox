@@ -124,14 +124,13 @@ describe('asset file and thumbnail paths', () => {
     expect(fs).toEqual([]);
   });
 
-  it('removing an asset also removes the downloads kept for a share sheet', async () => {
-    const uuid = '3f2a0000-0000-4000-8000-000000000001';
-    folders['file:///caches/downloads/abc/'] = [`a.jpg-${uuid}`, `b.jpg-${uuid}`];
+  it('removing an asset also removes its kept download', async () => {
+    folders['file:///caches/downloads/abc/'] = ['a.jpg', 'b.jpg'];
     await removeAssetFiles([{ filename: 'a.jpg' }], abc);
     expect(fs).toEqual([
       'list file:///caches/downloads/abc/',
       'delete file:///documents/libraries/abc/files/a.jpg',
-      `delete file:///caches/downloads/abc/a.jpg-${uuid}/`,
+      'delete file:///caches/downloads/abc/a.jpg/',
     ]);
     delete folders['file:///caches/downloads/abc/'];
   });

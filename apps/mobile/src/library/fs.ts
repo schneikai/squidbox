@@ -2,13 +2,14 @@ import { chunk } from '@squidbox/shared';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { OpenLibrary } from './current';
-import { FILE_FOLDERS } from './fileFields';
+import { FILE_FOLDERS, isFileName } from './fileFields';
 import type { LibraryPaths } from './libraryPaths';
 
 import {
   createAssetDirectoriesAsync,
   getAssetFileUri,
   getAssetFilesDirectory,
+  getDownloadFolderUri,
   getDownloadsDirectory,
   getAssetThumbnailUri,
   getAssetThumbnailsDirectory,
@@ -30,8 +31,8 @@ export async function listFiles(dir: string): Promise<Set<string>> {
   return new Set(directory.exists ? directory.list().map((entry) => decodeURIComponent(entry.name)) : []);
 }
 
-// A library's folders, ready when it opens, before anything is written into them; downloads over
-// an hour old go.
+// A library's folders, ready when it opens, before anything is written into them; downloads unused
+// for a day go (deleteStaleDownloadsAsync).
 export async function createLibraryFolders(library: OpenLibrary): Promise<void> {
   await createAssetDirectoriesAsync(library);
   await deleteStaleDownloadsAsync(library);
@@ -94,14 +95,12 @@ function copies(assets: AssetFileNames[], library: LibraryPaths): string[] {
   ]);
 }
 
-// The download folders of these assets (kept for a share sheet): `<filename>-<uuid>/`, see
-// withAssetFileAsync.
+// The download folders of these assets that are present (getDownloadFolderUri, kept by
+// withAssetFileAsync). `folders`: the downloads folder's listing.
 function downloadFolders(assets: AssetFileNames[], library: LibraryPaths, folders: Set<string>): string[] {
-  const filenames = new Set(assets.map(({ filename }) => filename));
-  const directory = getDownloadsDirectory(library);
-  return [...folders]
-    .filter((name) => filenames.has(name.slice(0, -UUID_SUFFIX)))
-    .map((name) => `${directory}${name}/`);
+  return assets.flatMap(({ filename }) =>
+    filename && isFileName(filename) && folders.has(filename) ? [getDownloadFolderUri(filename, library)] : [],
+  );
 }
 
 // A listing kept for later calls, forgotten if it fails.
@@ -111,8 +110,6 @@ function unlessFailed<T>(listing: Promise<T>, forget: () => void): Promise<T> {
     throw error;
   });
 }
-
-const UUID_SUFFIX = '-00000000-0000-0000-0000-000000000000'.length;
 
 // The uris in the library's file and thumbnail folders.
 async function listFolders(library: LibraryPaths): Promise<Set<string>> {

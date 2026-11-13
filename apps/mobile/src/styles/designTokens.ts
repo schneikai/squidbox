@@ -44,7 +44,6 @@ const palette = {
   green500: '#34C759',
   blue600: '#2563EB',
   cyan100: '#B1F1FF',
-  cyan200: '#8EDDF0', // the splash octopus's bubble rim and droplets
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
 };
@@ -99,8 +98,12 @@ export const colors = {
     placeholder: palette.gray300, // a picture's spot before it loads
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen
-    splash: palette.cyan100, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot screen
-    splashBubble: palette.cyan200, // the rim and droplets of the boot screen's bubbles
+    splash: palette.violet900, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot and first-sync screens (SplashStage)
+  },
+  octopus: {
+    // The octopus's bubbles (OctopusBubble), light cyan on the violet splash and the light app alike;
+    // the same cyan as app.config.js `ICON_BACKGROUND`, the Android icon's.
+    bubble: palette.cyan100,
   },
   border: {
     glass: alpha(palette.black, 0.08),

@@ -14,7 +14,7 @@ import { colors, motion } from '@/styles/designTokens';
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-const COLORS = { fill: colors.background.splash, edge: colors.background.splashBubble, shine: colors.text.inverse };
+const COLORS = { fill: colors.octopus.bubble, edge: '#8EDDF0', shine: '#FFFFFF' };
 const FILL_OPACITY = 0.35;
 const FAST = motion.duration.fast;
 const [MOUTH_X, MOUTH_Y] = parts.mouthCenter;

@@ -1,4 +1,4 @@
-import { CONTACT_LIMITS } from '@squidbox/shared';
+import { CONTACT_LIMITS, formatPlace } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet } from 'react-native';
@@ -28,7 +28,6 @@ import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetQuery from '@/features/asset-list/assetQuery';
-import contactPlace from '@/features/contact-list/contactPlace';
 import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
 import useContacts from '@/features/contacts-context/useContacts';
 import PostRows from '@/features/post-list/PostRows';
@@ -81,7 +80,9 @@ export default function Contact({ contact }: ContactProps) {
     setSeen(contact);
     setDraft((current) => draftWithChanges(current, Object.keys(current) as (keyof ContactDraft)[], before, after));
   }
-  const subtitle = [contactPlace(contact), `added ${dateToTimeAgo(contact.createdAt)}`].filter(Boolean).join(' · ');
+  const subtitle = [contact.places[0] && formatPlace(contact.places[0]), `added ${dateToTimeAgo(contact.createdAt)}`]
+    .filter(Boolean)
+    .join(' · ');
 
   // Writes the fields that changed since the last save; an emptied name keeps the stored one.
   async function save(next: ContactFormFields, stored: ContactFormFields) {
