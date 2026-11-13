@@ -9,13 +9,13 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import NewPostCard from '@/features/new-post/NewPostCard';
 import RepostCard from '@/features/new-post/RepostCard';
 import laterSuggestRepostAt from '@/features/new-post/laterSuggestRepostAt';
-import postQuery from '@/features/post-list/postQuery';
-import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import usePosts from '@/providers/posts/usePosts';
 import { layout, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
 import type { PostRow } from '@/sync/db/schema';
 import { readNewestRepostDate } from '@/sync/postsRepository';
+import postQuery from '@/sync/queries/postQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const candidates = postQuery({ scope: 'repostCandidates', sort: 'suggestRepostAt:asc' });

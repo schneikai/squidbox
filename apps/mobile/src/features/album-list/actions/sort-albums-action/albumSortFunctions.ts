@@ -1,6 +1,7 @@
 import type { AlbumSort } from './isAlbumSort';
-import sortAlbumsByCustomOrder, { type OrderedAlbum } from './sortAlbumsByCustomOrder';
 import sortAlbumsByLastPostedDesc, { type PostedAlbum } from './sortAlbumsByLastPostedDesc';
+
+import sortAlbumsByCustomOrder, { type OrderedAlbum } from '@/utils/albums/sortAlbumsByCustomOrder';
 
 type SortableAlbum = OrderedAlbum & PostedAlbum;
 type AlbumCompare = (a: SortableAlbum, b: SortableAlbum) => number;

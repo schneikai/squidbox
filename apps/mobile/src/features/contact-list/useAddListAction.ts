@@ -1,7 +1,7 @@
 import { CONTACT_LIST_LIMITS, type ContactListRecord } from '@squidbox/shared';
 import { Alert } from 'react-native';
 
-import useContacts from '@/features/contacts-context/useContacts';
+import useContacts from '@/providers/contacts/useContacts';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // Asks for a name and adds an empty contact list with it at once; `onAdded(list)` gets the new list.

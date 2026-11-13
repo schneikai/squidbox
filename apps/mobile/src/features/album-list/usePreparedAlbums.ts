@@ -4,7 +4,7 @@ import { MIN_REREAD_INTERVAL } from '@/constants';
 import albumSearchQuery from '@/features/album-list/albumSearchQuery';
 import matchedAlbumIds from '@/features/album-list/matchedAlbumIds';
 import prepareAlbums, { type PrepareAlbumsOptions } from '@/features/album-list/prepareAlbums';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import useAlbumRows from '@/hooks/useAlbumRows';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 const NO_IDS: string[] = [];

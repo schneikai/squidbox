@@ -1,4 +1,4 @@
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 
 // When an albumQuery row was last posted, e.g. "Posted 4 days ago".

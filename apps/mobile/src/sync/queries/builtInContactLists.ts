@@ -1,8 +1,7 @@
-import { type ContactListSummary, LIST_STACK } from './contactListQuery';
-import contactQuery, { type ContactScope } from './contactQuery';
-
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
+import { type ContactListSummary, LIST_STACK } from '@/sync/queries/contactListQuery';
+import contactQuery, { type ContactScope } from '@/sync/queries/contactQuery';
 
 /**
  * The lists the app keeps itself, like the built-in albums: Favorites, Tagged (the contacts on a

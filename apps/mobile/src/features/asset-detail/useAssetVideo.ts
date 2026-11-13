@@ -2,8 +2,8 @@ import { useFocusEffect } from 'expo-router';
 import { createVideoPlayer, type VideoPlayer } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import useCloud from '@/features/cloud/useCloud';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import useCloud from '@/providers/cloud/useCloud';
 import type { AssetRow } from '@/sync/db/schema';
 import { markDownloadUsed } from '@/utils/assets/assetStorage';
 import { MEDIA_TYPES } from '@/utils/assets/constants';

@@ -1,7 +1,8 @@
 import type { PullRequest, PullResponse, PushRequest, PushResponse } from '@squidbox/shared';
 
 import { pullChanges, pushMutations } from './api';
-import type { SyncIdentity } from '../library/sessionMatches';
+
+import type { SyncIdentity } from '@/library/sessionMatches';
 
 // The sync engine talks to the backend through this interface, so tests can inject an
 // in-process transport (calling the server's push/pull directly against a test Postgres) while

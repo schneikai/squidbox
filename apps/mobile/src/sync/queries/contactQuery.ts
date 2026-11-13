@@ -3,13 +3,15 @@ import { and, asc, count, desc, eq, isNotNull, isNull, type SQL, sql } from 'dri
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import contactSearchText, { SEARCHED_FIELDS } from './contactSearchText';
-import type { ContactSort } from './contactSortOptions';
 
 import { livePhotoIdsOf, type PhotosOf } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
+
+/** The contacts' sort choices (contactSortOptions labels them). */
+export type ContactSort = 'name:asc' | 'createdAt:desc';
 
 const c = schema.contacts;
 

@@ -16,9 +16,9 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
-import useAssetPicker from '@/features/asset-picker/useAssetPicker';
 import useModelKindParam from '@/hooks/useModelKindParam';
 import useYourModels from '@/hooks/useYourModels';
+import useAssetPicker from '@/providers/asset-picker/useAssetPicker';
 import { layout, space } from '@/styles/designTokens';
 import { readLiveAssets, readVisionPhotos, setVisionPhotos } from '@/sync/aiStateRepository';
 import { getDb, schema } from '@/sync/db/client';

@@ -6,7 +6,8 @@ import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 import { SQL_BATCH } from './sqlBatch';
 import { getMergeTarget, getOwner, isFirstSyncDone } from './status';
-import type { AssetFileNames } from '../library/fs';
+
+import type { AssetFileNames } from '@/library/fs';
 
 /** Removes this device's copies of these files (library/fs purgedFilesRemover, for the open library). */
 export type RemoveFiles = (files: AssetFileNames[]) => Promise<void>;

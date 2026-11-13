@@ -4,7 +4,7 @@ import { Alert, StyleSheet } from 'react-native';
 import Button from '@/components/Button';
 import TextInput from '@/components/TextInput';
 import { Section } from '@/components/settings-list/SettingsList';
-import useCloud from '@/features/cloud/useCloud';
+import useCloud from '@/providers/cloud/useCloud';
 import { colors, layout, sizes, space } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 

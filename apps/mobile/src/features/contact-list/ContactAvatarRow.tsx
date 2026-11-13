@@ -1,9 +1,8 @@
 import { router } from 'expo-router';
 
-import type { ContactSummary } from './contactQuery';
-
 import PictureRow from '@/components/PictureRow';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
+import type { ContactSummary } from '@/sync/queries/contactQuery';
 
 /**
  * The pinned row on Contacts (Favorites, or the list pinned in their place): each contact's avatar

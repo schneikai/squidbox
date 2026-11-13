@@ -9,13 +9,13 @@ import { createPost, makeAlbumRecord, makeAssetRecord } from './helpers/factory'
 import { fakeTransport } from './helpers/fakeTransport';
 import { lastSyncLog } from './helpers/lastSyncLog';
 import { betterSqliteExecutor, makeTestDb, migrationIndex, runMigrations } from './helpers/testDb';
-import assetQuery from '../src/features/asset-list/assetQuery';
-import postQuery from '../src/features/post-list/postQuery';
 import * as repo from '../src/sync/assetsRepository';
 import { createDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import assetQuery from '../src/sync/queries/assetQuery';
+import postQuery from '../src/sync/queries/postQuery';
 import { readByIds } from '../src/sync/readByIds';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeTarget, setOwner } from '../src/sync/status';

@@ -8,11 +8,11 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import { SCREEN_PADDING } from '@/constants';
 import PostList from '@/features/post-list/PostList';
-import postQuery from '@/features/post-list/postQuery';
-import usePosts from '@/features/posts-context/usePosts';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import usePosts from '@/providers/posts/usePosts';
 import { layout, space } from '@/styles/designTokens';
 import type { PostRow } from '@/sync/db/schema';
+import postQuery from '@/sync/queries/postQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 const ignored = postQuery({ scope: 'ignored', sort: 'updatedAt:desc' });

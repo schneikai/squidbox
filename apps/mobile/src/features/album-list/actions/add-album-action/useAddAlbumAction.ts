@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 
-import useAlbums from '@/features/albums-context/useAlbums';
+import useAlbums from '@/providers/albums/useAlbums';
 
 // Asks for a name and adds an empty album with it.
 export default function useAddAlbumAction(): () => void {

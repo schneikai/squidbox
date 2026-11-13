@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import uploadFileAsync from '../src/features/cloud/assets/uploadFileAsync';
+import uploadFileAsync from '../src/utils/cloud-api/assets/uploadFileAsync';
 
 // The upload task is expo-file-system's native one: it reports the progress and resolves the
 // response it is given here.

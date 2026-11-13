@@ -1,5 +1,4 @@
-import contactListQuery from './contactListQuery';
-
+import contactListQuery from '@/sync/queries/contactListQuery';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 /**

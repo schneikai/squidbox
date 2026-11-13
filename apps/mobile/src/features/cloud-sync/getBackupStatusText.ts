@@ -1,6 +1,5 @@
-import type { CloudSyncValue } from './CloudSyncContext';
-
-import type { CloudContextValue } from '@/features/cloud/CloudContext';
+import type { CloudContextValue } from '@/providers/cloud/CloudContext';
+import type { CloudSyncValue } from '@/providers/cloud-sync/CloudSyncContext';
 import type { BackupCounts } from '@/sync/assetsRepository';
 import formatErrorCount from '@/utils/formatErrorCount';
 
