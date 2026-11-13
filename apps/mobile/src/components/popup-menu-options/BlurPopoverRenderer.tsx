@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, I18nManager, type LayoutRectangle } from 'react-native';
+import { Animated, I18nManager, Keyboard, type LayoutRectangle } from 'react-native';
 
 import PopoverSurface, { type PopoverSurfaceProps } from './PopoverSurface';
 
@@ -9,7 +9,7 @@ import { layout, motion } from '@/styles/designTokens';
  * Custom react-native-popup-menu renderer.
  *
  * Positions the menu below the trigger (flips above when there is insufficient
- * space) with a small gap, on PopoverSurface.
+ * space above the keyboard, if it's up) with a small gap, on PopoverSurface.
  * It opens by growing out of the trigger's corner with a soft spring and shrinks
  * back into it on close.
  *
@@ -63,10 +63,13 @@ function computePlacement(layouts: MenuLayouts) {
   const isRightAligned = rawLeft < tX - wX; // flipped to right-align
   const left = isRightAligned ? rawLeft + HORIZONTAL_NUDGE : rawLeft;
 
-  // Vertical — open below trigger, flip above when there is no room
+  // Vertical — open below trigger, flip above when there is no room above the keyboard (the search bar's menu
+  // while you type)
+  const keyboardTop = Keyboard.isVisible() ? Keyboard.metrics()?.screenY : undefined;
+  const roomBottom = keyboardTop === undefined ? wHeight : Math.min(wHeight, keyboardTop - wY);
   const belowTop = tY - wY + tHeight + layout.popoverGap;
   const aboveTop = tY - wY - oHeight - layout.popoverGap;
-  const opensBelow = belowTop + oHeight <= wHeight;
+  const opensBelow = belowTop + oHeight <= roomBottom;
   const top = opensBelow ? belowTop : Math.max(0, aboveTop);
   // A menu above its trigger hangs from its bottom edge, so it stays put when it changes height (the
   // sort/filter menu's filter panel) instead of growing down for a frame until it is measured again.
