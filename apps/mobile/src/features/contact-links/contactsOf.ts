@@ -1,5 +1,5 @@
-import type { ContactScope } from '@/features/contact-list/contactQuery';
 import type { PhotosOf } from '@/sync/assetSql';
+import type { ContactScope } from '@/sync/queries/contactQuery';
 
 /** What a Contacts section or the Add contacts sheet is about: a photo, or an album's or post's photos. */
 export type ContactsOf = { assetId: string } | PhotosOf;

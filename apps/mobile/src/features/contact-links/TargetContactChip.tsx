@@ -3,8 +3,8 @@ import { contactsOfName, type ContactsOf } from './contactsOf';
 
 import Chip from '@/components/Chip';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import type { ContactSummary } from '@/features/contact-list/contactQuery';
-import useContacts from '@/features/contacts-context/useContacts';
+import useContacts from '@/providers/contacts/useContacts';
+import type { ContactSummary } from '@/sync/queries/contactQuery';
 import confirmAsync from '@/utils/confirmAsync';
 
 type TargetContactChipProps = {

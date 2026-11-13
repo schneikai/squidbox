@@ -12,11 +12,11 @@ import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useIdeaSettings from '@/features/post-ideas/useIdeaSettings';
 import PostRows from '@/features/post-list/PostRows';
-import type { PostDetailRow } from '@/features/post-list/readPost';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
 import { layout, space } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
+import type { PostDetailRow } from '@/sync/queries/readPost';
 
 const OTHER_POSTS_LIMIT = 30;
 

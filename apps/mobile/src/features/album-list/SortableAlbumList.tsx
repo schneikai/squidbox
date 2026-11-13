@@ -3,8 +3,8 @@ import { type LayoutChangeEvent, View } from 'react-native';
 
 import SortableGrid, { type SortableGridProps } from '@/components/sortable-grid/SortableGrid';
 import type { AlbumListProps } from '@/features/album-list/AlbumList';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import useAlbumGrid from '@/features/album-list/useAlbumGrid';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 // Below the cover: the name and when it was last posted, until an item has been measured.
 const ESTIMATED_INFO_HEIGHT = 36;

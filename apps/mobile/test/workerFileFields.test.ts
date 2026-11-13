@@ -4,7 +4,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { makeContactRecord } from './helpers/factory';
 import { fakeTransport } from './helpers/fakeTransport';
 import { makeTestDb } from './helpers/testDb';
-import UploadFailedError from '../src/features/cloud/assets/UploadFailedError';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
@@ -12,6 +11,7 @@ import { FileUploadRefusedError } from '../src/sync/fileUploadErrors';
 import { retryFailures } from '../src/sync/outbox';
 import { readPushFailures } from '../src/sync/readPushFailures';
 import { runSyncOnce, type UploadFile } from '../src/sync/worker';
+import UploadFailedError from '../src/utils/cloud-api/assets/UploadFailedError';
 
 let db: SyncDb;
 let calls: string[]; // the uploads and pushes, in order

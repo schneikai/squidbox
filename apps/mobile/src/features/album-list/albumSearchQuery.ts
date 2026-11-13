@@ -1,9 +1,9 @@
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { matchingContactIds } from '@/features/contact-list/contactQuery';
 import { contactAlbumEdges } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
+import { matchingContactIds } from '@/sync/queries/contactQuery';
 
 /** What an album search read: its text, and the albums holding a live photo of a contact it finds. */
 export type AlbumContactSearch = { search: string; contactAlbumIds: string[] };

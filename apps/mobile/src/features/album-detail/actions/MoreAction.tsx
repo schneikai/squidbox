@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import Divider from '@/components/Divider';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import useAlbums from '@/features/albums-context/useAlbums';
+import useAlbums from '@/providers/albums/useAlbums';
 import type { AlbumRow } from '@/sync/db/schema';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 import confirmAsync from '@/utils/confirmAsync';

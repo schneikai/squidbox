@@ -1,7 +1,7 @@
 import { CONTACT_HANDLES, parseHandle } from '@squidbox/shared';
 
-import type { ContactSummary } from '@/features/contact-list/contactQuery';
 import { searchForms } from '@/sync/matchingIds';
+import type { ContactSummary } from '@/sync/queries/contactQuery';
 
 // The networks whose handles are written with @ in a post's text, in the order the app shows them.
 const MENTION_HANDLES = CONTACT_HANDLES.filter((handle) => handle.isAtHandle);

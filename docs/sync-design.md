@@ -163,11 +163,14 @@ Both require authentication.
 }
 ```
 
-Server (`apps/server/src/sync/pull.ts`): for each collection, select up to `limit` rows with
-`server_seq > cursor`, ordered by `server_seq`. Merge all lists by `server_seq`, cut at `limit`,
-and return the `server_seq` of the last included row as the new cursor. Fetching `limit` per
-collection before the cut means no row is skipped. `hasMore` is true if the merged list was cut
-or any collection hit `limit`. Seqs are unique across collections, so there are no ties.
+Server (`apps/server/src/sync/pull.ts`): one statement, a `UNION ALL` of every collection's rows
+with `server_seq > cursor` (each read along its `(user_id, server_seq)` index, at most `limit + 1`
+of them), ordered by `server_seq` and cut at `limit + 1`. It returns the first `limit` rows and the
+`server_seq` of the last included one as the new cursor; `hasMore` is true if row `limit + 1` came
+back. One statement reads one snapshot, which is what makes that cursor safe (§3): read collection
+by collection, a push committed between two reads could leave its lower seq behind a higher one
+already returned, and that record would never be pulled. Seqs are unique across collections, so
+there are no ties.
 Tombstones flow like any other change.
 
 Client apply (`apps/mobile/src/sync/worker.ts`) is **server-authoritative and outbox-guarded**:

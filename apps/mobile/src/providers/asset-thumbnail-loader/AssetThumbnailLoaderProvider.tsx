@@ -5,11 +5,11 @@ import { AppState } from 'react-native';
 import AssetThumbnailLoaderContext, { type AvatarItem } from './AssetThumbnailLoaderContext';
 import createThumbnailQueue from './createThumbnailQueue';
 
-import preloadFilesAsync from '@/features/cloud/assets/preloadFilesAsync';
-import useCloud from '@/features/cloud/useCloud';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import useCloud from '@/providers/cloud/useCloud';
 import { getAvatarUri, hasAvatarAsync } from '@/utils/assets/assetStorage';
 import type { ThumbnailStatusAsset } from '@/utils/assets/thumbnails/getAssetThumbnailStatusAsync';
+import preloadFilesAsync from '@/utils/cloud-api/assets/preloadFilesAsync';
 
 // Report the first handful of thumbnail failures per session, then go quiet — enough to diagnose a
 // systemic problem (e.g. missing S3 objects, auth) without flooding Sentry during a launch storm.

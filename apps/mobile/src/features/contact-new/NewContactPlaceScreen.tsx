@@ -3,7 +3,8 @@ import { useLocalSearchParams } from 'expo-router';
 import useNewContactDraft from './useNewContactDraft';
 
 import PlaceEditor from '@/features/contact-detail/PlaceEditor';
-import { placeIndex, placesWith } from '@/features/contact-detail/contactFields';
+import { placeIndex } from '@/features/contact-detail/contactFields';
+import placesWith from '@/utils/contacts/placesWith';
 
 // The New contact sheet's place step (`?index=`, or none for a new one), pushed inside the sheet:
 // Add or Save puts the place in the draft, Remove place takes it out.

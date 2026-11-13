@@ -1,5 +1,5 @@
 import type { FilterOption } from '@/components/floating-bars/SortFilterMenu';
-import type { AssetFilter } from '@/features/asset-list/assetQuery';
+import type { AssetFilter } from '@/sync/queries/assetQuery';
 
 // The asset grids' filter choices, for the sort / filter menus.
 const assetFilterOptions: FilterOption<AssetFilter>[] = [

@@ -1,4 +1,4 @@
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { getTableColumns, sql } from 'drizzle-orm';
 import type { PullResponse } from '@squidbox/shared';
 import type { Db } from '../db/client.js';
 import { serverCollections } from './collections.js';
@@ -6,45 +6,36 @@ import { serverCollections } from './collections.js';
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 1000;
 
+type PulledRow = { collection: string; server_seq: string | number; record: Record<string, unknown> };
+
 /**
- * Cursor-based pull (sync-design §5). For each collection, fetch up to `limit` rows with
- * server_seq > cursor ordered by server_seq; global-merge by server_seq, cut at `limit`, and
- * set the response cursor to the server_seq of the last INCLUDED row. The per-user advisory
- * lock on push (see push.ts) makes server_seq order == commit order within a user's partition,
- * so max(included seq) is a safe watermark (no commit-visibility gap). All queries are scoped
- * by user_id — a tenant never sees another tenant's rows.
+ * Cursor-based pull (sync-design §5): every collection's rows with server_seq > cursor, read in one
+ * statement, so on one snapshot, ordered by server_seq and cut at `limit`. The response cursor is
+ * the server_seq of the last included row. The per-user advisory lock on push (see push.ts) makes
+ * server_seq order == commit order within a user's partition, so on one snapshot max(included seq)
+ * is a safe watermark. Read collection by collection, a push committed between two reads could
+ * leave a lower seq unread behind a higher one. All queries are scoped by user_id: a tenant never
+ * sees another tenant's rows.
  */
 export async function pull(db: Db, userId: string, opts: { cursor?: number; limit?: number }): Promise<PullResponse> {
   const cursor = opts.cursor ?? 0;
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
 
-  const merged: Array<{ collection: string; serverSeq: number; record: Record<string, unknown> }> = [];
-  let anyHitLimit = false;
+  const reads = Object.values(serverCollections).map(({ table, descriptor, wireJson }) => {
+    const { userId: userIdColumn, serverSeq } = getTableColumns(table);
+    return sql`(select ${descriptor.name}::text as collection, ${serverSeq} as server_seq, ${wireJson} as record from ${table} where ${userIdColumn} = ${userId} and ${serverSeq} > ${cursor} order by ${serverSeq} limit ${limit + 1})`;
+  });
+  // One row past `limit` says whether there is more. Each collection reads at most that many along
+  // its (user_id, server_seq) index, so a page never builds the record of every row past the cursor.
+  const { rows } = await db.execute<PulledRow>(
+    sql`${sql.join(reads, sql` union all `)} order by server_seq limit ${limit + 1}`,
+  );
 
-  for (const col of Object.values(serverCollections)) {
-    const table = col.table as any;
-    const rows: Array<Record<string, unknown>> = await db
-      .select({ ...col.wireColumns, serverSeq: table.serverSeq })
-      .from(col.table)
-      .where(and(eq(table.userId, userId), gt(table.serverSeq, cursor)))
-      .orderBy(asc(table.serverSeq))
-      .limit(limit);
-    if (rows.length === limit) anyHitLimit = true;
-    for (const { serverSeq, ...record } of rows) {
-      merged.push({ collection: col.descriptor.name, serverSeq: serverSeq as number, record });
-    }
-  }
-
-  merged.sort((a, b) => a.serverSeq - b.serverSeq);
-  const included = merged.slice(0, limit);
-  // More to fetch if we cut the merged list, or any single collection was capped at `limit`
-  // (it may hold rows with higher seq we didn't fetch). The client loops until hasMore=false.
-  const hasMore = merged.length > limit || anyHitLimit;
-  const newCursor = included.length ? included[included.length - 1].serverSeq : cursor;
-
+  const included = rows.slice(0, limit);
   const changes: PullResponse['changes'] = {};
   for (const col of Object.values(serverCollections)) changes[col.descriptor.name] = { records: [] };
-  for (const item of included) changes[item.collection].records.push(item.record);
+  for (const row of included) changes[row.collection].records.push(row.record);
+  const newCursor = included.length ? Number(included[included.length - 1].server_seq) : cursor;
 
-  return { changes, cursor: newCursor, hasMore };
+  return { changes, cursor: newCursor, hasMore: rows.length > limit };
 }

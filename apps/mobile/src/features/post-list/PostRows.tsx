@@ -3,9 +3,9 @@ import { Text } from 'react-native';
 
 import ThumbnailRow from '@/components/ThumbnailRow';
 import { MIN_REREAD_INTERVAL } from '@/constants';
-import postQuery, { type PostListRow, type PostQueryScope } from '@/features/post-list/postQuery';
 import unguarded, { type GuardPress } from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
+import postQuery, { type PostListRow, type PostQueryScope } from '@/sync/queries/postQuery';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 

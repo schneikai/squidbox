@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 
-import type { AssetExclude } from '@/features/asset-list/assetQuery';
 import type { AssetRow } from '@/sync/db/schema';
+import type { AssetExclude } from '@/sync/queries/assetQuery';
 
 export type AssetPickerValue = {
   openAssetPicker: (options?: { exclude?: AssetExclude }) => Promise<AssetRow[]>;

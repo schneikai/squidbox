@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { flushTurns } from './helpers/flushTurns';
-import type { FileLocation } from '../src/features/cloud/assets/preloadFilesAsync';
 import { libraryPaths } from '../src/library/libraryPaths';
+import type { FileLocation } from '../src/utils/cloud-api/assets/preloadFilesAsync';
 
 // The files on the device, the downloads running (each until the test ends it) and the most at once.
 const files = new Set<string>();
@@ -38,8 +38,8 @@ vi.mock('../src/utils/cloud-api/assets/getAssetFileDownloadUrlsAsync', () => ({
 }));
 
 const { default: preloadAssetThumbnailsAsync } =
-  await import('../src/features/cloud/assets/preloadAssetThumbnailsAsync');
-const { default: preloadOnWeb } = await import('../src/features/cloud/assets/preloadFilesAsync.web');
+  await import('../src/utils/cloud-api/assets/preloadAssetThumbnailsAsync');
+const { default: preloadOnWeb } = await import('../src/utils/cloud-api/assets/preloadFilesAsync.web');
 const { default: webFileUrls } = await import('../src/utils/assets/webFileUrls');
 
 // Where the files are: the web variant takes it like the native one but doesn't read it.

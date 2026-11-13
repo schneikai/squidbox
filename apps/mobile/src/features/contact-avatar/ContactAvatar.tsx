@@ -4,11 +4,11 @@ import { Image, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'r
 import Svg, { Circle, ClipPath, Defs, G, Image as SvgImage, Mask, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import Icon from '@/components/Icon';
-import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
-import useCloud from '@/features/cloud/useCloud';
 import { isFileName } from '@/library/fileFields';
 import type { LibraryPaths } from '@/library/libraryPaths';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import useAssetThumbnailLoader from '@/providers/asset-thumbnail-loader/useAssetThumbnailLoader';
+import useCloud from '@/providers/cloud/useCloud';
 import { colors, sizes, space } from '@/styles/designTokens';
 import { getAvatarUri, hasAvatar } from '@/utils/assets/assetStorage';
 

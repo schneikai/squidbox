@@ -1,6 +1,6 @@
 import type { AccountFeature } from '@squidbox/shared';
 
-import useCloud from '@/features/cloud/useCloud';
+import useCloud from '@/providers/cloud/useCloud';
 
 /**
  * Whether the signed-in account has this feature (ACCOUNT_FEATURES in @squidbox/shared), an extra on

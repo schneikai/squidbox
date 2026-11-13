@@ -4,8 +4,8 @@ import { router } from 'expo-router';
 import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
-import useContacts from '@/features/contacts-context/useContacts';
-import useDeleteContact from '@/features/contacts-context/useDeleteContact';
+import useContacts from '@/providers/contacts/useContacts';
+import useDeleteContact from '@/providers/contacts/useDeleteContact';
 
 /**
  * A contact row's menu: edit (the contact screen, which saves as you type), favorite, add to a list,

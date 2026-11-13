@@ -2,8 +2,8 @@ import { CONTACT_LIST_LIMITS } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 
 import NameNotesEditSheet from '@/components/NameNotesEditSheet';
-import useContacts from '@/features/contacts-context/useContacts';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
+import useContacts from '@/providers/contacts/useContacts';
 import { schema } from '@/sync/db/client';
 import { useLiveRecord } from '@/sync/useLiveRecord';
 

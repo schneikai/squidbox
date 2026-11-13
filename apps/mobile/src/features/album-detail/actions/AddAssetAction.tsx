@@ -1,6 +1,6 @@
 import Button from '@/components/Button';
-import useAlbums from '@/features/albums-context/useAlbums';
 import AddMediaMenu from '@/features/asset-picker/AddMediaMenu';
+import useAlbums from '@/providers/albums/useAlbums';
 import type { AlbumRow } from '@/sync/db/schema';
 
 type AddAssetActionProps = { album: AlbumRow };

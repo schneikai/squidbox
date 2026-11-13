@@ -1,5 +1,4 @@
-import contactQuery, { type ContactDescriptor } from './contactQuery';
-
+import contactQuery, { type ContactDescriptor } from '@/sync/queries/contactQuery';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 /**

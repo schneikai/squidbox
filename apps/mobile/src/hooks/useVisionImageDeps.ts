@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
-import useCloud from '@/features/cloud/useCloud';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import useCloud from '@/providers/cloud/useCloud';
 import type { VisionImageReadDeps } from '@/utils/assets/readVisionImageAsync';
 
 /**

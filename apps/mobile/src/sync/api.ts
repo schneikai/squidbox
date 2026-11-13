@@ -1,7 +1,6 @@
 import type { PullRequest, PullResponse, PushRequest, PushResponse } from '@squidbox/shared';
 
-import type { SyncIdentity } from '../library/sessionMatches';
-
+import type { SyncIdentity } from '@/library/sessionMatches';
 import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
 
 // Sync transport → the backend's /api/v1/sync/{pull,push}, over the authenticated axios instance

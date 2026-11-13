@@ -7,8 +7,8 @@ import isUnavailableStatus from './isUnavailableStatus';
 import withAssetFileAsync from './withAssetFileAsync';
 
 import useRunWithProgress, { type RunWithProgressOptions } from '@/components/progress-overlay/useRunWithProgress';
-import useCloud from '@/features/cloud/useCloud';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import useCloud from '@/providers/cloud/useCloud';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // One run at a time, app-wide: one progress ring, and a tap while it's up is ignored.

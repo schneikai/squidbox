@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 
-import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
-import type { AlbumSubsetScope } from '@/features/album-list/albumQuery';
-import useAlbumRows from '@/features/album-list/useAlbumRows';
+import useAlbumRows from '@/hooks/useAlbumRows';
+import type { AlbumSubsetScope } from '@/sync/queries/albumQuery';
 import type { LiveOptions } from '@/sync/useLiveQuery';
+import sortAlbumsByCustomOrder from '@/utils/albums/sortAlbumsByCustomOrder';
 
 /**
  * The albums of `scope` (albumQuery's: `{ assetIds }`, those holding any of the assets, each with

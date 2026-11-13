@@ -1,13 +1,13 @@
 import { FileUploadRefusedError, MISSING_ON_DEVICE } from './fileUploadErrors';
 import type { UploadFile } from './worker';
 
-import UploadFailedError from '@/features/cloud/assets/UploadFailedError';
-import uploadFileAsync from '@/features/cloud/assets/uploadFileAsync';
 import { fileFieldLocation } from '@/library/fileFields';
 import { fileExists } from '@/library/fs';
 import type { LibraryPaths } from '@/library/libraryPaths';
 import type { SyncIdentity } from '@/library/sessionMatches';
 import { getFieldFileUri } from '@/utils/assets/assetStorage';
+import UploadFailedError from '@/utils/cloud-api/assets/UploadFailedError';
+import uploadFileAsync from '@/utils/cloud-api/assets/uploadFileAsync';
 
 /**
  * The sync's file uploads for `identity`'s session and `library`'s folders (sync-design §6): uploads

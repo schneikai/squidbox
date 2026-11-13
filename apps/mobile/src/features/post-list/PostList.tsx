@@ -3,12 +3,12 @@ import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
 import PostListItem, { type PostListItemProps } from './PostListItem';
-import type { PostListRow } from './postQuery';
-import type { PostDetailRow } from './readPost';
 
 import type { ScrollableList } from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import { reflow } from '@/styles/designTokens';
+import type { PostListRow } from '@/sync/queries/postQuery';
+import type { PostDetailRow } from '@/sync/queries/readPost';
 import toggleItem from '@/utils/toggleItem';
 
 const keyExtractor = (post: PostListRow) => post.id;

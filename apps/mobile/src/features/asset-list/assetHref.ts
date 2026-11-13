@@ -1,5 +1,6 @@
-import type { AssetQueryDescriptor } from './assetQuery';
 import assetScopeToParam from './assetScopeToParam';
+
+import type { AssetQueryDescriptor } from '@/sync/queries/assetQuery';
 
 /**
  * The asset screen's href for `assetId` in the grid's query (assetQuery's descriptor), as URL

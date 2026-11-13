@@ -9,8 +9,8 @@ import openContactLinkAsync from './openContactLinkAsync';
 
 import Button from '@/components/Button';
 import IconSlotContext from '@/components/IconSlotContext';
-import RowMark from '@/components/RowMark';
 import type { TextInputProps } from '@/components/TextInput';
+import RowMark from '@/features/contact-detail/RowMark';
 
 const OPEN_LABELS = {
   ...(Object.fromEntries(CONTACT_HANDLES.map(({ field, label }) => [field, `Open on ${label}`])) as Record<
