@@ -40,6 +40,7 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import ChannelBubbles from '@/features/channels/ChannelBubbles';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
@@ -230,6 +231,9 @@ export default function ComponentGalleryScreen() {
           <View style={styles.bubbles}>
             <Bubble label="OnlyFans" mark={<ChannelLogo channelId="onlyfans" />} isSelected hasCaret onPress={noop} />
             <Bubble label="OnlyFans PPV" mark={<ChannelLogo channelId="onlyfans-ppv" />} isSelected />
+          </View>
+          <View style={styles.bubbles}>
+            <ChannelBubbles channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
           </View>
         </Specimen>
       </>

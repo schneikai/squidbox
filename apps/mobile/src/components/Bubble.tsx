@@ -15,6 +15,7 @@ type BubbleProps = {
   onPress?: () => void;
   accessibilityRole?: 'tab' | 'button';
   isExpanded?: boolean;
+  isGrouped?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -28,7 +29,8 @@ const ROUND = sizes.smallButton + space.sm;
  * is the dashed + after them. `label` is always what VoiceOver reads; a bubble is a tab (selected or
  * not) unless `accessibilityRole` says button (the +); `isExpanded` tells, on one that opens a menu,
  * whether it is open. Its width change glides (`reflow`). Without `onPress` it is a plain view, so it
- * can sit where nothing is to be pressed. style is for layout only.
+ * can sit where nothing is to be pressed. `isGrouped` is one of a group its parent names as one (a
+ * post's channels on its card in a list): VoiceOver skips it. style is for layout only.
  */
 export default function Bubble({
   label,
@@ -39,6 +41,7 @@ export default function Bubble({
   onPress,
   accessibilityRole = 'tab',
   isExpanded,
+  isGrouped = false,
   style,
 }: BubbleProps) {
   const isAdd = variant === 'add';
@@ -51,12 +54,18 @@ export default function Bubble({
     isAdd && styles.add,
   ];
   // As aria props, which the app and the web build both read.
-  const a11y = {
-    accessibilityRole,
-    accessibilityLabel: label,
-    'aria-selected': accessibilityRole === 'tab' ? isSelected : undefined,
-    'aria-expanded': isExpanded,
-  };
+  const a11y = isGrouped
+    ? {
+        accessibilityElementsHidden: true,
+        importantForAccessibility: 'no-hide-descendants' as const,
+        'aria-hidden': true,
+      }
+    : {
+        accessibilityRole,
+        accessibilityLabel: label,
+        'aria-selected': accessibilityRole === 'tab' ? isSelected : undefined,
+        'aria-expanded': isExpanded,
+      };
   const content = isAdd ? (
     <Icon name="add" size={sizes.menuIcon} color={colors.text.secondary} />
   ) : (

@@ -6,7 +6,7 @@ import { resetMockDataAsync } from '../../../scripts/localBackend.mjs';
 
 // A post's channels, end to end, through the channel bar: the mock account's channels (Bluesky, X,
 // Instagram) in Settings and one added, a post written for Bluesky with an X channel in the editor
-// (add, switch, change, remove), its labels in the posts list, its screen switching channels in place,
+// (add, switch, change, remove), its channels' bubbles in the posts list, its screen switching channels in place,
 // Edit on the channel shown and Delete; a mock post's X channel; removing a post's own channel; and no
 // bar without channels. The flows change the mock account, so the mock data is reset after them,
 // whatever happened (no cleanup through the UI a failed run would skip).
@@ -160,12 +160,11 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
   await button(editor, 'Add').click();
   await editor.waitFor({ state: 'detached' });
 
-  // The posts list's card: both labels.
+  // The posts list's card: both channels' bubbles.
   const posts = page.getByTestId('posts-screen');
   const card = postCards(posts).first();
   await expect(card.getByText(TEXT)).toBeVisible();
-  await expect(card.getByText('Bluesky', { exact: true })).toBeVisible();
-  await expect(card.getByText('X', { exact: true })).toBeVisible();
+  await expect(card.getByRole('img', { name: 'Bluesky and X', exact: true })).toBeVisible();
 
   // The post's screen: its bar switches the card in place.
   await card.getByText(TEXT).click();
@@ -219,8 +218,7 @@ test('a mock post shows its X channel and thread in place, and keeps X when its 
   const posts = page.getByTestId('posts-screen');
   const card = postCards(posts).filter({ hasText: RECAP });
   await card.scrollIntoViewIfNeeded();
-  await expect(card.getByText('Bluesky', { exact: true })).toBeVisible();
-  await expect(card.getByText('X', { exact: true })).toBeVisible();
+  await expect(card.getByRole('img', { name: 'Bluesky and X', exact: true })).toBeVisible();
 
   await card.getByText(RECAP, { exact: false }).click();
   const post = page.getByTestId('post-screen');
@@ -245,8 +243,7 @@ test('a mock post shows its X channel and thread in place, and keeps X when its 
   await expect(post.getByText(RECAP_X_THREAD)).toBeVisible();
   await button(post, 'Back').click();
   const saved = postCards(posts).filter({ hasText: RECAP_X });
-  await expect(saved.getByText('X', { exact: true })).toBeVisible();
-  await expect(saved.getByText('Bluesky', { exact: true })).toHaveCount(0);
+  await expect(saved.getByRole('img', { name: 'X', exact: true })).toBeVisible();
 });
 
 test('without channels a new post has no bar, and a post on channels still shows its own', async ({ page }) => {

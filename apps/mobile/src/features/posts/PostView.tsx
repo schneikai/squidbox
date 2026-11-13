@@ -4,9 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
-import ChipRow from '@/components/ChipRow';
 import Text from '@/components/Text';
-import ChannelLabel from '@/features/channels/ChannelLabel';
+import ChannelBubbles from '@/features/channels/ChannelBubbles';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
@@ -26,7 +25,8 @@ type PostViewProps = {
  * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
  * place shows about it: a thread's size), and `children` under that row (buttons for this post).
  * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]). `channelIds` are the
- * channels it is on, as labels at the card's top (ChannelLabel), in the order given; none for an empty list.
+ * channels it is on, as overlapping logo bubbles at the card's top (ChannelBubbles), in the order given; none
+ * for an empty list.
  */
 export default function PostView({
   post,
@@ -40,13 +40,7 @@ export default function PostView({
 
   return (
     <Card testID="post-card" style={styles.card}>
-      {channelIds.length > 0 && (
-        <ChipRow>
-          {channelIds.map((channelId) => (
-            <ChannelLabel key={channelId} channelId={channelId} />
-          ))}
-        </ChipRow>
-      )}
+      <ChannelBubbles channelIds={channelIds} />
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}
