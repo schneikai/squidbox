@@ -40,7 +40,7 @@ export default function AssetsProvider({ children }: AssetsProviderProps) {
       setAssetsDeleted: async (assetIds, batchOptions) =>
         writeInBatches(assetIds, (ids) => repo.remove(getDb(), ids), batchOptions),
       restoreDeletedAssets: async (assetIds, batchOptions) =>
-        writeInBatches(assetIds, (ids) => repo.updateAll(getDb(), ids, { deletedAt: null }), batchOptions),
+        writeInBatches(assetIds, (ids) => repo.restore(getDb(), ids), batchOptions),
       // Gone for good once the purge is confirmed: then its files go, here and in the cloud (sync-design §7a).
       deleteAssetsPermanently: async (assetIds, batchOptions) => {
         try {

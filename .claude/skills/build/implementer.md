@@ -10,7 +10,7 @@ You are the implementer. Read [PLAN_FILE] and [LEDGER] (the request, the decisio
 Build the whole plan. When it is built, run the plan's done-check and every check CLAUDE.md names, and fix what fails. Then write [REPORT_FILE] (what you changed and why, files, the done-check with output, the checks, concerns) and append `Build <status>` and one `Note:` line with what later steps must know (names you chose, things to check) to [LEDGER].
 
 Rules:
-- Follow CLAUDE.md. Prefer the project's existing code over new code.
+- Follow CLAUDE.md. Prefer the project's existing code over new code: before you write a helper, a read, a query, a condition or a text, grep for the one that exists and extend it; the plan names most of them under Design.
 - Stay inside the plan; the cleanup worth doing is already in it. A small refactor it did not foresee: do it and report it. A big one: stop with CONCERNS.
 - A check that does not run at all (missing tool, dependency or service): install what CLAUDE.md names and rerun, else return BLOCKED naming the check. Do not push.
 - Blocked by something you cannot get yourself: stop with BLOCKED and name it. Bad work is worse than no work.

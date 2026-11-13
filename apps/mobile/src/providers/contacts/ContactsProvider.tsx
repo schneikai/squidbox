@@ -92,11 +92,7 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
         });
         return { contact, avatarError };
       },
-      // favoritedAt is the time of the favoriting, null once unfavorited.
-      toggleFavoriteContact: (id) =>
-        written((tx) =>
-          contacts.toggle(tx, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null })),
-        ),
+      toggleFavoriteContact: (id) => written((tx) => contacts.toggleFavorite(tx, id)),
       // A new photo gets a new name (newAvatarFilename), so a device holding the old one never shows
       // it for the new; the sync uploads it before it pushes the contact.
       // The photo it replaces is read in the same write, so of two quick changes each deletes the one
@@ -120,16 +116,9 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           const [contact] = await readByIds(tx, schema.contacts, [id]);
           if (contact) await contacts.update(tx, id, { places: placesChanged(contact.places, from, to) });
         }),
-      // The contact leaves its lists and the photos, albums and posts it is on with it.
-      setContactDeleted: (id) =>
-        written(async (tx) => {
-          await contacts.remove(tx, [id]);
-          await contactListMembers.tombstoneWhere(tx, { contactId: id });
-          await contactLinks.tombstoneWhere(tx, { contactId: id });
-        }),
-      // Brings a deleted contact back (Deleted's rows), with its photo; the lists and the photos,
-      // albums and posts it left when it was deleted stay as they are now.
-      restoreContact: (id) => written((tx) => contacts.update(tx, id, { deletedAt: null })),
+      setContactDeleted: (id) => written((tx) => contacts.deleteContact(tx, id)),
+      // Brings a deleted contact back (Deleted's rows) where it was: its photo, lists and tags.
+      restoreContact: (id) => written((tx) => contacts.restore(tx, id)),
       addList: (name) => written((tx) => lists.create(tx, newRecord(contactListCollection, LIST_DEFAULTS, { name }))),
       updateList: (id, fields) => written((tx) => lists.update(tx, id, fields)),
       setListDeleted: (id) =>

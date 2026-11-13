@@ -44,6 +44,7 @@ const palette = {
   green500: '#34C759',
   blue600: '#2563EB',
   cyan100: '#B1F1FF',
+  cyan200: '#8EDDF0',
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
   // The channels' brand colors, each Simple Icons' hex for it (features/channels/channelGlyphs.ts).
@@ -126,6 +127,7 @@ export const colors = {
     // The octopus's bubbles (OctopusBubble), light cyan on the violet splash and the light app alike;
     // the same cyan as app.config.js `ICON_BACKGROUND`, the Android icon's.
     bubble: palette.cyan100,
+    bubbleEdge: palette.cyan200, // the rim and droplets of a bubble
   },
   border: {
     glass: alpha(palette.black, 0.08),

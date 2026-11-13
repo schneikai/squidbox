@@ -95,7 +95,8 @@ const styles = StyleSheet.create({
     gap: layout.rowLeadingGap - layout.postTextInset,
   },
   tile: {
-    ...sizes.postTile,
+    width: sizes.postTile.width,
+    height: sizes.postTile.height,
     borderRadius: radii.postPicture,
   },
   chevron: {

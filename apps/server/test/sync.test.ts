@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { collectionNames } from '@squidbox/shared';
+import { collectionNames, type CollectionName } from '@squidbox/shared';
 import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
@@ -345,7 +345,7 @@ d('sync engine (Postgres)', () => {
   // both — plus a round-trip and tenant isolation — for EVERY registered collection.
   describe('collection registry guard', () => {
     const base = () => ({ id: randomUUID(), createdAt: 1000, updatedAt: 1000, deletedAt: null });
-    const sample: Record<string, () => Record<string, unknown>> = {
+    const sample: Record<CollectionName, () => Record<string, unknown>> = {
       assets: () => assetRecord({ tags: ['forest', 'morning fog'] }),
       albums: () => albumRecord(),
       posts: () => postRecord(),

@@ -1,3 +1,4 @@
+import type { CollectionName } from '@squidbox/shared';
 import { getTableColumns } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -21,7 +22,7 @@ const tables = {
   contact_settings: schema.contactSettings,
   idea_settings: schema.ideaSettings,
   channels: schema.channels,
-};
+} satisfies Record<CollectionName, unknown>;
 
 /** A collection's table: one of the registry's. */
 export type CollectionTable = (typeof tables)[keyof typeof tables];
@@ -40,7 +41,9 @@ export type RowOf<T extends CollectionTable> = T['$inferSelect'];
 export type InsertOf<T extends CollectionTable> = T['$inferInsert'];
 
 // Client-side registry: collection name → its local SQLite table. The Inspector and full-resync
-// iterate this, so every registered collection is covered with no per-collection rework.
+// iterate this, so every registered collection is covered with no per-collection rework. `tables`
+// is keyed by the registry's names, so a registered collection without a table fails typecheck;
+// this export is keyed by string because pulls and outbox rows name collections as strings.
 export const clientCollectionTables: Record<string, CollectionTable> = tables;
 
 /** Each collection and the synced columns a pull fills, by name. */

@@ -102,7 +102,7 @@ test('a post written for X and OnlyFans shows both, and Delete removes it on bot
     },
     () => page.getByRole('menuitem', { name: 'Delete' }).click(),
   );
-  expect(message).toContain('This deletes the post on all its channels: X and OnlyFans.');
+  expect(message).toContain('It goes on all its channels: X and OnlyFans.');
   const dialogs: string[] = [];
   page.on('dialog', async (dialog) => {
     dialogs.push(dialog.message());

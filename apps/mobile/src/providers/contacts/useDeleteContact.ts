@@ -2,7 +2,7 @@ import type { ContactRecord } from '@squidbox/shared';
 
 import useContacts from './useContacts';
 
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 
 /**
  * Deleting a contact, as every menu offers it: `deleteContactAsync(contact, { beforeDelete })` asks
@@ -17,11 +17,9 @@ export default function useDeleteContact(): (
   const { setContactDeleted } = useContacts();
 
   return async function deleteContactAsync(contact, { beforeDelete }: DeleteOptions = {}) {
-    const confirmed = await confirmAsync({
-      title: `Delete ${contact.name}?`,
-      message: 'They leave your lists and the photos, albums and posts they are on.',
-      action: 'Delete contact',
-      destructive: true,
+    const confirmed = await confirmDeleteAsync({
+      name: contact.name,
+      also: 'They leave your lists and the photos, albums and posts they are on.',
     });
     if (!confirmed) return;
     beforeDelete?.();

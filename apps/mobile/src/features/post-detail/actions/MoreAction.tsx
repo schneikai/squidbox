@@ -1,7 +1,7 @@
 import { channelById } from '@squidbox/shared';
 import { router } from 'expo-router';
 
-import deletePostMessage from './deletePostMessage';
+import deletePostConfirm from './deletePostConfirm';
 
 import Divider from '@/components/Divider';
 import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
@@ -13,7 +13,7 @@ import { getDb } from '@/sync/db/client';
 import type { PostListRow, PostWithAssets } from '@/sync/queries/postQuery';
 import readPost from '@/sync/queries/readPost';
 import useShareAssets from '@/utils/assets/useShareAssets';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
 export type MoreActionProps = {
@@ -45,12 +45,14 @@ export default function MoreAction({ post, channelPost, beforeDelete, trigger }:
     // Read at the tap: the menu sits on every card of a list, which shouldn't each read the channels.
     const channelOrder = await readChannelOrder(getDb());
     const channelNames = postChannelIds(post, channelOrder).map((id) => channelById(id)?.name ?? id);
-    const message = deletePostMessage({
-      threadCount: post.threadCount,
-      otherChannelCount: post.otherChannelIds.length,
-      channelNames,
-    });
-    if (!(await confirmAsync({ title: 'Delete Post', message, action: 'Delete', destructive: true }))) return;
+    const confirmed = await confirmDeleteAsync(
+      deletePostConfirm({
+        threadCount: post.threadCount,
+        otherChannelCount: post.otherChannelIds.length,
+        channelNames,
+      }),
+    );
+    if (!confirmed) return;
     beforeDelete?.();
     await deletePost(post.id);
   }

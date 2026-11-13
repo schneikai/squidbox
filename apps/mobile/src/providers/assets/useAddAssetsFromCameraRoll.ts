@@ -23,8 +23,9 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
     try {
       // The picker only resolves once iOS has exported the picked files, which can take seconds.
       // Starting the progress overlay as the picker opens means it is already showing when the
-      // picker closes, instead of a silent pause before the new assets appear.
-      const imagePickerResults = await pickImageFromMediaLibrary({ onOpen: onStart });
+      // picker closes, instead of a silent pause before the new assets appear. `exif` reads each
+      // photo's date taken and place off its file, for when Photos can't give them.
+      const imagePickerResults = await pickImageFromMediaLibrary({ onOpen: onStart, exif: true });
       if (!imagePickerResults || imagePickerResults.length === 0) return [];
 
       // The files go into this screen's library; the records must too (a sign-in meanwhile would
@@ -32,7 +33,7 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
       const newAssets: AssetRecord[] = [];
       try {
         for (const result of imagePickerResults) {
-          // Its metadata only (the picker exported the file).
+          // Its details only (the picker exported the file): from Photos, else from the file itself.
           const assetInfo = await getPickedAssetMetadataAsync(result);
           const newAsset = await buildAssetAsync(
             {
@@ -46,16 +47,16 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
               width: Math.round(result.width),
               height: Math.round(result.height),
               duration: result.duration,
-              isFavorite: assetInfo?.isFavorite ?? false,
-              takenAt: assetInfo?.creationTime == null ? null : Math.round(assetInfo.creationTime),
-              originalFilename: assetInfo?.filename ?? result.fileName ?? null,
-              latitude: assetInfo?.location?.latitude ?? null,
-              longitude: assetInfo?.location?.longitude ?? null,
+              isFavorite: assetInfo.isFavorite,
+              takenAt: assetInfo.creationTime == null ? null : Math.round(assetInfo.creationTime),
+              originalFilename: assetInfo.filename,
+              latitude: assetInfo.location?.latitude ?? null,
+              longitude: assetInfo.location?.longitude ?? null,
             },
             library,
           );
           newAssets.push(newAsset);
-          if (onProgress) onProgress((newAssets.length / imagePickerResults.length) * 100);
+          onProgress?.((newAssets.length / imagePickerResults.length) * 100);
         }
         if (openLibraryId() !== library.id) throw new Error('The library changed while the photos were added');
       } catch (e) {
@@ -63,7 +64,7 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
         throw e;
       }
 
-      await addAssetsAsync(newAssets);
+      if (newAssets.length) await addAssetsAsync(newAssets);
       return newAssets;
     } finally {
       // Hide only once the assets are saved, so they are in the list when the overlay goes away.

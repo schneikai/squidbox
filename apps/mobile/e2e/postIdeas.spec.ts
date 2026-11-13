@@ -2,7 +2,7 @@ import { DEFAULT_IDEA_PROMPTS } from '@squidbox/shared';
 import type { Locator, Page } from 'playwright/test';
 
 import { expect, STUB_TAGS, test } from './fixtures';
-import { button, openTab, pickFromSquidbox } from './helpers';
+import { button, openTab, pickFromSquidbox, withDialog } from './helpers';
 import { loadAppAsync } from '../scripts/webPreview.mjs';
 
 // The assistant's ideas in the post editor, on the stubbed assistant (fixtures): a new post's start
@@ -144,11 +144,12 @@ test('a repost opens with its text and its ideas', async ({ page, assistant }) =
   });
 });
 
-test('a posted post and its editor start no ideas', async ({ page, assistant }) => {
+test('a posted post has no tray, and its editor starts no ideas', async ({ page, assistant }) => {
   await openTab(page, 'Posts');
   await page.getByTestId('posts-screen').getByTestId('post-card').first().click();
   const post = page.getByTestId('post-screen');
-  await expect(post.getByText('Write with AI')).toBeVisible();
+  await expect(button(post, 'Post options')).toBeVisible();
+  await expect(post.getByText('Write with AI')).toHaveCount(0);
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   await expect(page.getByTestId('post-editor').getByText('Write with AI')).toBeVisible();
@@ -224,7 +225,20 @@ test.describe('Post ideas settings', () => {
 
     await loadAppAsync(page);
     await openPostIdeas(page);
-    await savedAsync(page, () => button(page, 'Reset changes').click());
+    // Reset changes asks first: Cancel keeps the prompt, Reset puts the built-in text back.
+    await withDialog(
+      page,
+      (dialog) => dialog.dismiss(),
+      () => button(page, 'Reset changes').click(),
+    );
+    await expect(page.getByRole('textbox')).toHaveValue(mine);
+    await savedAsync(page, () =>
+      withDialog(
+        page,
+        (dialog) => dialog.accept(),
+        () => button(page, 'Reset changes').click(),
+      ),
+    );
     await expect(page.getByRole('textbox')).toHaveValue(DEFAULT_IDEA_PROMPTS.post);
 
     // The mock account's own prompt back, for the flows after this one.
