@@ -112,7 +112,9 @@ export default function SearchOptionsBar({
 
   const expandedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(expandProgress.value, [0.4, 1], [0, 1], Extrapolation.CLAMP),
-    flex: expandProgress.value > 0.4 ? 1 : 0,
+    // Grows from no width, not from the field's own: on iOS a field sized by its placeholder would push
+    // the options button out of the collapsed bar.
+    flexGrow: expandProgress.value > 0.4 ? 1 : 0,
     overflow: 'hidden',
   }));
 
@@ -193,7 +195,9 @@ const styles = StyleSheet.create({
   expandedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    flexBasis: 0,
+    flexShrink: 1,
+    minWidth: 0,
   },
   input: {
     flex: 1,
