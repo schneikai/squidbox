@@ -1,21 +1,22 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
       "entry": ["scripts/*.mjs"],
-      "ignore": [".claude/skills/apple-design/**"]
+      "ignore": [".claude/skills/apple-design/**"],
+      "ignoreUnresolved": ["scripts/write-env-local.sh"]
     },
     "apps/mobile": {
-      "entry": ["metro.config.js", "scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{ts,tsx}"],
+      "entry": ["scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{ts,tsx}"],
       "playwright": true,
-      "ignoreDependencies": ["expo-updates", "expo-system-ui"],
-      "ignoreUnresolved": ["babel-preset-expo"]
+      "ignoreDependencies": ["expo-updates", "expo-system-ui", "babel-preset-expo"]
     },
     "apps/server": {
-      "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts"]
+      "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts", "test/dbSetup.ts"]
     },
     "packages/shared": {}
   },
-  "ignoreDependencies": ["prettier"]
+  "ignoreDependencies": ["prettier"],
+  "ignoreBinaries": ["dockerd"]
 }

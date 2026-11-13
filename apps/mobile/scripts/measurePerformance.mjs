@@ -1,4 +1,3 @@
-/* eslint-env node, browser */
 /**
  * Measures the web preview's release bundle: the first sync of a fresh browser → first grid cell,
  * reload → first grid cell, idle JS heap, and the main-thread script time of a favorite toggle. Needs `npm run dev:local -- --web` running; for a

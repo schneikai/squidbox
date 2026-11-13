@@ -1,4 +1,3 @@
-/* eslint-env node, browser */
 /**
  * Opens the app's web build in Chromium at iPhone 15 Pro Max size, signed in to the local backend,
  * so UI changes can be checked and tested without a phone. Needs `npm run dev:local` running.

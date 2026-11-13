@@ -6,8 +6,9 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // engine is dependency-injected (db + transport), which is what makes this possible.
 //
 // Most of a test file's time is importing the database layer, so files share their worker's module
-// cache (threads, not isolated). A file that mocks a module (vi.mock) gets a fresh fork of its own,
-// so its mocks never meet another file's imports. Each test starts with empty mock calls.
+// cache (threads, not isolated: the `shared` project). A file that mocks a module (vi.mock) gets a
+// fresh fork of its own (the `mocking` project), so its mocks never meet another file's imports.
+// Each test starts with empty mock calls.
 // Without a test database the e2e files aren't collected at all. The mocking scan reads only
 // test/*.test.ts, which is where every file that mocks a module lives.
 const testDir = new URL('./test/', import.meta.url);
@@ -16,10 +17,10 @@ const mocking = readdirSync(testDir)
   .filter((file) => /\bvi\.(do)?mock\(/.test(readFileSync(new URL(file, testDir), 'utf8')));
 
 export default defineConfig(async () => {
-  // Without saved file timings (CI has none, and vitest 2.1.9 never reads its own back) vitest
-  // starts the largest files first. The e2e files wait on Postgres the longest, whatever their
-  // size: start them first, so the run doesn't end on one of them alone. vitest/node is ESM only
-  // and this config loads as CommonJS, hence the dynamic import.
+  // Without saved file timings (CI has none) vitest starts the largest files first. The e2e files
+  // wait on Postgres the longest, whatever their size: start them first, so the run doesn't end on
+  // one of them alone. vitest/node is ESM only and this config loads as CommonJS, hence the dynamic
+  // import.
   const { BaseSequencer } = await import('vitest/node');
   class E2eFirst extends BaseSequencer {
     async sort(files: Parameters<BaseSequencer['sort']>[0]) {
@@ -28,18 +29,28 @@ export default defineConfig(async () => {
       return [...sorted.filter(e2e), ...sorted.filter((spec) => !e2e(spec))];
     }
   }
+  const exclude = process.env.TEST_DATABASE_URL
+    ? configDefaults.exclude
+    : [...configDefaults.exclude, 'test/**/*.e2e.test.ts'];
   return {
     test: {
       environment: 'node',
-      include: ['test/**/*.test.ts'],
-      exclude: process.env.TEST_DATABASE_URL
-        ? configDefaults.exclude
-        : [...configDefaults.exclude, 'test/**/*.e2e.test.ts'],
+      exclude,
       clearMocks: true,
-      pool: 'threads',
-      poolOptions: { threads: { isolate: false } },
-      poolMatchGlobs: mocking.map((file) => [`**/test/${file}`, 'forks']),
       sequence: { sequencer: E2eFirst },
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: 'shared',
+            include: ['test/**/*.test.ts'],
+            exclude: [...exclude, ...mocking.map((file) => `test/${file}`)],
+            pool: 'threads',
+            isolate: false,
+          },
+        },
+        { extends: true, test: { name: 'mocking', include: mocking.map((file) => `test/${file}`), pool: 'forks' } },
+      ],
     },
     resolve: {
       alias: { '@': new URL('./src', import.meta.url).pathname },

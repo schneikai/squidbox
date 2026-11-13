@@ -1,4 +1,3 @@
-/* eslint-env node, browser */
 /**
  * The UI flow tests (e2e/*.spec.ts): the app's web build against the local backend with the mock
  * data, one flow after another, each in a fresh browser context. `npm run test:ui` reuses a running

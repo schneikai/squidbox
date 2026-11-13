@@ -33,7 +33,7 @@ const FORMAT_GLOB = `{${FORMAT_ROOTS.join(',')}}/**/*.{${CODE_EXTENSIONS.join(',
 const FORMATTED = (file) => FORMAT_ROOTS.some((root) => file.startsWith(`${root}/`)) && CODE.test(file);
 const PACKAGES = /^(apps\/mobile\/)?package(-lock)?\.json$/;
 // A change here lints or formats the whole repo: the tool's config, its version, its file list.
-const LINT_EVERYTHING = [PACKAGES, /^apps\/mobile\/\.eslint(rc\.js|ignore)$/];
+const LINT_EVERYTHING = [PACKAGES, /^apps\/mobile\/eslint\.config\.js$/];
 const FORMAT_EVERYTHING = [/^package(-lock)?\.json$/, /^\.prettier(rc|ignore)/, /^scripts\/check\.mjs$/];
 // A change here runs the app's whole suite: what every test file depends on without importing it,
 // and the files tests read from disk (the server's recorded contracts).
@@ -82,8 +82,8 @@ function changes() {
 function run(command, args, cwd = ROOT) {
   const started = Date.now();
   return new Promise((resolve) => {
-    // Without Vite's notice that its CJS build is deprecated (the mobile vitest config loads as CJS).
-    const env = { ...process.env, FORCE_COLOR: colors ? '1' : '0', VITE_CJS_IGNORE_WARNING: '1' };
+    // Without Vite's notice that it will stop loading configs as CJS (the mobile vitest config does).
+    const env = { ...process.env, FORCE_COLOR: colors ? '1' : '0', VITE_CONFIG_NATIVE_IGNORE_WARNING: 'true' };
     const child = spawn(command, args, { cwd, env });
     let output = '';
     child.stdout.on('data', (chunk) => (output += chunk));
