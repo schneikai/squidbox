@@ -1,5 +1,6 @@
 import { CHANNELS, type Channel } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
+import { useRef } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import ChannelLogo from './ChannelLogo';
@@ -27,16 +28,21 @@ export default function AddChannelScreen() {
   const channels = useChannels();
   const padding = useScreenPadding('sheet');
   const haptics = useHaptics();
+  const isAddingRef = useRef(false);
 
   const added = new Set(channels?.map((channel) => channel.id));
   const left = CHANNELS.filter((channel) => !added.has(channel.id));
 
+  // A second tap while the first adds (another row) would add that one too and go back twice.
   async function handleAdd(channel: Channel) {
+    if (isAddingRef.current) return;
+    isAddingRef.current = true;
     try {
       await addChannel(getDb(), channel);
       requestSync();
       navigation.goBack();
     } catch (error) {
+      isAddingRef.current = false;
       console.error('Adding the channel failed', error);
       haptics.error();
     }

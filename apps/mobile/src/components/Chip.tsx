@@ -203,9 +203,10 @@ const styles = StyleSheet.create({
     paddingLeft: space.hair,
     paddingRight: space.md + space.hair,
   },
-  // A selected tag: plain white, flat (a shadow is the toolbar's and the assistant's lift).
+  // A selected tag: plain white with a hairline edge, flat (a shadow is the toolbar's and the assistant's lift).
   selected: {
     backgroundColor: colors.background.surface,
+    borderColor: colors.border.divider, // its edge on a white card, where the white fill alone vanishes
   },
   // Round, the frame's height wide.
   iconOnly: {

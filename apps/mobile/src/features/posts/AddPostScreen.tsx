@@ -1,3 +1,4 @@
+import { channelById } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import leaveWithNewPostSheet from './leaveWithNewPostSheet';
@@ -54,7 +55,8 @@ async function readSeed(
   db: SyncDb,
   { rePostId, assetIds }: { rePostId: string | undefined; assetIds: string[] },
 ): Promise<PostEditorPost | null> {
-  const [firstChannel] = await readChannels(db);
+  // The first channel this build knows, as Settings → Channels lists them (useChannels).
+  const firstChannel = (await readChannels(db)).find((row) => channelById(row.channelId));
   const channelId = firstChannel?.channelId ?? null;
   const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
   if (rePostId) {
