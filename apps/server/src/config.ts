@@ -14,7 +14,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   // Stable identity of this deployment, reported by /up, login and /me so the app can bind a
   // session and its library to the server it belongs to.
-  SERVER_ID: z.guid({
+  SERVER_ID: z.uuid({
     error: (issue) => (issue.input === undefined ? 'SERVER_ID is required' : 'SERVER_ID must be a uuid'),
   }),
 

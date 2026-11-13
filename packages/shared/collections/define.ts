@@ -17,7 +17,7 @@ export const textSchema = z.string().regex(/^[^\0]*$/, 'contains a NUL character
 // writer-set epoch-ms clocks; `deletedAt` non-null = tombstone. `user_id`/`server_seq` are
 // server-only and never part of the client record schema.
 export const baseRecordSchema = z.object({
-  id: z.guid(),
+  id: z.uuid(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
   deletedAt: timestampSchema.nullable(),

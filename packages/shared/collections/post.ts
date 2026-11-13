@@ -16,11 +16,11 @@ export const postCollection = defineCollection({
     text: textSchema,
     isFavorite: z.boolean(),
     postedAt: timestampSchema.nullable(),
-    rePostId: z.guid().nullable(),
+    rePostId: z.uuid().nullable(),
     isIgnoredForRepost: z.boolean(),
     suggestRepostAt: timestampSchema,
     hasBeenReposted: z.boolean(),
-    threadRootId: z.guid().nullable().optional(),
+    threadRootId: z.uuid().nullable().optional(),
     threadIndex: int4Schema.nullable().optional(),
   }),
 });
