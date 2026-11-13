@@ -1,9 +1,10 @@
 import { type AssetRecord } from '@squidbox/shared';
 import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import Database from 'better-sqlite3';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, is } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { drizzle as pgDrizzle } from 'drizzle-orm/node-postgres';
+import { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -14,6 +15,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
+import { populateEveryTable } from './helpers/populateEveryTable';
 import { betterSqliteExecutor, migrationsFolder, runMigrations } from './helpers/testDb';
 import { at, removedFiles, S, synced as syncedFields } from './helpers/twoDeviceServer';
 import { readSnapshots } from '../../server/src/contract/snapshots.js';
@@ -248,6 +250,27 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
       await sync(M);
       await settle([M, N]);
       expect(await expectConverged(id, [M, N])).toMatchObject({ notes: 'from the installed app', isFavorite: true });
+    });
+
+    // A shipped migration can't be fixed (§15), and one SQLite refuses on a table with rows (`ADD …
+    // NOT NULL` without a default passes on an empty one) would keep the library from opening: the
+    // update runs over a row in every table the build has, a waiting edit in its outbox among them.
+    it('the update takes a row in every table the build has, and the new app reads and syncs them', async () => {
+      const M = installedPhone();
+      const id = await seed([M]);
+      await edit(M, S + 100, (a) => a.update(M.db, id, { notes: 'waiting in the outbox' }));
+      await populateEveryTable(M.db, main.schema, id);
+      const tables = M.sqlite
+        .prepare("select name from sqlite_master where type = 'table' and name not like 'sqlite_%'")
+        .pluck()
+        .all() as string[];
+      const empty = tables.filter((name) => M.sqlite.prepare(`select count(*) from \`${name}\``).pluck().get() === 0);
+      expect(empty, 'tables the seed left empty').toEqual([]);
+
+      await update(M);
+      for (const table of Object.values(clientSchema)) if (is(table, SQLiteTable)) await M.db.select().from(table);
+      await sync(M);
+      expect(await expectConverged(id, [M])).toMatchObject({ notes: 'waiting in the outbox' });
     });
 
     // A build pulls only the fields it knows; once updated to one that knows more, its next pull starts

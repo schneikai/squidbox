@@ -37,7 +37,7 @@ describe('contactsRepository', () => {
     await contactLinks.add(db, PHOTO, [other.id], newId);
     await db.delete(schema.outbox);
 
-    const work = await measure(() => contacts.remove(db, [contact.id]));
+    const work = await measure(() => contacts.deleteContact(db, contact.id));
 
     const [row] = (await db.select().from(schema.contacts)).filter((c) => c.id === contact.id);
     expect(row!.deletedAt).not.toBeNull();
@@ -58,7 +58,7 @@ describe('contactsRepository', () => {
   // tombstoned, vitest fails this test and `.fails` goes.
   it.fails('restoring a deleted contact puts it back in its lists and on its photos', async () => {
     const contact = await contactInListAndOnPhoto();
-    await contacts.remove(db, [contact.id]);
+    await contacts.deleteContact(db, contact.id);
 
     await contacts.restore(db, [contact.id]);
 
