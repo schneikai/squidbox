@@ -1,15 +1,16 @@
-import type { ViewProps } from 'react-native';
+import { StyleSheet, View, type ViewProps } from 'react-native';
 import { MenuOption as MenuOptionBase } from 'react-native-popup-menu';
 
 import MenuItemContent, { type MenuItemContentProps } from './MenuItemContent';
 
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
-// The library forwards accessibilityState to the option's touchable (MenuOption.js spreads its
-// accessibility props), but its d.ts leaves it out.
+// The library forwards these to the option's touchable (MenuOption.js spreads its other props), but
+// its d.ts leaves them out.
 declare module 'react-native-popup-menu' {
   interface MenuOptionProps {
-    accessibilityState?: ViewProps['accessibilityState'];
+    'aria-selected'?: ViewProps['aria-selected'];
+    'aria-disabled'?: ViewProps['aria-disabled'];
   }
 }
 
@@ -30,24 +31,40 @@ export default function MenuOption({
   isSelected = false,
   isHeader,
 }: MenuOptionProps) {
-  return (
-    <MenuOptionBase
-      onSelect={onPress}
+  // As aria props, which the app and the web build both read. The library draws a disabled row as a
+  // plain view without them, so there they go on a view around the row's contents.
+  const a11y = { accessibilityRole: 'menuitem', 'aria-selected': isSelected, 'aria-disabled': disabled } as const;
+  const content = (
+    <MenuItemContent
+      label={label}
+      icon={icon}
+      leading={leading}
       disabled={disabled}
-      style={popupMenuStyles.row}
-      accessibilityRole="menuitem"
-      accessibilityState={{ selected: isSelected, disabled }}
-    >
-      <MenuItemContent
-        label={label}
-        icon={icon}
-        leading={leading}
-        disabled={disabled}
-        trailing={trailing}
-        colorPalette={colorPalette}
-        isSelected={isSelected}
-        isHeader={isHeader}
-      />
+      trailing={trailing}
+      colorPalette={colorPalette}
+      isSelected={isSelected}
+      isHeader={isHeader}
+    />
+  );
+
+  return (
+    <MenuOptionBase onSelect={onPress} disabled={disabled} style={popupMenuStyles.row} {...(!disabled && a11y)}>
+      {disabled ? (
+        <View accessible {...a11y} style={styles.disabled}>
+          {content}
+        </View>
+      ) : (
+        content
+      )}
     </MenuOptionBase>
   );
 }
+
+const styles = StyleSheet.create({
+  // The row's line, as the library's view lays it out.
+  disabled: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+});

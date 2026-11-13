@@ -1,13 +1,5 @@
 import type { ReactNode } from 'react';
-import {
-  type AccessibilityState,
-  Pressable,
-  type StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import Icon from '@/components/Icon';
@@ -22,7 +14,7 @@ type BubbleProps = {
   variant?: 'add';
   onPress?: () => void;
   accessibilityRole?: 'tab' | 'button';
-  accessibilityState?: Pick<AccessibilityState, 'expanded'>;
+  isExpanded?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -34,8 +26,8 @@ const ROUND = sizes.smallButton + space.sm;
  * or, `isSelected`, a white raised pill with the mark and its `label`, and with `hasCaret` a ⌄ (it
  * opens a menu). Without a mark it is a pill with its label, so it never shows empty. `variant="add"`
  * is the dashed + after them. `label` is always what VoiceOver reads; a bubble is a tab (selected or
- * not) unless `accessibilityRole` says button (the +), `accessibilityState` adds `expanded` for one
- * that opens a menu. Its width change glides (`reflow`). Without `onPress` it is a plain view, so it
+ * not) unless `accessibilityRole` says button (the +); `isExpanded` tells, on one that opens a menu,
+ * whether it is open. Its width change glides (`reflow`). Without `onPress` it is a plain view, so it
  * can sit where nothing is to be pressed. style is for layout only.
  */
 export default function Bubble({
@@ -46,7 +38,7 @@ export default function Bubble({
   variant,
   onPress,
   accessibilityRole = 'tab',
-  accessibilityState,
+  isExpanded,
   style,
 }: BubbleProps) {
   const isAdd = variant === 'add';
@@ -58,7 +50,13 @@ export default function Bubble({
     isSelected ? styles.selected : !isAdd && styles.unselected,
     isAdd && styles.add,
   ];
-  const state = { ...accessibilityState, ...(accessibilityRole === 'tab' && { selected: isSelected }) };
+  // As aria props, which the app and the web build both read.
+  const a11y = {
+    accessibilityRole,
+    accessibilityLabel: label,
+    'aria-selected': accessibilityRole === 'tab' ? isSelected : undefined,
+    'aria-expanded': isExpanded,
+  };
   const content = isAdd ? (
     <Icon name="add" size={sizes.menuIcon} color={colors.text.secondary} />
   ) : (
@@ -80,15 +78,13 @@ export default function Bubble({
           onPress={onPress}
           // With the frame's height and the bar's gaps, a 44 pt pitch.
           hitSlop={space.xs}
-          accessibilityRole={accessibilityRole}
-          accessibilityLabel={label}
-          accessibilityState={state}
+          {...a11y}
           style={({ pressed }) => [frame, pressed && press.flat]}
         >
           {content}
         </Pressable>
       ) : (
-        <View accessibilityRole={accessibilityRole} accessibilityLabel={label} accessibilityState={state} style={frame}>
+        <View {...a11y} style={frame}>
           {content}
         </View>
       )}

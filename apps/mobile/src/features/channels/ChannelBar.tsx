@@ -71,14 +71,7 @@ export default function ChannelBar({ parts, channelOrder, selectedKey, onSelect,
         key={part.key}
         title="Channel of this post"
         trigger={({ toggle, isOpen }) => (
-          <Bubble
-            label={label}
-            mark={mark}
-            isSelected
-            hasCaret
-            onPress={toggle}
-            accessibilityState={{ expanded: isOpen }}
-          />
+          <Bubble label={label} mark={mark} isSelected hasCaret onPress={toggle} isExpanded={isOpen} />
         )}
       >
         {options.map((channel) => {
@@ -121,13 +114,7 @@ export default function ChannelBar({ parts, channelOrder, selectedKey, onSelect,
         <MenuButton
           title="Add channel"
           trigger={({ toggle, isOpen }) => (
-            <Bubble
-              variant="add"
-              label="Add channel"
-              onPress={toggle}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: isOpen }}
-            />
+            <Bubble variant="add" label="Add channel" onPress={toggle} accessibilityRole="button" isExpanded={isOpen} />
           )}
         >
           {unused.map((channel) => (
