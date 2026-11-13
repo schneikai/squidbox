@@ -222,18 +222,6 @@ so a better wording can be tried and published.
   alias of `layout.sideGutter`) still stands in 12 files and can now become `layout.sideGutter`; and `QuickViewHost`'s `paddingVertical: 50`
   (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.
 
-### [ ] One voice in the UI
-
-The app's text follows several conventions at once (architecture review run 2, decision 3,
-F11–F16). Agree on them, write them into CLAUDE.md and bring the screens in line:
-sentence case for titles, section labels and buttons (13 in Title Case today); errors start with
-"Couldn't …" and say what to do, and no success alerts (12 sites); one delete confirm
-(`useConfirmedDelete`, 7 written by hand), which Reset changes on Post ideas and Delete rule also go
-through instead of writing with no confirm; one word per action ("Try again", never "Retry"; "Add a
-X" for empty states; bare verbs on buttons); relative time in one place with one wording; collection
-headers with the collection's name as the title and the count in the subtitle (a `count` prop on
-`ScreenSectionHeader`).
-
 ## Code quality
 
 ### [ ] Read the chat's "More from your posts" more cheaply
@@ -390,14 +378,6 @@ album's screen isn't opened), but one rule would be cleaner. With it, have `post
 scope watch `schema.albums` as `sharesAlbumWithPostId` does, so both refresh when an album is
 deleted or restored.
 
-### [ ] Row-level security on the collection tables
-
-Tenancy is enforced only by each query's `where userId = …` (every repository under
-`apps/server/src/sync/`); the 16 collection tables have no policy, so one missed clause leaks another
-account's rows. Enable row-level security with a policy on `user_id = current_setting('app.user_id')`
-per collection table, set by the request in `authenticate.ts`, with a test that a query without the
-setting returns no rows. One migration. Architecture review run 2, F60 / decision 4b.
-
 ## Ideas
 
 - **Backup progress ring.** The Backup screen shows a running backup as "sent / total" text.
@@ -412,12 +392,6 @@ setting returns no rows. One migration. Architecture review run 2, F60 / decisio
   runs would remove the pitfall.
 
 ## Owner-side (needs a device, infra or secrets)
-
-### [ ] Protect main in GitHub
-
-`main` has no branch protection, so a PR can merge while its CI is still queued (#98 did). In the
-repo's Settings → Branches, add a rule for `main` that requires the `check` and `ui-flows` checks to
-pass. About five minutes, no code. Architecture review run 2, R10 / decision 4a.
 
 ### [ ] Renew iOS signing before Oct 10, 2027
 
