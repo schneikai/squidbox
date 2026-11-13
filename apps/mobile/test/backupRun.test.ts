@@ -12,7 +12,7 @@ import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
 import { withSyncPaused } from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
-import UploadFailedError from '../src/utils/cloud-api/assets/UploadFailedError';
+import UpdateRequiredError from '../src/utils/cloud-api/UpdateRequiredError';
 
 describe('runBackup', () => {
   let db: AppDb;
@@ -438,15 +438,15 @@ describe('runBackup', () => {
     const a = await unsyncedAsset('a.jpg');
     const b = await unsyncedAsset('b.jpg');
 
-    const run = runBackup(db, {
+    await runBackup(db, {
       uploads: uploads({
         uploadFile: async () => {
-          throw new UploadFailedError('Update required', { status: 426 });
+          throw new UpdateRequiredError();
         },
       }),
     });
 
-    await expect(run).rejects.toThrow('Update required');
+    expect(isBackupRunning()).toBe(false);
     expect(deleted).toEqual([]);
     expect(await row(a.id)).toMatchObject({ isFileSynced: false, syncError: null });
     expect(await row(b.id)).toMatchObject({ isFileSynced: false, syncError: null });

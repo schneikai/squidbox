@@ -10,9 +10,7 @@ import { LogBlock, LogEmpty, LogLine } from '@/components/settings-list/LogBlock
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
 import UpdateRequiredNote from '@/features/sync-status/UpdateRequiredNote';
-import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
-import useUpdateRequired from '@/hooks/useUpdateRequired';
-import useCloud from '@/providers/cloud/useCloud';
+import useLibrarySyncStatusText from '@/features/sync-status/useLibrarySyncStatusText';
 import { space } from '@/styles/designTokens';
 import { type CollectionTable, clientCollectionTables } from '@/sync/clientCollections';
 import { getDb, schema } from '@/sync/db/client';
@@ -32,20 +30,12 @@ const pushFailuresQuery: PagedQuery<PushFailure> = { read: readPushFailures, tab
 // below, and the raw inspector under "Developer". Records/edges sync automatically in the background.
 export default function SyncScreen() {
   const navigation = useNavigation();
-  const { phase, pendingCount, failedCount, cursor, lastPullAt, lastError } = useSyncStatus();
-  const { needsReauth } = useCloud();
-  const updateRequired = useUpdateRequired();
+  const syncStatus = useSyncStatus();
+  const { pendingCount, failedCount, cursor, lastPullAt } = syncStatus;
   const pendingByCollection = usePendingByCollection();
   const log = useSyncLogRows();
   const [showErrors, setShowErrors] = useState(false);
-  const statusText = getLibrarySyncStatusText({
-    phase,
-    lastError,
-    pendingCount,
-    failedCount,
-    needsReauth,
-    updateRequired,
-  });
+  const statusText = useLibrarySyncStatusText(syncStatus);
 
   async function retryAll() {
     await retryFailures(getDb());

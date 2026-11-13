@@ -11,6 +11,7 @@ import { FileUploadRefusedError } from '../src/sync/fileUploadErrors';
 import { retryFailures } from '../src/sync/outbox';
 import { readPushFailures } from '../src/sync/readPushFailures';
 import { runSyncOnce, type UploadFile } from '../src/sync/worker';
+import UpdateRequiredError from '../src/utils/cloud-api/UpdateRequiredError';
 import UploadFailedError from '../src/utils/cloud-api/assets/UploadFailedError';
 
 let db: SyncDb;
@@ -199,10 +200,10 @@ describe('a file field in the sync', () => {
     await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
     await contacts.create(db, makeContactRecord({ name: 'Jon' }));
     const uploadFile = recording(async () => {
-      throw new UploadFailedError('Update required', { status: 426, code: 'update_required' });
+      throw new UpdateRequiredError();
     });
 
-    await expect(runSyncOnce(db, server(), { uploadFile })).rejects.toThrow('Update required');
+    await expect(runSyncOnce(db, server(), { uploadFile })).rejects.toBeInstanceOf(UpdateRequiredError);
 
     expect(pushed).toEqual([]);
     expect(await outboxRows()).toMatchObject([{ error: null }, { error: null }]);

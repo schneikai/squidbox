@@ -21,15 +21,16 @@
  *   npm run ios:update                  # update, preview
  *   npm run ios:update -- production
  */
-import { readFileSync } from 'node:fs';
+import { withoutKeys } from './localBackend.mjs';
 import {
   eas,
+  easProfiles,
   fail,
   finishedBuilds,
   git,
   gitSucceeds,
   hasCommit,
-  latestUpdate,
+  latestUpdates,
   read,
   requirePushedTip,
   run,
@@ -48,23 +49,23 @@ if (!['preview', 'production'].includes(profile)) fail(`Unknown App profile "${p
 const root = git('rev-parse', '--show-toplevel');
 const mobileDir = `${root}/apps/mobile`;
 // The profile's channel and EAS environment, as its builds have them.
-const { channel, environment } = JSON.parse(readFileSync(`${mobileDir}/eas.json`, 'utf8')).build[profile];
+const { channel, environment } = easProfiles()[profile];
 if (!channel || !environment) fail(`eas.json: the ${profile} profile needs a channel and an environment.`);
 // The env of every eas call but the build: the EAS environment is the only source of the App's
 // variables, so neither this shell's EXPO_PUBLIC_* and APP_ENV values nor apps/mobile/.env.local can
 // reach the bundle or make the preflight pass.
 const easOnlyEnv = {
-  ...Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => !name.startsWith('EXPO_PUBLIC_') && !APP_ENV.includes(name)),
-  ),
+  ...withoutKeys(process.env, (name) => name.startsWith('EXPO_PUBLIC_') || APP_ENV.includes(name)),
   EAS_BUILD_PROFILE: profile,
   EXPO_NO_DOTENV: '1',
 };
 
 const { commit } = requirePushedTip();
 
-const refusals =
-  command === 'build' ? unreadable(APP_ENV) : [...unreadable(APP_ENV), ...noReachableBuild(), ...olderThanLatest()];
+const refusals = [
+  ...unreadable(APP_ENV),
+  ...(command === 'update' ? [...noReachableBuild(), ...olderThanLatest()] : []),
+];
 if (refusals.length > 0) fail(refusals.join('\n'));
 
 const short = commit.slice(0, 8);
@@ -161,7 +162,7 @@ function noReachableBuild() {
 // An update never puts older code after newer: X descends from the channel's latest update. Its
 // branch is named after the channel (`eas update --channel` creates it so).
 function olderThanLatest() {
-  const latest = latestUpdate(channel, mobileDir, easOnlyEnv);
+  const latest = latestUpdates(mobileDir, easOnlyEnv).get(channel);
   if (
     !latest ||
     (hasCommit(latest.gitCommitHash) && gitSucceeds('merge-base', '--is-ancestor', latest.gitCommitHash, 'HEAD'))

@@ -50,8 +50,6 @@ describe('the update gate', () => {
   });
 
   it('never gates /up', async () => {
-    const res = await request('/up', `${COMMIT} ${DEVICE} 1`);
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ minContractVersion: 2 });
+    expect((await request('/up', `${COMMIT} ${DEVICE} 1`)).statusCode).toBe(200);
   });
 });

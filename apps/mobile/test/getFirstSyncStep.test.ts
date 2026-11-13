@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import getFirstSyncStep from '../src/features/sync-status/getFirstSyncStep';
+import { UPDATE_REQUIRED_TEXT } from '../src/utils/cloud-api/updateRequiredText';
 
 type Status = Parameters<typeof getFirstSyncStep>[0];
 const idle: Status = { phase: 'idle', lastError: null, updateRequired: false };
@@ -19,7 +20,7 @@ describe('getFirstSyncStep', () => {
     for (const phase of ['error', 'pulling'] as const)
       expect(
         getFirstSyncStep({ phase, lastError: 'Update required', pullStep: 'downloading', updateRequired: true }, fresh),
-      ).toMatchObject({ label: 'Update Squidbox to keep syncing', failed: true });
+      ).toMatchObject({ label: UPDATE_REQUIRED_TEXT, failed: true });
   });
 
   it('keeps the failure it showed while a retry pushes or pulls without a step, and drops it once a step comes', () => {

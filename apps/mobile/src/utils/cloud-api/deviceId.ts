@@ -3,9 +3,8 @@ import { getItemAsync, setItemAsync } from './secureStorage';
 import getNewItemId from '@/utils/getNewItemId';
 
 // This install's id, minted once and kept in secure storage on this device only (no backup or new
-// iPhone carries it over): the install every request names (clientHeader). The server reads only the
-// header's contract version; the install id is unused (docs/sync-design.md §15). Null when it couldn't
-// be read or stored: the header names `-` then.
+// iPhone carries it over): the install every request names (clientHeader, docs/sync-design.md §15).
+// Null when it couldn't be read or stored.
 const KEY = 'deviceId';
 let deviceId: string | null = null;
 

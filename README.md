@@ -85,7 +85,7 @@ Run `/ios-build`: it asks what to build and drives EAS for you (no flags or prof
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.ts` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Installing, credentials (an App Store Connect API key, no Mac), signing renewal and the full runbook are in the `ios-build` skill.
 
-A preview or release build starts with `npm run ios:app`, and a JS-only change reaches the installed App with `npm run ios:update` (an EAS update, ios-build skill → Path C); both need a clean checkout at the pushed tip of its branch. `contract.test.ts` holds today's server to the contract of the oldest supported build (`apps/server/contract/baseline.json`), and the old-build e2e suite (`installedBuilds.e2e.test.ts`) runs that build's sync code against it (`docs/sync-design.md` §15).
+A preview or release build starts with `npm run ios:app`, and a JS-only change reaches the installed App with `npm run ios:update` (ios-build skill). Compatibility with installed builds: `docs/sync-design.md` §15.
 
 ### Dev client
 
@@ -144,7 +144,7 @@ A wrong, refused or too slow answer (or any other error about the call) is the m
 
 ## Deploying the backend
 
-Run `/deploy-server`, which deploys with `npm run deploy:server`: it builds, migrates and releases via the `fly` CLI, and refuses a server that raises the minimum contract version before the app with it is published (`docs/sync-design.md` §15).
+Run `/deploy-server` (`npm run deploy:server`).
 
 ## Dependencies
 

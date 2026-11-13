@@ -1,8 +1,12 @@
 /**
  * What the ship and release scripts share (iosApp.mjs, raiseContract.mjs, deployServer.mjs): the git
- * and command helpers, retry with backoff, the "clean and the pushed tip" check and the EAS reads.
+ * and command helpers, retry with backoff, the "clean and the pushed tip" check, the EAS reads and
+ * the fly CLI.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { accessSync, constants, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // The repo's pinned eas-cli (root package.json).
@@ -27,13 +31,18 @@ export function requirePushedTip() {
   return { branch, commit };
 }
 
+/** The build profiles of apps/mobile/eas.json, by name. */
+export function easProfiles() {
+  return JSON.parse(readFileSync(fileURLToPath(new URL('../apps/mobile/eas.json', import.meta.url)), 'utf8')).build;
+}
+
 /**
- * The latest update published to `channel` (its branch is named after the channel: `eas update
- * --channel` creates it so), with `gitCommitHash` and `createdAt`; none before the first.
+ * The latest update published to each channel, by channel (its branch is named after the channel:
+ * `eas update --channel` creates it so), with `gitCommitHash` and `createdAt`; none before the first.
  */
-export function latestUpdate(channel, cwd, env) {
+export function latestUpdates(cwd, env) {
   const branches = JSON.parse(retry(() => read(eas, ['branch:list', '--json', '--non-interactive'], cwd, env)));
-  return branches.find(({ name }) => name === channel)?.updates[0];
+  return new Map(branches.map(({ name, updates }) => [name, updates[0]]));
 }
 
 /** The finished builds `filters` (eas build:list flags) select, newest first, with `gitCommitHash` and `completedAt`. */
@@ -82,4 +91,21 @@ export function retry(action) {
 export function fail(message) {
   console.error(message);
   process.exit(1);
+}
+
+// `fly` or `flyctl` from PATH, else the installer's ~/.fly/bin/flyctl.
+export function flyCli() {
+  const dirs = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
+  for (const name of ['fly', 'flyctl'])
+    for (const dir of dirs) if (isExecutable(join(dir, name))) return join(dir, name);
+  return join(homedir(), '.fly/bin/flyctl');
+}
+
+function isExecutable(path) {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }

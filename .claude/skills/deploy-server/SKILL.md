@@ -20,9 +20,8 @@ library and parks the existing one. Never store a password as a secret.
 ## Routine deploy
 
 From the repo root: `npm run deploy:server` (never `fly deploy` directly): it runs
-`fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile` only after checking
-that a server raising the minimum contract version doesn't deploy before the app that speaks it is
-published on every channel (`docs/sync-design.md` §15, Raising the minimum).
+`fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile` after the deploy-order
+check of `docs/sync-design.md` §15, Raising the minimum.
 Migrations run automatically. Verify: `curl https://squidbox-server.fly.dev/up` →
 `{"status":"ok","serverId":"<uuid>","minContractVersion":<n>}`.
 

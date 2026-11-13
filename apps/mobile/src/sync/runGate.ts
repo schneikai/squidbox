@@ -1,8 +1,11 @@
 import SessionChangedError from '@/utils/cloud-api/SessionChangedError';
+import UpdateRequiredError from '@/utils/cloud-api/UpdateRequiredError';
 
 // The gate the sync and backup runs start through: a run registers synchronously with its abort
 // signal, none starts while a pause holds, and a pause aborts every registered run. A session that
-// changed under a run ends it like an abort (SessionChangedError), not as a failure.
+// changed under a run (SessionChangedError), or the server's refusal of this build as too old
+// (UpdateRequiredError, which the app shows from its own store), ends it like an abort, not as a
+// failure.
 interface Run {
   controller: AbortController;
   done: Promise<void>;
@@ -16,7 +19,7 @@ export function startRun(work: (signal: AbortSignal) => Promise<void>): Promise<
   if (pauses > 0) return null;
   const controller = new AbortController();
   const result = work(controller.signal).catch((error) => {
-    if (!(error instanceof SessionChangedError)) throw error;
+    if (!endsRun(error)) throw error;
   });
   const run: Run = { controller, done: result.catch(() => {}) };
   runs.add(run);
@@ -34,4 +37,9 @@ export function pauseRuns(): { stopped: Promise<void>; resume(): void } {
       pauses -= 1;
     },
   };
+}
+
+/** Whether `error` ends a run like an abort instead of failing it (see above). */
+export function endsRun(error: unknown): boolean {
+  return error instanceof SessionChangedError || error instanceof UpdateRequiredError;
 }

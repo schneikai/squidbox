@@ -67,7 +67,7 @@ export default function FirstSyncScreen() {
 
 // getFirstSyncStep, with what the screen showed last: whether it failed, and how long the finishing
 // step has shown.
-function useFirstSyncStep(status: LiveSyncStatus) {
+function useFirstSyncStep(status: LiveSyncStatus & { updateRequired: boolean }) {
   const [shown, setShown] = useState<{ failed: boolean; step?: PullStep }>({ failed: false });
   const almostDone = useAfterDelay(shown.step === 'finishing', ALMOST_DONE_MS);
   const current = getFirstSyncStep(status, { wasFailed: shown.failed, almostDone });

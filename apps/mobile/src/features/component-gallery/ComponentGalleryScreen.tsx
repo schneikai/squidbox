@@ -45,6 +45,7 @@ import type { IdeasRun } from '@/features/post-ideas/ideasRun';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
+import { UPDATE_REQUIRED_TEXT } from '@/utils/cloud-api/updateRequiredText';
 
 type GalleryTab = 'library' | 'albums' | 'contacts' | 'posts';
 
@@ -272,7 +273,7 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="WarningNote: with an action">
           <WarningNote style={styles.fill} trailing={<Button label="Update" size="small" onPress={noop} />}>
-            Update Squidbox to keep syncing. Your changes stay on this iPhone until then.
+            {UPDATE_REQUIRED_TEXT}
           </WarningNote>
         </Specimen>
       </>

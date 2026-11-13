@@ -873,22 +873,22 @@ camel case (`ideaSettings`), and so are the repository and its hook (`ideaSettin
 
 1. Shared: add the descriptor in `packages/shared/collections/`, export it from
    `packages/shared/index.ts`, and add it to `collections` in `registry.ts`. `CollectionName` is
-   inferred from that list, so every step below marked *typed* fails `npm run typecheck` until it
+   inferred from that list, so every step below marked _typed_ fails `npm run typecheck` until it
    is done.
 2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()` (which brings
    `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index, and
-   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (*typed*). Generate the
+   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (_typed_). Generate the
    migration from `apps/server`: `npm run db:generate -- --name <collection>`. `migrate.ts` attaches
    the `server_seq` trigger.
 3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables` in
-   `clientCollections.ts` (*typed*), and generate the migration from `apps/mobile`:
+   `clientCollections.ts` (_typed_), and generate the migration from `apps/mobile`:
    `npx drizzle-kit generate --name <collection>` (it also regenerates `migrations.js`). A pull
    skips a collection without a client table on purpose, so an older build survives a newer
    server; only the typecheck catches a new build that forgot it.
 4. Name a failed push of it in words in `TITLES` in `apps/mobile/src/sync/readPushFailures.ts`
-   (*typed*).
+   (_typed_).
 5. Add a sample record to the "collection registry guard" in `apps/server/test/sync.test.ts`
-   (*typed*), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
+   (_typed_), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
    should have some.
 6. Describe its fields in §10.
 7. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
@@ -1254,28 +1254,28 @@ The dev-only routes (`/api/v1/dev/*`) are no build's contract.
 
 Every app request names the contract version it was built with (`CONTRACT_VERSION`,
 `packages/shared/contracts/contractVersion.json`, in the client header below); the server's minimum
-is the version it was deployed with. `apps/server/src/plugins/clientVersion.ts` reads the header on
+is the version it was deployed with. `apps/server/src/plugins/clientVersion.ts` gates the whole API,
 every `/api/v1` route (sign-in and uploads included; `/up` stays open and answers
-`minContractVersion`):
+`minContractVersion`), as a breaking change can hit any route:
 
 - a header naming a version below the minimum gets HTTP 426 (`UPDATE_REQUIRED_STATUS`) with the
   usual envelope, code `update_required`;
-- a header without a version (every build from before the gate) or with one that isn't a positive
-  integer counts as version 1, never a 400 (one on `auth/refresh` would end the session);
+- a header without a version or with one that isn't a positive integer counts as
+  `FIRST_CONTRACT_VERSION`, never a 400 (one on `auth/refresh` would end the session);
 - no header at all is not the app (tests, curl, the health check) and passes.
 
 The 426 never changes: every build made from now on keys on it, by the status, never the text. The
-app then says "Update Squidbox to keep syncing" (`apiErrorMessage` for any alert; the note with an
-Update button on Settings and Library sync, "Update required" in the Library sync row, the account
-button's dot, the first-sync screen), and Update fetches the EAS update and restarts
-(`lib/updateApp.ts`). A 426 ends the sync run without flagging a row or an asset: local edits stay in
-the outbox (§6) and go up after the update. The flag lives in the sync status (`sync_meta`) and is
-cleared by a finished run and by a library's open, so it never outlives the build.
+app's API layer turns it into an `UpdateRequiredError` and notes it in an in-memory store
+(`utils/cloud-api/updateRequiredStore.ts`, cleared by the next success); wherever the sync status
+shows, `useUpdateRequired` puts `UPDATE_REQUIRED_TEXT` with an Update action, which fetches the EAS
+update and restarts. The app keeps working locally: a 426 ends a sync or backup run like a session
+change (`sync/runGate.ts`), without flagging a row or an asset, and local edits stay in the outbox
+(§6) until the update. Builds from before the gate send no version and can't show any of this: the
+gate refuses them (after a raise) with what they show as a generic sync error.
 
 ### Raising the minimum
 
-The owner's decision only. An agent proposes it when no compatible way exists and never runs the
-command on its own. The steps, in order:
+Whose decision it is: CLAUDE.md. The steps, in order:
 
 1. In a clean checkout whose HEAD holds the breaking change (the contract test is red there) and is
    the pushed tip of its branch, `npm run contract:raise` rewrites the baseline to HEAD's commit and
@@ -1297,10 +1297,10 @@ A raise is when leftovers kept for older builds may be deleted.
 ### The client header
 
 Every request names its build, install and contract version: `x-squidbox-client: <commit> <device>
-<version>` (`packages/shared/contracts/client.ts`, sent by
-`apps/mobile/src/utils/cloud-api/clientHeader.ts`): the full git sha the build was made from
-(`app.config.js` `extra.gitCommit`), a uuid minted once per install, `-` for either when it isn't
-known, and the build's `CONTRACT_VERSION`. The server reads only the version (The update gate).
+<version>`, written by `formatClientHeader` and read by `clientHeaderVersion`
+(`packages/shared/contracts/client.ts`): the full git sha the build was made from (`app.config.js`
+`extra.gitCommit`), a uuid minted once per install, `-` for either when it isn't known, and the
+build's `CONTRACT_VERSION`. The server reads only the version (The update gate).
 
 ### Older code after newer
 

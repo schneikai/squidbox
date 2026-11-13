@@ -16,10 +16,9 @@ import DevAccountsSection from '@/features/dev-accounts/DevAccountsSection';
 import LoginForm from '@/features/settings/LoginForm';
 import confirmBackupSignOutAsync from '@/features/settings/confirmBackupSignOutAsync';
 import UpdateRequiredNote from '@/features/sync-status/UpdateRequiredNote';
-import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
+import useLibrarySyncStatusText from '@/features/sync-status/useLibrarySyncStatusText';
 import useHasFeature from '@/hooks/useHasFeature';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
-import useUpdateRequired from '@/hooks/useUpdateRequired';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import useAppSettings from '@/providers/app-settings/useAppSettings';
 import useCloud from '@/providers/cloud/useCloud';
@@ -37,8 +36,9 @@ export default function SettingsScreen() {
   const { library } = useOpenLibrary();
   const cloudSync = useCloudSync();
   const counts = useBackupCounts();
-  const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
-  const updateRequired = useUpdateRequired();
+  const syncStatus = useSyncStatus();
+  const { pendingCount } = syncStatus;
+  const librarySyncText = useLibrarySyncStatusText(syncStatus);
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
   const isAssistantAvailable = useIsAssistantAvailable();
   const isDeveloper = useHasFeature('developer');
@@ -144,14 +144,7 @@ export default function SettingsScreen() {
               />
               <Row
                 label="Library sync"
-                value={getLibrarySyncStatusText({
-                  phase,
-                  lastError,
-                  pendingCount,
-                  failedCount,
-                  needsReauth,
-                  updateRequired,
-                })}
+                value={librarySyncText}
                 onPress={() => router.navigate('/settings/sync')}
                 hasChevron
               />

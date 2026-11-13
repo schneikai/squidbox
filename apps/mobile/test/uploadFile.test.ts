@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import UpdateRequiredError from '../src/utils/cloud-api/UpdateRequiredError';
 import uploadFileAsync from '../src/utils/cloud-api/assets/uploadFileAsync';
+import { updateRequiredStore } from '../src/utils/cloud-api/updateRequiredStore';
 
 // The upload task is expo-file-system's native one: it reports the progress and resolves the
 // response it is given here.
@@ -43,6 +45,15 @@ describe('uploadFileAsync', () => {
     await expect(uploadFileAsync('a.jpg', 'file:///a.jpg', identity)).rejects.toThrow(
       /^Upload failed with status 502$/,
     );
+  });
+
+  it('rejects with an UpdateRequiredError when the server refuses this build as too old, and a later upload clears it', async () => {
+    upload.result = { status: 426, body: '{"error":{"code":"update_required","message":"version 1; needs 2"}}' };
+    await expect(uploadFileAsync('a.jpg', 'file:///a.jpg', identity)).rejects.toBeInstanceOf(UpdateRequiredError);
+    expect(updateRequiredStore.get()).toBe(true);
+    upload.result = { status: 200, body: '' };
+    await uploadFileAsync('a.jpg', 'file:///a.jpg', identity);
+    expect(updateRequiredStore.get()).toBe(false);
   });
 
   it('reports the byte counts as numbers when the native task sends BigInts', async () => {

@@ -36,9 +36,7 @@ import {
   getKeptFor,
   getMergeMarks,
   getMergeTarget,
-  getStatus,
   markFirstSyncDone,
-  patchStatus,
   setMergeTarget,
   type MergeCommit,
 } from '../src/sync/status';
@@ -340,18 +338,6 @@ describe('the sweep at a library’s open', () => {
     sweepOpenLibrary();
     await librarySweepsSettled();
     expect(files.has(getAssetFileUri('acc.jpg', TGT))).toBe(true);
-  });
-});
-
-describe('a library’s open', () => {
-  beforeEach(() => resetLibraries());
-
-  it('forgets the server’s refusal of an older build: this one may be the update it asked for', async () => {
-    const TGT_DB = makeTestDb();
-    stores.set(TGT.dbName, TGT_DB);
-    await patchStatus(TGT_DB, { phase: 'error', updateRequired: true });
-    await openLibrary(ACC);
-    expect(await getStatus(getDb())).toMatchObject({ updateRequired: false });
   });
 });
 

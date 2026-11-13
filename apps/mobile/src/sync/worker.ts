@@ -42,7 +42,7 @@ import { upsertRows } from './upsertRows';
 
 import type { LibraryPaths } from '@/library/libraryPaths';
 import type { SyncIdentity } from '@/library/sessionMatches';
-import isUpdateRequired from '@/utils/cloud-api/isUpdateRequired';
+import UpdateRequiredError from '@/utils/cloud-api/UpdateRequiredError';
 
 const PULL_LIMIT = 1000; // server/contract cap
 // Bytes of mutations per request: half the server's body limit, so a batch of large records never
@@ -189,7 +189,7 @@ function filesToUpload(row: schema.OutboxRow): [field: string, filename: string]
 // leaves it out of the push, so one file that keeps failing never holds back the other rows or the
 // pull: a refused one (FileUploadRefusedError) waits for the user, any other is tried again with
 // the failed pushes (on the app's return to the foreground, a launch, Retry All). An abort stops
-// before the push. The server's refusal of this build as too old (isUpdateRequired) ends the run
+// before the push. The server's refusal of this build as too old (UpdateRequiredError) ends the run
 // instead: no row is flagged, every row waits for the update.
 async function uploadBatchFiles(
   db: SyncDb,
@@ -208,7 +208,7 @@ async function uploadBatchFiles(
         await uploadFile(row.collection, field, filename, signal);
       } catch (error) {
         if (signal.aborted) return { refused, notes, stopped: true };
-        if (isUpdateRequired(error)) throw error;
+        if (error instanceof UpdateRequiredError) throw error;
         const isRefusal = error instanceof FileUploadRefusedError;
         const message = error instanceof Error ? error.message : String(error);
         await flagOutboxRow(db, row, isRefusal ? message : `Upload of ${filename} failed: ${message}`);
@@ -588,13 +588,9 @@ async function withSyncRun(work: SyncWork, blocked: () => void): Promise<void> {
   }
   try {
     await run;
-    await patchStatus(db, { phase: 'idle', lastError: null, updateRequired: false });
+    await patchStatus(db, { phase: 'idle', lastError: null });
   } catch (err) {
-    await patchStatus(db, {
-      phase: 'error',
-      lastError: err instanceof Error ? err.message : String(err),
-      updateRequired: isUpdateRequired(err),
-    });
+    await patchStatus(db, { phase: 'error', lastError: err instanceof Error ? err.message : String(err) });
   }
   // A run a paused section cut short goes on after it as a sync (the request trails this run and the
   // section): a full resync's pull resumes from its cursor.

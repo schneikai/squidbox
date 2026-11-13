@@ -1,6 +1,6 @@
 import * as schema from './db/schema';
 import { countOutbox } from './outbox';
-import { getCursor, getStatus, isFirstSyncDone, isUpdateRequiredStored, type PullStep, type SyncPhase } from './status';
+import { getCursor, getStatus, isFirstSyncDone, type PullStep, type SyncPhase } from './status';
 import { useLiveQuery } from './useLiveQuery';
 
 // Reactive sync status for the dev status surface + Inspector: the phase + pending outbox count
@@ -14,7 +14,6 @@ export interface LiveSyncStatus {
   lastPushAt?: number;
   lastPullAt?: number;
   lastError?: string | null;
-  updateRequired: boolean;
 }
 
 export function useSyncStatus(): LiveSyncStatus {
@@ -33,7 +32,6 @@ export function useSyncStatus(): LiveSyncStatus {
     lastPushAt: meta?.lastPushAt,
     lastPullAt: meta?.lastPullAt,
     lastError: meta?.lastError ?? null,
-    updateRequired: meta?.updateRequired ?? false,
   };
 }
 
@@ -48,11 +46,4 @@ export function useSyncStatus(): LiveSyncStatus {
 // A boolean, so the many other sync_meta writes (status, cursor) don't re-render its callers.
 export function useFirstSyncDone(): boolean | undefined {
   return useLiveQuery(isFirstSyncDone, [schema.syncMeta]);
-}
-
-// Whether the last sync run ended on the server's refusal of this build as too old (§15, The update
-// gate), live; false until sync_meta was read. A boolean, like useFirstSyncDone. The UI reads it
-// through hooks/useUpdateRequired, which shows it only while signed in.
-export function useStoredUpdateRequired(): boolean {
-  return useLiveQuery(isUpdateRequiredStored, [schema.syncMeta]) ?? false;
 }

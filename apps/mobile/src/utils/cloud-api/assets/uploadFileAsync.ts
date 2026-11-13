@@ -8,6 +8,7 @@ import { clientHeader } from '@/utils/cloud-api/clientHeader';
 import envelopeMessage from '@/utils/cloud-api/envelopeMessage';
 import requireApiBaseUrl from '@/utils/cloud-api/requireApiBaseUrl';
 import requireSession from '@/utils/cloud-api/requireSession';
+import { noteServerStatus } from '@/utils/cloud-api/updateRequiredStore';
 
 type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?: AbortSignal };
 
@@ -16,7 +17,8 @@ type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?:
 // The access token is read fresh for `identity`, the user the upload runs for, and refused once
 // someone else is signed in (requireSession). `onProgress({ bytesSent, totalBytes })` follows it;
 // aborting `signal` cancels it, which rejects with an `AbortError` (like downloadAssetFileAsync). A
-// refused one rejects with an UploadFailedError.
+// refused one rejects with an UploadFailedError, a build the server refuses as too old with an
+// UpdateRequiredError (noteServerStatus).
 export default async function uploadFileAsync(
   filename: string,
   fileUri: string,
@@ -77,6 +79,7 @@ function byteCounts(bytesSent: number | bigint, totalBytes: number | bigint): Up
 
 function assertSuccess(result: UploadResult | undefined, filename: string, signal?: AbortSignal) {
   if (signal?.aborted) throw cancelled(filename);
+  noteServerStatus(result?.status);
   if (!result || result.status < 200 || result.status >= 300) {
     const body = parseBody(result?.body);
     throw new UploadFailedError(envelopeMessage(body) ?? `Upload failed with status ${result?.status}`, {
