@@ -122,6 +122,25 @@ describe('a file field in the sync', () => {
     expect(await outboxRows()).toEqual([]);
   });
 
+  it('a contact deleted while its photo is missing on this device pushes its tombstone', async () => {
+    const contact = await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-g-1.jpg' }));
+    const missing = recording(async () => {
+      throw new FileUploadRefusedError(
+        'Contact photo is missing on this device: choose it again or remove it',
+        'missing',
+      );
+    });
+    await runSyncOnce(db, server(), { uploadFile: missing });
+    expect(pushed).toEqual([]);
+
+    await contacts.remove(db, [contact.id]);
+    await runSyncOnce(db, server(), { uploadFile: missing });
+
+    expect(missing).toHaveBeenCalledTimes(1);
+    expect(pushed).toMatchObject([{ record: { id: contact.id, deletedAt: expect.any(Number) } }]);
+    expect(await outboxRows()).toEqual([]);
+  });
+
   it('a photo uploaded for a push the server rejected isn’t uploaded again on the retry', async () => {
     await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
     const uploadFile = recording();

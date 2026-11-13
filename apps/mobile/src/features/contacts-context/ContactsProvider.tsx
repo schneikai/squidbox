@@ -121,15 +121,9 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           if (contact) await contacts.update(tx, id, { places: placesChanged(contact.places, from, to) });
         }),
       // The contact leaves its lists and the photos, albums and posts it is on with it.
-      setContactDeleted: (id) =>
-        written(async (tx) => {
-          await contacts.remove(tx, [id]);
-          await contactListMembers.tombstoneWhere(tx, { contactId: id });
-          await contactLinks.tombstoneWhere(tx, { contactId: id });
-        }),
-      // Brings a deleted contact back (Deleted's rows), with its photo; the lists and the photos,
-      // albums and posts it left when it was deleted stay as they are now.
-      restoreContact: (id) => written((tx) => contacts.update(tx, id, { deletedAt: null })),
+      setContactDeleted: (id) => written((tx) => contacts.remove(tx, [id])),
+      // Brings a deleted contact back (Deleted's rows) where it was: its photo, lists and tags.
+      restoreContact: (id) => written((tx) => contacts.restore(tx, id)),
       addList: (name) => written((tx) => lists.create(tx, newRecord(contactListCollection, LIST_DEFAULTS, { name }))),
       updateList: (id, fields) => written((tx) => lists.update(tx, id, fields)),
       setListDeleted: (id) =>
