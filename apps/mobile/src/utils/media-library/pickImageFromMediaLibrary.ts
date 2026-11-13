@@ -7,18 +7,20 @@ import getMediaLibraryPermissionAsync from './getMediaLibraryPermissionAsync';
 
 type PickOptions = Pick<
   ImagePicker.ImagePickerOptions,
-  'mediaTypes' | 'allowsMultipleSelection' | 'allowsEditing' | 'aspect'
+  'mediaTypes' | 'allowsMultipleSelection' | 'allowsEditing' | 'aspect' | 'exif'
 > & { onOpen?: () => void };
 
 // `onOpen` runs right before the picker opens (only when permission is granted). The picker takes
 // photos and videos, several at once, unless told otherwise (`mediaTypes`, `allowsMultipleSelection`);
-// `allowsEditing` with `aspect` lets the user crop the one photo picked (a contact's square avatar).
+// `allowsEditing` with `aspect` lets the user crop the one photo picked (a contact's square avatar);
+// `exif` returns each photo's EXIF, read off its file.
 export default async function pickImageFromMediaLibrary({
   onOpen,
   mediaTypes = ['images', 'videos'],
   allowsMultipleSelection = true,
   allowsEditing = false,
   aspect,
+  exif = false,
 }: PickOptions = {}): Promise<ImagePicker.ImagePickerAsset[] | undefined> {
   const hasPermission = await getMediaLibraryPermissionAsync();
 
@@ -33,6 +35,7 @@ export default async function pickImageFromMediaLibrary({
     allowsMultipleSelection,
     allowsEditing,
     aspect,
+    exif,
     // The default page sheet shifted sideways during the picker's drag-to-select; full screen has no
     // sheet to move.
     presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN,
