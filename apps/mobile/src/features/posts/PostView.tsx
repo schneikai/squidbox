@@ -5,7 +5,7 @@ import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import ChannelBubbles from '@/features/channels/ChannelBubbles';
+import ChannelLogos from '@/features/channels/ChannelLogos';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
@@ -25,7 +25,7 @@ type PostViewProps = {
  * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
  * place shows about it: a thread's size), and `children` under that row (buttons for this post).
  * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]). `channelIds` are the
- * channels it is on, as overlapping logo bubbles at the card's top (ChannelBubbles), in the order given; none
+ * channels it is on, as plain logos at the card's top (ChannelLogos), in the order given; none
  * for an empty list.
  */
 export default function PostView({
@@ -40,7 +40,7 @@ export default function PostView({
 
   return (
     <Card testID="post-card" style={styles.card}>
-      <ChannelBubbles channelIds={channelIds} />
+      <ChannelLogos channelIds={channelIds} />
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}

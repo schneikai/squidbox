@@ -6,7 +6,6 @@ import { Animated, StyleSheet, View } from 'react-native';
 import ActionButtons from '@/components/ActionButtons';
 import AssistantTray from '@/components/AssistantTray';
 import Badge from '@/components/Badge';
-import Bubble from '@/components/Bubble';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import ChangedBadge from '@/components/ChangedBadge';
@@ -40,8 +39,8 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import ChannelBubbles from '@/features/channels/ChannelBubbles';
 import ChannelLogo from '@/features/channels/ChannelLogo';
+import ChannelLogos from '@/features/channels/ChannelLogos';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
@@ -220,20 +219,35 @@ export default function ComponentGalleryScreen() {
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>
         </Specimen>
-        <Specimen name="Bubble">
-          <View accessibilityRole="tablist" style={styles.bubbles}>
-            <Bubble label="X" mark={<ChannelLogo channelId="x" />} onPress={noop} />
-            <Bubble label="Bluesky" mark={<ChannelLogo channelId="bluesky" />} isSelected onPress={noop} />
-            <Bubble label="OnlyFans PPV" mark={<ChannelLogo channelId="onlyfans-ppv" />} onPress={noop} />
-            <Bubble label="No channel" onPress={noop} />
-            <Bubble variant="add" label="Add channel" accessibilityRole="button" onPress={noop} />
+        <Specimen name="Channel tabs">
+          <View accessibilityRole="tablist" style={styles.channelRow}>
+            <Chip
+              label="X"
+              mark={<ChannelLogo channelId="x" size={sizes.menuIcon} />}
+              accessibilityRole="tab"
+              onPress={noop}
+            />
+            <Chip
+              label="Bluesky"
+              mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
+              isSelected
+              accessibilityRole="tab"
+            />
+            <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
+            <Chip variant="add" label="Add channel" isIconOnly onPress={noop} />
           </View>
-          <View style={styles.bubbles}>
-            <Bubble label="OnlyFans" mark={<ChannelLogo channelId="onlyfans" />} isSelected hasCaret onPress={noop} />
-            <Bubble label="OnlyFans PPV" mark={<ChannelLogo channelId="onlyfans-ppv" />} isSelected />
+          <View style={styles.channelRow}>
+            <Chip
+              label="OnlyFans PPV"
+              mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
+              isSelected
+              hasCaret
+              accessibilityRole="tab"
+              onPress={noop}
+            />
           </View>
-          <View style={styles.bubbles}>
-            <ChannelBubbles channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
+          <View style={styles.channelRow}>
+            <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
           </View>
         </Specimen>
       </>
@@ -495,7 +509,7 @@ const styles = StyleSheet.create({
   fill: {
     width: '100%',
   },
-  bubbles: {
+  channelRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',

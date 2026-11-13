@@ -6,7 +6,7 @@ import { resetMockDataAsync } from '../../../scripts/localBackend.mjs';
 
 // A post's channels, end to end, through the channel bar: the mock account's channels (Bluesky, X,
 // Instagram) in Settings and one added, a post written for Bluesky with an X channel in the editor
-// (add, switch, change, remove), its channels' bubbles in the posts list, its screen switching channels in place,
+// (add, switch, change, remove), its channels' logos in the posts list, its screen switching channels in place,
 // Edit on the channel shown and Delete; a mock post's X channel; removing a post's own channel; and no
 // bar without channels. The flows change the mock account, so the mock data is reset after them,
 // whatever happened (no cleanup through the UI a failed run would skip).
@@ -59,7 +59,7 @@ async function removeShown(page: Page, editor: Locator, name: string) {
   expect(message).toContain(`Remove ${name} from this post?`);
 }
 
-// No element with `inner` role inside one with `outer`: a bubble never nests a button.
+// No element with `inner` role inside one with `outer`: a channel tab never nests a button.
 async function expectNoNested(scope: Locator, outer: string, inner: string) {
   await expect(scope.locator(`[role=${outer}] [role=${inner}]`)).toHaveCount(0);
 }
@@ -160,7 +160,7 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
   await button(editor, 'Add').click();
   await editor.waitFor({ state: 'detached' });
 
-  // The posts list's card: both channels' bubbles.
+  // The posts list's card: both channels' logos.
   const posts = page.getByTestId('posts-screen');
   const card = postCards(posts).first();
   await expect(card.getByText(TEXT)).toBeVisible();
