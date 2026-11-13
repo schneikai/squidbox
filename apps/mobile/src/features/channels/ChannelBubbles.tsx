@@ -29,6 +29,7 @@ export default function ChannelBubbles({ channelIds }: ChannelBubblesProps) {
           key={channelId}
           label={channelName(channelId)}
           mark={channelById(channelId) && <ChannelLogo channelId={channelId} />}
+          isMarkOnly
           isGrouped
         />
       ))}

@@ -34,8 +34,8 @@ type ChannelBarProps = {
 
 /**
  * A post's channels as a row of bubbles (tabs), one per part of `parts` (the post's own first), in bar
- * order (orderPostChannels over `channelOrder`): each its channel's logo, the selected one (`selectedKey`)
- * a white pill with the logo and name. A tap on another calls `onSelect(key)`, with a selection tap.
+ * order (orderPostChannels over `channelOrder`): each its channel's logo and name, the selected one
+ * (`selectedKey`) a white pill. A tap on another calls `onSelect(key)`, with a selection tap.
  * With `editing` (the editor) the selected pill has a caret and opens Channel of this post: the user's
  * channels (and the part's own when it isn't among them), the current one marked, one another part is
  * on off, then Remove <Channel> with `onRemove`; and a dashed + after the bubbles opens Add channel, the

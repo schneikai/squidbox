@@ -497,6 +497,7 @@ const styles = StyleSheet.create({
   },
   bubbles: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: space.sm,
   },

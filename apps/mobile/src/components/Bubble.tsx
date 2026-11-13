@@ -10,6 +10,7 @@ type BubbleProps = {
   label: string;
   mark?: ReactNode;
   isSelected?: boolean;
+  isMarkOnly?: boolean;
   hasCaret?: boolean;
   variant?: 'add';
   onPress?: () => void;
@@ -23,12 +24,13 @@ type BubbleProps = {
 const ROUND = sizes.smallButton + space.sm;
 
 /**
- * One choice of a bar of bubbles (a post's channels): a grey disc holding only its `mark` (a logo),
- * or, `isSelected`, a white raised pill with the mark and its `label`, and with `hasCaret` a ⌄ (it
- * opens a menu). Without a mark it is a pill with its label, so it never shows empty. `variant="add"`
- * is the dashed + after them. `label` is always what VoiceOver reads; a bubble is a tab (selected or
+ * One choice of a bar of bubbles (a post's channels): a grey pill with its `mark` (a logo) and its
+ * `label`, or, `isSelected`, a white raised one, and with `hasCaret` a ⌄ (it opens a menu). The label
+ * has one weight either way, so selecting doesn't change the width. `isMarkOnly` is a grey disc holding
+ * only the mark (a post's channels on its card in a list); without a mark it still shows its label, so
+ * it never shows empty. `variant="add"` is the dashed + after them. `label` is always what VoiceOver reads; a bubble is a tab (selected or
  * not) unless `accessibilityRole` says button (the +); `isExpanded` tells, on one that opens a menu,
- * whether it is open. Its width change glides (`reflow`). Without `onPress` it is a plain view, so it
+ * whether it is open. A width change (the caret coming, a new label) glides (`reflow`). Without `onPress` it is a plain view, so it
  * can sit where nothing is to be pressed. `isGrouped` is one of a group its parent names as one (a
  * post's channels on its card in a list): VoiceOver skips it. style is for layout only.
  */
@@ -36,6 +38,7 @@ export default function Bubble({
   label,
   mark,
   isSelected = false,
+  isMarkOnly = false,
   hasCaret = false,
   variant,
   onPress,
@@ -45,7 +48,7 @@ export default function Bubble({
   style,
 }: BubbleProps) {
   const isAdd = variant === 'add';
-  const isRound = isAdd || (!!mark && !isSelected);
+  const isRound = isAdd || (!!mark && isMarkOnly);
   const frame = [
     chipFrame,
     styles.bubble,
@@ -72,7 +75,7 @@ export default function Bubble({
     <>
       {mark}
       {!isRound && (
-        <Text numberOfLines={1} style={[styles.label, isSelected && styles.selectedLabel]}>
+        <Text numberOfLines={1} style={styles.label}>
           {label}
         </Text>
       )}
@@ -128,8 +131,5 @@ const styles = StyleSheet.create({
     ...textStyles.subheadline,
     color: colors.text.primary,
     flexShrink: 1,
-  },
-  selectedLabel: {
-    fontWeight: '600',
   },
 });
