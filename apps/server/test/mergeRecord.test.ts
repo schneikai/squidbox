@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assetCollection, mergeRecord, type FieldClocks, type MergeInput } from '@squidbox/shared';
+import { assetCollection, contactCollection, mergeRecord, type FieldClocks, type MergeInput } from '@squidbox/shared';
 
 const fields = ['deletedAt', 'notes', 'isFavorite', 'isFileSynced', 'isThumbnailSynced', 'isSynced'];
 const asset = (over: Record<string, unknown> = {}) => ({
@@ -38,6 +38,24 @@ describe('mergeRecord', () => {
     expect(older).toMatchObject({ applied: ['isFavorite'], lost: ['notes'], record: { notes: 'n', isFavorite: true } });
 
     const replay = merge({ stored, storedClocks: newer.clocks, sent: stored, sentClocks: { notes: 2000 } });
+    expect(replay).toMatchObject({ applied: [], lost: [] });
+  });
+
+  // The stored row comes back from Postgres as a new object, so a JSON field is compared by content.
+  it('a replay of a JSON field (a contact’s places) holds its value: it is not told it lost', () => {
+    const contact = {
+      id: 'c',
+      updatedAt: 2000,
+      deletedAt: null,
+      name: 'Ann',
+      places: [{ city: 'Bend', state: 'OR', country: 'US' }],
+    };
+    const replay = mergeRecord(contactCollection, {
+      stored: { ...contact, places: [{ country: 'US', state: 'OR', city: 'Bend' }] },
+      storedClocks: { places: 2000 },
+      sent: contact,
+      sentClocks: { places: 2000 },
+    });
     expect(replay).toMatchObject({ applied: [], lost: [] });
   });
 
