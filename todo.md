@@ -220,6 +220,26 @@ encrypted.
 
 ## Code quality
 
+### [ ] Make UI work with the agent reliable
+
+Designing the post channel switcher (PR #127) took a dozen rounds of the owner correcting the agent:
+canvases drawn in hand-written CSS instead of from the real components, no idea how the screens look
+today, a new `Bubble` that copied Chip with the toolbar's raised look, violet in content, and
+proposals that ignored the screens they would sit in. What went wrong and the fixes:
+`docs/reviews/2026-11-13-ui-work-with-the-agent.md`. In short: screenshots of every screen and
+gallery specimen the agent can read, canvases built from them, and a design step in the
+`squidbox-ui` skill that names the component behind every element before a design is shown.
+
+### [ ] Inventory the component library and split it by purpose
+
+`Chip` is used for everything: tags, toggles, a page's tabs (post channels), the assistant's prompt
+buttons, Add, mixed tags, all told apart by props. Inventory what each UI element in the app is and
+which component draws it, then give each purpose its own component, built up atomic-design style
+(tokens → atoms → molecules → the screens' pieces), and make the library rules match CLAUDE.md
+(violet only for the assistant: `Button isSelected` is still violet). Make it easy for the agent to
+find the right one: an index of the components by purpose, with a picture of each, read by the
+`squidbox-ui` skill. Goes with "Make UI work with the agent reliable".
+
 ### [ ] One voice in the UI (review run 2, decision 3)
 
 `docs/reviews/2026-11-12-whole-app-run-2.md` F11–F18: seven shapes of delete confirm, 13 Title
