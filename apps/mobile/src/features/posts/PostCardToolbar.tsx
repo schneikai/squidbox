@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostedAtPicker, { type PostedAtPickerProps } from './PostedAtPicker';
@@ -10,16 +11,18 @@ export type PostCardToolbarProps = {
   isFirst: boolean;
   exclude: AddMediaMenuProps['exclude'];
   onAddMedia: AddMediaMenuProps['onAdd'];
-  postedAt: PostedAtPickerProps['timestamp'];
-  isPostedAtShown: PostedAtPickerProps['isShown'];
-  onChangePostedAt: PostedAtPickerProps['onChange'];
+  postedAt?: PostedAtPickerProps['timestamp'];
+  isPostedAtShown?: PostedAtPickerProps['isShown'];
+  onChangePostedAt?: PostedAtPickerProps['onChange'];
   onAddToThread?: () => void;
   onActivate: () => void;
+  trailing?: ReactNode;
 };
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
-// Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and ⊕ Add to
-// thread on the trailing side (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
+// Posted time on the first card (`isFirst` with `onChangePostedAt`; only its clock until
+// `isPostedAtShown`) and on the trailing side `trailing` (a following card's text counter) and ⊕ Add
+// to thread (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
 // the one being edited.
 export default function PostCardToolbar({
   isFirst,
@@ -30,6 +33,7 @@ export default function PostCardToolbar({
   onChangePostedAt,
   onAddToThread,
   onActivate,
+  trailing,
 }: PostCardToolbarProps) {
   function handleAddMedia(toggle: () => void) {
     onActivate();
@@ -38,7 +42,7 @@ export default function PostCardToolbar({
 
   function handleChangePostedAt(timestamp: PostedAtPickerProps['timestamp']) {
     onActivate();
-    onChangePostedAt(timestamp);
+    onChangePostedAt?.(timestamp);
   }
 
   // Only the ⊕ calls it, and it shows only with `onAddToThread`.
@@ -61,15 +65,21 @@ export default function PostCardToolbar({
         exclude={exclude}
         onAdd={onAddMedia}
       />
-      {isFirst && <PostedAtPicker timestamp={postedAt} isShown={isPostedAtShown} onChange={handleChangePostedAt} />}
-      {onAddToThread && (
-        <Button
-          icon="add-circle"
-          colorPalette="accent"
-          accessibilityLabel="Add to thread"
-          onPress={handleAddToThread}
-          style={styles.trailing}
-        />
+      {isFirst && onChangePostedAt && (
+        <PostedAtPicker timestamp={postedAt ?? null} isShown={!!isPostedAtShown} onChange={handleChangePostedAt} />
+      )}
+      {(trailing || onAddToThread) && (
+        <View style={styles.trailing}>
+          {trailing}
+          {onAddToThread && (
+            <Button
+              icon="add-circle"
+              colorPalette="accent"
+              accessibilityLabel="Add to thread"
+              onPress={handleAddToThread}
+            />
+          )}
+        </View>
       )}
     </View>
   );
@@ -84,5 +94,8 @@ const styles = StyleSheet.create({
   },
   trailing: {
     marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
   },
 });

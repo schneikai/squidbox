@@ -4,7 +4,7 @@ import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-fl
 import PostAsset, { type EditorPostAsset } from './PostAsset';
 
 import useHaptics from '@/hooks/useHaptics';
-import { scale, space } from '@/styles/designTokens';
+import { colors, scale, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
@@ -12,16 +12,22 @@ import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 export type PostAssetsEditorProps = {
   postAssets: EditorPostAsset[];
   onChange: (postAssets: EditorPostAsset[]) => void;
+  maxCount?: number | null;
   style: StyleProp<ViewStyle>;
 };
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list. style is for layout only.
-export default function PostAssetsEditor({ postAssets, onChange, style }: PostAssetsEditorProps) {
+// hold one to reorder, × to take it out. `onChange` gets the new list. With `maxCount` (its channel's
+// limit) the caption counts against it ("2 of 4 media"), red over it. style is for layout only.
+export default function PostAssetsEditor({ postAssets, onChange, maxCount, style }: PostAssetsEditorProps) {
   const haptics = useHaptics();
 
-  const countInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
+  const countInfo =
+    maxCount != null
+      ? `${postAssets.length} of ${maxCount} media`
+      : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
+  const isOver = maxCount != null && postAssets.length > maxCount;
 
   function deletePostAsset(postAsset: EditorPostAsset) {
     onChange(postAssets.filter((x) => x.id !== postAsset.id));
@@ -54,7 +60,7 @@ export default function PostAssetsEditor({ postAssets, onChange, style }: PostAs
           />
         )}
       />
-      <Text style={listTextStyles.caption}>{caption}</Text>
+      <Text style={[listTextStyles.caption, isOver && styles.over]}>{caption}</Text>
     </View>
   );
 }
@@ -65,6 +71,9 @@ const styles = StyleSheet.create({
   },
   strip: {
     gap: space.sm,
+  },
+  over: {
+    color: colors.status.danger,
   },
   tile: {
     width: scale(120),

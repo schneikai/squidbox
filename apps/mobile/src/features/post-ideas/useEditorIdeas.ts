@@ -17,16 +17,24 @@ type EditorIdeasOptions = {
   posts: ChatDraftPost[];
   activeKey: string;
   setText: (key: string, text: string) => void;
+  startsOnItsOwn?: boolean;
 };
 
 /**
- * The post editor's one assistant chat for all its posts (useSubjectChat) and its ideas starting on
- * their own (shouldStartIdeas): once per sheet, as the first post's turn, with the user's prompt of
+ * A post editor screen's one assistant chat for all its posts (useSubjectChat) and its ideas starting
+ * on their own (shouldStartIdeas, unless not `startsOnItsOwn`: a channel's step): once per screen, as the first post's turn, with the user's prompt of
  * the kind `ideas`; the chat tags the photos first. It sends without watching the chat (useChatSends),
  * so the editor doesn't render with each change of it: its trays do (IdeasTray). → the chat's id
  * (null until open) and the user's ideas `settings`, for the trays.
  */
-export default function useEditorIdeas({ kind, ideas, posts, activeKey, setText }: EditorIdeasOptions) {
+export default function useEditorIdeas({
+  kind,
+  ideas,
+  posts,
+  activeKey,
+  setText,
+  startsOnItsOwn = true,
+}: EditorIdeasOptions) {
   const sessionId = useSubjectChat({ kind, posts, activeKey, setText });
   const { send } = useChatSends(sessionId);
   const settings = useIdeaSettings();
@@ -38,7 +46,7 @@ export default function useEditorIdeas({ kind, ideas, posts, activeKey, setText 
   const setting = settings?.[ideas];
 
   useEffect(() => {
-    if (hasStartedRef.current || firstKey === undefined || setting === undefined) return;
+    if (!startsOnItsOwn || hasStartedRef.current || firstKey === undefined || setting === undefined) return;
     const isStarting = shouldStartIdeas({
       kind,
       ideas,
@@ -49,7 +57,7 @@ export default function useEditorIdeas({ kind, ideas, posts, activeKey, setText 
       isFirstSyncDone: isFirstSyncDone === true,
     });
     if (isStarting && send(ideasTurns.ideas(ideas, setting, firstKey))) hasStartedRef.current = true;
-  }, [firstKey, setting, kind, ideas, hasMedia, isAvailable, isFirstSyncDone, send]);
+  }, [startsOnItsOwn, firstKey, setting, kind, ideas, hasMedia, isAvailable, isFirstSyncDone, send]);
 
   return { sessionId, settings };
 }

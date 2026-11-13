@@ -39,6 +39,7 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import ChannelLogo from '@/features/channels/ChannelLogo';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
@@ -215,6 +216,12 @@ export default function ComponentGalleryScreen() {
             <Chip variant="mixed" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
+            <Chip
+              label="Bluesky"
+              leading={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
+              hasCaret
+              onPress={noop}
+            />
           </ChipRow>
         </Specimen>
       </>

@@ -30,7 +30,8 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  *   </MenuButton>
  *
  * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
- * by a wider band, as iOS groups it; a menu drawn by one component (SortFilterMenu) parts its own.
+ * by a wider band, as iOS groups it; a `<Divider variant="menu" />` among them breaks them into
+ * groups; a menu drawn by one component (SortFilterMenu) parts its own.
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */
@@ -75,23 +76,20 @@ export default function MenuButton({
   );
 }
 
-// The options with a line between each two: a hairline, or a band before a destructive one. Only
-// when every child is a MenuOption.
+// The options with a line between each two: a hairline, or a band before a destructive one. A
+// `Divider` among them is a group break: it stays as the band, and the options around it keep their
+// hairlines. Only when every child is a MenuOption or such a Divider.
 function separated(children: ReactNode): ReactNode {
-  const all = Children.toArray(children);
-  const options = all.filter(
-    (child): child is ReactElement<MenuOptionProps> => isValidElement(child) && child.type === MenuOption,
-  );
-  if (options.length !== all.length) return children;
-  return options.flatMap((option, i) =>
-    i === 0
-      ? [option]
-      : [
-          <Divider
-            key={`divider-${option.key}`}
-            variant={option.props.colorPalette === 'danger' ? 'menu' : 'menuRow'}
-          />,
-          option,
-        ],
-  );
+  const all = Children.toArray(children).filter(isValidElement);
+  if (all.length !== Children.toArray(children).length) return children;
+  if (!all.every((child) => child.type === MenuOption || child.type === Divider)) return children;
+  return all.flatMap((child, i) => {
+    const previous = all[i - 1];
+    if (child.type !== MenuOption || !previous || previous.type !== MenuOption) return [child];
+    const option = child as ReactElement<MenuOptionProps>;
+    return [
+      <Divider key={`divider-${option.key}`} variant={option.props.colorPalette === 'danger' ? 'menu' : 'menuRow'} />,
+      option,
+    ];
+  });
 }

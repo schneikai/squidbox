@@ -1,12 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import PostEditor, { type EditedPost } from '@/features/posts/PostEditor';
+import PostEditor from '@/features/posts/PostEditor';
+import type { EditedPost } from '@/features/posts/draft/postDraftReducer';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import usePosts from '@/providers/posts/usePosts';
 import readPost from '@/sync/queries/readPost';
 import changedValues from '@/utils/changedValues';
 
-// Edits a post and its thread (the post as read carries its `threadPosts`), seeded once from what it
+// Edits a post, its thread and its other channels (the post as read carries its `threadPosts` and
+// `channelPosts`), seeded once from what it
 // is when the screen opens, and saves what the user changed from that seed; a post deleted meanwhile
 // (e.g. by a sync) closes the editor.
 export default function EditPostScreen() {

@@ -18,11 +18,13 @@ export type MenuOptionProps = MenuItemContentProps & { onPress?: () => unknown }
 
 // A menu row. The menu closes after `onPress` unless it returns false. `colorPalette="danger"` for
 // one that deletes, `isSelected` for the current choice, `isHeader` for the row that leads back
-// out of a panel (Filter).
+// out of a panel (Filter), `leading` a mark before the label, `disabled` a choice not open now.
 export default function MenuOption({
   onPress,
   label,
   icon,
+  leading,
+  disabled = false,
   trailing,
   colorPalette,
   isSelected = false,
@@ -31,13 +33,16 @@ export default function MenuOption({
   return (
     <MenuOptionBase
       onSelect={onPress}
+      disabled={disabled}
       style={popupMenuStyles.row}
       accessibilityRole="menuitem"
-      accessibilityState={{ selected: isSelected }}
+      accessibilityState={{ selected: isSelected, disabled }}
     >
       <MenuItemContent
         label={label}
         icon={icon}
+        leading={leading}
+        disabled={disabled}
         trailing={trailing}
         colorPalette={colorPalette}
         isSelected={isSelected}
