@@ -1,9 +1,9 @@
 import type { AlbumTagsPhoto } from './albumTagsDraft';
 
-import type { AppSettings } from '@/features/app-settings/appSettingsDefaults';
-import assetQuery from '@/features/asset-list/assetQuery';
+import type { AppSettings } from '@/providers/app-settings/appSettingsDefaults';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
+import assetQuery from '@/sync/queries/assetQuery';
 import { readByIds } from '@/sync/readByIds';
 import readLiveAlbum from '@/sync/readLiveAlbum';
 import getAlbumSortOrder from '@/utils/albums/getAlbumSortOrder';

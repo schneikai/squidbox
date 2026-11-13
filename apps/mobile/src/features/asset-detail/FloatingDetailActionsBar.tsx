@@ -4,11 +4,10 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import FloatingPill from './FloatingPill';
-
 import Button from '@/components/Button';
-import useAssets from '@/features/assets-context/useAssets';
-import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
+import FloatingPill from '@/components/floating-bars/FloatingPill';
+import useAssets from '@/providers/assets/useAssets';
+import useDeletedAssetsActions from '@/providers/assets/useDeletedAssetsActions';
 import { layout } from '@/styles/designTokens';
 import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';

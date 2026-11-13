@@ -1,9 +1,8 @@
 import type { LoginRequest, LoginResponse } from '@squidbox/shared';
 
-import api from '../api';
-import requireApiBaseUrl from '../requireApiBaseUrl';
-
 import type { Session } from '@/library/session';
+import api from '@/utils/cloud-api/api';
+import requireApiBaseUrl from '@/utils/cloud-api/requireApiBaseUrl';
 
 // Signs in and resolves the session the server answered with; the caller stores it once its
 // library is open.

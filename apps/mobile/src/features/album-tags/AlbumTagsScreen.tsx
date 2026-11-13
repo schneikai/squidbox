@@ -12,10 +12,10 @@ import EditSheet from '@/components/EditSheet';
 import TagsField from '@/components/TagsField';
 import TagsSection from '@/components/TagsSection';
 import { SectionFooter } from '@/components/settings-list/SettingsList';
-import useAppSettings from '@/features/app-settings/useAppSettings';
 import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
 import { getDb } from '@/sync/db/client';
 
 /**

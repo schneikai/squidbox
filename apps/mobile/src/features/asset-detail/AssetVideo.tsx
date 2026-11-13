@@ -8,7 +8,7 @@ import AssetMessage, { type AssetMessageText } from './AssetMessage';
 import type { AssetVideo as AssetVideoValue, VideoStatus } from './useAssetVideo';
 
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
 import { colors, motion, sizes } from '@/styles/designTokens';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import isUnavailableStatus from '@/utils/assets/files/isUnavailableStatus';

@@ -1,8 +1,8 @@
 import { Text } from 'react-native';
 
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import listTextStyles from '@/styles/listTextStyles';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 
 type AlbumLastPostedAtProps = { album: AlbumListRow };

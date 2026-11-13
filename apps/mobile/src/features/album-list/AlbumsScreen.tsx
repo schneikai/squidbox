@@ -21,10 +21,10 @@ import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlace
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import starredAlbums from '@/features/album-list/starredAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
-import useAlbums from '@/features/albums-context/useAlbums';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useScrollY from '@/hooks/useScrollY';
+import useAlbums from '@/providers/albums/useAlbums';
 import { layout } from '@/styles/designTokens';
 import isBlank from '@/utils/isBlank';
 import pluralizeText from '@/utils/pluralizeText';

@@ -3,12 +3,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost as createPostRecord, createThread, makeAlbumRecord, makeAssetRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
-import postQuery from '../src/features/post-list/postQuery';
-import readPost from '../src/features/post-list/readPost';
 import * as repo from '../src/sync/assetsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import postQuery from '../src/sync/queries/postQuery';
+import readPost from '../src/sync/queries/readPost';
 import { makeRepository } from '../src/sync/repository';
 
 type Descriptor = Parameters<typeof postQuery>[0];

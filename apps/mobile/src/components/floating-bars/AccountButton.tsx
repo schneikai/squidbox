@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
-import useCloud from '@/features/cloud/useCloud';
+import useCloud from '@/providers/cloud/useCloud';
 import { colors, radii, scale, shadows, sizes, textStyles } from '@/styles/designTokens';
 
 const SIZE = scale(34);

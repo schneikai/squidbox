@@ -1,8 +1,8 @@
 import { File, type UploadProgress, type UploadResult, UploadType } from 'expo-file-system';
 
-import UploadFailedError from '@/features/cloud/assets/UploadFailedError';
-import cancelledError from '@/features/cloud/assets/cancelledError';
 import type { SyncIdentity } from '@/library/sessionMatches';
+import UploadFailedError from '@/utils/cloud-api/assets/UploadFailedError';
+import cancelledError from '@/utils/cloud-api/assets/cancelledError';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
 import { clientHeader } from '@/utils/cloud-api/clientHeader';
 import envelopeMessage from '@/utils/cloud-api/envelopeMessage';

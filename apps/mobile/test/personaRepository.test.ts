@@ -2,7 +2,7 @@ import { PERSONA_LIMITS } from '@squidbox/shared';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
-import { makeTestDb } from './helpers/testDb';
+import { makeMeasuredTestDb, makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { clearOutboxRows } from '../src/sync/outbox';
@@ -146,5 +146,28 @@ describe('personaRepository', () => {
     expect((await readPersona(db, USER))!.rules).toEqual(['a']);
     await removeRule(db, USER, { index: 0, text: 'b' });
     expect((await readPersona(db, USER))!.rules).toEqual(['a']);
+  });
+
+  it('keeps both rules when two are added at once', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['a'] });
+    expect(await Promise.all([addRule(db, USER, 'b'), addRule(db, USER, 'c')])).toEqual(['added', 'added']);
+    expect((await readPersona(db, USER))!.rules).toEqual(['a', 'b', 'c']);
+  });
+
+  it('edits the rules as stored when the write runs, never a list read before a save in between', async () => {
+    const db = makeTestDb();
+    await savePersona(db, USER, { rules: ['a', 'b'] });
+    await Promise.all([
+      removeRule(db, USER, { index: 0, text: 'a' }),
+      updateRule(db, USER, { index: 1, text: 'b' }, 'B'),
+    ]);
+    expect((await readPersona(db, USER))!.rules).toEqual(['B']);
+  });
+
+  it('adds a rule in one transaction, reading the persona only inside it', async () => {
+    const { db, measure } = makeMeasuredTestDb();
+    await savePersona(db, USER, { rules: ['a'] });
+    expect((await measure(() => addRule(db, USER, 'b'))).statements).toBe(5);
   });
 });

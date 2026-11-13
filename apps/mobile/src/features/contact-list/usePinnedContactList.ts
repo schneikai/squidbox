@@ -1,9 +1,9 @@
-import contactListQuery from './contactListQuery';
 import pinnedList from './pinnedList';
 
 import useOpenLibrary from '@/library/useOpenLibrary';
 import { readContactSettings } from '@/sync/contactSettingsRepository';
 import * as schema from '@/sync/db/schema';
+import contactListQuery from '@/sync/queries/contactListQuery';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 const listsQuery = contactListQuery({ withMembers: false });

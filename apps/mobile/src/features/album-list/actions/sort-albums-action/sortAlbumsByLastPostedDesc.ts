@@ -1,4 +1,4 @@
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 export type PostedAlbum = Pick<AlbumListRow, 'lastPostedAt'>;
 

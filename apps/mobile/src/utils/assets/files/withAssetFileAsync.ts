@@ -3,8 +3,8 @@ import { File } from 'expo-file-system';
 import getAssetFileSourceAsync from './getAssetFileSourceAsync';
 import type { AssetFileAsset, AssetFileLocation } from './getAssetFileStatusAsync';
 
-import downloadAssetFileAsync, { type DownloadProgressOptions } from '@/features/cloud/assets/downloadAssetFileAsync';
 import { getDownloadFolderUri, markDownloadUsed } from '@/utils/assets/assetStorage';
+import downloadAssetFileAsync, { type DownloadProgressOptions } from '@/utils/cloud-api/assets/downloadAssetFileAsync';
 import deletePath from '@/utils/files/deletePath';
 
 export type WithAssetFileOptions = AssetFileLocation & DownloadProgressOptions;

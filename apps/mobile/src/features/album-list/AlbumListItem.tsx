@@ -2,13 +2,13 @@ import { StyleSheet, View } from 'react-native';
 
 import Badge from '@/components/Badge';
 import CoverImage from '@/components/CoverImage';
-import FavoriteAlbumIndicator from '@/components/FavoriteAlbumIndicator';
 import Text from '@/components/Text';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import AlbumLastPostedAt from '@/features/album-list/AlbumLastPostedAt';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import FavoriteAlbumIndicator from '@/features/album-list/FavoriteAlbumIndicator';
 import cornerStyles from '@/styles/cornerStyles';
 import { layout, space } from '@/styles/designTokens';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 type AlbumListItemProps = { album: AlbumListRow; elementWidth: number };
 

@@ -1,6 +1,6 @@
 import { MIN_REREAD_INTERVAL } from '@/constants';
-import albumQuery, { type AlbumListRow, type AlbumQueryScope } from '@/features/album-list/albumQuery';
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
+import albumQuery, { type AlbumListRow, type AlbumQueryScope } from '@/sync/queries/albumQuery';
 import { type LiveOptions, useLiveQueryState } from '@/sync/useLiveQuery';
 
 /**

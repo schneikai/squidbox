@@ -1,7 +1,7 @@
 import type { AssetRecord } from '@squidbox/shared';
 import { Directory, type DownloadProgress, File } from 'expo-file-system';
 
-import cancelledError from '@/features/cloud/assets/cancelledError';
+import cancelledError from '@/utils/cloud-api/assets/cancelledError';
 
 const PROGRESS_THROTTLE = 250; // ms
 

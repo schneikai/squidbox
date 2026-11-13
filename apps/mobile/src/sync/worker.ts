@@ -39,8 +39,9 @@ import {
 import { sweepPurgedFiles, type RemoveFiles } from './sweepPurgedFiles';
 import type { SyncTransport } from './transport';
 import { upsertRows } from './upsertRows';
-import type { LibraryPaths } from '../library/libraryPaths';
-import type { SyncIdentity } from '../library/sessionMatches';
+
+import type { LibraryPaths } from '@/library/libraryPaths';
+import type { SyncIdentity } from '@/library/sessionMatches';
 
 const PULL_LIMIT = 1000; // server/contract cap
 // Bytes of mutations per request: half the server's body limit, so a batch of large records never
@@ -569,7 +570,7 @@ async function withSyncRun(work: SyncWork, blocked: () => void): Promise<void> {
   const { db, identity, library } = syncTarget;
   // Their session store and file system need the native modules the tests lack.
   const { httpTransport } = await import('./transport');
-  const { purgedFilesRemover } = await import('../library/fs');
+  const { purgedFilesRemover } = await import('@/library/fs');
   const { fileUploader } = await import('./fileUploads');
   const removeFiles = purgedFilesRemover(library);
   const uploadFile = fileUploader(identity, library);
