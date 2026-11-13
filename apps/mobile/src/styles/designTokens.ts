@@ -46,6 +46,16 @@ const palette = {
   cyan100: '#B1F1FF',
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
+  // The channels' brand colors, each Simple Icons' hex for it (features/channels/channelGlyphs.ts).
+  brandX: '#000000',
+  brandBluesky: '#1185FE',
+  brandThreads: '#000000',
+  brandInstagram: '#FF0069',
+  brandTiktok: '#000000',
+  brandYoutube: '#FF0000',
+  brandReddit: '#FF4500',
+  brandPatreon: '#000000',
+  brandOnlyfans: '#00AFF0',
 };
 
 // Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
@@ -99,6 +109,18 @@ export const colors = {
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen
     splash: palette.violet900, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot and first-sync screens (SplashStage)
+  },
+  // A channel's logo in its brand's official color (ChannelLogo).
+  brand: {
+    x: palette.brandX,
+    bluesky: palette.brandBluesky,
+    threads: palette.brandThreads,
+    instagram: palette.brandInstagram,
+    tiktok: palette.brandTiktok,
+    youtube: palette.brandYoutube,
+    reddit: palette.brandReddit,
+    patreon: palette.brandPatreon,
+    onlyfans: palette.brandOnlyfans,
   },
   octopus: {
     // The octopus's bubbles (OctopusBubble), light cyan on the violet splash and the light app alike;

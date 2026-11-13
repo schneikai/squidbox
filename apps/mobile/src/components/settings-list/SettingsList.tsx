@@ -74,7 +74,8 @@ export type RowProps = {
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
 // long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
 // (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
-// `onLongPress` is for a row with a menu of its own (a list's Edit and Delete), on a pressable row.
+// `onLongPress` is for a row with a menu of its own (a list's Edit and Delete): with it alone the row
+// takes a hold and no tap (a channel's Delete).
 // `leading` may be several parts (a status icon and a thumbnail), set in a row.
 export function Row({
   label,
@@ -110,7 +111,7 @@ export function Row({
     </RowSlots>
   );
 
-  if (onPress) {
+  if (onPress || onLongPress) {
     return (
       <Pressable
         onPress={onPress}
