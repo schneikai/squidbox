@@ -59,8 +59,7 @@ export const albumRepo = makeRepository('albums', clientSchema.albums);
 export const posts = makeRepository('posts', clientSchema.posts);
 
 export const at = (t: number) => vi.setSystemTime(t);
-const syncedKeys = (collection: string) =>
-  Object.keys((collectionsByName[collection]!.schema as unknown as { shape: object }).shape);
+const syncedKeys = (collection: string) => Object.keys(collectionsByName[collection]!.schema.shape);
 /** The synced fields of a row, as the wire carries them. */
 export const synced = (collection: string, row: Record<string, unknown> | undefined) =>
   row && Object.fromEntries(syncedKeys(collection).map((key) => [key, row[key] ?? null]));

@@ -36,7 +36,7 @@ export const downloadUrlsRequestSchema = z.object({
 });
 export type DownloadUrlsRequest = z.infer<typeof downloadUrlsRequestSchema>;
 
-export const presignedUrlSchema = z.object({ key: z.string(), url: z.string().url() });
+export const presignedUrlSchema = z.object({ key: z.string(), url: z.url() });
 export const downloadUrlsResponseSchema = z.object({
   urls: z.array(presignedUrlSchema),
 });
