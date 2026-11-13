@@ -31,8 +31,8 @@ type PostProps = {
  * then the card of the channel it shows (`channelPost`, else the post's own; PostView, a long press
  * copies a post's text) and each following post's card joined by a short line (PostThreadCards); a tap
  * on another channel's bubble calls `onSelectChannel` with its copy's id (null for the post's own).
- * Then, for the whole post (every channel), the contacts on it, the albums of its pictures, and the
- * other posts from those albums. `post` is a postQuery row read by id (with its `threadPosts` and
+ * Then, for the whole post (every channel) when it has pictures, the contacts on them, their albums,
+ * and the other posts from those albums. `post` is a postQuery row read by id (with its `threadPosts` and
  * `channelPosts`).
  */
 export default function Post({
@@ -88,14 +88,19 @@ export default function Post({
         <PostThreadCards post={channelPost ?? post} />
       </Animated.View>
 
-      {/* Contacts go on photos: a post shows who is on its photos (every channel's), and one without any reads none. */}
-      {assetIds.length > 0 && <ContactChipsSection scope={{ photoIds: assetIds }} isFlush />}
+      {/* Contacts and albums go on photos (every channel's): a post without any has none, and so no other posts from its
+          albums either. */}
+      {assetIds.length > 0 && (
+        <>
+          <ContactChipsSection scope={{ photoIds: assetIds }} isFlush />
 
-      <ScreenSectionHeader title="Posted Albums" isFlush />
-      <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />
+          <ScreenSectionHeader title="Albums" isFlush />
+          <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />
 
-      <ScreenSectionHeader title="Other Posts" isFlush />
-      <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
+          <ScreenSectionHeader title="Other posts" isFlush />
+          <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
+        </>
+      )}
     </ScrollView>
   );
 }
