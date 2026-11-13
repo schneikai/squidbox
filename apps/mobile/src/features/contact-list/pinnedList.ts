@@ -1,8 +1,7 @@
-import { builtInContactList } from './builtInContactLists';
-import type { ContactScope } from './contactQuery';
-
 import type { ContactSettings } from '@/sync/contactSettingsRepository';
 import type * as schema from '@/sync/db/schema';
+import { builtInContactList } from '@/sync/queries/builtInContactLists';
+import type { ContactScope } from '@/sync/queries/contactQuery';
 
 /** What shows at the top of Contacts in place of Favorites: its list's id, name and contacts' scope. */
 export type PinnedContactList = { id: string; name: string; scope: ContactScope };

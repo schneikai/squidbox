@@ -5,10 +5,10 @@ import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import PostList from '@/features/post-list/PostList';
 import postSortOptions from '@/features/post-list/actions/sort-posts-action/postSortOptions';
-import postQuery, { type PostSort } from '@/features/post-list/postQuery';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useScrollY from '@/hooks/useScrollY';
+import postQuery, { type PostSort } from '@/sync/queries/postQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 export default function PostsScreen() {

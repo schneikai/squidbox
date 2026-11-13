@@ -13,15 +13,15 @@ import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAddAlbumAction from '@/features/album-list/actions/add-album-action/useAddAlbumAction';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
 import albumAssetCountText from '@/features/album-list/albumAssetCountText';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
-import useAlbums from '@/features/albums-context/useAlbums';
 import useSearchText from '@/hooks/useSearchText';
 import useSheetSearchList from '@/hooks/useSheetSearchList';
 import listParam from '@/lib/listParam';
+import useAlbums from '@/providers/albums/useAlbums';
 import { sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 /**
  * Adds the assets (`?assetIds=`) to the album tapped and closes. The user's albums, not archived ones,

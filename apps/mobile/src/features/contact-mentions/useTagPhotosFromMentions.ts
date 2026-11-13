@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import readMentionedContactPhotos from './readMentionedContactPhotos';
 
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
-import useContacts from '@/features/contacts-context/useContacts';
+import useContacts from '@/providers/contacts/useContacts';
 import { getDb } from '@/sync/db/client';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';

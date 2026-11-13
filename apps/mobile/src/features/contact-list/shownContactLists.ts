@@ -1,6 +1,5 @@
-import type { ContactSort } from './contactSortOptions';
-
 import { matchingIds } from '@/sync/matchingIds';
+import type { ContactSort } from '@/sync/queries/contactQuery';
 
 type ShownList = { id: string; name: string; createdAt: number };
 

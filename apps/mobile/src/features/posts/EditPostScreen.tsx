@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import readPost from '@/features/post-list/readPost';
 import PostEditor, { type EditedPost } from '@/features/posts/PostEditor';
-import usePosts from '@/features/posts-context/usePosts';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
+import usePosts from '@/providers/posts/usePosts';
+import readPost from '@/sync/queries/readPost';
 import changedValues from '@/utils/changedValues';
 
 // Edits a post and its thread (the post as read carries its `threadPosts`), seeded once from what it

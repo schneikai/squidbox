@@ -1,5 +1,6 @@
 import { useNavigation } from 'expo-router';
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, interpolate, Extrapolation, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,8 +12,6 @@ import useSelectModeProgress from './useSelectModeProgress';
 import useTitleReveal from './useTitleReveal';
 
 import Button from '@/components/Button';
-import SelectionActions, { type SelectionActionsProps } from '@/features/asset-list/SelectionActions';
-import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import { colors, layout, space, textStyles } from '@/styles/designTokens';
 
 // The scroll offset (pt) by which the large title is gone and the small one starts to show.
@@ -25,23 +24,17 @@ export type FloatingHeaderProps = {
   onAdd: () => void;
 } & (
   | {
-      selection: AssetSelection;
-      selectionActions: SelectionActionsProps['actions'];
-      onDelete?: SelectionActionsProps['onDelete'];
+      /** The screen's select mode (useToggleSelectAssetsAction's selection). */
+      selection: { isSelectMode: boolean; toggleSelectMode: () => void };
+      /** What the pill shows in select mode: the screen's selection actions. */
+      selectionSlot: ReactNode;
     }
-  | { selection?: undefined; selectionActions?: undefined; onDelete?: undefined }
+  | { selection?: undefined; selectionSlot?: undefined }
 );
 
 // The main screens' header. `title` is the screen's title. A screen with select mode passes its `selection`
-// (useToggleSelectAssetsAction), the `selectionActions` (useAssetSelectionActions) and `onDelete`.
-export default function FloatingHeader({
-  title,
-  scrollY,
-  onAdd,
-  selection,
-  selectionActions,
-  onDelete,
-}: FloatingHeaderProps) {
+// and, as `selectionSlot`, the actions its pill shows in select mode.
+export default function FloatingHeader({ title, scrollY, onAdd, selection, selectionSlot }: FloatingHeaderProps) {
   const insets = useSafeAreaInsets();
   // Typed routes are off, so the tab's name goes untyped.
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
@@ -114,9 +107,7 @@ export default function FloatingHeader({
       {/* Select mode pill */}
       {selection && (
         <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
-          <FloatingPill>
-            <SelectionActions actions={selectionActions} onDelete={onDelete} onClose={selection.exitSelectMode} />
-          </FloatingPill>
+          <FloatingPill>{selectionSlot}</FloatingPill>
         </Animated.View>
       )}
     </View>

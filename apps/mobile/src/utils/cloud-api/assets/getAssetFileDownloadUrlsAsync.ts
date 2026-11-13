@@ -1,6 +1,6 @@
 import type { DownloadUrlsRequest, DownloadUrlsResponse } from '@squidbox/shared';
 
-import apiWithAuthentication from '../apiWithAuthentication';
+import apiWithAuthentication from '@/utils/cloud-api/apiWithAuthentication';
 
 export type DownloadUrlOptions = Pick<DownloadUrlsRequest, 'expiresIn'>;
 

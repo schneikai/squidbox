@@ -2,13 +2,13 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import leaveWithNewPostSheet from './leaveWithNewPostSheet';
 
-import readPost from '@/features/post-list/readPost';
 import PostEditor, { type EditedPost, type PostEditorPost } from '@/features/posts/PostEditor';
-import usePosts from '@/features/posts-context/usePosts';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
+import usePosts from '@/providers/posts/usePosts';
 import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
+import readPost from '@/sync/queries/readPost';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';

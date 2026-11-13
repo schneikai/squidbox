@@ -1,6 +1,6 @@
 import type { AssetRecord, VisionImage } from '@squidbox/shared';
 
-import type { CloudContextValue } from '@/features/cloud/CloudContext';
+import type { CloudContextValue } from '@/providers/cloud/CloudContext';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';
 import type { AssetFileLocation } from '@/utils/assets/files/getAssetFileStatusAsync';

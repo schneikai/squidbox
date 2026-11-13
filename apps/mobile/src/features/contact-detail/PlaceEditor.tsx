@@ -4,7 +4,7 @@ import { Fragment, useState } from 'react';
 import SuggestionField from './SuggestionField';
 import autofillPlace from './autofillPlace';
 import type { CitySuggestion } from './citySuggestions';
-import { EMPTY_PLACE, storedPlace } from './contactFields';
+import { EMPTY_PLACE } from './contactFields';
 import usePlaceSuggestions from './usePlaceSuggestions';
 
 import Card from '@/components/Card';
@@ -12,6 +12,7 @@ import Divider from '@/components/Divider';
 import EditSheet from '@/components/EditSheet';
 import useEditSheet from '@/hooks/useEditSheet';
 import confirmAsync from '@/utils/confirmAsync';
+import storedPlace from '@/utils/contacts/storedPlace';
 
 const PARTS: { part: keyof ContactPlace; label: string; placeholder: string }[] = [
   { part: 'city', label: 'City', placeholder: 'City' },

@@ -3,10 +3,10 @@ import { eq } from 'drizzle-orm';
 import { describe, it, expect } from 'vitest';
 
 import { makeTestDb } from './helpers/testDb';
-import sortAlbumsByCustomOrder from '../src/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
-import moveAlbum from '../src/features/albums-context/moveAlbum';
+import moveAlbum from '../src/providers/albums/moveAlbum';
 import * as schema from '../src/sync/db/schema';
 import { makeRepository } from '../src/sync/repository';
+import sortAlbumsByCustomOrder from '../src/utils/albums/sortAlbumsByCustomOrder';
 
 type Album = { id: string; createdAt: number; position: string | null };
 

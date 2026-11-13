@@ -3,8 +3,8 @@ import type { ComponentProps } from 'react';
 import PostRowCard from './PostRowCard';
 
 import Text from '@/components/Text';
-import type { PostWithAssets } from '@/features/post-list/postQuery';
 import type { AssetRow } from '@/sync/db/schema';
+import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
 type PostRowCardProps = ComponentProps<typeof PostRowCard>;

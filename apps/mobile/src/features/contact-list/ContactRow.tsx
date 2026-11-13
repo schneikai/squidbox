@@ -4,18 +4,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ContactListPills from './ContactListPills';
 import contactPlaces from './contactPlaces';
-import type { ContactSummary } from './contactQuery';
 
 import Divider from '@/components/Divider';
 import RowSlots from '@/components/RowSlots';
 import SelectIndicator from '@/components/SelectIndicator';
 import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import useContacts from '@/features/contacts-context/useContacts';
 import useHaptics from '@/hooks/useHaptics';
 import longPressAccessibility from '@/lib/longPressAccessibility';
+import useContacts from '@/providers/contacts/useContacts';
 import { colors, layout, press, radii, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import type { ContactSummary } from '@/sync/queries/contactQuery';
 
 // Between the avatar and the text; the divider starts where the text does.
 const AVATAR_INSET = layout.rowInset + sizes.avatar.row + layout.rowLeadingGap;

@@ -1,13 +1,12 @@
 import type { RefreshRequest, RefreshResponse } from '@squidbox/shared';
 
-import SessionChangedError from '../SessionChangedError';
-import api from '../api';
-import errorResponse from '../errorResponse';
-import requireSession from '../requireSession';
-import { updateSession } from '../sessionStore';
-
 import type { Session } from '@/library/session';
 import type { SyncIdentity } from '@/library/sessionMatches';
+import SessionChangedError from '@/utils/cloud-api/SessionChangedError';
+import api from '@/utils/cloud-api/api';
+import errorResponse from '@/utils/cloud-api/errorResponse';
+import requireSession from '@/utils/cloud-api/requireSession';
+import { updateSession } from '@/utils/cloud-api/sessionStore';
 
 let inFlightRefresh: Promise<string> | null = null;
 

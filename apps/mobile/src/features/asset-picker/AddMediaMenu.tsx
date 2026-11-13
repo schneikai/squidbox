@@ -5,9 +5,9 @@ import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { UPLOAD_MEDIA_FROM_DEVICE, UPLOAD_MEDIA_FROM_APP } from '@/constants';
-import type { AssetExclude } from '@/features/asset-list/assetQuery';
-import useAssetPicker from '@/features/asset-picker/useAssetPicker';
-import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
+import useAssetPicker from '@/providers/asset-picker/useAssetPicker';
+import useAddAssetsFromCameraRoll from '@/providers/assets/useAddAssetsFromCameraRoll';
+import type { AssetExclude } from '@/sync/queries/assetQuery';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 export type AddMediaMenuProps = {

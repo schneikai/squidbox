@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import downloadAssetFileAsync from '../src/features/cloud/assets/downloadAssetFileAsync';
+import downloadAssetFileAsync from '../src/utils/cloud-api/assets/downloadAssetFileAsync';
 
 // The download is expo-file-system's native one: it reports this progress, then resolves the file.
 vi.mock('expo-file-system', () => ({
