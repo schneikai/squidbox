@@ -1,4 +1,4 @@
-import type { CloudContextValue } from '@/features/cloud/CloudContext';
+import type { CloudContextValue } from '@/providers/cloud/CloudContext';
 import type { LiveSyncStatus } from '@/sync/useSyncStatus';
 import formatErrorCount from '@/utils/formatErrorCount';
 

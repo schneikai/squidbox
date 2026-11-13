@@ -1,6 +1,6 @@
 import albumSortFunctions from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 

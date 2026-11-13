@@ -5,9 +5,9 @@ import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import type { PostWithAssets } from '@/features/post-list/postQuery';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { layout, scale } from '@/styles/designTokens';
+import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
 type PostViewProps = {

@@ -3,18 +3,18 @@ import { useState, useRef, useMemo, type ReactNode } from 'react';
 
 import CloudSyncContext, { type CloudSyncValue } from './CloudSyncContext';
 
-import uploadFileAsync from '@/features/cloud/assets/uploadFileAsync';
-import useCloud from '@/features/cloud/useCloud';
 import type { OpenLibrary } from '@/library/current';
 import { currentSyncIdentity } from '@/library/currentSyncIdentity';
 import { removeAssetFiles } from '@/library/fs';
 import type { SyncIdentity } from '@/library/sessionMatches';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import useCloud from '@/providers/cloud/useCloud';
 import { isBackupRunning, runBackup, type BackupUploads } from '@/sync/backupRun';
 import { getDb } from '@/sync/db/client';
 import { getAssetFileUri, getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import ensureAssetThumbnailAsync from '@/utils/assets/thumbnails/ensureAssetThumbnailAsync';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import uploadFileAsync from '@/utils/cloud-api/assets/uploadFileAsync';
 import fileSizeToHumanReadable from '@/utils/fileSizeToHumanReadable';
 
 // Exponential moving average time constant (seconds).

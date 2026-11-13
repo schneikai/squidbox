@@ -47,6 +47,8 @@ export interface ServerCollection {
   descriptor: CollectionDescriptor;
   schema: z.ZodObject<z.ZodRawShape>;
   wireColumns: Record<string, PgColumn>;
+  /** The client-facing record as one json value, keys in `wireColumns` order: the pull reads every collection in one statement. */
+  wireJson: SQL;
   /** A collection with a final field keeps the last deletedAt values a restore undid (sync-design §7). */
   restoredDeletions: PgColumn | undefined;
   /** The table's columns, which bound the rows per statement (Postgres takes 65,535 bind parameters). */
@@ -65,6 +67,12 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
       .filter((key) => key in columns)
       .map((key) => [key, columns[key]!]),
   );
+  // json_build_object takes at most 100 arguments, a key and a value per column.
+  if (Object.keys(wireColumns).length > 50) throw new Error(`${descriptor.name}: over 50 wire columns`);
+  const wireJson = sql`json_build_object(${sql.join(
+    Object.entries(wireColumns).map(([key, column]) => sql`${sql.raw(`'${key}'`)}, ${column}`),
+    sql`, `,
+  )})`;
   const restoredDeletions = descriptor.finalField ? columns.restoredDeletions : undefined;
   const written = { ...wireColumns, fieldClock: columns.fieldClock!, ...(restoredDeletions && { restoredDeletions }) };
   const stored = (key: string) => sql`${sql.identifier(getTableName(table))}.${sql.identifier(columns[key]!.name)}`;
@@ -75,6 +83,7 @@ function serverCollection(table: PgTable, descriptor: CollectionDescriptor): Ser
     descriptor,
     schema,
     wireColumns,
+    wireJson,
     restoredDeletions,
     columnCount: Object.keys(columns).length,
     upsertSet: Object.fromEntries(

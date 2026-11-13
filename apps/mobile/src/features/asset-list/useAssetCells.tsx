@@ -5,9 +5,9 @@ import type { AssetSelection } from './actions/toggle-select-assets-action/useTo
 import createSelectionStore from './createSelectionStore';
 
 import quickViewStore from '@/components/quick-view/quickViewStore';
-import useAssets from '@/features/assets-context/useAssets';
 import useHaptics from '@/hooks/useHaptics';
 import useSheetRoute from '@/hooks/useSheetRoute';
+import useAssets from '@/providers/assets/useAssets';
 import type { AssetRow } from '@/sync/db/schema';
 
 export type UseAssetCellsOptions = Partial<Pick<AssetSelection, 'isSelectMode' | 'isAssetSelected'>> & {

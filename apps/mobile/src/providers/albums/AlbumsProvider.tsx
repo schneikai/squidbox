@@ -4,9 +4,9 @@ import { type ReactNode, useMemo } from 'react';
 import AlbumsContext, { type AlbumsContextValue } from './AlbumsContext';
 import moveAlbum from './moveAlbum';
 
-import assetQuery from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
 import { makeEdgeRepository } from '@/sync/edgesRepository';
+import assetQuery from '@/sync/queries/assetQuery';
 import { makeRepository } from '@/sync/repository';
 import { requestSync } from '@/sync/worker';
 import { writeInBatches } from '@/sync/writeInBatches';

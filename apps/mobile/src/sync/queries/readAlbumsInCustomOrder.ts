@@ -1,8 +1,8 @@
 import { isNull } from 'drizzle-orm';
 
-import sortAlbumsByCustomOrder from '@/features/album-list/actions/sort-albums-action/sortAlbumsByCustomOrder';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
+import sortAlbumsByCustomOrder from '@/utils/albums/sortAlbumsByCustomOrder';
 
 /** Every live album row, in the albums' custom order (sortAlbumsByCustomOrder). */
 export default async function readAlbumsInCustomOrder(db: SyncDb): Promise<schema.AlbumRow[]> {

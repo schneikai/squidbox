@@ -7,7 +7,7 @@ import {
   selectionAsync,
 } from 'expo-haptics';
 
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
 
 // The web, and a build without expo-haptics' native module, stay silent.
 const canPlayHaptics = requireOptionalNativeModule('ExpoHaptics') !== null;

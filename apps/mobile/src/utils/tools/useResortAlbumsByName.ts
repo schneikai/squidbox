@@ -1,8 +1,8 @@
 import { positionsInOrder } from '@squidbox/shared';
 
-import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrder';
-import useAlbums from '@/features/albums-context/useAlbums';
+import useAlbums from '@/providers/albums/useAlbums';
 import { getDb } from '@/sync/db/client';
+import readAlbumsInCustomOrder from '@/sync/queries/readAlbumsInCustomOrder';
 
 /**
  * Reorders albums with a numeric name from highest to lowest (e.g. 230, 220, 210) so the list looks

@@ -3,7 +3,6 @@ import { type ReactNode, useMemo, useSyncExternalStore } from 'react';
 import { Alert } from 'react-native';
 
 import CloudContext, { type CloudAccount, type CloudContextValue, type CloudUser } from './CloudContext';
-import preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
 
 import type { Session } from '@/library/session';
 import { openLibraryForSignIn } from '@/library/sessionLibrary';
@@ -11,6 +10,7 @@ import { isSessionAuthenticated, needsReauth as sessionNeedsReauth } from '@/lib
 import useLibrary from '@/library/useLibrary';
 import { withSyncPaused } from '@/sync/worker';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import preloadAssetThumbnailsAsync from '@/utils/cloud-api/assets/preloadAssetThumbnailsAsync';
 import apiLoginAsync from '@/utils/cloud-api/authentication/loginAsync';
 import apiLogoutAsync from '@/utils/cloud-api/authentication/logoutAsync';
 import { dropTokensAsync, getSessionSnapshot, onSessionChange } from '@/utils/cloud-api/sessionStore';

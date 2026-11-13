@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { collectionNames, type CollectionName } from '@squidbox/shared';
+import * as schema from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
 import { push } from '../src/sync/push.js';
 import { pull } from '../src/sync/pull.js';
@@ -304,6 +306,17 @@ d('sync engine (Postgres)', () => {
       if (!page.hasMore) break;
     }
     expect(new Set(seen)).toEqual(new Set(records.map((r) => r.id)));
+  });
+
+  it('a pull reads every collection in one statement', async () => {
+    await push(db, USER_A, [mut(assetRecord()), mut(albumRecord(), 'albums'), mut(postRecord(), 'posts')]);
+    let statements = 0;
+    const counted = drizzle(pool, { schema, logger: { logQuery: () => void statements++ } });
+
+    const page = await pull(counted, USER_A, { cursor: 0 });
+
+    expect(statements).toBe(1);
+    expect(Object.values(page.changes).flatMap((change) => change.records)).toHaveLength(3);
   });
 
   describe('tenant isolation', () => {

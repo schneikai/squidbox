@@ -11,7 +11,7 @@ import playVideo from './playVideo';
 import Button from '@/components/Button';
 import Text from '@/components/Text';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
 import { space, typography } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
 import formatVideoDuration from '@/utils/formatVideoDuration';
