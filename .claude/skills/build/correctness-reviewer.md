@@ -5,7 +5,7 @@ Run by the coordinator itself after the quality round. Report only: it changes n
 ```
 /code-review
 
-Report only, apply nothing. Write the findings to .work/<slug>/reports/review-correctness.md: one finding per line with file and line, what is wrong and the fix, must-fix first, nice-to-have after. Must-fix: a bug, data loss or corruption, a security hole, a broken CLAUDE.md rule, or code in the changed lines that duplicates other code, new or existing, instead of extending it. Nice-to-have: everything else, design and refactors included. Return one line: must-fix count, nice-to-have count, report path.
+Report only, apply nothing. Write the findings to .work/<slug>/reports/review-correctness.md: one finding per line with file and line, what is wrong and the fix, must-fix first, nice-to-have after. Must-fix: a bug, data loss or corruption, a security hole, a broken CLAUDE.md rule, or code in the changed lines that duplicates other code, new or existing, instead of extending it (a rule written a second time beside its first copy: the same lookup, read, text or condition in a new shape; grep for it). The latest report in docs/reviews/ names the classes to look for first. Nice-to-have: everything else, design and refactors included. Return one line: must-fix count, nice-to-have count, report path.
 ```
 
 In another agent, use its built-in code review the same way, or review the diff yourself for bugs, unhandled edge cases, swallowed errors and anything that can lose or corrupt data.

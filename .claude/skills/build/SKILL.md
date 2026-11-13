@@ -5,7 +5,7 @@ description: Use when the owner hands over a feature, bug or refactor to deliver
 
 # Build a request
 
-You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself (they might spawn subagents, which only top-level sessions can do), and decide. Each phase has its own brief in this folder; the only difference is who runs it. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md. Read it before you start.
+You are the **coordinator**, always the top-level session. You hold the plan and the ledger, dispatch the planner, the plan reviewer and the implementer as subagents (Claude Code: the Agent tool), run the quality and correctness reviewers yourself (they might spawn subagents, which only top-level sessions can do), and decide. Each phase has its own brief in this folder; the only difference is who runs it. Project specifics (checks, install, preview, coding rules, bookkeeping) come from CLAUDE.md. Read it before you start, and read the latest report in `docs/reviews/` (its risks, its top friction findings and its Rules section): it lists the traps the last review found, and the planner and both reviewers get its path.
 
 Use it for work that touches more than one file. A one-line fix does not need a plan.
 
@@ -56,7 +56,7 @@ Dispatch the implementer ([implementer.md](implementer.md)). It builds the plan,
 
 ### 3. Review
 
-You run both reviewers yourself, each through the agent's review skill, and the implementer applies the findings. Each review is report only and runs no checks; the implementer reruns the project checks after each fix round. Give a reviewer its brief and nothing else: no summary of the change, no hint where to look. A reviewer confirms the hypothesis it is handed.
+You run both reviewers yourself, each through the agent's review skill, and the implementer applies the findings. Each review is report only and runs no checks; the implementer reruns the project checks after each fix round. Give a reviewer its brief and nothing else: no summary of the change, no hint where to look. A reviewer confirms the hypothesis it is handed. The one thing every review asks first: did the change write a rule a second time beside its first copy (the same lookup, read, text, condition or helper, in a new shape)? Both costly PRs of the last review did, and found it only in a fix-up.
 
 1. **Quality.** Run the quality reviewer ([quality-reviewer.md](quality-reviewer.md)); it writes `reports/review-quality.md`. Then continue the implementer: apply the must-fix findings and the nice-to-haves it agrees with, rerun the project checks. Skip it when there is nothing to apply.
 2. **Correctness.** Run the correctness reviewer ([correctness-reviewer.md](correctness-reviewer.md)); it writes `reports/review-correctness.md`. Continue the implementer: apply the must-fix findings and the nice-to-haves it agrees with, rerun the checks. Skip it when there is nothing to apply.
@@ -68,7 +68,8 @@ After each fix round the implementer returns one line per finding it skipped; ru
 1. If bookkeeping is missing (whatever CLAUDE.md asks for when a change is done), continue the implementer with it.
 2. Push the branch and open the PR against the base: what changed and why, the plan's Goal and Design, every `Decision`, skipped findings with reasons, the plan's Verification lines. A step CLAUDE.md attaches to a changed file that needs a tool the implementer lacks is yours, after the push, from the pushed branch.
 3. If the base moved on, continue the implementer: merge the base in, rerun the checks. Push again.
-4. Report to the owner: the PR link, the decisions, what is left for them to verify, and, only if the run turned any up, suggestions in plain words: rules the project should adopt, and open work it noticed. The run records neither anywhere; the owner decides, and whatever the project has for recording rules or open work (a file, a skill) comes into play only when they say so.
+4. Green means the checks of the PR's head commit have all completed and passed. A queued, running or cancelled run is not green, and a green run on an earlier commit of the branch counts for nothing. Report the PR as ready, and merge it when the owner's go-ahead covers that, only then.
+5. Report to the owner: the PR link, the decisions, what is left for them to verify, and, only if the run turned any up, suggestions in plain words: rules the project should adopt, and open work it noticed. The run records neither anywhere; the owner decides, and whatever the project has for recording rules or open work (a file, a skill) comes into play only when they say so.
 
 ### 5. Feedback
 

@@ -3,12 +3,12 @@
 Read-only in the repository: it writes only its report. Fill the brackets.
 
 ```
-Your job is to break this plan before the implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], the request at the top of [LEDGER], CLAUDE.md, and the code the plan touches. A pass without checking the code is not a pass.
+Your job is to break this plan before the implementer does. Assume it is wrong somewhere and find where. Read [PLAN_FILE], the request at the top of [LEDGER], CLAUDE.md, the latest review report [REVIEW_REPORT] (does the plan walk into a risk or friction class it names?), and the code the plan touches. A pass without checking the code is not a pass.
 
 For each point, construct the concrete failure, then look in the code for it:
 - Complete: the whole request, nothing beyond it except the cleanup Design asks for.
 - Grounded: the files and functions it names exist and do what it assumes.
-- Reuse: existing code it rebuilds instead of using.
+- Reuse: existing code it rebuilds instead of using. Grep for each new helper, read, query and text the plan adds; a second copy of a rule beside its first copy is a must-change, and "grep found none" in the plan is a claim to check.
 - Design: duplication, a unit with two jobs, hidden coupling, speculative abstraction or a swallowed error it would create, or duplicated code it touches and leaves alone.
 - Premature: an option, abstraction, file or setting no caller needs yet; what the next feature would have to undo.
 - Done-check: proves the plan is built, and runs on this machine without the owner.

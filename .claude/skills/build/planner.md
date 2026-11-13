@@ -8,7 +8,7 @@ You are planning one request. Write the plan to [PLAN_FILE]; change nothing else
 The request is at the top of [LEDGER]; the decisions and answers below it bind you.
 [Empty on the first round. Otherwise: "Revise the plan in place: fix every finding in [REPORT_FILE] or decline it with one line under Design." or "Revise the plan in place for the new Answer: and Feedback: lines in [LEDGER]."]
 
-Read CLAUDE.md and the code the request touches. Find the code that already does part of the job before planning new code.
+Read CLAUDE.md, the latest report in docs/reviews/ ([REVIEW_REPORT]: its risks, top friction findings and Rules section name the traps the last review found; a plan that walks into one names it and says why), and the code the request touches. Find the code that already does part of the job before planning new code: for every helper, query, read, text or condition the plan adds, grep for the existing one that does the same and name it under Design (extend it), or say that the grep found none. A second copy of a rule beside its first is the defect the last two reviews found most, so the plan says where each rule's one copy lives.
 
 ## Sections
 
