@@ -2,6 +2,10 @@
 export type JsonSchema = { [keyword: string]: unknown };
 
 const DROPPED = new Set(['$schema', 'description', 'default']);
+const SAFE_BOUNDS: Record<string, number> = {
+  minimum: Number.MIN_SAFE_INTEGER,
+  maximum: Number.MAX_SAFE_INTEGER,
+};
 export const LOWER_BOUNDS = ['minLength', 'minimum', 'exclusiveMinimum', 'minItems'];
 export const UPPER_BOUNDS = ['maxLength', 'maximum', 'exclusiveMaximum', 'maxItems'];
 
@@ -11,8 +15,10 @@ export const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.strin
 const isNull = (schema: unknown) => isSchema(schema) && schema.type === 'null' && Object.keys(schema).length === 1;
 
 /**
- * Makes zod-to-json-schema's output comparable (schemaChanges) and small: no `$schema`, descriptions,
- * defaults or `additionalProperties: true`; every `pattern` as a sorted `patterns` set; an `allOf`
+ * Makes Zod's JSON Schema comparable (schemaChanges) and small, and the same as zod-to-json-schema
+ * wrote it before Zod 4 (the snapshots of older builds): no `$schema`, descriptions, defaults,
+ * `additionalProperties: true` or `propertyNames: { type: 'string' }`; no safe-integer bounds on an
+ * integer, nor a pattern beside `format: 'uuid'`; every `pattern` as a sorted `patterns` set; an `allOf`
  * (two `.regex`, or `.trim().pipe()`) merged into one schema with the tightest bound per side; a
  * nullable as `null` in the `type` list; a `const` as a one-value `enum`. Anything else is left as is, for schemaChanges to refuse.
  */
@@ -23,6 +29,12 @@ export function normalize(schema: JsonSchema): JsonSchema {
     // `true` is what an object without `.strict()` says anyway; `false` (strict) stays, as a change to it
     // decides whether a body with a property the server doesn't know is refused.
     if (keyword === 'additionalProperties' && value === true) continue;
+    // A JSON key is a string anyway (a z.record).
+    if (keyword === 'propertyNames' && same(value, { type: 'string' })) continue;
+    // Zod 4 bounds every `.int()` to the safe integers, which are all a JSON number read in JavaScript holds.
+    if (schema.type === 'integer' && SAFE_BOUNDS[keyword] === value) continue;
+    // Zod 4 spells out the check `format: 'uuid'` names already.
+    if (keyword === 'pattern' && schema.format === 'uuid') continue;
     if (keyword === 'const') result.enum = [value];
     else if (keyword === 'pattern') result.patterns = [value];
     else if (keyword === 'properties' && isSchema(value))

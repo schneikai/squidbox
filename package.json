@@ -19,11 +19,11 @@
     "postinstall": "patch-package"
   },
   "devDependencies": {
-    "eslint": "^8.53.0",
-    "knip": "^5.88.1",
+    "eslint": "^10.14.0",
+    "knip": "^6.45.1",
     "patch-package": "^8.0.0",
-    "prettier": "^3.1.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.9"
+    "prettier": "^3.10.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
   }
 }

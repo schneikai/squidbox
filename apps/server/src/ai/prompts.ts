@@ -375,7 +375,8 @@ function stringListSchema(key: string) {
  */
 function stringListSpec<K extends string>(key: K): JsonSchemaSpec<Record<K, string[]>> {
   const list = z.array(z.string());
-  const object = z.object({ [key]: list } as Record<K, typeof list>);
+  // Zod infers no generic key: the object holds the list under `key`.
+  const object = z.object({ [key]: list }) as unknown as z.ZodType<Record<K, string[]>>;
   return {
     name: key,
     jsonSchema: stringListSchema(key),
@@ -430,7 +431,9 @@ function contactFieldsSpec<K extends string>(name: string, fields: readonly K[])
   return {
     name,
     jsonSchema: objectSchema(Object.fromEntries(fields.map((field) => [field, { type: 'string' }]))),
-    zod: z.object(Object.fromEntries(fields.map((field) => [field, contactField])) as Record<K, typeof contactField>),
+    zod: z.object(Object.fromEntries(fields.map((field) => [field, contactField]))) as unknown as z.ZodType<
+      Record<K, string>
+    >,
   };
 }
 

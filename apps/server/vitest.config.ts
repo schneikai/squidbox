@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import { BaseSequencer } from 'vitest/node';
 
-// Without saved file timings (CI has none, and vitest 2.1.9 never reads its own back) vitest starts
+// Without saved file timings (CI has none) vitest starts
 // the largest files first. The database tests wait on Postgres the longest, whatever their size:
 // in a DB run, start them first, so the run doesn't end on one of them alone.
 class DatabaseFirst extends BaseSequencer {

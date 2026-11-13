@@ -75,7 +75,7 @@ function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorPr
   }
 
   return (
-    <Page>
+    <Page testID="ideas-settings-screen">
       <FloatingDetailHeader title={name} onBack={() => navigation.goBack()} />
       <DetailScrollView
         keyboardDismissMode="interactive"

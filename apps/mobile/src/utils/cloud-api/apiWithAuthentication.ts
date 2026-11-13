@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { create, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import SessionChangedError from './SessionChangedError';
 import { API_BASE_URL } from './apiBaseUrl';
@@ -19,7 +19,7 @@ declare module 'axios' {
   }
 }
 
-const apiWithAuthentication = axios.create({
+const apiWithAuthentication = create({
   baseURL: API_BASE_URL,
   timeout: 15000, // fail fast on an unreachable backend instead of hanging (e.g. during startup sync)
 });

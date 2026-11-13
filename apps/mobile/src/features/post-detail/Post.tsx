@@ -9,7 +9,7 @@ import orderPostChannels from '@/features/channels/orderPostChannels';
 import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannelSlide from '@/features/channels/useChannelSlide';
 import useChannels from '@/features/channels/useChannels';
-import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
+import ContactChipsSection from '@/features/contact-links/ContactChipsSection';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
 import postAndThread from '@/features/post-detail/postAndThread';
 import PostRows from '@/features/post-list/PostRows';
@@ -88,8 +88,8 @@ export default function Post({
         <PostThreadCards post={channelPost ?? post} />
       </Animated.View>
 
-      {/* Contacts go on photos: a post without any has none. */}
-      {assetIds.length > 0 && <TargetContactsSection of={{ postId: post.id }} isFlush />}
+      {/* Contacts go on photos: a post shows who is on its photos (every channel's), and one without any reads none. */}
+      {assetIds.length > 0 && <ContactChipsSection scope={{ photoIds: assetIds }} isFlush />}
 
       <ScreenSectionHeader title="Posted Albums" isFlush />
       <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />

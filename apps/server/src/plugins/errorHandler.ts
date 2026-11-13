@@ -7,9 +7,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: FastifyError, request, reply) => {
     // Request validation failures (zod type provider).
     if (hasZodFastifySchemaValidationErrors(error)) {
-      const message = error.validation
-        .map((v) => `${v.instancePath || v.params?.issue?.path?.join('.') || 'body'}: ${v.message}`)
-        .join('; ');
+      const message = error.validation.map((v) => `${v.instancePath}: ${v.message}`).join('; ');
       return reply.code(400).send(errorBody('validation_error', message || 'Invalid request'));
     }
 

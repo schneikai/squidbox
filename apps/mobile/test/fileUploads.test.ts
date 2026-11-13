@@ -40,7 +40,10 @@ describe('fileUploader', () => {
   it('refuses a photo missing from the device without trying the upload', async () => {
     onDevice.clear();
     await expect(run()).rejects.toThrow(
-      new FileUploadRefusedError('Contact photo is missing on this device: choose it again or remove it', ''),
+      new FileUploadRefusedError(
+        'Contact photo is missing on this device: choose it again or remove it',
+        'is missing on this device',
+      ),
     );
     expect(upload).not.toHaveBeenCalled();
   });

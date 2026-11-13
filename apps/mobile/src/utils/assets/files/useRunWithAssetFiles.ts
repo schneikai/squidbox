@@ -17,12 +17,12 @@ let isRunning = false;
 type RunWithAssetFilesOptions = RunWithProgressOptions & { failureTitle: string };
 
 /**
- * Runs `use(uri, asset)` over assets' full-resolution files (see withAssetFileAsync), one by one,
+ * Runs `run(uri, asset)` over assets' full-resolution files (see withAssetFileAsync), one by one,
  * through useRunWithProgress (with its options): the ring follows the downloads, Cancel stops the
  * running one, and a failure says how many went through unless `countsDone: false`. Alerts why when one can't be had (checked up front, without
  * asking the cloud for URLs, so a batch doesn't stop halfway). A tap while a run is going is ignored.
  *
- * `use` may read the file after it returns: downloads are kept, and reused, for a day after their
+ * `run` may read the file after it returns: downloads are kept, and reused, for a day after their
  * last use (deleteStaleDownloadsAsync, at the start of each run, removes them after). Resolves to
  * whether every asset went through.
  */
@@ -33,7 +33,7 @@ export default function useRunWithAssetFiles() {
 
   return async function runWithAssetFilesAsync<A extends AssetFileAsset>(
     assets: readonly A[],
-    use: (uri: string, asset: A) => Promise<unknown> | unknown,
+    run: (uri: string, asset: A) => Promise<unknown> | unknown,
     { failureTitle, countsDone }: RunWithAssetFilesOptions,
   ): Promise<boolean> {
     if (isRunning) return false;
@@ -49,7 +49,7 @@ export default function useRunWithAssetFiles() {
             if (signal.aborted) return false;
             const onFileProgress = (fraction: number) => onProgress(index, assets.length, fraction);
             const options = { isAuthenticated, library, onProgress: onFileProgress, signal };
-            await withAssetFileAsync(asset, options, (uri) => use(uri, asset));
+            await withAssetFileAsync(asset, options, (uri) => run(uri, asset));
             onProgress(index + 1, assets.length);
           }
         },
