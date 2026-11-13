@@ -3,8 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { apiErrorSchema } from '@squidbox/shared';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import type { RouteOptions } from 'fastify';
-import type { ZodType } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import { BODY_LIMIT, buildApp } from '../app.js';
 import { serverCollections } from '../sync/collections.js';
 import { normalize, type JsonSchema } from './normalize.js';
@@ -47,17 +46,29 @@ function clientMigrations(): Contract['clientMigrations'] {
   }));
 }
 
+// As zod-to-json-schema wrote them, which the snapshots of builds from before Zod 4 hold: what a
+// request takes (`io: 'input'`, a field with a default is optional) and every schema in place.
+const JSON_SCHEMA_OPTIONS = {
+  target: 'draft-7',
+  io: 'input',
+  unrepresentable: 'any',
+  reused: 'inline',
+  override: holdBothSidesOfPipe,
+} as const satisfies Parameters<typeof z.toJSONSchema>[1];
+
+// A pipe that doesn't transform (`.trim().pipe(textSchema)`) checks a value against both of its
+// sides: Zod 4 shows the input side only, so the other is added as an allOf (normalize merges it).
+function holdBothSidesOfPipe({ zodSchema, jsonSchema }: { zodSchema: z.core.$ZodType; jsonSchema: JsonSchema }) {
+  if (!(zodSchema instanceof z.ZodPipe)) return;
+  if (zodSchema.in instanceof z.ZodTransform || zodSchema.out instanceof z.ZodTransform) return;
+  const input = { ...jsonSchema };
+  for (const keyword of Object.keys(jsonSchema)) delete jsonSchema[keyword];
+  jsonSchema.allOf = [input, z.toJSONSchema(zodSchema.out, JSON_SCHEMA_OPTIONS)];
+}
+
 /** A zod schema as the contract keeps it; none as `{}`. */
 export const jsonSchemaOf = (schema: unknown): JsonSchema =>
-  schema
-    ? normalize(
-        zodToJsonSchema(schema as ZodType, {
-          target: 'jsonSchema7',
-          $refStrategy: 'none',
-          removeAdditionalStrategy: 'strict',
-        }) as JsonSchema,
-      )
-    : {};
+  schema ? normalize(z.toJSONSchema(schema as z.ZodType, JSON_SCHEMA_OPTIONS) as JsonSchema) : {};
 
 // The dev-only routes (registered only with LIBRARY_COPY_EMAIL) are no build's contract.
 const DEV_ROUTES = '/api/v1/dev/';

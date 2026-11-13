@@ -49,6 +49,16 @@ describe('sync record schemas', () => {
   }
 });
 
+describe('record ids', () => {
+  // Like the uuid column: an id from before the app made v4 uuids (canonicalized on import) has no
+  // version or variant bits, and a record with one must still push.
+  it('are any dashed uuid, with or without its version bits', () => {
+    const base = { createdAt: 1, updatedAt: 1, deletedAt: null };
+    expect(baseRecordSchema.safeParse({ id: '0123abcd-0123-0123-0123-0123456789ab', ...base }).success).toBe(true);
+    expect(baseRecordSchema.safeParse({ id: '0123abcd0123012301230123456789ab', ...base }).success).toBe(false);
+  });
+});
+
 describe('push contract', () => {
   const record = { id: 'x', updatedAt: 1 };
 
@@ -93,7 +103,7 @@ describe('merge fields', () => {
 
   it('file fields are nullable string merge fields of their schema', () => {
     for (const collection of collections) {
-      const { shape } = collection.schema as unknown as z.ZodObject<z.ZodRawShape>;
+      const { shape } = collection.schema as unknown as z.ZodObject<Record<string, z.ZodType>>;
       for (const field of collection.fileFields) {
         const label = `${collection.name}.${field}`;
         expect(collection.mergeFields, label).toContain(field);

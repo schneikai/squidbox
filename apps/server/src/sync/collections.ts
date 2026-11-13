@@ -45,7 +45,7 @@ import {
 export interface ServerCollection {
   table: PgTable;
   descriptor: CollectionDescriptor;
-  schema: z.ZodObject<z.ZodRawShape>;
+  schema: z.ZodObject<Record<string, z.ZodType>>;
   wireColumns: Record<string, PgColumn>;
   /** The client-facing record as one json value, keys in `wireColumns` order: the pull reads every collection in one statement. */
   wireJson: SQL;
@@ -59,7 +59,7 @@ export interface ServerCollection {
 }
 
 function serverCollection(table: PgTable, descriptor: CollectionDescriptor): ServerCollection {
-  const schema = descriptor.schema as z.ZodObject<z.ZodRawShape>;
+  const schema = descriptor.schema as unknown as z.ZodObject<Record<string, z.ZodType>>;
   const columns = getTableColumns(table);
   // In the schema's order, so a record reads the same whether it came from the table or a push.
   const wireColumns = Object.fromEntries(

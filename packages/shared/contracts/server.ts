@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 // GET /up (outside the /api/v1 prefix): the server's stable identity (SERVER_ID), which a session is
 // bound to.
-export const upResponseSchema = z.object({ status: z.literal('ok'), serverId: z.string().uuid() });
+export const upResponseSchema = z.object({ status: z.literal('ok'), serverId: z.guid() });
 export type UpResponse = z.infer<typeof upResponseSchema>;
 
 // What went wrong, by kind (apps/server/src/errors.ts throws them as AppError).

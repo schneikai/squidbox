@@ -61,7 +61,7 @@ function veniceFetch(
 }
 
 /** GET `path` as `schema` describes it. Throws when Venice doesn't answer it. */
-export async function veniceGetJson<S extends z.ZodTypeAny>(path: string, schema: S): Promise<z.infer<S>> {
+export async function veniceGetJson<S extends z.ZodType>(path: string, schema: S): Promise<z.infer<S>> {
   const response = await veniceFetch(path, { timeoutMs: GET_TIMEOUT_MS });
   if (!response.ok) throw new Error(`Venice ${path} failed (${response.status})`);
   return schema.parse(await response.json());
@@ -73,7 +73,7 @@ export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: stri
 export type JsonSchemaSpec<T> = {
   name: string;
   jsonSchema: Record<string, unknown>;
-  zod: z.ZodType<T, z.ZodTypeDef, unknown>;
+  zod: z.ZodType<T>;
 };
 
 const TOO_SLOW = 'The model took too long to answer';

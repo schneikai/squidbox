@@ -10,9 +10,9 @@ export const CONTACT_LINK_TARGETS = ['asset', 'album', 'post'] as const;
 export const contactLinkCollection = defineCollection({
   name: 'contact_links',
   schema: baseRecordSchema.extend({
-    contactId: z.string().uuid(),
+    contactId: z.guid(),
     targetType: z.enum(CONTACT_LINK_TARGETS),
-    targetId: z.string().uuid(),
+    targetId: z.guid(),
   }),
 });
 

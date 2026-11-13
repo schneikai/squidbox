@@ -11,8 +11,8 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 export const albumAssetCollection = defineCollection({
   name: 'album_assets',
   schema: baseRecordSchema.extend({
-    albumId: z.string().uuid(),
-    assetId: z.string().uuid(),
+    albumId: z.guid(),
+    assetId: z.guid(),
     position: textSchema,
   }),
 });

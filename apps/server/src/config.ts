@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // An empty value counts as unset.
-function optionalString<T extends z.ZodTypeAny>(schema: T) {
+function optionalString<T extends z.ZodType>(schema: T) {
   return z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
 }
 
@@ -14,7 +14,9 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
   // Stable identity of this deployment, reported by /up, login and /me so the app can bind a
   // session and its library to the server it belongs to.
-  SERVER_ID: z.string({ required_error: 'SERVER_ID is required' }).uuid('SERVER_ID must be a uuid'),
+  SERVER_ID: z.guid({
+    error: (issue) => (issue.input === undefined ? 'SERVER_ID is required' : 'SERVER_ID must be a uuid'),
+  }),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
@@ -23,10 +25,10 @@ const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().min(1, 'AWS_SECRET_ACCESS_KEY is required'),
   S3_SHARED_BUCKET: z.string().min(1, 'S3_SHARED_BUCKET is required'),
   // Local dev only: point S3 at a MinIO/LocalStack endpoint (path-style). Leave unset for AWS.
-  S3_ENDPOINT: z.string().url().optional(),
+  S3_ENDPOINT: z.url().optional(),
   // Local dev only: public address of that endpoint, used to sign download URLs that a phone can
   // reach (e.g. through a tunnel). Defaults to S3_ENDPOINT.
-  S3_PUBLIC_ENDPOINT: z.string().url().optional(),
+  S3_PUBLIC_ENDPOINT: z.url().optional(),
   S3_FORCE_PATH_STYLE: z
     .enum(['true', 'false'])
     .default('false')
@@ -36,13 +38,13 @@ const envSchema = z.object({
   // ai_not_configured; the key never leaves the server.
   // An empty value counts as unset.
   VENICE_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
-  VENICE_BASE_URL: z.string().url().default('https://api.venice.ai/api/v1'),
+  VENICE_BASE_URL: z.url().default('https://api.venice.ai/api/v1'),
 
   // Local dev only: the copy of the owner's live library (dev/libraryCopy.ts). The account it fills,
   // the live database it reads, and the keys that sign read-only URLs for its files in the live bucket.
   // `npm run dev:local` sets them all.
-  LIBRARY_COPY_EMAIL: optionalString(z.string().email()),
-  LIVE_DATABASE_URL: optionalString(z.string().url()),
+  LIBRARY_COPY_EMAIL: optionalString(z.email()),
+  LIVE_DATABASE_URL: optionalString(z.url()),
   LIVE_AWS_ACCESS_KEY_ID: optionalString(z.string()),
   LIVE_AWS_SECRET_ACCESS_KEY: optionalString(z.string()),
   LIVE_AWS_REGION: z.string().default('eu-west-1'),

@@ -8,20 +8,15 @@ import getNewItemId from '@/utils/getNewItemId';
  * columns unless `fields` has them. Parsed by the collection's schema, so unknown keys are dropped
  * and a missing or wrong field throws, naming it. Fields left undefined take their default.
  */
-export default function newRecord<S extends z.ZodTypeAny>(
+export default function newRecord<S extends z.ZodType<BaseRecord>>(
   collection: CollectionDescriptor<S>,
   defaults: Partial<z.infer<S>> | ((record: BaseRecord & Partial<z.infer<S>>) => Partial<z.infer<S>>),
   fields: Partial<z.infer<S>>,
 ): z.infer<S> {
   const now = Date.now();
   const given = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
-  const record: BaseRecord & Partial<z.infer<S>> = {
-    id: getNewItemId(),
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-    ...given,
-  };
+  const base: BaseRecord = { id: getNewItemId(), createdAt: now, updatedAt: now, deletedAt: null };
+  const record = { ...base, ...given } as BaseRecord & Partial<z.infer<S>>;
   const fallback = typeof defaults === 'function' ? defaults(record) : defaults;
   const result = collection.schema.safeParse({ ...fallback, ...record });
   if (result.success) return result.data;
