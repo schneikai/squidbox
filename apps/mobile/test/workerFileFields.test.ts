@@ -69,12 +69,12 @@ describe('a file field in the sync', () => {
     expect(await outboxRows()).toEqual([]);
   });
 
-  it('uploads nothing for an edit that leaves the photo, a removed photo or a tombstone of a pushed contact', async () => {
+  it('uploads nothing for an edit that leaves the photo, a removed photo or a deleted contact', async () => {
     const kept = await pushedContact({ avatarFilename: 'avatar-a-1.jpg' });
     const removed = await pushedContact({ avatarFilename: 'avatar-b-1.jpg' });
-    const deleted = await pushedContact({ avatarFilename: 'avatar-c-1.jpg' });
     await contacts.update(db, kept.id, { name: 'Renamed' });
     await contacts.update(db, removed.id, { avatarFilename: null });
+    const deleted = await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-c-1.jpg' }));
     await contacts.remove(db, [deleted.id]);
     const uploadFile = recording();
 
@@ -119,6 +119,25 @@ describe('a file field in the sync', () => {
     const uploadFile = recording();
     await runSyncOnce(db, server(), { uploadFile });
     expect(uploadFile).toHaveBeenCalledTimes(1);
+    expect(await outboxRows()).toEqual([]);
+  });
+
+  it('a contact deleted while its photo is missing on this device pushes its tombstone', async () => {
+    const contact = await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-g-1.jpg' }));
+    const missing = recording(async () => {
+      throw new FileUploadRefusedError(
+        'Contact photo is missing on this device: choose it again or remove it',
+        'missing',
+      );
+    });
+    await runSyncOnce(db, server(), { uploadFile: missing });
+    expect(pushed).toEqual([]);
+
+    await contacts.remove(db, [contact.id]);
+    await runSyncOnce(db, server(), { uploadFile: missing });
+
+    expect(missing).toHaveBeenCalledTimes(1);
+    expect(pushed).toMatchObject([{ record: { id: contact.id, deletedAt: expect.any(Number) } }]);
     expect(await outboxRows()).toEqual([]);
   });
 
@@ -193,19 +212,6 @@ describe('a file field in the sync', () => {
       'upload contacts.avatarFilename avatar-x-2.jpg',
       'push contacts avatar-x-2.jpg',
     ]);
-    expect(await outboxRows()).toEqual([]);
-  });
-
-  it('a contact deleted before its photo uploaded uploads it before the tombstone’s push', async () => {
-    const contact = await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
-    await contacts.remove(db, [contact.id]);
-    const uploadFile = recording();
-
-    await runSyncOnce(db, server(), { uploadFile });
-
-    expect(calls).toEqual(['upload contacts.avatarFilename avatar-x-1.jpg', 'push contacts avatar-x-1.jpg']);
-    expect(pushed[0]!.record.deletedAt).toEqual(expect.any(Number));
-    expect(Object.keys(pushed[0]!.fields ?? {})).toContain('avatarFilename');
     expect(await outboxRows()).toEqual([]);
   });
 

@@ -12,6 +12,7 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import ruleResultText from '@/lib/ruleResultText';
 import { getDb } from '@/sync/db/client';
 import { addRule, readPersona, removeRule, type SeededRule, updateRule } from '@/sync/personaRepository';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 
 // One of the Rules, as a draft sheet: `rules/[index]` edits that rule (Save, or Delete), `rules/new`
 // adds one (Add).
@@ -77,8 +78,10 @@ function RuleEditor({ userId, rule }: RuleEditorProps) {
     if (result !== 'added' && result !== 'updated') return { refused: ruleResultText[result] };
   }
 
-  function handleDelete(seeded: SeededRule) {
-    finish(() => removeRule(getDb(), userId, seeded), "Couldn't delete the rule");
+  // Rules have no Deleted list and no Undo, so the delete asks first.
+  async function handleDelete(seeded: SeededRule) {
+    if (!(await confirmDeleteAsync({ name: 'this rule', also: 'It goes from every device.' }))) return;
+    await finish(() => removeRule(getDb(), userId, seeded), "Couldn't delete the rule");
   }
 
   return (

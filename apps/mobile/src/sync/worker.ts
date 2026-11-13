@@ -172,10 +172,9 @@ async function pushPhase(
 }
 
 // The files a row's push needs in storage first: those of its file fields (sync-design §6) the edit
-// changed to a file, that this row hasn't uploaded yet. A tombstone uploads them too (a contact made
-// with a photo and deleted before any sync), so no pushed record names a file the storage lacks and
-// a restore anywhere finds it.
+// changed to a file, that this row hasn't uploaded yet. A tombstone needs none (nothing shows it).
 function filesToUpload(row: schema.OutboxRow): [field: string, filename: string][] {
+  if (row.op !== 'upsert') return [];
   return (collectionsByName[row.collection]?.fileFields ?? []).flatMap((field) => {
     const filename = row.payload[field];
     return field in row.fields && typeof filename === 'string' && !row.uploadedFiles.includes(filename)

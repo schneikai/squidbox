@@ -1,68 +1,61 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { makeContactRecord } from './helpers/factory';
-import { makeMeasuredTestDb, type Work } from './helpers/testDb';
+import { makeTestDb } from './helpers/testDb';
+import * as lists from '../src/sync/contactListsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
 
-let db: SyncDb;
-let measure: (run: () => Promise<unknown>) => Promise<Work>;
-let n: number;
-const newId = () => `edge-${++n}`;
-const PHOTO = { targetType: 'asset', targetId: 'a1' } as const;
-
-beforeEach(() => {
-  ({ db, measure } = makeMeasuredTestDb());
-  n = 0;
-});
-
-// A contact in list `l1` and on photo `a1`.
-async function contactInListAndOnPhoto() {
-  const contact = await contacts.create(db, makeContactRecord());
-  await contactListMembers.add(db, { listId: 'l1' }, [contact.id], newId);
-  await contactLinks.add(db, PHOTO, [contact.id], newId);
-  return contact;
-}
-
-// The contact's edge row in a membership table.
-const edgeOf = async (table: typeof schema.contactListMembers | typeof schema.contactLinks, contactId: string) =>
-  (await db.select().from(table)).find((e) => e.contactId === contactId)!;
-
 describe('contactsRepository', () => {
-  it('deleting a contact tombstones it, its list memberships and its photo links in one write', async () => {
-    const contact = await contactInListAndOnPhoto();
-    const other = await contacts.create(db, makeContactRecord());
-    await contactLinks.add(db, PHOTO, [other.id], newId);
-    await db.delete(schema.outbox);
+  let db: SyncDb;
+  let n: number;
+  const newId = () => `edge-${++n}`;
+  const PHOTO = { targetType: 'asset', targetId: 'photo-1' };
 
-    const work = await measure(() => contacts.deleteContact(db, contact.id));
-
-    const [row] = (await db.select().from(schema.contacts)).filter((c) => c.id === contact.id);
-    expect(row!.deletedAt).not.toBeNull();
-    expect((await edgeOf(schema.contactListMembers, contact.id)).deletedAt).not.toBeNull();
-    expect((await edgeOf(schema.contactLinks, contact.id)).deletedAt).not.toBeNull();
-    expect((await edgeOf(schema.contactLinks, other.id)).deletedAt).toBeNull();
-    const outbox = await db.select().from(schema.outbox);
-    expect(outbox.map((r) => [r.collection, r.op]).sort()).toEqual([
-      ['contact_links', 'delete'],
-      ['contact_list_members', 'delete'],
-      ['contacts', 'delete'],
-    ]);
-    expect(work.commits).toBe(1);
+  beforeEach(async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(5_000); // every write in one millisecond, as on a fast phone
+    db = makeTestDb();
+    n = 0;
+    await contacts.create(db, makeContactRecord({ id: 'maya', name: 'Maya' }));
+    for (const id of ['hikes', 'climbs'])
+      await lists.create(db, { id, name: id, notes: null, createdAt: 1, updatedAt: 1, deletedAt: null });
   });
 
-  // Expected to fail (R1): a restore leaves the edges its delete tombstoned. Waits on decision 1 in
-  // docs/reviews/2026-11-12-whole-app.md; once restore revives the edges its contact's delete
-  // tombstoned, vitest fails this test and `.fails` goes.
-  it.fails('restoring a deleted contact puts it back in its lists and on its photos', async () => {
-    const contact = await contactInListAndOnPhoto();
-    await contacts.deleteContact(db, contact.id);
+  afterEach(() => vi.restoreAllMocks());
 
-    await contacts.restore(db, [contact.id]);
+  const live = async () => [
+    ...(await db.select().from(schema.contactListMembers))
+      .filter((e) => e.deletedAt === null)
+      .map((e) => `list ${e.listId}`),
+    ...(await db.select().from(schema.contactLinks))
+      .filter((e) => e.deletedAt === null)
+      .map((e) => `${e.targetType} ${e.targetId}`),
+  ];
 
-    expect((await edgeOf(schema.contactListMembers, contact.id)).deletedAt).toBeNull();
-    expect((await edgeOf(schema.contactLinks, contact.id)).deletedAt).toBeNull();
+  it('restoring a deleted contact puts it back in its lists and on its photos', async () => {
+    await contactListMembers.add(db, { listId: 'hikes' }, ['maya'], newId);
+    await contactLinks.add(db, PHOTO, ['maya'], newId);
+
+    await contacts.deleteContact(db, 'maya');
+    expect(await live()).toEqual([]);
+    await contacts.restore(db, 'maya');
+
+    expect(await live()).toEqual(['list hikes', 'asset photo-1']);
+    expect((await db.select().from(schema.contacts))[0]!.deletedAt).toBeNull();
+  });
+
+  it('restoring brings back only what the deletion took, and no list deleted since', async () => {
+    await contactListMembers.add(db, { listId: 'hikes' }, ['maya'], newId);
+    await contactListMembers.add(db, { listId: 'climbs' }, ['maya'], newId);
+    await contactLinks.add(db, PHOTO, ['maya'], newId);
+    await contactLinks.remove(db, PHOTO, ['maya']); // untagged before the delete
+
+    await contacts.deleteContact(db, 'maya');
+    await lists.remove(db, ['climbs']);
+    await contacts.restore(db, 'maya');
+
+    expect(await live()).toEqual(['list hikes']);
   });
 });

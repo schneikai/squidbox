@@ -15,6 +15,7 @@ import TextInput from '@/components/TextInput';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import useAvailableParam from '@/hooks/useAvailableParam';
+import useResetChanges from '@/hooks/useResetChanges';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import { scale, space } from '@/styles/designTokens';
 import { getDb } from '@/sync/db/client';
@@ -45,21 +46,25 @@ export default function IdeasSettingsScreen() {
 type IdeasSettingsEditorProps = { kind: IdeasKind; userId: string; isOn: boolean; seed: string };
 
 // The switch, saved as it flips, and the prompt, saved as you type from `seed` on: an emptied prompt
-// is the built-in one again, as Reset changes puts it back (offered only while the prompt is another).
+// is the built-in one again, as Reset changes puts it back (offered only while the prompt is another,
+// and confirmed first: the screen saves as you type, so there is no draft to close).
 function IdeasSettingsEditor({ kind, userId, isOn, seed }: IdeasSettingsEditorProps) {
   const navigation = useNavigation();
   const [prompt, setPrompt] = useState(seed);
   const builtIn = DEFAULT_IDEA_PROMPTS[kind];
   const { name, switchLabel } = ideasText[kind];
+  const { isResetting, reset } = useResetChanges();
   const { flush } = useSaveAsYouType(prompt.trim(), (next) =>
     saveIdeaSettings(getDb(), userId, kind, { prompt: next || null }),
   );
 
   const actions: ActionButtonsProps['actions'] =
-    prompt.trim() === builtIn ? [] : [{ label: 'Reset changes', colorPalette: 'danger', onPress: handleReset }];
+    prompt.trim() === builtIn
+      ? []
+      : [{ label: 'Reset changes', colorPalette: 'danger', onPress: handleReset, loading: isResetting }];
 
   function handleReset() {
-    setPrompt(builtIn);
+    return reset("Your prompt is replaced by the app's.", async () => setPrompt(builtIn));
   }
 
   function handleSwitch(next: boolean) {
