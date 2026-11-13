@@ -84,6 +84,16 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ scope: 'tagged' }))).toEqual(['ana', 'maya']);
   });
 
+  it('filters narrow the contacts to those every filter holds for, in the chosen sort', async () => {
+    await contacts.create(db, makeContactRecord({ id: 'zoe', name: 'Zoe', isFavorite: true, favoritedAt: 9 }));
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' })]);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['zoe', 'maya'], newId);
+    expect(await ids(contactQuery({ filter: ['favorites'] }))).toEqual(['ana', 'zoe']);
+    expect(await ids(contactQuery({ filter: ['tagged'] }))).toEqual(['maya', 'zoe']);
+    expect(await ids(contactQuery({ filter: ['favorites', 'tagged'] }))).toEqual(['zoe']);
+    expect(await ids(contactQuery({ filter: ['favorites'], search: 'an' }))).toEqual(['ana']);
+  });
+
   it('Deleted lists only the deleted contacts, the latest deleted first, until one is restored', async () => {
     await contacts.create(db, makeContactRecord({ id: 'old', name: 'Old', deletedAt: 5 }));
     await contacts.create(db, makeContactRecord({ id: 'new', name: 'New', deletedAt: 9 }));
