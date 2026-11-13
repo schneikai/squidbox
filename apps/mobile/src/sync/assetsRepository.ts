@@ -12,7 +12,7 @@ import { saveRecords } from './saveRecords';
 const repository = makeRepository('assets', schema.assets);
 
 // `remove` moves to the Deleted album (tombstone: set deletedAt). The files stay, so a restore is complete.
-export const { create, createMany, update, updateMany, updateAll, remove } = repository;
+export const { create, createMany, update, updateMany, updateAll, remove, restore } = repository;
 
 /**
  * "Delete permanently": sets purgedAt, which no later version undoes once the server has it (sync-design

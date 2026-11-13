@@ -22,15 +22,6 @@ account's library open without them, so its photos, albums, posts and contacts s
 anyone holding the phone. Signed out should show the device's own library (or nothing) and park or
 remove the account's copy; unsynced changes need a warning first so nothing is lost.
 
-### [ ] Restoring a contact can lose a photo that never synced
-
-A contact made with a photo and deleted before any sync pushes a tombstone naming a file the
-storage lacks (`docs/sync-design.md`, file uploads). `restoreContact` (`ContactsProvider`) clears
-only `deletedAt`, so nothing uploads the photo and other devices get a photo that's missing for
-good. A restore should re-upload the photo when this device has it, or drop `avatarFilename` when it
-doesn't. A wider restore bug is pinned in open PR #84 (its R1, an `it.fails` test): a restore also
-loses the contact's lists and photo links. Fix both in one pass.
-
 ## Features
 
 ### [ ] Record which builds are installed, before the App Store launch
@@ -237,6 +228,30 @@ encrypted.
 
 ## Code quality
 
+### [ ] One voice in the UI (review run 2, decision 3)
+
+`docs/reviews/2026-11-12-whole-app-run-2.md` F11–F18: seven shapes of delete confirm, 13 Title
+Case labels, 12 alert titles outside "Couldn't …", two words for one action (Retry / Try again),
+relative time written twice, no empty state on Library, Albums and Posts, a second sheet opened over
+a sheet (six picker routes), a button inside a button (contact rows, repost cards). One
+`useConfirmedDelete`, sentence case, "Couldn't …" alerts, `lib/relativeTime.ts`, and the tests N6–N9
+in the report's section 4 so none comes back. Deferred by the owner until after the next review run.
+
+### [ ] Row-level security on the collection tables (review run 2, F60)
+
+The 16 collection tables are guarded only by `WHERE user_id` in each query; one missed clause shows
+another account's data. One migration adding a policy per table, the request setting
+`app.user_id`, and `apps/server/test/rls.test.ts`. Deferred by the owner.
+
+### [ ] The rest of review run 2's friction findings
+
+`docs/reviews/2026-11-12-whole-app-run-2.md`, section 3, not yet taken on: F5 (a feature imports
+another's internals in 168 lines, 8 cycles; the rule "through `index.ts` only" and its ratchet test
+N1), F9 (`lib/` vs `utils/` vs `constants.ts`, one folder), F21 (26 hand-typed route strings; typed
+routes), F23 (the albums repository lives in a feature), F19 (40 components missing from the gallery),
+and F6–F65 below them, each a complete build request. Plus the ready checks C1–C22 of section 4 whose
+finding no thread took. Take them after the nine threads of Nov 13 land, biggest cost first.
+
 ### [ ] Read the chat's "More from your posts" more cheaply
 
 The chat's Mentions sheet lists every handle the owner ever mentioned: while it's open,
@@ -405,6 +420,12 @@ deleted or restored.
   runs would remove the pitfall.
 
 ## Owner-side (needs a device, infra or secrets)
+
+### [ ] Require the checks before a merge into main
+
+`main` has no branch protection (the API answers 404), so #98 was merged while its CI run was still
+queued (`docs/reviews/2026-11-12-whole-app-run-2.md` R10). In GitHub → Settings → Branches, protect
+`main` and require the `check` and `ui-flows` status checks. Zero code.
 
 ### [ ] Renew iOS signing before Oct 10, 2027
 
