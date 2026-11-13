@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
 import ContactChipsSection from './ContactChipsSection';
-import TargetContactChip from './TargetContactChip';
+import PhotoContactChip from './PhotoContactChip';
 
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
@@ -19,7 +19,7 @@ type PhotoContactsSectionProps = {
 
 /**
  * The Contacts section of a photo (`assetId`): a chip per contact on it, opening the contact (its ×
- * takes it off, TargetContactChip), and Add, which opens the Add contacts sheet. Inside a sheet (a
+ * takes it off, PhotoContactChip), and Add, which opens the Add contacts sheet. Inside a sheet (a
  * photo opened in New post or Compare) it only shows who is on it (ContactChipsSection), never a
  * screen that edits as you type inside a draft. `guardPress` may wrap the presses
  * (useDetailsPanelDrag's); `isLive: false` reads them once.
@@ -28,7 +28,8 @@ export default function PhotoContactsSection(props: PhotoContactsSectionProps) {
   const isInSheet = !!useSheetRoute();
 
   if (isInSheet) {
-    return <ContactChipsSection scope={{ photoIds: [props.assetId] }} isLive={props.isLive} isFlush={props.isFlush} />;
+    const { assetId, ...rest } = props;
+    return <ContactChipsSection scope={{ photoIds: [assetId] }} {...rest} />;
   }
   return <EditablePhotoContacts {...props} />;
 }
@@ -42,7 +43,7 @@ function EditablePhotoContacts({ assetId, guardPress = unguarded, isLive, isFlus
       <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
       <ChipRow>
         {contacts?.map((contact) => (
-          <TargetContactChip
+          <PhotoContactChip
             key={contact.id}
             contact={contact}
             assetId={assetId}

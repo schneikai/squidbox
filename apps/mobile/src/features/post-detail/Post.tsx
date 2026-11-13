@@ -48,8 +48,8 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         )}
       />
 
-      {/* Contacts go on photos, so a post only shows who is on its photos. */}
-      <ContactChipsSection scope={{ photosOf: { postId: post.id } }} isFlush />
+      {/* Contacts go on photos: a post shows who is on its photos, and one without any reads none. */}
+      {assetIds.length > 0 && <ContactChipsSection scope={{ photosOf: { postId: post.id } }} isFlush />}
 
       <ScreenSectionHeader title="Posted Albums" isFlush />
       <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />

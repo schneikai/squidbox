@@ -4,14 +4,14 @@ import useContacts from '@/providers/contacts/useContacts';
 import type { ContactSummary } from '@/sync/queries/contactQuery';
 import confirmAsync from '@/utils/confirmAsync';
 
-type TargetContactChipProps = {
+type PhotoContactChipProps = {
   contact: ContactSummary;
   assetId: string;
   onOpen: () => void;
 };
 
 /** A contact on a photo (`assetId`): a tap opens the contact (`onOpen`), its × takes it off the photo, once confirmed. */
-export default function TargetContactChip({ contact, assetId, onOpen }: TargetContactChipProps) {
+export default function PhotoContactChip({ contact, assetId, onOpen }: PhotoContactChipProps) {
   const { changePhotoContacts } = useContacts();
 
   async function handleRemove() {
