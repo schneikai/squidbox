@@ -175,14 +175,6 @@ Bring back "Fill it in for me" as an agent chat session that drafts About you, T
 Rules from the user's posts. It was removed from the setup flow (`features/voice`); the server route
 was `POST /ai/persona/draft`.
 
-### [ ] Post variants
-
-A post keeps several versions for different platforms or uses: an X teaser, the OnlyFans post (full
-video, other @ mentions), a PPV message. Each variant has a type, its own text and optionally its own
-subset of the post's media and mentions; the post screen shows them as tabs with copy. Needs a synced
-data model change (server and app). Threads already exist as posts of their own (`threadRootId`), so
-a variant needn't be one. Mockups: https://claude.ai/artifact/LxxYDq2r7PNZ3bC37KNqWj, screens 10–12.
-
 ### [ ] Recreate thumbnails
 
 An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken. The backup

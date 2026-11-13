@@ -429,7 +429,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
     `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThread`), and deleting
+    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThreads`), and deleting
     a post for every post of it on all its channels (`removePost`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
     post still shows a deleted one (it can come back) but never a purged one, and ids that don't
