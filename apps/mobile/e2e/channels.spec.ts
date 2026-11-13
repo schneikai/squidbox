@@ -82,15 +82,16 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
   const editor = page.getByTestId('post-editor');
   await expect(editor.getByRole('tab')).toHaveCount(1);
   await expect(tab(editor, 'Bluesky')).toHaveAttribute('aria-selected', 'true');
-  await expect(shown(editor).getByText('0 / 300')).toBeVisible();
+  // The counter shows only near the limit.
+  await expect(shown(editor).getByText('0 / 300')).toHaveCount(0);
   await button(editor, 'Add photos').click();
   await pickFromSquidbox(page, 2);
   await expect(shown(editor).getByText('2 of 4 Assets', { exact: false })).toBeVisible();
 
-  // Past Bluesky's limit: the counter turns red, and Add stays on.
-  await caption(editor).fill(TEXT);
+  // Near Bluesky's limit the counter shows; past it, it turns red, and Add stays on.
+  await caption(editor).fill('a'.repeat(280));
   const normal = await shown(editor)
-    .getByText(`${TEXT.length} / 300`)
+    .getByText('280 / 300')
     .evaluate((node) => getComputedStyle(node).color);
   await caption(editor).fill('a'.repeat(301));
   const over = await shown(editor)
@@ -99,6 +100,7 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
   expect(over).not.toBe(normal);
   await expect(button(editor, 'Add')).toBeEnabled();
   await caption(editor).fill(TEXT);
+  await expect(shown(editor).getByText(`${TEXT.length} / 300`)).toHaveCount(0);
 
   // The only channel's menu has no Remove.
   await tab(editor, 'Bluesky').click();
@@ -116,14 +118,12 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
   await menuItem(page, 'X').click();
   await expect(tab(editor, 'X')).toHaveAttribute('aria-selected', 'true');
   await expect(caption(editor)).toHaveValue(TEXT);
-  await expect(shown(editor).getByText(`${TEXT.length} / 280`)).toBeVisible();
   await expect(shown(editor).getByText('2 of 4 Assets', { exact: false })).toBeVisible();
 
   // Switching keeps each channel's text.
   await caption(editor).fill(X_TEXT);
   await tab(editor, 'Bluesky').click();
   await expect(caption(editor)).toHaveValue(TEXT);
-  await expect(shown(editor).getByText(`${TEXT.length} / 300`)).toBeVisible();
   await tab(editor, 'X').click();
   await expect(caption(editor)).toHaveValue(X_TEXT);
   await expect(page.getByText('Other channels')).toHaveCount(0);
@@ -131,13 +131,12 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
   await expectNoNested(editor, 'button', 'button');
   await expectNoNested(editor, 'tab', 'button');
 
-  // Change X to Instagram from its menu (Bluesky is off there), and back.
+  // Change X to Instagram from its menu (only channels the post isn't on), and back.
   await tab(editor, 'X').click();
-  await expect(menuItem(page, 'Bluesky')).toBeDisabled();
-  await expect(menuItem(page, 'X')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Change X to' })).toBeVisible();
+  for (const name of ['Bluesky', 'X']) await expect(menuItem(page, name)).toHaveCount(0);
   await menuItem(page, 'Instagram').click();
   await expect(tab(editor, 'Instagram')).toHaveAttribute('aria-selected', 'true');
-  await expect(shown(editor).getByText(`${X_TEXT.length} / 2200`)).toBeVisible();
   await expect(caption(editor)).toHaveValue(X_TEXT);
   await tab(editor, 'Instagram').click();
   await menuItem(page, 'X').click();
