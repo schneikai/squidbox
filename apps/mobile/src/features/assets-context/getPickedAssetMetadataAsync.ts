@@ -1,11 +1,13 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
-import { Asset } from 'expo-media-library';
+import { Asset, getPermissionsAsync } from 'expo-media-library';
 import { Platform } from 'react-native';
 
 // The camera roll's own details for a photo or video from the image picker: favorite, date taken
 // (ms), file name and location. Null without an id (a picker result outside the library) or when
-// Photos won't say (no access, outside a Limited Photos selection), which only leaves them out.
-// Reads each field on its own, so the file itself is never fetched (from iCloud, say).
+// the read fails under Limited Photos access (a photo outside the selection is hidden from the app,
+// so there is nothing more to get). Any other failed read throws: a photo saved without them would
+// keep them lost on every device. Reads each field on its own, so the file itself is never fetched
+// (from iCloud, say).
 export default async function getPickedAssetMetadataAsync({
   assetId,
   type,
@@ -20,8 +22,9 @@ export default async function getPickedAssetMetadataAsync({
       asset.getLocation(),
     ]);
     return { isFavorite, creationTime, filename, location };
-  } catch {
-    return null;
+  } catch (error) {
+    if ((await getPermissionsAsync()).accessPrivileges === 'limited') return null;
+    throw error;
   }
 }
 
