@@ -250,9 +250,12 @@ test('a mock post shows its X channel and thread in place, and keeps X when its 
 });
 
 test('without channels a new post has no bar, and a post on channels still shows its own', async ({ page }) => {
+  // Every channel he has, OnlyFans too when the first flow added it (the data is reset after the file).
   const channels = await openChannels(page);
-  for (const name of ['Bluesky', 'X', 'Instagram']) {
+  await expect(channels.getByText('Bluesky', { exact: true })).toBeVisible();
+  for (const name of ['Bluesky', 'X', 'Instagram', 'OnlyFans']) {
     const row = channels.getByText(name, { exact: true });
+    if ((await row.count()) === 0) continue;
     await row.hover();
     await page.mouse.down();
     await page.waitForTimeout(1000);
