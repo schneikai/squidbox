@@ -4,8 +4,7 @@ import type { AlbumListRow } from '@/sync/queries/albumQuery';
 import isDeletedAssetsAlbum from '@/utils/albums/isDeletedAssetsAlbum';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
 
-const ALBUM_FILTERS = ['starred', 'archived'] as const;
-export type AlbumFilter = (typeof ALBUM_FILTERS)[number];
+export type AlbumFilter = 'starred' | 'archived';
 
 /** How prepareAlbums picks and orders the albums (all but the albums themselves). */
 export type PrepareAlbumsOptions = {

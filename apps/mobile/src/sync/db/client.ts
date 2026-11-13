@@ -27,11 +27,11 @@ export async function openAppDb(dbName: string): Promise<AppDb> {
   return appDb;
 }
 
-// Opens a database by name for `use` and closes it after.
-export async function withAppDb<T>(dbName: string, use: (db: AppDb) => Promise<T>): Promise<T> {
+// Opens a database by name for `run` and closes it after.
+export async function withAppDb<T>(dbName: string, run: (db: AppDb) => Promise<T>): Promise<T> {
   const db = await openAppDb(dbName);
   try {
-    return await use(db);
+    return await run(db);
   } finally {
     await db.close();
   }

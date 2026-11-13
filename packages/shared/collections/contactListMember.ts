@@ -8,8 +8,8 @@ import { baseRecordSchema, defineCollection } from './define';
 export const contactListMemberCollection = defineCollection({
   name: 'contact_list_members',
   schema: baseRecordSchema.extend({
-    listId: z.string().uuid(),
-    contactId: z.string().uuid(),
+    listId: z.uuid(),
+    contactId: z.uuid(),
   }),
 });
 

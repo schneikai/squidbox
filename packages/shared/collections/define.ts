@@ -17,15 +17,17 @@ export const textSchema = z.string().regex(/^[^\0]*$/, 'contains a NUL character
 // writer-set epoch-ms clocks; `deletedAt` non-null = tombstone. `user_id`/`server_seq` are
 // server-only and never part of the client record schema.
 export const baseRecordSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
   deletedAt: timestampSchema.nullable(),
 });
 export type BaseRecord = z.infer<typeof baseRecordSchema>;
+/** A collection's schema: an object over the base columns. */
+export type CollectionSchema = z.ZodObject<Record<string, z.ZodType>> & z.ZodType<BaseRecord>;
 
 export interface CollectionDescriptor<
-  S extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends CollectionSchema = CollectionSchema,
   L extends z.ZodRawShape = z.ZodRawShape,
   N extends string = string,
 > {
@@ -53,7 +55,7 @@ export interface CollectionDescriptor<
 /** Define a sync collection once — the single source of truth shared by app and server. */
 export function defineCollection<
   N extends string,
-  S extends z.ZodTypeAny,
+  S extends CollectionSchema,
   L extends z.ZodRawShape = z.ZodRawShape,
 >(config: {
   name: N;
@@ -63,7 +65,7 @@ export function defineCollection<
   finalField?: string;
   fileFields?: readonly string[];
 }): CollectionDescriptor<S, L, N> {
-  const { shape } = config.schema as unknown as z.ZodObject<z.ZodRawShape>;
+  const { shape } = config.schema;
   for (const field of config.fileFields ?? [])
     if (!(field in shape)) throw new Error(`${config.name}: file field "${field}" is not in its schema`);
   const mergeFields = Object.keys(shape).filter((key) => key !== 'id' && key !== 'createdAt' && key !== 'updatedAt');

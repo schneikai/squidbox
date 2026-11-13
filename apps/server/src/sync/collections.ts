@@ -1,7 +1,7 @@
 import { getTableColumns, getTableName, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import type { z } from 'zod';
 import {
+  type CollectionSchema,
   assetCollection,
   albumCollection,
   postCollection,
@@ -45,7 +45,7 @@ import {
 export interface ServerCollection {
   table: PgTable;
   descriptor: CollectionDescriptor;
-  schema: z.ZodObject<z.ZodRawShape>;
+  schema: CollectionSchema;
   wireColumns: Record<string, PgColumn>;
   /** The client-facing record as one json value, keys in `wireColumns` order: the pull reads every collection in one statement. */
   wireJson: SQL;
@@ -59,7 +59,7 @@ export interface ServerCollection {
 }
 
 function serverCollection(table: PgTable, descriptor: CollectionDescriptor): ServerCollection {
-  const schema = descriptor.schema as z.ZodObject<z.ZodRawShape>;
+  const { schema } = descriptor;
   const columns = getTableColumns(table);
   // In the schema's order, so a record reads the same whether it came from the table or a push.
   const wireColumns = Object.fromEntries(

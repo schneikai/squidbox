@@ -8,8 +8,8 @@ import { baseRecordSchema, defineCollection, textSchema } from './define';
 export const postAssetCollection = defineCollection({
   name: 'post_assets',
   schema: baseRecordSchema.extend({
-    postId: z.string().uuid(),
-    assetId: z.string().uuid(),
+    postId: z.uuid(),
+    assetId: z.uuid(),
     position: textSchema,
   }),
 });
