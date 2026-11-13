@@ -125,7 +125,7 @@ export function Row({
         onPress={onPress}
         onLongPress={onLongPress}
         {...longPressAccessibility(onLongPress, {
-          actions: accessibilityActions ?? undefined,
+          actions: accessibilityActions,
           onOtherAction: onAccessibilityAction,
         })}
         disabled={disabled}

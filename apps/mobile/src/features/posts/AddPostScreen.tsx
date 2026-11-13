@@ -14,6 +14,7 @@ import readPost from '@/sync/queries/readPost';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
+import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, comma-separated, in that
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
@@ -59,11 +60,10 @@ async function readSeed(
   if (rePostId) {
     const rePost = await readPost(db, rePostId, { withChannels: false });
     if (!rePost) return null;
-    const assets = rePost.postAssets.map((postAsset) => postAsset.asset);
     return {
       ...fresh,
       text: rePost.text,
-      postAssets: buildPostAssets(assets),
+      postAssets: freshPostAssets(rePost.postAssets),
       channelId: rePost.channelId ?? channelId,
     };
   }

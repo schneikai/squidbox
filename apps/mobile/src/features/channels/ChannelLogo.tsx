@@ -65,6 +65,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.pill,
-    backgroundColor: colors.text.primary,
+    backgroundColor: colors.overlay.dim,
   },
 });

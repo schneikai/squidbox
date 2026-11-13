@@ -5,11 +5,13 @@ import Animated from 'react-native-reanimated';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import ChannelBar from '@/features/channels/ChannelBar';
+import orderPostChannels from '@/features/channels/orderPostChannels';
 import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannelSlide from '@/features/channels/useChannelSlide';
 import useChannels from '@/features/channels/useChannels';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
+import postAndThread from '@/features/post-detail/postAndThread';
 import PostRows from '@/features/post-list/PostRows';
 import { layout } from '@/styles/designTokens';
 import type { ChannelPostRow, PostDetailRow } from '@/sync/queries/readPost';
@@ -43,18 +45,27 @@ export default function Post({
   const channels = useChannels();
   const channelOrder = useChannelOrder(channels);
 
+  // In bar order.
   const parts = useMemo(
-    () => [
-      { key: post.id, channelId: post.channelId },
-      ...post.channelPosts.map((copy) => ({ key: copy.id, channelId: copy.channelId })),
-    ],
-    [post.id, post.channelId, post.channelPosts],
+    () =>
+      orderPostChannels(
+        [
+          { key: post.id, channelId: post.channelId },
+          ...post.channelPosts.map((copy) => ({ key: copy.id, channelId: copy.channelId })),
+        ],
+        (part) => part.channelId,
+        channelOrder,
+      ),
+    [post.id, post.channelId, post.channelPosts, channelOrder],
   );
   const selectedKey = channelPost?.id ?? post.id;
-  const slide = useChannelSlide(selectedKey, parts, channelOrder);
+  const slide = useChannelSlide(
+    selectedKey,
+    parts.map((part) => part.key),
+  );
   // The pictures of the whole post: its thread's and its other channels' (with their threads) too.
   const assetIds = useMemo(() => {
-    const all = [post, ...post.threadPosts, ...post.channelPosts.flatMap((each) => [each, ...each.threadPosts])];
+    const all = [...postAndThread(post), ...post.channelPosts.flatMap(postAndThread)];
     return [...new Set(all.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))];
   }, [post]);
   // Once the user's channels are read, so the bubbles never reorder after they show.
@@ -67,7 +78,6 @@ export default function Post({
       {hasBar && (
         <ChannelBar
           parts={parts}
-          channelOrder={channelOrder}
           selectedKey={selectedKey}
           onSelect={(key) => onSelectChannel(key === post.id ? null : key)}
           style={styles.bar}

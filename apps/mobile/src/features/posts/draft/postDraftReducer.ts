@@ -6,7 +6,7 @@ import orderPostChannels from '@/features/channels/orderPostChannels';
 import type { PickedPostedAt } from '@/features/posts/postedAtToSave';
 import type { PostFields } from '@/providers/posts/PostsContext';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
-import buildPostAssets from '@/utils/posts/buildPostAssets';
+import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 type PostContent = Pick<PostWithAssets, 'text' | 'postAssets'> & {
   threadPosts: Pick<PostWithAssets, 'id' | 'text' | 'postAssets'>[];
@@ -98,7 +98,7 @@ function promoted(draft: PostDraft, channelOrder: string[]): Pick<PostDraft, 'ma
     cards: next.cards.map((card) => ({
       ...card,
       id: null,
-      postAssets: buildPostAssets(card.postAssets.map((postAsset) => postAsset.asset)),
+      postAssets: freshPostAssets(card.postAssets),
     })),
   };
   return { main, others: draft.others.filter((other) => other.key !== next.key) };

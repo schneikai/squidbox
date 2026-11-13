@@ -8,8 +8,7 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Text from '@/components/Text';
 import TextInput from '@/components/TextInput';
-import counterText from '@/features/channels/counterText';
-import isTextOver from '@/features/channels/isTextOver';
+import textLimit from '@/features/channels/textLimit';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
@@ -85,8 +84,7 @@ export default function PostCard({
   // handle being typed, which follow the text closely.
   const isRoomy = isFirst && postAssets.length === 0 && !mention;
 
-  const counter = counterText(limits, text);
-  const isOver = isTextOver(limits, text);
+  const { counter, isOver } = textLimit(limits, text);
   // The date's look beside it (Text `status`: regular, grey), so the toolbar has one grey.
   const counterNode = counter && (isTyping || isOver) && (
     <Text variant="status" tone={isOver ? 'danger' : undefined} style={styles.counter}>

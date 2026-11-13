@@ -3,10 +3,10 @@ import nextCardKey from './nextCardKey';
 import type { PostCardChange, PostCardData } from '@/features/posts/PostCard';
 
 /**
- * One channel of a post as the editor drafts it: the post itself (`key` 'main' as it opens) or another channel.
- * `id` is the saved post's (null for a new one, and for the post itself, which its sheet saves),
- * `cards` its first post and its thread, `nextCard` the number the next card's key takes. Card keys
- * start with the channel's key, so they are unique across the sheet.
+ * One channel of a post as the editor drafts it: the post itself (`key` MAIN_KEY as it opens) or
+ * another channel. `id` is the saved post's (null for a new one, and for the post itself, which its
+ * sheet saves), `cards` its first post and its thread, `nextCard` the number the next card's key
+ * takes. Card keys start with the channel's key, so they are unique across the sheet.
  */
 export type ChannelDraft = {
   key: string;

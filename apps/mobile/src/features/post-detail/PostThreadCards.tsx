@@ -5,11 +5,9 @@ import assetHref from '@/features/asset-list/assetHref';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
 import type { AssetRow } from '@/sync/db/schema';
-import type { PostWithAssets } from '@/sync/queries/postQuery';
+import type { PostWithThread } from '@/sync/queries/readPost';
 
-type PostThreadCardsProps = {
-  post: PostWithAssets & { threadPosts: PostWithAssets[] };
-};
+type PostThreadCardsProps = { post: PostWithThread };
 
 /**
  * A post's card (PostView) and its following posts' cards joined by the thread's line, as the post's

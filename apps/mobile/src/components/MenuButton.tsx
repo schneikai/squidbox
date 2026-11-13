@@ -33,7 +33,7 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  *
  * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
  * by a wider band, as iOS groups it; a menu drawn by one component (SortFilterMenu) parts its own.
- * `title` heads the rows in small grey (MenuTitle): what the menu picks (Channel of this post).
+ * `title` heads the rows in small grey (MenuTitle): what the menu picks (Change X to, Add channel).
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */

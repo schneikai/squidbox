@@ -17,24 +17,17 @@ type EditorIdeasOptions = {
   posts: ChatDraftPost[];
   activeKey: string;
   setText: (key: string, text: string) => void;
-  startsOnItsOwn?: boolean;
+  startsOnItsOwn: boolean;
 };
 
 /**
- * A post editor screen's one assistant chat for all its posts (useSubjectChat) and its ideas starting
- * on their own (shouldStartIdeas, unless not `startsOnItsOwn`: a channel's step): once per screen, as the first post's turn, with the user's prompt of
- * the kind `ideas`; the chat tags the photos first. It sends without watching the chat (useChatSends),
- * so the editor doesn't render with each change of it: its trays do (IdeasTray). → the chat's id
- * (null until open) and the user's ideas `settings`, for the trays.
+ * A post editor screen's one assistant chat for all its posts (useSubjectChat) and, with
+ * `startsOnItsOwn`, its ideas starting on their own (shouldStartIdeas): once per screen, as the first
+ * post's turn, with the user's prompt of the kind `ideas`; the chat tags the photos first. It sends
+ * without watching the chat (useChatSends), so the editor doesn't render with each change of it: its
+ * trays do (IdeasTray). → the chat's id (null until open) and the user's ideas `settings`, for the trays.
  */
-export default function useEditorIdeas({
-  kind,
-  ideas,
-  posts,
-  activeKey,
-  setText,
-  startsOnItsOwn = true,
-}: EditorIdeasOptions) {
+export default function useEditorIdeas({ kind, ideas, posts, activeKey, setText, startsOnItsOwn }: EditorIdeasOptions) {
   const sessionId = useSubjectChat({ kind, posts, activeKey, setText });
   const { send } = useChatSends(sessionId);
   const settings = useIdeaSettings();

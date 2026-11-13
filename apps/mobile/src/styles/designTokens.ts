@@ -47,15 +47,12 @@ const palette = {
   cyan200: '#8EDDF0',
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
-  // The channels' brand colors, each Simple Icons' hex for it (features/channels/channelGlyphs.ts).
-  brandX: '#000000',
+  // The channels' brand colors, each Simple Icons' hex for it (features/channels/channelGlyphs.ts);
+  // the black ones are `black`.
   brandBluesky: '#1185FE',
-  brandThreads: '#000000',
   brandInstagram: '#FF0069',
-  brandTiktok: '#000000',
   brandYoutube: '#FF0000',
   brandReddit: '#FF4500',
-  brandPatreon: '#000000',
   brandOnlyfans: '#00AFF0',
 };
 
@@ -113,14 +110,14 @@ export const colors = {
   },
   // A channel's logo in its brand's official color (ChannelLogo).
   brand: {
-    x: palette.brandX,
+    x: palette.black,
     bluesky: palette.brandBluesky,
-    threads: palette.brandThreads,
+    threads: palette.black,
     instagram: palette.brandInstagram,
-    tiktok: palette.brandTiktok,
+    tiktok: palette.black,
     youtube: palette.brandYoutube,
     reddit: palette.brandReddit,
-    patreon: palette.brandPatreon,
+    patreon: palette.black,
     onlyfans: palette.brandOnlyfans,
   },
   octopus: {
@@ -388,6 +385,7 @@ export const motion = {
   settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
+  slideDistance: 40, // a tab or channel switch's slide from its side: a subtle nudge, not a page swipe
   // The assistant at work (AssistantTray): one light band sweeping across its sparkle and title.
   working: {
     band: { duration: 2000, easing: Easing.linear },

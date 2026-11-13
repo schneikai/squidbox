@@ -220,23 +220,25 @@ export default function ComponentGalleryScreen() {
           </ChipRow>
         </Specimen>
         <Specimen name="Channel tabs">
-          <View accessibilityRole="tablist" style={styles.channelRow}>
-            <Chip
-              label="X"
-              mark={<ChannelLogo channelId="x" size={sizes.menuIcon} />}
-              accessibilityRole="tab"
-              onPress={noop}
-            />
-            <Chip
-              label="Bluesky"
-              mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
-              isSelected
-              accessibilityRole="tab"
-            />
-            <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
-            <Chip variant="add" label="Add channel" isIconOnly onPress={noop} />
+          <View accessibilityRole="tablist">
+            <ChipRow>
+              <Chip
+                label="X"
+                mark={<ChannelLogo channelId="x" size={sizes.menuIcon} />}
+                accessibilityRole="tab"
+                onPress={noop}
+              />
+              <Chip
+                label="Bluesky"
+                mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
+                isSelected
+                accessibilityRole="tab"
+              />
+              <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
+              <Chip variant="add" label="Add channel" isIconOnly onPress={noop} />
+            </ChipRow>
           </View>
-          <View style={styles.channelRow}>
+          <ChipRow>
             <Chip
               label="OnlyFans PPV"
               mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
@@ -245,10 +247,10 @@ export default function ComponentGalleryScreen() {
               accessibilityRole="tab"
               onPress={noop}
             />
-          </View>
-          <View style={styles.channelRow}>
+          </ChipRow>
+          <ChipRow>
             <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
-          </View>
+          </ChipRow>
         </Specimen>
       </>
     );
@@ -508,12 +510,6 @@ const styles = StyleSheet.create({
   },
   fill: {
     width: '100%',
-  },
-  channelRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: space.sm,
   },
   fields: {
     width: '100%',

@@ -13,17 +13,17 @@ import { readThreadPosts } from '@/sync/postThreads';
 
 const p = alias(schema.posts, 'p');
 
-/**
- * Another channel of a post, with its assets and its following posts in order, each with its assets.
- * It always has its channel (`channelId`).
- */
-export type ChannelPostRow = PostWithAssets & { channelId: string; threadPosts: PostWithAssets[] };
+/** A post with its assets and its following posts in order, each with its assets. */
+export type PostWithThread = PostWithAssets & { threadPosts: PostWithAssets[] };
+
+/** Another channel of a post (PostWithThread). It always has its channel (`channelId`). */
+export type ChannelPostRow = PostWithThread & { channelId: string };
 
 /**
  * A post as the post screen and the editor read it: with its following posts in order and its other
  * channels (`channelPosts`, ChannelPostRow), each with its assets.
  */
-export type PostDetailRow = PostListRow & { threadPosts: PostWithAssets[]; channelPosts: ChannelPostRow[] };
+export type PostDetailRow = PostListRow & Pick<PostWithThread, 'threadPosts'> & { channelPosts: ChannelPostRow[] };
 
 /**
  * One post with its `postAssets`, its following posts (`threadPosts`, in order) and its other channels
@@ -44,17 +44,21 @@ export default function readPost(
     const copyIds = copies.map((copy) => copy.id);
     const copiesFollowing = copyIds.length > 0 ? await readThreadPosts(tx, copyIds) : [];
     const [first, ...rest] = await withPostAssets(tx, [post, ...following, ...copies, ...copiesFollowing]);
-    const threadPosts = rest.slice(0, following.length);
-    const withAssets = rest.slice(following.length);
-    const copiesThreadPosts = withAssets.slice(copies.length);
+    // Each thread's following posts by their first post's id, in the order read.
+    const threads = new Map<string, PostWithAssets[]>();
+    for (const part of rest) {
+      if (!part.threadRootId) continue;
+      const thread = threads.get(part.threadRootId);
+      if (thread) thread.push(part);
+      else threads.set(part.threadRootId, [part]);
+    }
     // A copy is always written with its channel; one without (no build writes it) isn't listed.
-    const channelPosts = withAssets
-      .slice(0, copies.length)
+    const channelPosts = rest
+      .filter((part) => part.channelRootId === postId)
       .flatMap(({ channelId, ...copy }) =>
-        channelId
-          ? [{ ...copy, channelId, threadPosts: copiesThreadPosts.filter((part) => part.threadRootId === copy.id) }]
-          : [],
+        channelId ? [{ ...copy, channelId, threadPosts: threads.get(copy.id) ?? [] }] : [],
       );
+    const threadPosts = threads.get(postId) ?? [];
     // `first` is typed as either kind of post: the row's own fields come from `post`.
     return { ...post, postAssets: first.postAssets, threadPosts, channelPosts };
   });

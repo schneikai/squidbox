@@ -14,15 +14,15 @@ import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import { layout } from '@/styles/designTokens';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 
 type PostCardsProps = {
   draft: ChannelDraft;
   dispatch: (action: ChannelDraftAction) => void;
   kind: Extract<ChatSubjectKind, 'draft' | 'edit'>;
   ideas: IdeasKind;
-  startsOnItsOwn?: boolean;
-  autoFocusFirst?: boolean;
+  startsOnItsOwn: boolean;
+  autoFocusFirst: boolean;
   postedAt: PostedAtPickerProps['timestamp'];
   isPostedAtShown: boolean;
   onChangePostedAt: PostedAtPickerProps['onChange'];
@@ -32,17 +32,18 @@ type PostCardsProps = {
  * One channel's cards in the post editor (`draft`: the post and its thread), its edits going to
  * `dispatch` (channelDraftReducer): one card per post, joined by a short line, the card being edited
  * with the assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own
- * only while `startsOnItsOwn`). The first card has the Posted time; every card follows the channel's limits; ⊕ Add to thread only where
- * the channel has threads (or there is none), and a note under the cards when one without threads
- * holds a thread anyway (its following posts stay, to edit or remove).
+ * only while `startsOnItsOwn`). The first card has the Posted time (and the cursor with
+ * `autoFocusFirst`); every card follows the channel's limits; ⊕ Add to thread only where the channel
+ * has threads (or there is none), and a note under the cards when one without threads holds a thread
+ * anyway (its following posts stay, to edit or remove).
  */
 export default function PostCards({
   draft,
   dispatch,
   kind,
   ideas,
-  startsOnItsOwn = true,
-  autoFocusFirst = false,
+  startsOnItsOwn,
+  autoFocusFirst,
   postedAt,
   isPostedAtShown,
   onChangePostedAt,
@@ -74,13 +75,7 @@ export default function PostCards({
     const card = cards.find((c) => c.key === key);
     if (!card) throw new Error(`No card ${key}`);
     if (hasCardContent(card)) {
-      const isConfirmed = await confirmAsync({
-        title: 'Remove this post?',
-        message: 'Its text and photos go with it.',
-        action: 'Remove',
-        destructive: true,
-      });
-      if (!isConfirmed) return;
+      if (!(await confirmRemoveAsync('this post'))) return;
     }
     dispatch({ type: 'removeCard', key });
     if (activeKey === key) setActiveKey(cards[0]!.key);
@@ -120,7 +115,7 @@ export default function PostCards({
           />
         </View>
       ))}
-      {channel && !channel.hasThreads && cards.length > 1 && (
+      {channel && !hasThreads && cards.length > 1 && (
         <WarningNote style={styles.note}>{`${channel.name} has no threads.`}</WarningNote>
       )}
     </View>

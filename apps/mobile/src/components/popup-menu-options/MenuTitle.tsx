@@ -1,17 +1,16 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { colors, layout, space, textStyles } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { layout, space } from '@/styles/designTokens';
 
 type MenuTitleProps = { label: string };
 
-// A popup menu's title above its rows, small and grey (Channel of this post): read as a heading, never
-// pressed. MenuButton draws it from its `title`.
+// A popup menu's title above its rows (Change X to, Add channel): read as a heading, never pressed.
+// MenuButton draws it from its `title`.
 export default function MenuTitle({ label }: MenuTitleProps) {
   return (
-    <View style={styles.row}>
-      <Text accessibilityRole="header" style={styles.label}>
-        {label}
-      </Text>
+    <View style={styles.row} accessible accessibilityRole="header">
+      <Text variant="label">{label}</Text>
     </View>
   );
 }
@@ -21,9 +20,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.menuRowPaddingX,
     paddingTop: space.md,
     paddingBottom: space.xs,
-  },
-  label: {
-    ...textStyles.footnoteBold,
-    color: colors.text.secondary,
   },
 });

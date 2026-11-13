@@ -1,3 +1,4 @@
+import { channelName } from '@squidbox/shared';
 import { router } from 'expo-router';
 
 import deletePostConfirm from './deletePostConfirm';
@@ -5,20 +6,20 @@ import deletePostConfirm from './deletePostConfirm';
 import Divider from '@/components/Divider';
 import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import channelName from '@/features/channels/channelName';
 import postChannelIds from '@/features/channels/postChannelIds';
+import postAndThread from '@/features/post-detail/postAndThread';
 import usePosts from '@/providers/posts/usePosts';
 import { readChannelOrder } from '@/sync/channelsRepository';
 import { getDb } from '@/sync/db/client';
-import type { PostListRow, PostWithAssets } from '@/sync/queries/postQuery';
-import readPost from '@/sync/queries/readPost';
+import type { PostListRow } from '@/sync/queries/postQuery';
+import readPost, { type PostWithThread } from '@/sync/queries/readPost';
 import useShareAssets from '@/utils/assets/useShareAssets';
 import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
 export type MoreActionProps = {
   post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount' | 'channelId' | 'otherChannelIds'>;
-  channelPost?: PostWithAssets & { threadPosts: PostWithAssets[] };
+  channelPost?: PostWithThread;
   beforeDelete?: () => void;
   trigger?: MenuButtonProps['trigger'];
 };
@@ -34,7 +35,7 @@ export default function MoreAction({ post, channelPost, beforeDelete, trigger }:
   const shareAssetsAsync = useShareAssets();
 
   const hasAssets = channelPost
-    ? [channelPost, ...channelPost.threadPosts].some((each) => each.postAssets.length > 0)
+    ? postAndThread(channelPost).some((each) => each.postAssets.length > 0)
     : post.postAssets.length > 0 || post.threadCount > 0;
 
   function handleEditPost() {
@@ -67,7 +68,7 @@ export default function MoreAction({ post, channelPost, beforeDelete, trigger }:
   async function handleShare() {
     // What the screen shows: a channel's post with its thread, else the post with its (read now).
     const parts = channelPost
-      ? [channelPost, ...channelPost.threadPosts]
+      ? postAndThread(channelPost)
       : [
           post,
           ...(post.threadCount ? ((await readPost(getDb(), post.id, { withChannels: false }))?.threadPosts ?? []) : []),

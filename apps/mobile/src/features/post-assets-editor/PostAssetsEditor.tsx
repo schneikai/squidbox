@@ -8,9 +8,9 @@ import Text from '@/components/Text';
 import isMediaOver from '@/features/channels/isMediaOver';
 import useHaptics from '@/hooks/useHaptics';
 import { scale, space } from '@/styles/designTokens';
+import assetCountText from '@/utils/assets/assetCountText';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
-import pluralizeText from '@/utils/pluralizeText';
 
 export type PostAssetsEditorProps = {
   postAssets: EditorPostAsset[];
@@ -27,7 +27,7 @@ export default function PostAssetsEditor({ postAssets, onChange, limits, style }
 
   const countInfo =
     limits?.maxMedia != null
-      ? `${postAssets.length} of ${pluralizeText('1 Asset', `${limits.maxMedia} Assets`, limits.maxMedia)}`
+      ? `${postAssets.length} of ${assetCountText(limits.maxMedia)}`
       : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
 

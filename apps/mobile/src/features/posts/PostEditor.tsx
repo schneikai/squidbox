@@ -1,4 +1,4 @@
-import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
+import { channelName, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
 import { memo, useCallback, useMemo, useReducer, useState } from 'react';
 import { Keyboard, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 import PostCards from './PostCards';
 import type { PostedAtPickerProps } from './PostedAtPicker';
 import type { ChannelDraft, ChannelDraftAction } from './draft/channelDraftReducer';
+import { MAIN_KEY } from './draft/channelKey';
 import draftChannel from './draft/draftChannel';
 import draftFromPost from './draft/draftFromPost';
 import hasCardContent from './draft/hasCardContent';
@@ -15,14 +16,14 @@ import postedAtToSave from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
 import ChannelBar from '@/features/channels/ChannelBar';
-import channelName from '@/features/channels/channelName';
+import orderPostChannels from '@/features/channels/orderPostChannels';
 import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannelSlide from '@/features/channels/useChannelSlide';
 import useChannels from '@/features/channels/useChannels';
 import useEditSheet from '@/hooks/useEditSheet';
 import { layout } from '@/styles/designTokens';
 import changedValues from '@/utils/changedValues';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import isPresent from '@/utils/isPresent';
 
@@ -55,12 +56,9 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
   );
   const channels = useChannels();
   const channelOrder = useChannelOrder(channels);
-  // A new post that opens empty (New post's card) is there to be written: its text takes the cursor.
-  const [isOpenedEmpty] = useState(() => kind === 'draft' && !hasCardContent(post));
-  // The post's own channel as the sheet opened: its chat is about the post (`kind`), with its `ideas`.
-  const [openedKey] = useState(draft.main.key);
-
   const isNew = kind === 'draft';
+  // A new post that opens empty (New post's card) is there to be written: its text takes the cursor.
+  const [isOpenedEmpty] = useState(() => isNew && !hasCardContent(post));
   const seed = useMemo(() => postData(draftFromPost(post), post.postedAt), [post]);
   const { pickedPostedAt } = draft;
   const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
@@ -69,7 +67,11 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
   const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
   const data = postData(draft, postedAt);
   const parts = [draft.main, ...draft.others];
-  const slide = useChannelSlide(draft.selectedKey, parts, channelOrder);
+  const orderedParts = orderPostChannels(parts, (part) => part.channelId, channelOrder);
+  const slide = useChannelSlide(
+    draft.selectedKey,
+    orderedParts.map((part) => part.key),
+  );
 
   // The posts store syncs by itself. The save resolves an untouched Posted time (postedAtToSave): a
   // new post's is the time of the save.
@@ -103,13 +105,7 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
   async function handleRemove() {
     const selected = draftChannel(draft, draft.selectedKey);
     if (selected.cards.some(hasCardContent)) {
-      const isConfirmed = await confirmAsync({
-        title: `Remove ${channelName(selected.channelId)} from this post?`,
-        message: 'Its text and photos go with it.',
-        action: 'Remove',
-        destructive: true,
-      });
-      if (!isConfirmed) return;
+      if (!(await confirmRemoveAsync(`${channelName(selected.channelId)} from this post`))) return;
     }
     Keyboard.dismiss();
     dispatch({ type: 'removeChannel', key: selected.key, channelOrder });
@@ -122,8 +118,7 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
       <View>
         {hasBar && (
           <ChannelBar
-            parts={parts}
-            channelOrder={channelOrder}
+            parts={orderedParts}
             selectedKey={draft.selectedKey}
             onSelect={handleSelect}
             editing={{
@@ -142,11 +137,11 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
               key={part.key}
               channel={part}
               isSelected={part.key === draft.selectedKey}
-              isOpenedPost={part.key === openedKey}
+              isOpenedPost={part.key === MAIN_KEY}
               dispatch={dispatch}
               kind={kind}
               ideas={ideas}
-              autoFocusFirst={isOpenedEmpty && part.key === openedKey}
+              isOpenedEmpty={isOpenedEmpty}
               postedAt={postedAt}
               isPostedAtShown={isPostedAtShown}
               onChangePostedAt={handleChangePostedAt}
@@ -171,7 +166,7 @@ type ChannelPanelProps = {
   dispatch: (action: PostDraftAction) => void;
   kind: PostEditorKind;
   ideas: IdeasKind;
-  autoFocusFirst: boolean;
+  isOpenedEmpty: boolean;
   postedAt: PostedAtPickerProps['timestamp'];
   isPostedAtShown: boolean;
   onChangePostedAt: PostedAtPickerProps['onChange'];
@@ -181,7 +176,8 @@ type ChannelPanelProps = {
 // VoiceOver) while another shows. Memoized, with its own dispatch, so a keystroke draws only the
 // channel being edited. What its chat is about is fixed as it mounts: the post's own channel as the
 // sheet opened is the post (`kind`, its `ideas`, started on their own for a new post), another is
-// its saved copy ('edit') or a new one ('draft').
+// its saved copy ('edit') or a new one ('draft'). The post's own takes the cursor when the sheet
+// opened empty (`isOpenedEmpty`).
 const ChannelPanel = memo(function ChannelPanel({
   channel,
   isSelected,
@@ -189,7 +185,7 @@ const ChannelPanel = memo(function ChannelPanel({
   dispatch,
   kind,
   ideas,
-  autoFocusFirst,
+  isOpenedEmpty,
   postedAt,
   isPostedAtShown,
   onChangePostedAt,
@@ -215,7 +211,7 @@ const ChannelPanel = memo(function ChannelPanel({
         kind={chatKind}
         ideas={isOpenedPost ? ideas : 'post'}
         startsOnItsOwn={isOpenedPost}
-        autoFocusFirst={autoFocusFirst}
+        autoFocusFirst={isOpenedPost && isOpenedEmpty}
         postedAt={postedAt}
         isPostedAtShown={isPostedAtShown}
         onChangePostedAt={onChangePostedAt}

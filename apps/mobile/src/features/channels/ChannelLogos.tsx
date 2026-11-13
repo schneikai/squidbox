@@ -1,7 +1,7 @@
+import { channelName } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
 import ChannelLogo from './ChannelLogo';
-import channelName from './channelName';
 
 import { sizes, space } from '@/styles/designTokens';
 import joinWords from '@/utils/joinWords';

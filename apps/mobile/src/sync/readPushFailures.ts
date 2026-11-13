@@ -1,4 +1,4 @@
-import { channelById, type CollectionName } from '@squidbox/shared';
+import { channelName, type CollectionName } from '@squidbox/shared';
 import { asc, count } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -98,10 +98,7 @@ const TITLES: Record<CollectionName, (payload: Record<string, unknown>, parents:
   contact_links: (payload) => `Contact on ${LINK_TARGETS[String(payload.targetType)] ?? 'a photo'}`,
   contact_settings: () => 'Pinned list on Contacts',
   idea_settings: () => 'Post ideas and Repost ideas',
-  channels: (payload) => {
-    const channelId = String(payload.channelId);
-    return `Channel "${channelById(channelId)?.name ?? channelId}"`;
-  },
+  channels: (payload) => `Channel "${channelName(String(payload.channelId))}"`,
 };
 
 function describe({ collection, recordId, payload }: schema.OutboxRow, parents: Parents): string {

@@ -1,5 +1,5 @@
 import channelDraftOf from './channelDraftOf';
-import channelKey from './channelKey';
+import channelKey, { MAIN_KEY } from './channelKey';
 import type { PostDraft, PostEditorPost } from './postDraftReducer';
 
 import type { PostCardContent } from '@/features/posts/PostCard';
@@ -10,11 +10,9 @@ import type { PostCardContent } from '@/features/posts/PostCard';
  */
 export default function draftFromPost(post: PostEditorPost, selectedChannelPostId?: string): PostDraft {
   const others = post.channelPosts.flatMap((copy, i) =>
-    copy.channelId
-      ? [{ ...channelDraftOf(channelKey(i), copy.id, copy.channelId, contentsOf(copy)), channelId: copy.channelId }]
-      : [],
+    copy.channelId ? [channelDraftOf(channelKey(i), copy.id, copy.channelId, contentsOf(copy))] : [],
   );
-  const main = channelDraftOf('main', null, post.channelId ?? null, contentsOf(post));
+  const main = channelDraftOf(MAIN_KEY, null, post.channelId ?? null, contentsOf(post));
   const selected = others.find((other) => other.id === selectedChannelPostId);
   return {
     main,

@@ -123,3 +123,9 @@ const byId = new Map<string, Channel>(CHANNELS.map((channel) => [channel.id, cha
 export function channelById(id: string | null | undefined): Channel | undefined {
   return id ? byId.get(id) : undefined;
 }
+
+/** A channel's name as the app shows it: the catalog's, the id of one this build doesn't know, or No channel. */
+export function channelName(channelId: string | null): string {
+  if (!channelId) return 'No channel';
+  return channelById(channelId)?.name ?? channelId;
+}
