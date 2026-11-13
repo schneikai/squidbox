@@ -47,7 +47,7 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
       const [asset] = await readByIds(tx, schema.assets, [target.assetId]);
       if (!asset || asset.deletedAt) return null;
       const linked = await contactQuery({ scope: { photoIds: [target.assetId] } }).ids(tx);
-      const related = await onAlbumsPhotos(tx, await albumsHolding(tx, [target.assetId]));
+      const related = await onAlbumsPhotos(tx, await albumsHolding(tx, target.assetId));
       return { linkedTitle: 'On this photo', linked, related };
     }
     const album = await readLiveAlbum(tx, target.albumId);
@@ -65,14 +65,13 @@ export default function readAddContactsSeed(db: SyncDb, target: AddContactsTarge
   });
 }
 
-// The live albums holding any of these assets (a smart album has no edges), by name: id and name.
-async function albumsHolding(tx: SyncDb, assetIds: string[]): Promise<AlbumName[]> {
-  if (assetIds.length === 0) return [];
+// The live albums holding the asset (a smart album has no edges), by name: id and name.
+async function albumsHolding(tx: SyncDb, assetId: string): Promise<AlbumName[]> {
   const al = schema.albums;
   return tx
     .select({ id: al.id, name: al.name })
     .from(al)
-    .where(and(isNull(al.deletedAt), albumHoldsAny(al.id, assetIds)))
+    .where(and(isNull(al.deletedAt), albumHoldsAny(al.id, [assetId])))
     .orderBy(asc(sql`${al.name} collate nocase`), asc(al.id));
 }
 

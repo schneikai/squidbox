@@ -151,11 +151,11 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
       // Puts the contacts on every one of the photos; those already on one stay as they are.
       addContactsToPhotos: (assetIds, contactIds) =>
         written((tx) => addToPhotos(tx, assetIds, contactIds, getNewItemId)),
-      // Puts the added contacts on every photo of the album or post, as it holds them when this
-      // writes, and takes the removed ones off them all, in one write.
-      changeContactsOnPhotosOf: (of, { added, removed }) =>
+      // Puts the added contacts on every photo of the album, as it holds them when this writes, and
+      // takes the removed ones off them all, in one write.
+      changeContactsOnAlbumPhotos: (albumId, { added, removed }) =>
         written(async (tx) => {
-          const photoIds = await readPhotoIdsOf(tx, of);
+          const photoIds = await readPhotoIdsOf(tx, { albumId });
           await removeFromPhotos(tx, photoIds, removed);
           await addToPhotos(tx, photoIds, added, getNewItemId);
         }),

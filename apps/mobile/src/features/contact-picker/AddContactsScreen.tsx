@@ -58,7 +58,7 @@ type AddContactsPickerProps = { target: AddContactsTarget; seed: AddContactsSeed
 
 function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
   const listProps = useSheetSearchList();
-  const { changePhotoContacts, changeListContacts, changeContactsOnPhotosOf } = useContacts();
+  const { changePhotoContacts, changeListContacts, changeContactsOnAlbumPhotos } = useContacts();
   // The ones on only some of an album's photos start with a dash (`mixed`), the rest of `linked` ticked.
   const partial = useMemo(() => new Set(seed.partial), [seed.partial]);
   const initialIds = useMemo(() => seed.linked.filter((id) => !partial.has(id)), [seed.linked, partial]);
@@ -107,7 +107,7 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
       // An empty refusal keeps the sheet open as it is.
       if (!(await confirmRemoveFromAlbumPhotos(names))) return { refused: '' };
     }
-    await changeContactsOnPhotosOf({ albumId }, change);
+    await changeContactsOnAlbumPhotos(albumId, change);
     return undefined;
   }
 

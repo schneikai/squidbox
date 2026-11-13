@@ -9,7 +9,7 @@ import useDetailsPanelDrag from './useDetailsPanelDrag';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
-import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
+import PhotoContactsSection from '@/features/contact-links/PhotoContactsSection';
 import PhotoTagsSection from '@/features/photo-tags/PhotoTagsSection';
 import PostRows from '@/features/post-list/PostRows';
 import type { GuardPress } from '@/lib/unguarded';
@@ -96,7 +96,7 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }: A
 
       <PhotoTagsSection asset={asset} guardPress={guardPress} />
 
-      <TargetContactsSection of={{ assetId: asset.id }} guardPress={guardPress} isLive={isCurrent} isFlush />
+      <PhotoContactsSection assetId={asset.id} guardPress={guardPress} isLive={isCurrent} isFlush />
 
       <ScreenSectionHeader title="Albums" isFlush />
       <AssetAlbums
