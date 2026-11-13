@@ -7,13 +7,13 @@ import SelectIndicator from '@/components/SelectIndicator';
 import SheetSearchField from '@/components/SheetSearchField';
 import AddRow from '@/components/settings-list/AddRow';
 import { Row, Section } from '@/components/settings-list/SettingsList';
-import type { BuiltInContactListSummary } from '@/features/contact-list/builtInContactLists';
 import shownContactLists from '@/features/contact-list/shownContactLists';
 import useAddListAction from '@/features/contact-list/useAddListAction';
 import useContactListRows from '@/features/contact-list/useContactListRows';
 import useSearchText from '@/hooks/useSearchText';
 import useSheetSearchList from '@/hooks/useSheetSearchList';
 import listTextStyles from '@/styles/listTextStyles';
+import type { BuiltInContactListSummary } from '@/sync/queries/builtInContactLists';
 import pluralizeText from '@/utils/pluralizeText';
 import toggleItem from '@/utils/toggleItem';
 

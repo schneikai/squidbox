@@ -10,9 +10,10 @@ import {
 } from '@squidbox/shared';
 
 import autofillPlace from '@/features/contact-detail/autofillPlace';
-import { type ContactDraft, storedPlace } from '@/features/contact-detail/contactFields';
+import type { ContactDraft } from '@/features/contact-detail/contactFields';
 import mostUsed from '@/features/contact-detail/mostUsed';
 import samePlaceText from '@/features/contact-detail/samePlaceText';
+import storedPlace from '@/utils/contacts/storedPlace';
 
 // A handle read as the app writes it into its field: a single `@` where the network writes one (X,
 // Bluesky), a link as it is, nothing for only `@`s.

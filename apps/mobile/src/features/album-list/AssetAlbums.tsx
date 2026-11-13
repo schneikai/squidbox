@@ -4,10 +4,10 @@ import { Text } from 'react-native';
 import ThumbnailRow from '@/components/ThumbnailRow';
 import albumAssetCountText from '@/features/album-list/albumAssetCountText';
 import albumLastPostedText from '@/features/album-list/albumLastPostedText';
-import type { AlbumSubsetScope } from '@/features/album-list/albumQuery';
 import useAssetAlbums from '@/hooks/useAssetAlbums';
 import unguarded, { type GuardPress } from '@/lib/unguarded';
 import listTextStyles from '@/styles/listTextStyles';
+import type { AlbumSubsetScope } from '@/sync/queries/albumQuery';
 import type { LiveOptions } from '@/sync/useLiveQuery';
 
 type AssetAlbumsProps = { scope: AlbumSubsetScope; emptyText: string; guardPress?: GuardPress } & Pick<

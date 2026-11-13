@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import Divider from '@/components/Divider';
 import Icon, { type IconName } from '@/components/Icon';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
 import { colors, sizes, space } from '@/styles/designTokens';
 
 // `Sort` is the screen's sort orders and `Filter` its filters, so an option's key is checked against

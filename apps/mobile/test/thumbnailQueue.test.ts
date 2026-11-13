@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import createThumbnailQueue from '../src/features/asset-thumbnail-loader/createThumbnailQueue';
+import createThumbnailQueue from '../src/providers/asset-thumbnail-loader/createThumbnailQueue';
 
 type Asset = { thumbnailFilename: string };
 

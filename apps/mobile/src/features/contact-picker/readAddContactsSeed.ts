@@ -1,11 +1,11 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import type { ContactsOf } from '@/features/contact-links/contactsOf';
-import contactQuery from '@/features/contact-list/contactQuery';
 import { albumHoldsAny } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
+import contactQuery from '@/sync/queries/contactQuery';
 import { readByIds } from '@/sync/readByIds';
 import readLiveAlbum from '@/sync/readLiveAlbum';
 import readPhotoIdsOf from '@/sync/readPhotoIdsOf';

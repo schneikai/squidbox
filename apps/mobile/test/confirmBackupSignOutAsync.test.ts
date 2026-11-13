@@ -4,7 +4,7 @@ type Button = { text: string; onPress?: () => void };
 const alert = vi.fn<(title: string, message: string, buttons: Button[]) => void>();
 vi.mock('react-native', () => ({ Alert: { alert: (...args: [string, string, Button[]]) => alert(...args) } }));
 
-const { default: confirmSignOutAsync } = await import('../src/features/cloud/confirmBackupSignOutAsync');
+const { default: confirmSignOutAsync } = await import('../src/features/settings/confirmBackupSignOutAsync');
 
 describe('confirmBackupSignOutAsync (Settings)', () => {
   beforeEach(() => alert.mockReset());

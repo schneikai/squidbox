@@ -4,8 +4,9 @@ import type { PulledShape } from './clientCollections';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { newestOutboxId, oldestOutboxId } from './outbox';
-import type { MergeMarker } from '../library/mergeMarker';
-import type { Owner } from '../library/owner';
+
+import type { MergeMarker } from '@/library/mergeMarker';
+import type { Owner } from '@/library/owner';
 
 // sync_meta helpers: the pull cursor + a small status blob (surfaced by the Inspector).
 const CURSOR_KEY = 'cursor';

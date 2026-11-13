@@ -13,16 +13,16 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import ContactMenuRow from '@/features/contact-list/ContactMenuRow';
 import ContactRow from '@/features/contact-list/ContactRow';
-import type { BuiltInContactList } from '@/features/contact-list/builtInContactLists';
-import contactQuery, { type ContactSummary } from '@/features/contact-list/contactQuery';
 import contactSortOptions from '@/features/contact-list/contactSortOptions';
 import useContactSort from '@/features/contact-list/useContactSort';
-import useContacts from '@/features/contacts-context/useContacts';
 import useListControls from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useContacts from '@/providers/contacts/useContacts';
 import { layout, space } from '@/styles/designTokens';
 import type * as schema from '@/sync/db/schema';
+import type { BuiltInContactList } from '@/sync/queries/builtInContactLists';
+import contactQuery, { type ContactSummary } from '@/sync/queries/contactQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 

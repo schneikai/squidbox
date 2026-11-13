@@ -1,6 +1,7 @@
-import contactSortOptions, { type ContactSort } from './contactSortOptions';
+import contactSortOptions from './contactSortOptions';
 
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
+import type { ContactSort } from '@/sync/queries/contactQuery';
 
 const DEFAULT_SORT: ContactSort = 'name:asc';
 

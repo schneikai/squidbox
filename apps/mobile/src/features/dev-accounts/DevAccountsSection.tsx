@@ -6,7 +6,7 @@ import devAccountsFromEnv, { type DevAccount } from './devAccountsFromEnv';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useCloud from '@/features/cloud/useCloud';
+import useCloud from '@/providers/cloud/useCloud';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 // The local backend's accounts, which `npm run dev:local` passes in: the mock library and the copy of
