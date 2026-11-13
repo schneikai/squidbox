@@ -8,9 +8,9 @@
       "ignoreUnresolved": ["scripts/write-env-local.sh"]
     },
     "apps/mobile": {
-      "entry": ["scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{ts,tsx}"],
+      "entry": ["fingerprint.config.js", "scripts/*.{js,mjs}", "src/**/*.{web,ios,android}.{ts,tsx}"],
       "playwright": true,
-      "ignoreDependencies": ["expo-updates", "expo-system-ui", "babel-preset-expo"]
+      "ignoreDependencies": ["expo-system-ui", "babel-preset-expo"]
     },
     "apps/server": {
       "entry": ["src/db/{migrate,seed}.ts", "scripts/*.ts", "test/dbSetup.ts"]

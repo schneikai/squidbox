@@ -24,7 +24,7 @@ import {
   type PendingEdit,
 } from './outbox';
 import { planPushOutcome } from './pushPlan';
-import { pauseRuns, startRun } from './runGate';
+import { endsRun, pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import {
   pullCursor,
@@ -188,7 +188,8 @@ function filesToUpload(row: schema.OutboxRow): [field: string, filename: string]
 // leaves it out of the push, so one file that keeps failing never holds back the other rows or the
 // pull: a refused one (FileUploadRefusedError) waits for the user, any other is tried again with
 // the failed pushes (on the app's return to the foreground, a launch, Retry All). An abort stops
-// before the push.
+// before the push. What ends a run (runGate's endsRun: a changed session, the server's refusal of
+// this build as too old) ends it here too: no row is flagged, every row waits.
 async function uploadBatchFiles(
   db: SyncDb,
   batch: schema.OutboxRow[],
@@ -206,6 +207,7 @@ async function uploadBatchFiles(
         await uploadFile(row.collection, field, filename, signal);
       } catch (error) {
         if (signal.aborted) return { refused, notes, stopped: true };
+        if (endsRun(error)) throw error;
         const isRefusal = error instanceof FileUploadRefusedError;
         const message = error instanceof Error ? error.message : String(error);
         await flagOutboxRow(db, row, isRefusal ? message : `Upload of ${filename} failed: ${message}`);

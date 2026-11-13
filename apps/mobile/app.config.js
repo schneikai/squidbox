@@ -12,27 +12,8 @@ function gitCommit() {
   }
 }
 
-// An App build (eas.json's preview and production profiles set SQUIDBOX_APP_BUILD) must have its
-// contract snapshot pushed before it starts, so no installed build goes unchecked
-// (docs/sync-design.md §15): `npm run ios:app` writes and pushes it, then builds. Checked where
-// eas-cli starts the build, not on the EAS worker. A re-sign or a credentials repair of an
-// earlier build sets SQUIDBOX_NOT_A_BUILD=1.
-function requirePushedSnapshot(commit) {
-  const { SQUIDBOX_APP_BUILD, SQUIDBOX_NOT_A_BUILD, EAS_BUILD } = process.env;
-  if (!SQUIDBOX_APP_BUILD || SQUIDBOX_NOT_A_BUILD || EAS_BUILD) return;
-  // eas-cli uploads the working tree: changes there would ship code the snapshot doesn't describe.
-  if (execSync('git status --porcelain', { encoding: 'utf8' }).trim()) {
-    throw new Error('app.config.js: an App build needs a clean checkout. Build it with `npm run ios:app`.');
-  }
-  // The snapshot's name, as snapshotFile (apps/server/src/contract/snapshots.ts) writes it.
-  const snapshot = `:(top,glob)apps/server/contract/builds/*-${commit.slice(0, 8)}.json`;
-  const pushed = execSync(`git log --remotes -1 --format=%H -- "${snapshot}"`, { encoding: 'utf8' }).trim();
-  if (!pushed) {
-    throw new Error(
-      `app.config.js: no pushed contract snapshot of ${commit.slice(0, 8)}. Build the App with \`npm run ios:app\` (ios-build skill), which pushes it first.`,
-    );
-  }
-}
+// The EAS project: the builds' project and the server updates are fetched from.
+const EAS_PROJECT_ID = 'e74016a5-b902-4dca-9c35-f1ef376c4f52';
 
 // Matched by colors.background.splash, for BootScreen, which takes over from the splash, and the
 // first-sync screen after it (SplashStage).
@@ -46,9 +27,10 @@ const baseConfig = {
     name: 'Squidbox',
     slug: 'squidbox',
     version: '0.0.1',
-    // Bump whenever native modules change, so an OTA bundle is never delivered to a binary that
-    // lacks a module it needs.
-    runtimeVersion: '1.2.0',
+    // The native fingerprint; fingerprint.config.js says what doesn't count.
+    runtimeVersion: { policy: 'fingerprint' },
+    // Where a build fetches updates for its channel (eas.json); ios-build skill → Path C.
+    updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
     orientation: 'portrait',
     // Deep links (squidbox://post/…) open the screen at that URL (Expo Router).
     scheme: 'squidbox',
@@ -84,12 +66,12 @@ const baseConfig = {
       favicon: './assets/favicon.png',
     },
     extra: {
-      // Which EAS build this is (EAS sets EAS_BUILD_PROFILE); unset for any other build, which
-      // counts as a release. src/utils/isTestBuild.ts reads it.
+      // Which EAS build this is (EAS sets EAS_BUILD_PROFILE; an update carries the profile it was
+      // published for); unset for any other build, which counts as a release. src/utils/isTestBuild.ts reads it.
       buildProfile: process.env.EAS_BUILD_PROFILE,
       gitCommit: gitCommit(),
       eas: {
-        projectId: 'e74016a5-b902-4dca-9c35-f1ef376c4f52',
+        projectId: EAS_PROJECT_ID,
       },
     },
     plugins: [
@@ -124,7 +106,5 @@ if (process.env.EAS_BUILD_PROFILE === 'development') {
     bundleIdentifier: 'com.schneikai.squidbox.dev',
   };
 }
-
-requirePushedSnapshot(baseConfig.expo.extra.gitCommit);
 
 module.exports = baseConfig;

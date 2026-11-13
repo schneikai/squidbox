@@ -7,6 +7,7 @@ import { clientHeader } from './clientHeader';
 import errorResponse from './errorResponse';
 import requireSession from './requireSession';
 import sessionIdentity from './sessionIdentity';
+import watchUpdateGate from './watchUpdateGate';
 
 import type { SyncIdentity } from '@/library/sessionMatches';
 
@@ -34,6 +35,9 @@ apiWithAuthentication.interceptors.request.use((config) => {
   config.headers['Authorization'] = `Bearer ${session.tokens.accessToken}`;
   return config;
 });
+
+// The update gate's answer first: a 426 is never retried.
+watchUpdateGate(apiWithAuthentication);
 
 // Refresh access token if it is expired
 apiWithAuthentication.interceptors.response.use(

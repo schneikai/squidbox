@@ -12,6 +12,7 @@ import * as schema from '../src/sync/db/schema';
 import { setOutboxError } from '../src/sync/outbox';
 import { withSyncPaused } from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
+import UpdateRequiredError from '../src/utils/cloud-api/UpdateRequiredError';
 
 describe('runBackup', () => {
   let db: AppDb;
@@ -428,6 +429,24 @@ describe('runBackup', () => {
 
     expect(isBackupRunning()).toBe(false);
     expect(calls).toHaveLength(1); // the first asset's file uploaded, its thumbnail was refused
+    expect(deleted).toEqual([]);
+    expect(await row(a.id)).toMatchObject({ isFileSynced: false, syncError: null });
+    expect(await row(b.id)).toMatchObject({ isFileSynced: false, syncError: null });
+  });
+
+  it('an upload the server refused as from a too-old build ends the run without marking or a syncError', async () => {
+    const a = await unsyncedAsset('a.jpg');
+    const b = await unsyncedAsset('b.jpg');
+
+    await runBackup(db, {
+      uploads: uploads({
+        uploadFile: async () => {
+          throw new UpdateRequiredError();
+        },
+      }),
+    });
+
+    expect(isBackupRunning()).toBe(false);
     expect(deleted).toEqual([]);
     expect(await row(a.id)).toMatchObject({ isFileSynced: false, syncError: null });
     expect(await row(b.id)).toMatchObject({ isFileSynced: false, syncError: null });

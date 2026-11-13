@@ -36,7 +36,7 @@ const PACKAGES = /^(apps\/mobile\/)?package(-lock)?\.json$/;
 const LINT_EVERYTHING = [PACKAGES, /^apps\/mobile\/eslint\.config\.js$/];
 const FORMAT_EVERYTHING = [/^package(-lock)?\.json$/, /^\.prettier(rc|ignore)/, /^scripts\/check\.mjs$/];
 // A change here runs the app's whole suite: what every test file depends on without importing it,
-// and the files tests read from disk (the server's recorded contracts).
+// and the files tests read from disk (the server's baseline contract).
 const WHOLE_SUITE = [
   /^package(-lock)?\.json$/,
   /^tsconfig\.base\.json$/,

@@ -24,16 +24,6 @@ remove the account's copy; unsynced changes need a warning first so nothing is l
 
 ## Features
 
-### [ ] Record which builds are installed, before the App Store launch
-
-Every request names its build and install (`x-squidbox-client: <commit> <device>`,
-`apps/mobile/src/utils/cloud-api/clientHeader.ts`, name in `packages/shared/contracts/client.ts`);
-the server ignores it (`apps/server/src/auth/authenticate.ts`). Before other people install the app:
-a `devices` table written per account and install from the header, and a script listing them
-(device, account, build, first and last seen), so a build's contract snapshot
-(`docs/sync-design.md` §15) is retired only once no device runs it. Until then the owner is the
-only user and knows his phone's build.
-
 ### [ ] Search: suggestions as you type, and what it matches
 
 Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of

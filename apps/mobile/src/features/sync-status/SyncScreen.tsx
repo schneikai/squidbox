@@ -1,6 +1,6 @@
 import { useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
@@ -9,8 +9,9 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { LogBlock, LogEmpty, LogLine } from '@/components/settings-list/LogBlock';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import SyncErrorViewer from '@/features/cloud-sync/cloud-sync-control/SyncErrorViewer';
-import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
-import useCloud from '@/providers/cloud/useCloud';
+import UpdateRequiredNote from '@/features/sync-status/UpdateRequiredNote';
+import useLibrarySyncStatusText from '@/features/sync-status/useLibrarySyncStatusText';
+import { space } from '@/styles/designTokens';
 import { type CollectionTable, clientCollectionTables } from '@/sync/clientCollections';
 import { getDb, schema } from '@/sync/db/client';
 import { retryFailures } from '@/sync/outbox';
@@ -29,12 +30,12 @@ const pushFailuresQuery: PagedQuery<PushFailure> = { read: readPushFailures, tab
 // below, and the raw inspector under "Developer". Records/edges sync automatically in the background.
 export default function SyncScreen() {
   const navigation = useNavigation();
-  const { phase, pendingCount, failedCount, cursor, lastPullAt, lastError } = useSyncStatus();
-  const { needsReauth } = useCloud();
+  const syncStatus = useSyncStatus();
+  const { pendingCount, failedCount, cursor, lastPullAt } = syncStatus;
   const pendingByCollection = usePendingByCollection();
   const log = useSyncLogRows();
   const [showErrors, setShowErrors] = useState(false);
-  const statusText = getLibrarySyncStatusText({ phase, lastError, pendingCount, failedCount, needsReauth });
+  const statusText = useLibrarySyncStatusText(syncStatus);
 
   async function retryAll() {
     await retryFailures(getDb());
@@ -63,6 +64,7 @@ export default function SyncScreen() {
     <Page>
       <FloatingDetailHeader title="Library sync" onBack={() => navigation.goBack()} />
       <DetailScrollView>
+        <UpdateRequiredNote style={styles.updateNote} />
         <ScreenSectionHeader title="Status" />
         <Section>
           <Row label="Status" value={statusText} />
@@ -127,3 +129,7 @@ function CollectionRow({ name, table, pending }: CollectionRowProps) {
   const { records, tombstones } = useRecordCounts(table);
   return <Row label={name} value={`${records} · ${pending} pending · ${tombstones} tomb`} />;
 }
+
+const styles = StyleSheet.create({
+  updateNote: { marginTop: space.sm },
+});

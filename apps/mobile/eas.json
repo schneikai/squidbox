@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 5.4.0",
+    "version": ">= 27.9.0",
     "promptToConfigurePushNotifications": false,
     "appVersionSource": "remote"
   },
@@ -13,17 +13,13 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
-      "autoIncrement": true,
-      "env": {
-        "SQUIDBOX_APP_BUILD": "1"
-      }
+      "channel": "preview",
+      "autoIncrement": true
     },
     "production": {
       "environment": "production",
-      "autoIncrement": true,
-      "env": {
-        "SQUIDBOX_APP_BUILD": "1"
-      }
+      "channel": "production",
+      "autoIncrement": true
     }
   },
   "submit": {

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Icon from '@/components/Icon';
+import useUpdateRequired from '@/hooks/useUpdateRequired';
 import useCloud from '@/providers/cloud/useCloud';
 import { colors, radii, scale, shadows, sizes, textStyles } from '@/styles/designTokens';
 
@@ -13,10 +14,12 @@ export type AccountButtonProps = { onPress: () => void };
 /**
  * The account avatar at the far right of the main header, outside any toolbar: it stands for the
  * user, not for an action. Shows the account's initial while signed in, a person when signed out,
- * and a red dot when the session ended and a sign-in is needed before anything syncs.
+ * and a red dot when something is needed before anything syncs: a sign-in (the session ended) or an
+ * update (the server refused this build as too old, useUpdateRequired).
  */
 export default function AccountButton({ onPress }: AccountButtonProps) {
   const { user, isAuthenticated, needsReauth } = useCloud();
+  const updateRequired = useUpdateRequired();
   const initial = (isAuthenticated || needsReauth) && user?.email ? user.email.charAt(0).toUpperCase() : null;
 
   return (
@@ -32,7 +35,7 @@ export default function AccountButton({ onPress }: AccountButtonProps) {
       ) : (
         <Icon name="user" size={sizes.iconSmall} color={colors.text.secondary} />
       )}
-      {needsReauth && <View style={styles.badge} />}
+      {(needsReauth || updateRequired) && <View style={styles.badge} />}
     </Pressable>
   );
 }

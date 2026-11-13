@@ -11,6 +11,8 @@ import { FileUploadRefusedError } from '../src/sync/fileUploadErrors';
 import { retryFailures } from '../src/sync/outbox';
 import { readPushFailures } from '../src/sync/readPushFailures';
 import { runSyncOnce, type UploadFile } from '../src/sync/worker';
+import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
+import UpdateRequiredError from '../src/utils/cloud-api/UpdateRequiredError';
 import UploadFailedError from '../src/utils/cloud-api/assets/UploadFailedError';
 
 let db: SyncDb;
@@ -194,6 +196,23 @@ describe('a file field in the sync', () => {
       expect(await outboxRows()).toEqual([]);
     });
   }
+
+  it.each([
+    ['the server refused it as from a too-old build', () => new UpdateRequiredError()],
+    ['the session changed under it', () => new SessionChangedError()],
+  ])('an upload that fails because %s ends the run, no row flagged and nothing pushed', async (_, failure) => {
+    await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
+    await contacts.create(db, makeContactRecord({ name: 'Jon' }));
+    const error = failure();
+    const uploadFile = recording(async () => {
+      throw error;
+    });
+
+    await expect(runSyncOnce(db, server(), { uploadFile })).rejects.toBe(error);
+
+    expect(pushed).toEqual([]);
+    expect(await outboxRows()).toMatchObject([{ error: null }, { error: null }]);
+  });
 
   it('a photo changed during its upload is uploaded and pushed by the next run', async () => {
     const contact = await pushedContact();

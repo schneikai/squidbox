@@ -1,8 +1,9 @@
 import Fastify, { type FastifyServerOptions, type onRouteHookHandler } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
-import { upResponseSchema } from '@squidbox/shared';
+import { CONTRACT_VERSION, upResponseSchema } from '@squidbox/shared';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { loadConfig } from './config.js';
+import { registerClientVersionGate } from './plugins/clientVersion.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { authRoutes } from './auth/routes.js';
 import { assetRoutes } from './storage/routes.js';
@@ -44,12 +45,16 @@ export async function buildApp(opts: { logger?: FastifyServerOptions['logger']; 
   registerErrorHandler(app);
 
   const { SERVER_ID: serverId } = loadConfig();
-  app
-    .withTypeProvider<ZodTypeProvider>()
-    .get('/up', { schema: { response: { 200: upResponseSchema } } }, async () => ({ status: 'ok' as const, serverId }));
+  app.withTypeProvider<ZodTypeProvider>().get('/up', { schema: { response: { 200: upResponseSchema } } }, async () => ({
+    status: 'ok' as const,
+    serverId,
+    minContractVersion: CONTRACT_VERSION,
+  }));
 
   await app.register(
     async (api) => {
+      // Before the routes: every API route, sign-in and uploads included, is gated; /up stays open.
+      registerClientVersionGate(api);
       await authRoutes(api);
       await assetRoutes(api);
       await syncRoutes(api);

@@ -3,10 +3,8 @@ import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { pendingEdits } from './outbox';
 import { readByIds } from './readByIds';
-import { startRun } from './runGate';
+import { endsRun, startRun } from './runGate';
 import { requestSync } from './worker';
-
-import SessionChangedError from '@/utils/cloud-api/SessionChangedError';
 
 type BackupAsset = schema.AssetRow;
 
@@ -41,7 +39,8 @@ export function isBackupRunning(): boolean {
  * null while a pause holds. An abort ends the run once the asset's uploads settled: an upload that
  * finished before it is still marked (the pause waits for the run, so the session and library are
  * still the run's), an interrupted one is neither marked nor a syncError. A session that changed
- * under the run (SessionChangedError) ends it with nothing marked or deleted for the asset.
+ * under the run, or the server's refusal of this build as too old, ends it with nothing marked or
+ * deleted for the asset (runGate's endsRun).
  */
 export function runBackup(db: SyncDb, options: BackupRunOptions): Promise<void> | null {
   if (running) throw new Error('A backup is already running');
@@ -88,8 +87,8 @@ async function backupAsset(db: SyncDb, asset: BackupAsset, uploads: BackupUpload
       (thumbnailError ? Promise.reject(thumbnailError) : finishedBeforeAbort(uploads.uploadThumbnail(asset), signal)),
   ]);
   const failures = [file, thumbnail].flatMap((result) => (result.status === 'rejected' ? [result.reason] : []));
-  const sessionChanged = failures.find((error) => error instanceof SessionChangedError);
-  if (sessionChanged) throw sessionChanged; // the run gate ends the run on it
+  const ended = failures.find(endsRun);
+  if (ended) throw ended; // the run gate ends the run on it
   const uploaded = {
     file: file.status === 'fulfilled' && file.value,
     thumbnail: thumbnail.status === 'fulfilled' && thumbnail.value,

@@ -19,8 +19,11 @@ library and parks the existing one. Never store a password as a secret.
 
 ## Routine deploy
 
-From the repo root: `fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile`
-Migrations run automatically. Verify: `curl https://squidbox-server.fly.dev/up` → `{"status":"ok","serverId":"<uuid>"}`.
+From the repo root: `npm run deploy:server` (never `fly deploy` directly): it runs
+`fly deploy . --config apps/server/fly.toml --dockerfile apps/server/Dockerfile` after the deploy-order
+check of `docs/sync-design.md` §15, Raising the minimum.
+Migrations run automatically. Verify: `curl https://squidbox-server.fly.dev/up` →
+`{"status":"ok","serverId":"<uuid>","minContractVersion":<n>}`.
 
 `SERVER_ID` must be set as a secret before the deploy that first needs it; the server refuses to
 boot without it. Check it with `fly secrets list --app squidbox-server` before deploying, and never re-set
@@ -45,7 +48,7 @@ its CA. Build the image locally instead and deploy it:
    docker buildx build --network host --build-context ccr=/root/.ccr --build-arg HTTPS_PROXY="$HTTPS_PROXY" \
      -f "$SCRATCH/Dockerfile.deploy" -t squidbox-server:$(git rev-parse --short HEAD) --load .
    ```
-4. `SSL_CERT_FILE=/root/.ccr/ca-bundle.crt flyctl deploy --config apps/server/fly.toml --image squidbox-server:<sha> --local-only`
+4. `SSL_CERT_FILE=/root/.ccr/ca-bundle.crt npm run deploy:server -- --image squidbox-server:<sha> --local-only`
    (the AAAA "DNS verification failed" warning there is the workspace resolver, not the app).
 
 ## Notes / gotchas

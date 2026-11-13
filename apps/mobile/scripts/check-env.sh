@@ -60,10 +60,6 @@ if [ -n "${EXPO_ASC_API_KEY_PATH:-}" ]; then
   fi
 fi
 
-echo
-echo "== app secrets in EAS (preview/production builds) =="
-echo "Run: eas env:list --environment preview  -> confirm EXPO_PUBLIC_API_URL, SENTRY_AUTH_TOKEN exist."
-echo "Set/update via: eas env:set --name <NAME> --value <value> --visibility secret --environment preview --environment production"
 
 echo
 if [ "$eas_miss" -eq 1 ]; then

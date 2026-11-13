@@ -1,15 +1,10 @@
-import { CLIENT_HEADER } from '@squidbox/shared';
+import { CLIENT_HEADER, formatClientHeader } from '@squidbox/shared';
 import Constants from 'expo-constants';
 
 import { getDeviceId } from './deviceId';
 
-/**
- * The header that names this build to the server: `<commit> <install id>` (docs/sync-design.md §15). Empty when the commit or the install's id isn't known (tests, a request
- * before the boot loaded it): the header never fails a request.
- */
+/** The header that names this build to the server (formatClientHeader, docs/sync-design.md §15). */
 export function clientHeader(): Record<string, string> {
   const build: unknown = Constants.expoConfig?.extra?.gitCommit;
-  const device = getDeviceId();
-  if (typeof build !== 'string' || !device) return {};
-  return { [CLIENT_HEADER]: `${build} ${device}` };
+  return { [CLIENT_HEADER]: formatClientHeader(typeof build === 'string' ? build : null, getDeviceId()) };
 }

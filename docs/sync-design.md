@@ -873,22 +873,22 @@ camel case (`ideaSettings`), and so are the repository and its hook (`ideaSettin
 
 1. Shared: add the descriptor in `packages/shared/collections/`, export it from
    `packages/shared/index.ts`, and add it to `collections` in `registry.ts`. `CollectionName` is
-   inferred from that list, so every step below marked *typed* fails `npm run typecheck` until it
+   inferred from that list, so every step below marked _typed_ fails `npm run typecheck` until it
    is done.
 2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()` (which brings
    `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index, and
-   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (*typed*). Generate the
+   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (_typed_). Generate the
    migration from `apps/server`: `npm run db:generate -- --name <collection>`. `migrate.ts` attaches
    the `server_seq` trigger.
 3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables` in
-   `clientCollections.ts` (*typed*), and generate the migration from `apps/mobile`:
+   `clientCollections.ts` (_typed_), and generate the migration from `apps/mobile`:
    `npx drizzle-kit generate --name <collection>` (it also regenerates `migrations.js`). A pull
    skips a collection without a client table on purpose, so an older build survives a newer
    server; only the typecheck catches a new build that forgot it.
 4. Name a failed push of it in words in `TITLES` in `apps/mobile/src/sync/readPushFailures.ts`
-   (*typed*).
+   (_typed_).
 5. Add a sample record to the "collection registry guard" in `apps/server/test/sync.test.ts`
-   (*typed*), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
+   (_typed_), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
    should have some.
 6. Describe its fields in §10.
 7. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
@@ -1212,8 +1212,11 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
 
 ## 15. Compatibility across app versions
 
-An installed build can't be updated by us, and nobody is ever forced to update: every build that
-was ever installed keeps syncing and calling today's server. The server ships first; the app follows.
+Every change is backward compatible: the server ships first and only adds, so a build that hasn't
+updated (an EAS update reaches a phone on the phone's schedule, ios-build skill → Path C) keeps
+syncing and calling today's server. The one exception is a raise of the minimum contract version
+(Raising the minimum), which the update gate makes survivable: a build below the minimum is told to
+update, and its edits wait.
 
 ### The rules
 
@@ -1221,30 +1224,25 @@ was ever installed keeps syncing and calling today's server. The server ships fi
   sends or needs it. Never remove, rename, retype or narrow what an old build sends or reads: fields,
   enum values, limits (`maxLength`, `max`, list sizes, body limits), routes.
 - **Enum values.** Removing one breaks a build that sends it; adding one breaks a build that reads
-  it and doesn't know it. Before adding a value to an enum an old build reads, ship a build that
-  tolerates unknown values there, and add the value once no build without that tolerance is
-  installed (the check's message says so).
-- **A behaviour change keeps the old path** for old builds, until no device runs them.
+  it and doesn't know it. Make the app tolerate unknown values there now; the new value itself
+  arrives with a raise of the minimum (the check's message says so).
+- **A behaviour change keeps the old path** for old builds, until the minimum is raised past the
+  builds that need it.
 - **Client migrations are append-only:** never edited once shipped, never removed.
 - **One-time data fixes are migrations**, not boot code to delete later.
 - **A pull fills what the build knows.** A build that learns collections or fields pulls from the
   beginning once, so values an older build dropped arrive (§13, Pulled shape).
 
-### Contract snapshots
+### The baseline
 
-Every App build (`preview`, `production`) starts with `npm run ios:app` (`scripts/iosAppBuild.mjs`,
-the ios-build skill): on the clean, pushed tip of a branch it snapshots the commit's contract
-(`npm run contract:snapshot`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`, commits
-and pushes it, and only then builds that commit. `apps/mobile/app.config.js` refuses an App build
-whose commit has no pushed snapshot, so a build can't be installed without one. A
-snapshot records the build's full commit sha and build date and is never rewritten. Its contract is
-the normalized JSON Schema of every route (request body, params, querystring, every answer, the body
-limit), every collection, the error envelope and the client migrations' hashes
-(`apps/server/src/contract/`). A dev client runs Metro's code: nothing is frozen in it, so it gets
-no snapshot.
+`apps/server/contract/baseline.json` is the contract of the oldest supported build: its full commit
+sha and its contract, the normalized JSON Schema of every route (request body, params, querystring,
+every answer, the body limit), every collection, the error envelope and the client migrations'
+hashes (`apps/server/src/contract/`). Only a raise of the minimum rewrites it (Raising the minimum).
+A dev client runs Metro's code: nothing is frozen in it.
 
-`apps/server/test/contract.test.ts` fails a change today's server makes that a snapshotted build
-couldn't survive, naming the build, the path and what changed: a request may only loosen (an optional
+`apps/server/test/contract.test.ts` fails a change today's server makes that the oldest supported
+build couldn't survive, naming the path and what changed: a request may only loosen (an optional
 field, a wider limit, a value added); a response may only grow (a field added, a value removed); a
 collection may only gain optional fields and wider limits; every recorded route stays, its body
 limit doesn't shrink; the recorded client migrations are a prefix of today's. A JSON Schema keyword
@@ -1252,25 +1250,77 @@ the check doesn't read is a problem, so it never passes what it can't judge. Wha
 zod `.refine` rules and `.transform`s leave no trace in JSON Schema, and stay under the rules above.
 The dev-only routes (`/api/v1/dev/*`) are no build's contract.
 
+### The update gate
+
+Every app request names the contract version it was built with (`CONTRACT_VERSION`,
+`packages/shared/contracts/contractVersion.json`, in the client header below); the server's minimum
+is the version it was deployed with. `apps/server/src/plugins/clientVersion.ts` gates the whole API,
+every `/api/v1` route (sign-in and uploads included; `/up` stays open and answers
+`minContractVersion`), as a breaking change can hit any route:
+
+- a header naming a version below the minimum gets HTTP 426 (`UPDATE_REQUIRED_STATUS`) with the
+  usual envelope, code `update_required`;
+- no header, or one without a version or with one that isn't a positive integer, counts as
+  `FIRST_CONTRACT_VERSION`, never a 400 (one on `auth/refresh` would end the session): builds from
+  before the header left it out, so tests and curl pass only until the first raise. The app always
+  sends it.
+
+The 426 never changes: every build made from now on keys on it, by the status, never the text. The
+app's API layer turns it into an `UpdateRequiredError` and notes it in an in-memory store
+(`utils/cloud-api/updateRequiredStore.ts`, cleared by the next success on a gated route, never by
+`/up`); wherever the sync status
+shows, `useUpdateRequired` puts `UPDATE_REQUIRED_TEXT` with an Update action, which fetches the EAS
+update and restarts. The app keeps working locally: a 426 ends a sync or backup run like a session
+change (`sync/runGate.ts`), without flagging a row or an asset, and local edits stay in the outbox
+(§6) until the update. Builds from before the gate send no version (or no header) and can't show any of
+this: the gate refuses them (after a raise) with what they show as a generic sync error.
+
+### Raising the minimum
+
+Whose decision it is: CLAUDE.md. The steps, in order:
+
+1. In a clean checkout whose HEAD holds the breaking change (the contract test is red there) and is
+   the pushed tip of its branch, `npm run contract:raise` rewrites the baseline to HEAD's commit and
+   contract and raises `CONTRACT_VERSION` by one. It commits nothing.
+2. Commit both files and push. Never rebase or force-push the branch after a raise: the baseline
+   names its commit, which the installed-build suite fetches (a squash merge keeps it fetchable
+   through the pull request).
+3. Publish the app from that commit on every channel (`npm run ios:update`, or `npm run ios:app`
+   when native code or the client migrations changed). That app must work against the old server
+   until the deploy.
+4. `npm run deploy:server`. It enforces the order: with a raised version in the checkout and a lower
+   (or unreadable) minimum on the live server (`/up`), it deploys only once, on every EAS channel
+   with a finished build, what phones on its latest build run (the newer of that build and the
+   latest update for its runtime) holds the new version (`scripts/deployCheck.mjs`). A phone on an
+   older build (another runtime) gets no such update and needs the newest build installed, as the
+   Update action tells it.
+
+A raise is when leftovers kept for older builds may be deleted.
+
 ### The client header
 
-Every request names its build and install: `x-squidbox-client: <commit> <device>`
-(`packages/shared/contracts/client.ts`, sent by `apps/mobile/src/utils/cloud-api/clientHeader.ts`):
-the full git sha the build was made from (`app.config.js` `extra.gitCommit`) and a uuid minted once
-per install. The server ignores it for now; recording which builds are installed is a todo before
-other people install the app.
+Every request names its build, install and contract version: `x-squidbox-client: <commit> <device>
+<version>`, written by `formatClientHeader` and read by `clientHeaderVersion`
+(`packages/shared/contracts/client.ts`): the full git sha the build was made from (`app.config.js`
+`extra.gitCommit`), a uuid minted once per install, `-` for either when it isn't known, and the
+build's `CONTRACT_VERSION`. The server reads only the version (The update gate).
 
-### Retiring a build
+### Older code after newer
 
-An owner decision, once no device runs the build: delete its snapshot file.
+When an update crashes at launch, expo-updates falls back to the build's embedded bundle, which then
+opens the database the update used. So `npm run ios:update` refuses an update whose client
+migrations differ from those of any build on its channel with its runtime version: a migration
+ships only with a build, and the fallback runs code older than the update but never older than the
+database. It also refuses a commit that doesn't descend from the channel's latest update: undo an
+update by fixing forward, from a newer commit. A direct `eas update` passes neither check, and
+nothing tests a newer database under older code: the installed-build suite goes from old to new only.
 
 ### The installed-build suite
 
-`apps/mobile/test/installedBuilds.e2e.test.ts` runs the oldest and the newest snapshotted build: each
-build's `apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite
-migrations, against today's server, then updated to today's code and migrations on the same
-database (the `withVerbs` shim lets the test call the oldest builds' repositories by today's names).
-The few `@/` imports of the old sync code (the API client, its errors) still resolve to today's
-`src`. It takes each build's commit from its snapshot and fetches it (depth 1) when the checkout
-lacks it; in CI a commit it can't fetch fails the suite. It proves both builds converge with today's app through edits, purges and
-updates, and that an updated build's pull restarts.
+`apps/mobile/test/installedBuilds.e2e.test.ts` runs one build, the baseline's commit: its
+`apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite migrations,
+against today's server, then updated to today's code and migrations on the same database. The few
+`@/` imports of the old sync code (the API client, its errors) still resolve to today's `src`. It
+fetches the commit (depth 1) when the checkout lacks it; in CI a commit it can't fetch fails the
+suite. It proves the build converges with today's app through edits, purges and updates, and that
+an update takes a row in every table it has.

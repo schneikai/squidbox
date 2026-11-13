@@ -24,6 +24,7 @@ import {
   withSyncPaused,
 } from '../src/sync/worker';
 import SessionChangedError from '../src/utils/cloud-api/SessionChangedError';
+import UpdateRequiredError from '../src/utils/cloud-api/UpdateRequiredError';
 
 // The production sync runs' transport and file removal (withSyncRun).
 const transportImpl = vi.hoisted(() => ({ current: null as unknown }));
@@ -164,8 +165,9 @@ describe('withSyncPaused', () => {
     await withSyncPaused(async () => setSyncTarget(null));
   });
 
-  it('a session that changed under a run ends it like an abort, not as a failure', async () => {
+  it('a session that changed under a run, or a server that refuses this build as too old, ends it like an abort, not as a failure', async () => {
     await expect(startRun(async () => Promise.reject(new SessionChangedError()))).resolves.toBeUndefined();
+    await expect(startRun(async () => Promise.reject(new UpdateRequiredError()))).resolves.toBeUndefined();
     await expect(startRun(async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
   });
 });
