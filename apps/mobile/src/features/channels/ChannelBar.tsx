@@ -1,6 +1,5 @@
 import { channelById, type Channel } from '@squidbox/shared';
 import { type StyleProp, ScrollView, StyleSheet, type ViewStyle } from 'react-native';
-import Animated from 'react-native-reanimated';
 
 import ChannelLogo from './ChannelLogo';
 import channelName from './channelName';
@@ -11,7 +10,7 @@ import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
-import { reflow, sizes, space } from '@/styles/designTokens';
+import { sizes, space } from '@/styles/designTokens';
 
 /** One channel of a post on the bar: the post's own, or another channel's copy. */
 export type ChannelBarPart = { key: string; channelId: string | null };
@@ -37,7 +36,8 @@ type ChannelBarProps = {
  * A post's channels as a row of chips (tabs), one per part of `parts` (the post's own first), in bar
  * order (orderPostChannels over `channelOrder`): each its channel's logo and name, the selected one
  * (`selectedKey`) white. A tap on another calls `onSelect(key)`, with a selection tap.
- * With `editing` (the editor) the selected chip has a caret and opens Channel of this post: the user's
+ * With `editing` (the editor) every chip has a caret, so none changes width when another is
+ * selected, and a tap on the selected one opens Channel of this post: the user's
  * channels (and the part's own when it isn't among them), the current one marked, one another part is
  * on off, then Remove <Channel> with `onRemove`; and a dashed + after the chips opens Add channel, the
  * user's channels no part is on (no + when there are none). The row scrolls sideways under the edges of
@@ -56,28 +56,29 @@ export default function ChannelBar({ parts, channelOrder, selectedKey, onSelect,
   }
 
   function renderChip(part: ChannelBarPart) {
-    // A width change (the editor's caret on the selected chip) glides the chips after it.
-    return (
-      <Animated.View key={part.key} layout={reflow}>
-        {renderTab(part)}
-      </Animated.View>
-    );
-  }
-
-  function renderTab(part: ChannelBarPart) {
     const label = channelName(part.channelId);
     const current = channelById(part.channelId);
     const mark = current && <ChannelLogo channelId={current.id} size={sizes.menuIcon} />;
     if (part.key !== selectedKey) {
-      return <Chip label={label} mark={mark} accessibilityRole="tab" onPress={() => handleSelect(part.key)} />;
+      return (
+        <Chip
+          key={part.key}
+          label={label}
+          mark={mark}
+          hasCaret={!!editing}
+          accessibilityRole="tab"
+          onPress={() => handleSelect(part.key)}
+        />
+      );
     }
-    if (!editing) return <Chip label={label} mark={mark} isSelected accessibilityRole="tab" />;
+    if (!editing) return <Chip key={part.key} label={label} mark={mark} isSelected accessibilityRole="tab" />;
     const options =
       current && !editing.channels.some((channel) => channel.id === current.id)
         ? [...editing.channels, current]
         : editing.channels;
     return (
       <MenuButton
+        key={part.key}
         title="Channel of this post"
         trigger={({ toggle, isOpen }) => (
           <Chip

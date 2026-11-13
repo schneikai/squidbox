@@ -41,8 +41,9 @@ export type ChipProps = Pick<
  * icon — leads the label (Icon name), grey, or violet when it is the assistant's sparkle; `leading` leads it instead with a node
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
  * chip would be wider than its row; `mark` takes the icon's place with a node of the icon's size (a
- * channel's logo). `hasCaret` ends it with a ⌄: it opens a menu, and `isExpanded` tells VoiceOver
- * whether that is open. `isIconOnly` is a round chip of its icon alone (the `add` + at the end of a
+ * channel's logo). `hasCaret` ends it with a ⌄: it opens a menu (in a row of tabs, every tab that
+ * opens one when selected has it, so none changes width), and `isExpanded` tells VoiceOver whether
+ * that is open. `isIconOnly` is a round chip of its icon alone (the `add` + at the end of a
  * row of tabs); its label is then only what VoiceOver reads. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
