@@ -1,5 +1,5 @@
 import albumSortFunctions from '@/features/album-list/actions/sort-albums-action/albumSortFunctions';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 const newestFirst = albumSortFunctions['createdAt:desc'];
 

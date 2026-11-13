@@ -1,6 +1,6 @@
 import { CONTACT_HANDLE_FIELDS, type ContactHandleField, handleKey } from '@squidbox/shared';
 
-import type { ContactSummary } from '@/features/contact-list/contactQuery';
+import type { ContactSummary } from '@/sync/queries/contactQuery';
 
 /** What the duplicate check reads of a live contact (a ContactSummary), and a match shows. */
 export type Candidate = Pick<ContactSummary, 'id' | 'name' | 'avatarFilename' | ContactHandleField>;

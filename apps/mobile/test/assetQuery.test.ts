@@ -4,13 +4,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import { createPost, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeMeasuredTestDb } from './helpers/testDb';
-import assetQuery from '../src/features/asset-list/assetQuery';
 import * as repo from '../src/sync/assetsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import type { AppDb } from '../src/sync/db/driver';
 import * as schema from '../src/sync/db/schema';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks } from '../src/sync/membershipRepository';
+import assetQuery from '../src/sync/queries/assetQuery';
 import { makeRepository } from '../src/sync/repository';
 
 type Descriptor = Parameters<typeof assetQuery>[0];

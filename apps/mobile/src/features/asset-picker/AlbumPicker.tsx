@@ -9,12 +9,12 @@ import albumFilterOptions from '@/features/album-list/actions/filter-albums-acti
 import albumSortOptions from '@/features/album-list/actions/sort-albums-action/albumSortOptions';
 import type { AlbumSort } from '@/features/album-list/actions/sort-albums-action/isAlbumSort';
 import useSortAlbumsAction from '@/features/album-list/actions/sort-albums-action/useSortAlbumsAction';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlaceholder';
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useListControls from '@/hooks/useListControls';
 import { layout, press } from '@/styles/designTokens';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 type AlbumPickerProps = {
   onPick: (album: AlbumListRow) => void;

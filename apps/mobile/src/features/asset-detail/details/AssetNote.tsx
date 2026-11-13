@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, type LayoutChangeEvent } from 'react-native';
 
 import TextInput from '@/components/TextInput';
-import useAssets from '@/features/assets-context/useAssets';
 import type { GuardPress } from '@/lib/unguarded';
+import useAssets from '@/providers/assets/useAssets';
 import { colors } from '@/styles/designTokens';
 import textareaTextStyle from '@/styles/textareaTextStyle';
 import type { AssetRow } from '@/sync/db/schema';

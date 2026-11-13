@@ -1,10 +1,10 @@
 import type { AssetRecord } from '@squidbox/shared';
 
-import getPickedAssetMetadataAsync from '@/features/assets-context/getPickedAssetMetadataAsync';
-import useAssets from '@/features/assets-context/useAssets';
 import { openLibraryId } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import getPickedAssetMetadataAsync from '@/providers/assets/getPickedAssetMetadataAsync';
+import useAssets from '@/providers/assets/useAssets';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';

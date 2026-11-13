@@ -120,4 +120,22 @@ describe('instructionsRepository', () => {
     expect(Object.keys(row!.fields)).toEqual(['writing']);
     expect(await clearInstructionsEqualTo(db, USER, published)).toBe(false);
   });
+
+  it('clears only the kinds still equal at the write', async () => {
+    const db = makeTestDb();
+    await save(db, 'writing', MINE);
+    const published = { ...DEFAULT_INSTRUCTIONS, writing: MINE };
+    const [, cleared] = await Promise.all([
+      save(db, 'writing', 'Newer.'),
+      clearInstructionsEqualTo(db, USER, published),
+    ]);
+    expect(cleared).toBe(false);
+    expect((await readInstructions(db, USER))!.writing).toBe('Newer.');
+  });
+
+  it('decides whether a save changes anything from the text stored at the write', async () => {
+    const db = makeTestDb();
+    await Promise.all([save(db, 'writing', MINE), save(db, 'writing', null)]);
+    expect((await readInstructions(db, USER))!.writing).toBeNull();
+  });
 });

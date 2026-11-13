@@ -2,10 +2,10 @@ import type { ReactNode, RefObject } from 'react';
 import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import useAlbumGrid from '@/features/album-list/useAlbumGrid';
 import type { ScrollableList } from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 const keyExtractor = (album: AlbumListRow) => album.id;
 

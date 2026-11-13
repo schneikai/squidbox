@@ -1,6 +1,6 @@
 import isAlbumSort, { type AlbumSort } from './isAlbumSort';
 
-import useAppSettings from '@/features/app-settings/useAppSettings';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
 
 // The albums list's sort, remembered across launches (albumListSortOrder); a stored key no longer
 // offered falls back to Newest first.

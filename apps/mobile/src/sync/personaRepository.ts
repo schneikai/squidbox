@@ -44,11 +44,14 @@ export async function addRule(
 ): Promise<'added' | 'present' | 'tooLong' | 'full'> {
   const rule = text.trim();
   if (rule.length > PERSONA_LIMITS.rule) return 'tooLong';
-  const rules = (await readPersona(db, userId))?.rules ?? [];
-  if (rules.includes(rule)) return 'present';
-  if (rules.length >= PERSONA_LIMITS.rules) return 'full';
-  await savePersona(db, userId, { rules: [...rules, rule] });
-  return 'added';
+  let result: 'added' | 'present' | 'full' = 'added';
+  await editRules(db, userId, (rules) => {
+    if (rules.includes(rule)) result = 'present';
+    else if (rules.length >= PERSONA_LIMITS.rules) result = 'full';
+    else return [...rules, rule];
+    return null;
+  });
+  return result;
 }
 
 /** A stored rule as the editor opened it: where it was and what it said. */
@@ -76,18 +79,39 @@ export async function updateRule(
 ): Promise<'updated' | 'present' | 'tooLong' | 'gone'> {
   const rule = text.trim();
   if (rule.length > PERSONA_LIMITS.rule) return 'tooLong';
-  const rules = (await readPersona(db, userId))?.rules ?? [];
-  const at = locateRule(rules, seeded);
-  if (at === -1) return 'gone';
-  if (rules.some((other, i) => i !== at && other === rule)) return 'present';
-  await savePersona(db, userId, { rules: rules.map((other, i) => (i === at ? rule : other)) });
-  return 'updated';
+  let result: 'updated' | 'present' | 'gone' = 'updated';
+  await editRules(db, userId, (rules) => {
+    const at = locateRule(rules, seeded);
+    if (at === -1) result = 'gone';
+    else if (rules.some((other, i) => i !== at && other === rule)) result = 'present';
+    else return rules.map((other, i) => (i === at ? rule : other));
+    return null;
+  });
+  return result;
 }
 
 /** Removes the rule the editor opened (`seeded`, found again as in updateRule); one gone already stays gone. */
 export async function removeRule(db: SyncDb, userId: string, seeded: SeededRule): Promise<void> {
-  const rules = (await readPersona(db, userId))?.rules ?? [];
-  const at = locateRule(rules, seeded);
-  if (at === -1) return;
-  await savePersona(db, userId, { rules: rules.filter((_, i) => i !== at) });
+  await editRules(db, userId, (rules) => {
+    const at = locateRule(rules, seeded);
+    return at === -1 ? null : rules.filter((_, i) => i !== at);
+  });
+}
+
+/**
+ * Saves the rules `edit` makes of the stored ones (null writes nothing). It runs inside the save's
+ * transaction, so a rule saved or pulled in between is part of what it edits, never overwritten.
+ */
+function editRules(db: SyncDb, userId: string, edit: (rules: string[]) => string[] | null): Promise<void> {
+  return saveUserRecord(
+    db,
+    'personas',
+    t,
+    userId,
+    (stored: PersonaFields | null): Partial<PersonaFields> => {
+      const rules = edit(stored?.rules ?? []);
+      return rules ? { rules } : {};
+    },
+    EMPTY_PERSONA,
+  );
 }

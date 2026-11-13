@@ -1,6 +1,5 @@
-import type { ContactFilter } from './contactQuery';
-
 import type { FilterOption } from '@/components/floating-bars/SortFilterMenu';
+import type { ContactFilter } from '@/sync/queries/contactQuery';
 
 // The Contacts tab's filter choices (contactQuery's `filter`), for its sort / filter menu.
 const contactFilterOptions: FilterOption<ContactFilter>[] = [

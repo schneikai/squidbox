@@ -2,9 +2,9 @@ import { router } from 'expo-router';
 
 import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import assetHref from '@/features/asset-list/assetHref';
-import type { AssetQuery } from '@/features/asset-list/assetQuery';
 import { getDb, schema } from '@/sync/db/client';
 import type { AssetRow } from '@/sync/db/schema';
+import type { AssetQuery } from '@/sync/queries/assetQuery';
 import { readByIds } from '@/sync/readByIds';
 import useShareAssets from '@/utils/assets/useShareAssets';
 

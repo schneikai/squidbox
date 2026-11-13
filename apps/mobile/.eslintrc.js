@@ -58,5 +58,32 @@ module.exports = {
       files: ['src/features/**/*.ts', 'src/features/**/*.tsx', 'src/app/**/*.ts', 'src/app/**/*.tsx'],
       rules: { 'no-restricted-syntax': ['error', SPACING_RULE, FC_RULE, HEX_COLOR_RULE, STYLE_SPREAD_RULE] },
     },
+    {
+      // The lower folders never import from a feature (CLAUDE.md → Code layout): a provider lives in
+      // `providers/`, a query in `sync/queries/`, and what one feature alone uses moves into it.
+      files: [
+        'src/components/**',
+        'src/hooks/**',
+        'src/lib/**',
+        'src/library/**',
+        'src/providers/**',
+        'src/styles/**',
+        'src/sync/**',
+        'src/utils/**',
+      ],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['@/features/*', '**/features/*'],
+                message: 'A lower folder never imports from a feature (CLAUDE.md → Code layout).',
+              },
+            ],
+          },
+        ],
+      },
+    },
   ],
 };

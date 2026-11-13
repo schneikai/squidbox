@@ -25,9 +25,9 @@ import {
 } from '@/features/contact-detail/contactFields';
 import useContactListRows from '@/features/contact-list/useContactListRows';
 import useContactRows from '@/features/contact-list/useContactRows';
-import useContacts from '@/features/contacts-context/useContacts';
 import useEditSheet from '@/hooks/useEditSheet';
 import useHaptics from '@/hooks/useHaptics';
+import useContacts from '@/providers/contacts/useContacts';
 import { space } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 

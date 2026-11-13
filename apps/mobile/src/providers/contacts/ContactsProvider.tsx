@@ -9,10 +9,8 @@ import { type ReactNode, useMemo } from 'react';
 
 import ContactsContext, { type ContactsContextValue } from './ContactsContext';
 
-import makeAvatarAsync from '@/features/contact-avatar/makeAvatarAsync';
-import { placesChanged } from '@/features/contact-detail/contactFields';
-import { builtInContactList } from '@/features/contact-list/builtInContactLists';
 import useOpenLibrary from '@/library/useOpenLibrary';
+import makeAvatarAsync from '@/providers/contacts/makeAvatarAsync';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
 import { getDb } from '@/sync/db/client';
@@ -20,10 +18,12 @@ import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
 import { addToPhotos, removeFromPhotos } from '@/sync/photoContacts';
+import { builtInContactList } from '@/sync/queries/builtInContactLists';
 import { readByIds } from '@/sync/readByIds';
 import readPhotoIdsOf from '@/sync/readPhotoIdsOf';
 import { requestSync } from '@/sync/worker';
 import { deleteAvatar } from '@/utils/assets/assetStorage';
+import placesChanged from '@/utils/contacts/placesChanged';
 import getNewItemId from '@/utils/getNewItemId';
 import newRecord from '@/utils/newRecord';
 
