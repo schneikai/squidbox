@@ -158,6 +158,9 @@ test('a posted post and its editor start no ideas', async ({ page, assistant }) 
 
 test.describe('Post ideas settings', () => {
   // Opens Settings → Assistant → Post ideas.
+  // The prompt on the Post ideas screen; the screens under it keep their text fields in the page.
+  const ideasPrompt = (page: Page) => page.getByTestId('ideas-settings-screen').getByRole('textbox');
+
   async function openPostIdeas(page: Page) {
     await button(page.getByTestId('library-screen'), 'Settings').click();
     await button(page.getByTestId('settings-screen'), 'Assistant').click();
@@ -208,7 +211,7 @@ test.describe('Post ideas settings', () => {
   }) => {
     const mine = 'Three short lines about the coast road, one of them a question.';
     await openPostIdeas(page);
-    const prompt = page.getByRole('textbox');
+    const prompt = ideasPrompt(page);
     const original = await prompt.inputValue();
     await savedAsync(page, async () => {
       await prompt.fill(mine);
@@ -230,7 +233,7 @@ test.describe('Post ideas settings', () => {
       (dialog) => dialog.dismiss(),
       () => button(page, 'Reset changes').click(),
     );
-    await expect(page.getByRole('textbox')).toHaveValue(mine);
+    await expect(ideasPrompt(page)).toHaveValue(mine);
     await savedAsync(page, () =>
       withDialog(
         page,
@@ -238,12 +241,12 @@ test.describe('Post ideas settings', () => {
         () => button(page, 'Reset changes').click(),
       ),
     );
-    await expect(page.getByRole('textbox')).toHaveValue(DEFAULT_IDEA_PROMPTS.post);
+    await expect(ideasPrompt(page)).toHaveValue(DEFAULT_IDEA_PROMPTS.post);
 
     // The mock account's own prompt back, for the flows after this one.
     await savedAsync(page, async () => {
-      await page.getByRole('textbox').fill(original);
-      await page.getByRole('textbox').blur();
+      await ideasPrompt(page).fill(original);
+      await ideasPrompt(page).blur();
     });
   });
 });
