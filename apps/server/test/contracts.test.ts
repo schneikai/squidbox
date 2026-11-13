@@ -93,7 +93,7 @@ describe('merge fields', () => {
 
   it('file fields are nullable string merge fields of their schema', () => {
     for (const collection of collections) {
-      const { shape } = collection.schema as unknown as z.ZodObject<Record<string, z.ZodType>>;
+      const shape: Record<string, z.ZodType> = collection.schema.shape;
       for (const field of collection.fileFields) {
         const label = `${collection.name}.${field}`;
         expect(collection.mergeFields, label).toContain(field);
