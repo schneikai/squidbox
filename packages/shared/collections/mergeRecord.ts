@@ -62,10 +62,15 @@ export function mergeRecord(
   const carried = descriptor.mergeFields.filter((field) => field in sent);
   const sentFields = carried.filter((field) => field in sentClocks);
   if (!stored) {
-    // Every clocked field gets a clock, as the row is written: a sent one, or the record's updatedAt.
+    // Every clocked field gets a clock, as the row is written: a sent one, or 0 for a field the sender
+    // didn't edit (it holds the default), so any real edit of it from another device beats it (§7).
+    // An insert newer than every clock it names (or naming none) is written whole: its unnamed fields
+    // take its updatedAt, as storedClocks reads such a row back.
     const clocked = descriptor.clockedFields;
-    const updatedAt = Math.max(sent.updatedAt, ...clocked.map((field) => sentClocks[field] ?? 0));
-    const clocks = Object.fromEntries(clocked.map((field) => [field, sentClocks[field] ?? updatedAt]));
+    const named = clocked.flatMap((field) => (field in sentClocks ? [sentClocks[field]!] : []));
+    const updatedAt = Math.max(sent.updatedAt, ...named);
+    const unnamed = named.length > 0 && Math.max(...named) === updatedAt ? 0 : updatedAt;
+    const clocks = Object.fromEntries(clocked.map((field) => [field, sentClocks[field] ?? unnamed]));
     return { record: { ...sent, updatedAt }, clocks, applied: carried, lost: [], restoredDeletions: [] };
   }
 

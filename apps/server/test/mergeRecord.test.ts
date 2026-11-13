@@ -44,9 +44,13 @@ describe('mergeRecord', () => {
   it('inserts a new record with the sent clocks', () => {
     const result = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: at(3000) });
     expect(result.applied).toContain('notes');
-    expect(result.clocks).toMatchObject(at(3000)); // and every other clocked field at the record's updatedAt, as written
-    const partial = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 2000 } });
-    expect(partial.clocks).toMatchObject({ notes: 2000, isFavorite: 3000, deletedAt: 3000 });
+    expect(result.clocks).toMatchObject(at(3000));
+    // A field the sender didn't edit holds the default: clock 0, so any real edit of it wins.
+    const partial = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 3000 } });
+    expect(partial.clocks).toMatchObject({ notes: 3000, isFavorite: 0, deletedAt: 0 });
+    // An insert newer than every clock it names is written whole: the others at its updatedAt.
+    const whole = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 2000 } });
+    expect(whole.clocks).toMatchObject({ notes: 2000, isFavorite: 3000, deletedAt: 3000 });
     expect(partial.clocks).not.toHaveProperty('purgedAt');
     expect(result.record.updatedAt).toBe(3000);
   });

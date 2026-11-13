@@ -39,6 +39,7 @@ import * as contacts from '../src/sync/contactsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import { savePersona } from '../src/sync/personaRepository';
 import { readByIds } from '../src/sync/readByIds';
 import { runSyncOnce } from '../src/sync/worker';
 import changedValues from '../src/utils/changedValues';
@@ -68,6 +69,17 @@ describe('two devices and a whole-record app on one server', () => {
         await settle();
         expect(await expectConverged('assets', id)).toMatchObject({ notes: 'from A', isFavorite: true });
       }
+    });
+
+    it('two first saves of a persona keep both fields', async () => {
+      // Each phone's first save inserts the one per-user record; the later save, pushed first, never
+      // edited the earlier one's field, so neither reverts the other's to the default.
+      await edit(A, S + 100, () => savePersona(A, USER, { aboutYou: 'Hiker.' }));
+      await edit(B, S + 50, () => savePersona(B, USER, { tone: 'Calm.' }));
+      await sync(A);
+      await sync(B);
+      await settle();
+      expect(await expectConverged('personas', USER)).toMatchObject({ aboutYou: 'Hiker.', tone: 'Calm.' });
     });
 
     it('a device that pulls while its edit waits shows the other edit at once, and both survive', async () => {

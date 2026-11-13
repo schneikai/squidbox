@@ -41,7 +41,7 @@ d('push: one upsert per collection', () => {
       fieldPush({ ...r, updatedAt: 1500, isFavorite: true }, ['isFavorite'], 1500), // older than the insert
     ];
     const { batched, single } = await batchedAndOneByOne(mutations);
-    expect(single.map((result) => result.status)).toEqual(['applied', 'skipped-lww']);
+    expect(single.map((result) => result.status)).toEqual(['applied', 'applied']); // the insert never edited isFavorite
     expect(wire(batched)).toEqual(wire(single));
     await expectSameRows('assets', [r.id]);
   });
