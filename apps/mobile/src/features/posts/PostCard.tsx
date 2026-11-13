@@ -38,12 +38,9 @@ type PostCardProps = {
   onRemove?: (key: string) => void;
   // The assistant's tray under the toolbar (the card being edited has it).
   tray?: ReactNode;
-  // The post's channel selector, on the first card (ChannelSelector).
-  selector?: ReactNode;
   // The limits of the post's channel.
   limits?: Pick<Channel, 'maxTextLength' | 'maxMedia'>;
-} & Partial<Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt'>> &
-  Pick<PostCardToolbarProps, 'onAddToThread'>;
+} & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
  * One post of the post editor (`card`: { key, text, postAssets }): its text, the contacts an @handle
@@ -52,10 +49,8 @@ type PostCardProps = {
  * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
  * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
  * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
- * being edited (its tray shows), without the keyboard. `selector` (the first card's) sits in a row
- * above the text; with `limits` (its channel's) the text's counter ("45 / 280") ends that row, or a
- * following card's toolbar, and the counter and the media line turn red over a limit. A card without
- * the Posted time props has no Posted time (a channel's step).
+ * being edited (its tray shows), without the keyboard. With `limits` (its channel's) the text's
+ * counter ("45 / 280") ends the toolbar, and the counter and the media line turn red over a limit.
  */
 export default function PostCard({
   card,
@@ -70,7 +65,6 @@ export default function PostCard({
   onRemove,
   onAddToThread,
   tray,
-  selector,
   limits,
 }: PostCardProps) {
   const { key, text, postAssets } = card;
@@ -93,7 +87,6 @@ export default function PostCard({
       {counter}
     </Text>
   );
-  const hasTopRow = isFirst && (!!selector || !!counterNode);
 
   function activate() {
     onActivate(key);
@@ -121,12 +114,6 @@ export default function PostCard({
       onTouchEnd={isActive ? undefined : handleTouchEnd}
       onTouchCancel={() => (touchStartRef.current = null)}
     >
-      {hasTopRow && (
-        <View style={styles.selectorRow}>
-          {selector}
-          <View style={styles.counter}>{counterNode}</View>
-        </View>
-      )}
       <View style={styles.top}>
         <TextInput
           multiline
@@ -164,7 +151,7 @@ export default function PostCard({
         onChangePostedAt={onChangePostedAt}
         onAddToThread={onAddToThread}
         onActivate={activate}
-        trailing={isFirst ? null : counterNode}
+        trailing={counterNode}
       />
       {tray && <View style={styles.tray}>{tray}</View>}
     </Card>
@@ -172,16 +159,6 @@ export default function PostCard({
 }
 
 const styles = StyleSheet.create({
-  // The channel selector and the counter, above the text.
-  selectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: space.sm,
-  },
-  counter: {
-    marginLeft: 'auto',
-    paddingLeft: space.sm,
-  },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {
     flexDirection: 'row',

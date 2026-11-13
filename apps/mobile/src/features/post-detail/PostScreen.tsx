@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useState } from 'react';
 
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -9,15 +10,19 @@ import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
+// A post, on the channel the user picked in its bar: the post's own until then, and again when the
+// copy shown is gone (a sync removed it).
 export default function PostScreen() {
   const navigation = useNavigation();
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const post = usePost(postId);
+  const [channelPostId, setChannelPostId] = useState<string | null>(null);
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   useCloseWhenGone(post, 'This post was deleted');
 
   if (!post) return null;
 
+  const channelPost = post.channelPosts.find((copy) => copy.id === channelPostId);
   const headerDate = post.postedAt ? formatDetailHeaderDate(post.postedAt) : { title: 'Not posted', subtitle: '' };
 
   return (
@@ -26,10 +31,16 @@ export default function PostScreen() {
         title={headerDate.title}
         subtitle={headerDate.subtitle}
         onBack={() => navigation.goBack()}
-        menuSlot={<MoreAction post={post} beforeDelete={() => navigation.goBack()} />}
+        menuSlot={<MoreAction post={post} channelPost={channelPost} beforeDelete={() => navigation.goBack()} />}
       />
 
-      <Post post={post} contentPaddingTop={paddingTop} contentPaddingBottom={paddingBottom} />
+      <Post
+        post={post}
+        channelPost={channelPost}
+        onSelectChannel={setChannelPostId}
+        contentPaddingTop={paddingTop}
+        contentPaddingBottom={paddingBottom}
+      />
     </Page>
   );
 }

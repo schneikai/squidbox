@@ -9,27 +9,21 @@ import type { PostWithAssets } from '@/sync/queries/postQuery';
 
 type PostThreadCardsProps = {
   post: PostWithAssets & { threadPosts: PostWithAssets[] };
-  channelIds?: readonly string[];
 };
 
 /**
- * A post's card (PostView, with its `channelIds` as labels) and its following posts' cards joined by
- * the thread's line, as a post's screen and a channel's screen show them: a long press copies a text,
- * and a picture opens pushed, with the others of its own post.
+ * A post's card (PostView) and its following posts' cards joined by the thread's line, as the post's
+ * screen shows them (the post's own channel or another): a long press copies a text, and a picture
+ * opens pushed, with the others of its own post.
  */
-export default function PostThreadCards({ post, channelIds }: PostThreadCardsProps) {
+export default function PostThreadCards({ post }: PostThreadCardsProps) {
   function openAsset(postId: string, asset: Pick<AssetRow, 'id'>) {
     router.push(assetHref(asset.id, { scope: { postId } }));
   }
 
   return (
     <>
-      <PostView
-        post={post}
-        channelIds={channelIds}
-        onPressAsset={(asset) => openAsset(post.id, asset)}
-        isTextSelectable
-      />
+      <PostView post={post} onPressAsset={(asset) => openAsset(post.id, asset)} isTextSelectable />
       <ThreadParts
         parts={post.threadPosts}
         renderPart={(part) => (

@@ -20,7 +20,6 @@ export type ChipProps = Pick<
   onRemove?: () => void;
   removeLabel?: string;
   isSelected?: boolean;
-  hasCaret?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -43,8 +42,7 @@ export type ChipProps = Pick<
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `detail` follows the label in grey, after a ·: what tells it apart from a chip of the same label
  * (a city's state or country). `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
- * what VoiceOver reads for it. `hasCaret` ends the label with a ⌄: the chip opens a menu to pick
- * another (a post's channel).
+ * what VoiceOver reads for it.
  * style is for layout only.
  */
 export default function Chip({
@@ -57,7 +55,6 @@ export default function Chip({
   onRemove,
   removeLabel = 'Remove',
   isSelected = false,
-  hasCaret = false,
   disabled = false,
   onPress,
   accessibilityRole = 'button',
@@ -93,7 +90,6 @@ export default function Chip({
         {label}
         {detail ? <Text style={styles.detail}>{` · ${detail}`}</Text> : null}
       </Text>
-      {hasCaret && <Icon name="chevron-down" size={sizes.menuIcon} color={colors.text.secondary} />}
     </>
   );
 

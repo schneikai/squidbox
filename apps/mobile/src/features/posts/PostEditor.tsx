@@ -1,26 +1,26 @@
 import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
-import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { memo, useCallback, useMemo, useReducer, useState } from 'react';
+import { Keyboard, StyleSheet, View } from 'react-native';
 
-import OtherChannels from './OtherChannels';
 import PostCards from './PostCards';
-import channelStepPath from './channelStepPath';
-import type { ChannelDraftAction } from './draft/channelDraftReducer';
+import type { PostedAtPickerProps } from './PostedAtPicker';
+import type { ChannelDraft, ChannelDraftAction } from './draft/channelDraftReducer';
+import draftChannel from './draft/draftChannel';
 import draftFromPost from './draft/draftFromPost';
-import firstUnusedChannelId from './draft/firstUnusedChannelId';
 import hasCardContent from './draft/hasCardContent';
 import postData from './draft/postData';
-import type { EditedPost, PostEditorPost } from './draft/postDraftReducer';
-import usePostDraft from './draft/usePostDraft';
-import usedChannelIds from './draft/usedChannelIds';
+import postDraftReducer, { type EditedPost, type PostDraftAction, type PostEditorPost } from './draft/postDraftReducer';
 import postedAtToSave from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
+import ChannelBar from '@/features/channels/ChannelBar';
+import channelName from '@/features/channels/channelName';
 import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannels from '@/features/channels/useChannels';
 import useEditSheet from '@/hooks/useEditSheet';
+import { layout } from '@/styles/designTokens';
 import changedValues from '@/utils/changedValues';
+import confirmAsync from '@/utils/confirmAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import isPresent from '@/utils/isPresent';
 
@@ -30,46 +30,51 @@ type PostEditorProps = {
   kind: PostEditorKind;
   ideas: IdeasKind;
   post: PostEditorPost;
+  selectedChannelPostId?: string;
   onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
 };
 
-// Edits a post, its thread and its other channels, seeded from `post` ({ text, postAssets, postedAt,
-// threadPosts, channelId, channelPosts }) into the sheet's draft (usePostDraft), as a draft sheet: the
-// post's cards (PostCards), then its Other channels, each opening its step inside the sheet
-// (PostChannelEditScreen). Add (a new post, `kind` 'draft') or Save (an edit) hands `onSave` the post
-// the posts store takes (postData), allowed once every post of every channel has text or a photo (and,
-// for Save, something changed), and the seed in the same shape, so an edit can save only what changed;
-// a save that throws says so and keeps the editor open. A new post that opens empty has the cursor in
-// its text, keyboard up. × or a swipe down with changes asks first. `kind` is also what the
-// assistant's chat about the post's cards is about ('draft' a new post, 'edit' a saved one), and
-// `ideas` which ideas the first card's tray offers, started on their own for a new post. The channel
-// selector shows while the user has channels, or the post has a channel or other channels.
-export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProps) {
-  const { draft, dispatch } = usePostDraft();
+// Edits a post, its thread and its other channels, seeded once from `post` ({ text, postAssets,
+// postedAt, threadPosts, channelId, channelPosts }) into its draft (postDraftReducer), as a draft
+// sheet: the channel bar (ChannelBar) on top, then the cards (PostCards) of the channel it selects,
+// first the one saved as `selectedChannelPostId` (Edit from the post screen) else the post's own. Every
+// channel's cards stay mounted, the others hidden, so a switch loses nothing (each keeps its assistant
+// chat). Add (a new post, `kind` 'draft') or Save (an edit) hands `onSave` the post the posts store
+// takes (postData), allowed once every post of every channel has text or a photo (and, for Save,
+// something changed), and the seed in the same shape, so an edit can save only what changed; a save
+// that throws says so and keeps the editor open. A new post that opens empty has the cursor in its
+// text, keyboard up. × or a swipe down with changes asks first. `kind` is also what the assistant's
+// chat about the post's own cards is about ('draft' a new post, 'edit' a saved one), and `ideas` which
+// ideas their first card's tray offers, started on their own for a new post. The bar shows while the
+// user has channels, or the post has a channel or other channels.
+export default function PostEditor({ kind, ideas, post, selectedChannelPostId, onSave }: PostEditorProps) {
+  const [draft, dispatch] = useReducer(postDraftReducer, post, (seedPost) =>
+    draftFromPost(seedPost, selectedChannelPostId),
+  );
   const channels = useChannels();
+  const channelOrder = useChannelOrder(channels);
   // A new post that opens empty (New post's card) is there to be written: its text takes the cursor.
   const [isOpenedEmpty] = useState(() => kind === 'draft' && !hasCardContent(post));
-
-  useEffect(() => dispatch({ type: 'seed', post }), [dispatch, post]);
+  // The post's own channel as the sheet opened: its chat is about the post (`kind`), with its `ideas`.
+  const [openedKey] = useState(draft.main.key);
 
   const isNew = kind === 'draft';
   const seed = useMemo(() => postData(draftFromPost(post), post.postedAt), [post]);
-  const pickedPostedAt = draft?.pickedPostedAt;
+  const { pickedPostedAt } = draft;
   const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
   // A new post's time is now until the user picks one, and a removed one is none: till then the
   // toolbar shows only its clock.
   const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
-  const data = draft && postData(draft, postedAt);
-  const userChannelIds = useChannelOrder(channels);
+  const data = postData(draft, postedAt);
+  const parts = [draft.main, ...draft.others];
 
   // The posts store syncs by itself. The save resolves an untouched Posted time (postedAtToSave): a
   // new post's is the time of the save.
   const { sheetProps } = useEditSheet({
     isNew,
-    isValid: !!draft && [draft.main, ...draft.others].every((part) => part.cards.every(hasCardContent)),
-    isDirty: !!data && isPresent(changedValues(seed, data)),
+    isValid: parts.every((part) => part.cards.every(hasCardContent)),
+    isDirty: isPresent(changedValues(seed, data)),
     save: () => {
-      if (!data) throw new Error('The post editor saved before its draft was seeded');
       const savedAt = postedAtToSave({
         isNew,
         picked: pickedPostedAt,
@@ -81,51 +86,68 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
     syncsItself: true,
   });
 
-  const dispatchMain = useCallback((action: ChannelDraftAction) => dispatch({ type: 'main', action }), [dispatch]);
-  const openChannel = useCallback((key: string) => router.push(channelStepPath(key)), []);
-  // The other channels' rows, kept while only the post's own cards change (a keystroke there).
-  const others = draft?.others;
-  const otherRows = useMemo(
-    () =>
-      (others ?? []).map((other) => ({
-        key: other.key,
-        channelId: other.channelId,
-        text: other.cards[0]!.text,
-        postAssets: other.cards[0]!.postAssets,
-      })),
-    [others],
-  );
   const handleChangePostedAt = useCallback(
     (value: number | null) => dispatch({ type: 'pickPostedAt', postedAt: value }),
-    [dispatch],
+    [],
   );
 
+  // The focused text would be a hidden channel's.
+  function handleSelect(key: string) {
+    Keyboard.dismiss();
+    dispatch({ type: 'select', key });
+  }
+
+  async function handleRemove() {
+    const selected = draftChannel(draft, draft.selectedKey);
+    if (selected.cards.some(hasCardContent)) {
+      const isConfirmed = await confirmAsync({
+        title: `Remove ${channelName(selected.channelId)} from this post?`,
+        message: 'Its text and photos go with it.',
+        action: 'Remove',
+        destructive: true,
+      });
+      if (!isConfirmed) return;
+    }
+    Keyboard.dismiss();
+    dispatch({ type: 'removeChannel', key: selected.key, channelOrder });
+  }
+
   function renderBody() {
-    if (!draft || !channels) return null;
-    const hasChannelLeft = firstUnusedChannelId(draft, userChannelIds) !== undefined;
-    const hasSelector = channels.length > 0 || !!draft.main.channelId || draft.others.length > 0;
+    if (!channels) return null;
+    const hasBar = channels.length > 0 || !!draft.main.channelId || draft.others.length > 0;
     return (
       <View>
-        <PostCards
-          draft={draft.main}
-          dispatch={dispatchMain}
-          kind={kind}
-          ideas={ideas}
-          autoFocusFirst={isOpenedEmpty}
-          postedAt={postedAt}
-          isPostedAtShown={isPostedAtShown}
-          onChangePostedAt={handleChangePostedAt}
-          selector={
-            hasSelector
-              ? {
-                  channels,
-                  disabledIds: usedChannelIds(draft, draft.main.key),
-                  onAddChannel: hasChannelLeft ? () => router.push(channelStepPath('new')) : undefined,
-                }
-              : undefined
-          }
-        />
-        <OtherChannels posts={otherRows} channelOrder={userChannelIds} onOpen={openChannel} />
+        {hasBar && (
+          <ChannelBar
+            parts={parts}
+            channelOrder={channelOrder}
+            selectedKey={draft.selectedKey}
+            onSelect={handleSelect}
+            editing={{
+              channels,
+              onAdd: (channelId) => dispatch({ type: 'addChannel', channelId }),
+              onChange: (channelId) =>
+                dispatch({ type: 'channel', key: draft.selectedKey, action: { type: 'setChannel', channelId } }),
+              onRemove: parts.length > 1 ? handleRemove : undefined,
+            }}
+            style={styles.bar}
+          />
+        )}
+        {parts.map((part) => (
+          <ChannelPanel
+            key={part.key}
+            channel={part}
+            isSelected={part.key === draft.selectedKey}
+            isOpenedPost={part.key === openedKey}
+            dispatch={dispatch}
+            kind={kind}
+            ideas={ideas}
+            autoFocusFirst={isOpenedEmpty && part.key === openedKey}
+            postedAt={postedAt}
+            isPostedAtShown={isPostedAtShown}
+            onChangePostedAt={handleChangePostedAt}
+          />
+        ))}
       </View>
     );
   }
@@ -136,3 +158,72 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
     </EditSheet>
   );
 }
+
+type ChannelPanelProps = {
+  channel: ChannelDraft;
+  isSelected: boolean;
+  isOpenedPost: boolean;
+  dispatch: (action: PostDraftAction) => void;
+  kind: PostEditorKind;
+  ideas: IdeasKind;
+  autoFocusFirst: boolean;
+  postedAt: PostedAtPickerProps['timestamp'];
+  isPostedAtShown: boolean;
+  onChangePostedAt: PostedAtPickerProps['onChange'];
+};
+
+// One channel's cards, mounted while the channel is in the draft and hidden (from the eye and from
+// VoiceOver) while another shows. Memoized, with its own dispatch, so a keystroke draws only the
+// channel being edited. What its chat is about is fixed as it mounts: the post's own channel as the
+// sheet opened is the post (`kind`, its `ideas`, started on their own for a new post), another is
+// its saved copy ('edit') or a new one ('draft').
+const ChannelPanel = memo(function ChannelPanel({
+  channel,
+  isSelected,
+  isOpenedPost,
+  dispatch,
+  kind,
+  ideas,
+  autoFocusFirst,
+  postedAt,
+  isPostedAtShown,
+  onChangePostedAt,
+}: ChannelPanelProps) {
+  const { key } = channel;
+  const [chatKind] = useState<PostEditorKind>(() => (isOpenedPost ? kind : channel.id ? 'edit' : 'draft'));
+  const dispatchChannel = useCallback(
+    (action: ChannelDraftAction) => dispatch({ type: 'channel', key, action }),
+    [dispatch, key],
+  );
+
+  return (
+    <View
+      testID={isSelected ? 'post-editor-channel' : undefined}
+      accessibilityElementsHidden={!isSelected}
+      importantForAccessibility={isSelected ? 'auto' : 'no-hide-descendants'}
+      aria-hidden={!isSelected}
+      style={!isSelected && styles.hidden}
+    >
+      <PostCards
+        draft={channel}
+        dispatch={dispatchChannel}
+        kind={chatKind}
+        ideas={isOpenedPost ? ideas : 'post'}
+        startsOnItsOwn={isOpenedPost}
+        autoFocusFirst={autoFocusFirst}
+        postedAt={postedAt}
+        isPostedAtShown={isPostedAtShown}
+        onChangePostedAt={onChangePostedAt}
+      />
+    </View>
+  );
+});
+
+const styles = StyleSheet.create({
+  bar: {
+    marginBottom: layout.cardGap,
+  },
+  hidden: {
+    display: 'none',
+  },
+});

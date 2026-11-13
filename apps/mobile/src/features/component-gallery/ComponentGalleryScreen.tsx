@@ -6,6 +6,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 import ActionButtons from '@/components/ActionButtons';
 import AssistantTray from '@/components/AssistantTray';
 import Badge from '@/components/Badge';
+import Bubble from '@/components/Bubble';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import ChangedBadge from '@/components/ChangedBadge';
@@ -216,14 +217,20 @@ export default function ComponentGalleryScreen() {
             <Chip variant="mixed" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
-            <Chip
-              label="Bluesky"
-              leading={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
-              isLeadingInset
-              hasCaret
-              onPress={noop}
-            />
           </ChipRow>
+        </Specimen>
+        <Specimen name="Bubble">
+          <View accessibilityRole="tablist" style={styles.bubbles}>
+            <Bubble label="X" mark={<ChannelLogo channelId="x" />} onPress={noop} />
+            <Bubble label="Bluesky" mark={<ChannelLogo channelId="bluesky" />} isSelected onPress={noop} />
+            <Bubble label="OnlyFans PPV" mark={<ChannelLogo channelId="onlyfans-ppv" />} onPress={noop} />
+            <Bubble label="No channel" onPress={noop} />
+            <Bubble variant="add" label="Add channel" accessibilityRole="button" onPress={noop} />
+          </View>
+          <View style={styles.bubbles}>
+            <Bubble label="OnlyFans" mark={<ChannelLogo channelId="onlyfans" />} isSelected hasCaret onPress={noop} />
+            <Bubble label="OnlyFans PPV" mark={<ChannelLogo channelId="onlyfans-ppv" />} isSelected />
+          </View>
         </Specimen>
       </>
     );
@@ -483,6 +490,11 @@ const styles = StyleSheet.create({
   },
   fill: {
     width: '100%',
+  },
+  bubbles: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
   },
   fields: {
     width: '100%',

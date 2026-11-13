@@ -1,4 +1,4 @@
-import { channelById, type Channel, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
+import { channelById, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -10,19 +10,11 @@ import nextCardKey from './draft/nextCardKey';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import WarningNote from '@/components/WarningNote';
-import ChannelSelector from '@/features/channels/ChannelSelector';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import { layout } from '@/styles/designTokens';
 import confirmAsync from '@/utils/confirmAsync';
-
-/** The channel selector of the first card: shown, with the user's channels to pick from. */
-type PostCardsSelector = {
-  channels: Channel[];
-  disabledIds: Set<string>;
-  onAddChannel?: () => void;
-};
 
 type PostCardsProps = {
   draft: ChannelDraft;
@@ -31,18 +23,16 @@ type PostCardsProps = {
   ideas: IdeasKind;
   startsOnItsOwn?: boolean;
   autoFocusFirst?: boolean;
-  selector?: PostCardsSelector;
-  postedAt?: PostedAtPickerProps['timestamp'];
-  isPostedAtShown?: boolean;
-  onChangePostedAt?: PostedAtPickerProps['onChange'];
+  postedAt: PostedAtPickerProps['timestamp'];
+  isPostedAtShown: boolean;
+  onChangePostedAt: PostedAtPickerProps['onChange'];
 };
 
 /**
  * One channel's cards in the post editor (`draft`: the post and its thread), its edits going to
  * `dispatch` (channelDraftReducer): one card per post, joined by a short line, the card being edited
  * with the assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own
- * only while `startsOnItsOwn`). The first card has the channel `selector` (when given) and the Posted
- * time (with `onChangePostedAt`); every card follows the channel's limits; ⊕ Add to thread only where
+ * only while `startsOnItsOwn`). The first card has the Posted time; every card follows the channel's limits; ⊕ Add to thread only where
  * the channel has threads (or there is none), and a note under the cards when one without threads
  * holds a thread anyway (its following posts stay, to edit or remove).
  */
@@ -53,7 +43,6 @@ export default function PostCards({
   ideas,
   startsOnItsOwn = true,
   autoFocusFirst = false,
-  selector,
   postedAt,
   isPostedAtShown,
   onChangePostedAt,
@@ -115,18 +104,6 @@ export default function PostCards({
             onRemove={index > 0 ? removeCard : undefined}
             onAddToThread={hasThreads && index === cards.length - 1 ? addToThread : undefined}
             limits={channel}
-            selector={
-              index === 0 &&
-              selector && (
-                <ChannelSelector
-                  channelId={draft.channelId}
-                  channels={selector.channels}
-                  disabledIds={selector.disabledIds}
-                  onChange={(channelId) => dispatch({ type: 'setChannel', channelId })}
-                  onAddChannel={selector.onAddChannel}
-                />
-              )
-            }
             tray={
               card.key === activeKey && (
                 <IdeasTray
