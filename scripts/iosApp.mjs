@@ -1,23 +1,20 @@
 #!/usr/bin/env node
 /**
- * Ships the App (EAS preview or production), as a build or as an update, so that no installed code
- * goes without its contract snapshot (docs/sync-design.md §15, ios-build skill → Paths B and C):
+ * Ships the App (EAS preview or production), as a build or as an update (ios-build skill → Paths B
+ * and C):
  *
- *   1. The checkout must be clean and its commit (X) the pushed tip of its branch.
- *   2. Preflight, read-only, so a refusal leaves no trace: every APP_ENV variable (and, for an
- *      update, the marker) is readable in the profile's EAS environment. An update also needs a
- *      finished build on its channel with its runtime version (the native fingerprint) to reach,
- *      the same client migrations as every such build (a migration ships only with a build, so
- *      expo-updates' fallback to the build's embedded bundle never runs code older than the
- *      database), and X must descend from the channel's latest update (never older code after
- *      newer, docs/sync-design.md §15). All refusals are printed at once.
- *   3. Unless X has a snapshot already, `contract:snapshot` writes it; commit it on top (Y) and
- *      push. A failed push stops here, before anything ships.
- *   4. Check out X itself and ship it, so the build or update and its header name X, then return
- *      to the branch. app.config.js refuses an App build or update whose commit has no pushed
- *      snapshot. A build starts on EAS. An update is bundled from the EAS environment alone (never
- *      this shell or .env.local, always from a cleared Metro cache), its source maps go to Sentry,
- *      and only then is it published to the profile's channel: a failed step publishes nothing.
+ *   1. Clean and pushed: the checkout must be clean and its commit the pushed tip of its branch, so
+ *      the header (which names the commit), the update checks below, the deploy check and the
+ *      installed-build suite can fetch it from origin.
+ *   2. Preflight, read-only, all refusals at once: every APP_ENV variable is readable in the
+ *      profile's EAS environment. An update also needs a finished build on its channel with its
+ *      runtime version (the native fingerprint) to reach, the same client migrations as every such
+ *      build (a migration ships only with a build, so expo-updates' fallback to the build's embedded
+ *      bundle never runs code older than the database), and HEAD must descend from the channel's
+ *      latest update (never older code after newer, docs/sync-design.md §15).
+ *   3. Ship. A build starts on EAS. An update is bundled from the EAS environment alone (never this
+ *      shell or .env.local, always from a cleared Metro cache), its source maps go to Sentry, and
+ *      only then is it published to the profile's channel: a failed step publishes nothing.
  *
  *   npm run ios:app                     # build, preview
  *   npm run ios:app -- production
@@ -30,9 +27,6 @@ import { fileURLToPath } from 'node:url';
 
 // What an App build or update needs from its profile's EAS environment.
 const APP_ENV = ['EXPO_PUBLIC_API_URL', 'SENTRY_AUTH_TOKEN'];
-// The snapshot guard's marker (app.config.js): a build gets it from eas.json, an update from the
-// EAS environment only.
-const MARKER = 'SQUIDBOX_APP_BUILD';
 // A change here ships only with a build (see the preflight above).
 const MIGRATIONS = 'apps/mobile/src/sync/db/migrations';
 
@@ -43,20 +37,17 @@ if (!['preview', 'production'].includes(profile)) fail(`Unknown App profile "${p
 
 const root = git('rev-parse', '--show-toplevel');
 const mobileDir = `${root}/apps/mobile`;
-const buildsDir = `${root}/apps/server/contract/builds`;
 // The profile's channel and EAS environment, as its builds have them.
 const { channel, environment } = JSON.parse(readFileSync(`${mobileDir}/eas.json`, 'utf8')).build[profile];
 if (!channel || !environment) fail(`eas.json: the ${profile} profile needs a channel and an environment.`);
 // The repo's pinned eas-cli (root package.json).
 const eas = fileURLToPath(import.meta.resolve('eas-cli/bin/run'));
 // The env of every eas call but the build: the EAS environment is the only source of the App's
-// variables and the marker, so neither this shell's EXPO_PUBLIC_*, APP_ENV and marker values nor
-// apps/mobile/.env.local can reach the bundle or make the preflight pass, and a leftover
-// SQUIDBOX_NOT_A_BUILD or EAS_BUILD can't switch the snapshot guard off.
-const SHELL_ONLY = [...APP_ENV, MARKER, 'SQUIDBOX_NOT_A_BUILD', 'EAS_BUILD'];
+// variables, so neither this shell's EXPO_PUBLIC_* and APP_ENV values nor apps/mobile/.env.local can
+// reach the bundle or make the preflight pass.
 const easOnlyEnv = {
   ...Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => !name.startsWith('EXPO_PUBLIC_') && !SHELL_ONLY.includes(name)),
+    Object.entries(process.env).filter(([name]) => !name.startsWith('EXPO_PUBLIC_') && !APP_ENV.includes(name)),
   ),
   EAS_BUILD_PROFILE: profile,
   EXPO_NO_DOTENV: '1',
@@ -72,29 +63,11 @@ if (git('rev-parse', `origin/${branch}`) !== commit) {
 }
 
 const refusals =
-  command === 'build'
-    ? unreadable(APP_ENV)
-    : [...unreadable([...APP_ENV, MARKER]), ...noReachableBuild(), ...olderThanLatest()];
+  command === 'build' ? unreadable(APP_ENV) : [...unreadable(APP_ENV), ...noReachableBuild(), ...olderThanLatest()];
 if (refusals.length > 0) fail(refusals.join('\n'));
 
 const short = commit.slice(0, 8);
-if (!run('npm', ['run', 'contract:snapshot'], `${root}/apps/server`)) fail('Writing the snapshot failed.');
-if (git('status', '--porcelain', '--', buildsDir) !== '') {
-  git('add', buildsDir);
-  git('commit', '-q', '-m', `Contract snapshot of the App at ${short}`);
-  // A push that still fails (the branch moved on) drops the snapshot commit: nothing ships.
-  retry(
-    () => git('push', '-q', 'origin', `HEAD:${branch}`),
-    () => git('reset', '-q', '--hard', commit),
-  );
-  console.log(`Pushed the contract snapshot of ${short} to ${branch}.`);
-}
-
 const subject = git('log', '-1', '--format=%s', commit);
-const detach = git('rev-parse', 'HEAD') !== commit;
-if (detach) git('checkout', '-q', '--detach', commit);
-// Ctrl+C or SIGTERM reaches the running step; this script outlives it to check the branch out again.
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {});
 const stopped =
   command === 'build'
     ? !run(eas, ['build', '-p', 'ios', '-e', profile, '--non-interactive', '--no-wait'], mobileDir, {
@@ -102,7 +75,6 @@ const stopped =
         EAS_BUILD_PROFILE: profile,
       }) && 'The EAS build did not start.'
     : shipUpdate();
-if (detach) git('checkout', '-q', branch);
 if (stopped) fail(stopped);
 
 // Returns what stopped it, if anything.
@@ -232,15 +204,12 @@ function run(command, args, cwd, env = process.env) {
 }
 
 // Network calls are retried with backoff (2, 4, 8, 16 s) before giving up.
-function retry(action, onFailure = () => {}) {
+function retry(action) {
   for (let attempt = 0; ; attempt++) {
     try {
       return action();
     } catch (error) {
-      if (attempt === 4) {
-        onFailure();
-        fail(error.message);
-      }
+      if (attempt === 4) fail(error.message);
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000 * 2 ** attempt);
     }
   }

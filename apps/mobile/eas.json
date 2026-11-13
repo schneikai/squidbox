@@ -14,18 +14,12 @@
       "distribution": "internal",
       "environment": "preview",
       "channel": "preview",
-      "autoIncrement": true,
-      "env": {
-        "SQUIDBOX_APP_BUILD": "1"
-      }
+      "autoIncrement": true
     },
     "production": {
       "environment": "production",
       "channel": "production",
-      "autoIncrement": true,
-      "env": {
-        "SQUIDBOX_APP_BUILD": "1"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {

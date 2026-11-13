@@ -16,7 +16,7 @@ const isNull = (schema: unknown) => isSchema(schema) && schema.type === 'null' &
 
 /**
  * Makes Zod's JSON Schema comparable (schemaChanges) and small, and the same as zod-to-json-schema
- * wrote it before Zod 4 (the snapshots of older builds): no `$schema`, descriptions, defaults,
+ * wrote it before Zod 4 (the baseline, a build from before then): no `$schema`, descriptions, defaults,
  * `additionalProperties: true` or `propertyNames: { type: 'string' }`; no safe-integer bounds on an
  * integer, nor a pattern beside `format: 'uuid'`; every `pattern` as a sorted `patterns` set; an `allOf`
  * (two `.regex`, or `.trim().pipe()`) merged into one schema with the tightest bound per side; a

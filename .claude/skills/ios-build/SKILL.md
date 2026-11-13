@@ -55,7 +55,7 @@ credentials, so run this step INTERACTIVELY through the prompt driver, with `CI`
 `--non-interactive`:
 
 ```
-SQUIDBOX_NOT_A_BUILD=1 EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
+EAS_BUILD_PROFILE=<profile> eas credentials:configure-build -p ios -e <development|preview>
 ```
 
 Answer yes to reusing or regenerating the distribution certificate and to a new ad hoc profile, and
@@ -66,7 +66,7 @@ password; an info line mentioning "username/password" cookies is not a prompt.
 Alternatively, `eas build ... --non-interactive --refresh-ad-hoc-provisioning-profile` regenerates
 just the profile during a build. That flag only works together with `--non-interactive`.
 
-**Re-signing instead of rebuilding.** `SQUIDBOX_NOT_A_BUILD=1 eas build:resign -p ios -e <profile> --source-profile <profile>
+**Re-signing instead of rebuilding.** `eas build:resign -p ios -e <profile> --source-profile <profile>
 --id <build-id>` re-signs an existing internal build with fresh credentials, without rebuilding.
 EAS deletes build artifacts about 14 days after a build (`expirationDate` in
 `eas build:list --json`), so it only works within that window; after that, rebuild.
@@ -96,14 +96,8 @@ below; the gotchas there are load-bearing.
    npm run ios:app                  # or: npm run ios:app -- production
    ```
    It needs the checkout clean and at the pushed tip of its branch (else it stops and says why),
-   writes the build's contract snapshot (`docs/sync-design.md` §15), commits and pushes it, and
-   only then starts the EAS build (`--no-wait`) of the commit the snapshot names. A failed push
-   builds nothing. `app.config.js` refuses an App build whose commit has no pushed snapshot; a
-   re-sign or a credentials repair of an earlier build sets `SQUIDBOX_NOT_A_BUILD=1`.
-   Build from `main`, or from a branch that will merge: the snapshot reaches main with the branch
-   (a squash merge is fine: GitHub keeps the built commit fetchable through the pull request). If a
-   built branch is dropped instead, cherry-pick its snapshot commit to main, so the installed build
-   stays checked. What the snapshots are checked by, and retiring one: `docs/sync-design.md` §15.
+   checks the EAS environment, and only then starts the EAS build (`--no-wait`). Build from `main`,
+   or from a branch that will merge, so the built commit stays fetchable.
 3. Watch the build (see "Watch / manage") until `FINISHED`.
 4. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
 5. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
@@ -151,8 +145,6 @@ Facts (current EAS CLI):
 - A sensitive value can be read back with `eas env:get`. To verify what a build actually baked,
   download the .ipa and grep:
   `unzip -o app.ipa -d x && strings x/Payload/*.app/main.jsbundle | grep -oE "https://[a-z0-9.-]+/api/v1"`.
-- **`SQUIDBOX_APP_BUILD=1`** (plaintext) in the preview and production environments is the snapshot
-  guard's marker for updates (where it comes from: `requirePushedSnapshot` in app.config.js).
 - Typical symptom of a wrong baked URL: login works but sync fails, because the URL points at a
   server without `/sync/*`. Check the baked value as above.
 - Any `EXPO_PUBLIC_*` var is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);

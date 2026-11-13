@@ -12,32 +12,6 @@ function gitCommit() {
   }
 }
 
-// An App build or update must have its contract snapshot pushed before it ships, so no installed
-// code goes unchecked (docs/sync-design.md §15): `npm run ios:app` and `npm run ios:update` write
-// and push it first. The marker SQUIDBOX_APP_BUILD comes from eas.json `env` for a build, and from
-// the preview and production EAS environments for an update (any `eas update --environment
-// <profile>`; the script's preflight checks it is there). Checked where eas-cli starts the build or
-// the update, not on the EAS worker. A re-sign or a credentials repair of an earlier build sets
-// SQUIDBOX_NOT_A_BUILD=1.
-function requirePushedSnapshot(commit) {
-  const { SQUIDBOX_APP_BUILD, SQUIDBOX_NOT_A_BUILD, EAS_BUILD } = process.env;
-  if (!SQUIDBOX_APP_BUILD || SQUIDBOX_NOT_A_BUILD || EAS_BUILD) return;
-  // eas-cli uploads the working tree: changes there would ship code the snapshot doesn't describe.
-  if (execSync('git status --porcelain', { encoding: 'utf8' }).trim()) {
-    throw new Error(
-      'app.config.js: an App build or update needs a clean checkout. Ship it with `npm run ios:app` or `npm run ios:update`.',
-    );
-  }
-  // The snapshot's name, as snapshotFile (apps/server/src/contract/snapshots.ts) writes it.
-  const snapshot = `:(top,glob)apps/server/contract/builds/*-${commit.slice(0, 8)}.json`;
-  const pushed = execSync(`git log --remotes -1 --format=%H -- "${snapshot}"`, { encoding: 'utf8' }).trim();
-  if (!pushed) {
-    throw new Error(
-      `app.config.js: no pushed contract snapshot of ${commit.slice(0, 8)}. Ship the App with \`npm run ios:app\` (a build) or \`npm run ios:update\` (an update), which push it first (ios-build skill).`,
-    );
-  }
-}
-
 // The EAS project: the builds' project and the server updates are fetched from.
 const EAS_PROJECT_ID = 'e74016a5-b902-4dca-9c35-f1ef376c4f52';
 
@@ -132,7 +106,5 @@ if (process.env.EAS_BUILD_PROFILE === 'development') {
     bundleIdentifier: 'com.schneikai.squidbox.dev',
   };
 }
-
-requirePushedSnapshot(baseConfig.expo.extra.gitCommit);
 
 module.exports = baseConfig;

@@ -22,14 +22,14 @@ export type ContractRoute = {
 /**
  * The API and sync contract an installed build relies on (docs/sync-design.md §15), as normalized
  * JSON Schema: every route, every collection, the error envelope, and the client migrations a build
- * shipped with. Snapshotted per App build under contract/builds by `npm run contract:snapshot` (the
- * ios-build skill), checked by test/contract.test.ts.
+ * shipped with. The oldest supported build's is kept in contract/baseline.json (written by
+ * `npm run contract:raise`), checked by test/contract.test.ts.
  */
 export type Contract = {
   routes: ContractRoute[];
   collections: Record<string, JsonSchema>;
-  /** The error envelope; none in a snapshot of a build from before the shared envelope. */
-  error?: JsonSchema;
+  /** The error envelope. */
+  error: JsonSchema;
   clientMigrations: { tag: string; hash: string }[];
 };
 
@@ -46,7 +46,7 @@ function clientMigrations(): Contract['clientMigrations'] {
   }));
 }
 
-// As zod-to-json-schema wrote them, which the snapshots of builds from before Zod 4 hold: what a
+// As zod-to-json-schema wrote them, which the baseline, a build from before Zod 4, holds: what a
 // request takes (`io: 'input'`, a field with a default is optional) and every schema in place.
 const JSON_SCHEMA_OPTIONS = {
   target: 'draft-7',

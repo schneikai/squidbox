@@ -18,7 +18,7 @@ import { fuzzRuns } from './helpers/fuzzRuns';
 import { populateEveryTable } from './helpers/populateEveryTable';
 import { betterSqliteExecutor, migrationsFolder, runMigrations } from './helpers/testDb';
 import { at, removedFiles, S, synced as syncedFields } from './helpers/twoDeviceServer';
-import { readSnapshots } from '../../server/src/contract/snapshots.js';
+import { readBaseline } from '../../server/src/contract/baseline.js';
 import type { Db } from '../../server/src/db/client.js';
 import * as serverSchema from '../../server/src/db/schema.js';
 import { serverCollections } from '../../server/src/sync/collections.js';
@@ -34,15 +34,15 @@ import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
 import { runSyncOnce } from '../src/sync/worker';
 
-// The installed apps are the App builds, each recorded with its commit by a contract snapshot
-// (apps/server/contract/builds, written by the ios-build skill for every App build): the suite runs
-// the oldest and the newest, each build's client code as built against this server. It extracts the
-// build's apps/mobile/src/sync into test/.builds/<name> (gitignored) and drives it with its own
-// SQLite migrations; an "update" then runs the current migrations on that same database and goes on
-// with the current code. The old sync code imports the build's own packages/shared (extracted beside
-// it); its few `@/` imports (the API client, errors) still resolve to today's src
-// (docs/sync-design.md §15). Needs Postgres and each build's commit, which the suite fetches
-// (depth 1) when the checkout lacks it: in CI one it can't get fails the suite instead of skipping it.
+// The installed app is the oldest supported build, the commit of the server's baseline contract
+// (apps/server/contract/baseline.json, docs/sync-design.md §15): the suite runs its client code, as
+// built, against this server. It extracts the build's apps/mobile/src/sync into test/.builds/<sha>
+// (gitignored) and drives it with its own SQLite migrations; an "update" then runs the current
+// migrations on that same database and goes on with the current code. The old sync code imports the
+// build's own packages/shared (extracted beside it); its few `@/` imports (the API client, errors)
+// still resolve to today's src. Needs Postgres and the build's commit, which the suite fetches
+// (depth 1) when the checkout lacks it: in CI a commit it can't get fails the suite instead of
+// skipping it.
 const TEST_URL = process.env.TEST_DATABASE_URL;
 const here = fileURLToPath(new URL('.', import.meta.url));
 // git's output, run in this checkout (or `cwd`), and whether a git command succeeds.
@@ -57,26 +57,13 @@ function gitOk(args: string[]): boolean {
   }
 }
 
-type Build = { name: string; sha: string };
+const sha = readBaseline().commit;
+const fetched = TEST_URL
+  ? gitOk(['cat-file', '-e', `${sha}^{commit}`]) || gitOk(['fetch', '--depth=1', 'origin', sha])
+  : false;
+if (TEST_URL && !fetched && process.env.CI) throw new Error(`installedBuilds.e2e: could not fetch ${sha} from origin`);
 
-// The oldest and the newest build (once when they are the same). A build retires by deleting its
-// snapshot, once no device runs it.
-function buildsUnderTest(): Build[] {
-  const builds = readSnapshots().map(({ commit, builtAt }) => ({
-    name: `${builtAt} (${commit.slice(0, 8)})`,
-    sha: commit,
-  }));
-  return [...new Set([builds[0], builds.at(-1)])].filter((build): build is Build => build !== undefined);
-}
-
-const builds = TEST_URL ? buildsUnderTest() : [];
-const missing = builds.filter(
-  ({ sha }) => !gitOk(['cat-file', '-e', `${sha}^{commit}`]) && !gitOk(['fetch', '--depth=1', 'origin', sha]),
-);
-if (missing.length > 0 && process.env.CI)
-  throw new Error(`installedBuilds.e2e: could not fetch ${missing.map(({ sha }) => sha).join(', ')} from origin`);
-
-function extract({ sha }: Build): string {
+function extract(): string {
   const root = `${here}.builds/${sha.slice(0, 8)}`;
   rmSync(root, { recursive: true, force: true });
   mkdirSync(root, { recursive: true });
@@ -110,14 +97,10 @@ interface Phone {
   removeFiles: RemoveFiles;
 }
 
-for (const [index, build] of builds.entries())
-  if (missing.includes(build)) describe.skip(`the build of ${build.name} (its commit could not be fetched)`, () => {});
-  else describeBuild(build, { fuzz: index === 0 });
-if (builds.length === 0) describe.skip('the installed builds (needs TEST_DATABASE_URL and a snapshot)', () => {});
-
-// A build's suite; the seeded runs (`fuzz`) on the oldest build only.
-function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
-  describe(`the build of ${build.name}: its client code, as built, against this server`, () => {
+if (!TEST_URL) describe.skip('the installed build (needs TEST_DATABASE_URL)', () => {});
+else if (!fetched) describe.skip(`the build of ${sha.slice(0, 8)} (its commit could not be fetched)`, () => {});
+else
+  describe(`the build of ${sha.slice(0, 8)}: its client code, as built, against this server`, () => {
     const USER = randomUUID();
     let pool: pg.Pool;
     let pgDb: Db;
@@ -212,10 +195,10 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
     }
 
     beforeAll(async () => {
-      root = extract(build);
+      root = extract();
       main = {
         worker: await import(/* @vite-ignore */ `${root}/sync/worker.ts`),
-        assets: withVerbs(await import(/* @vite-ignore */ `${root}/sync/assetsRepository.ts`)),
+        assets: await import(/* @vite-ignore */ `${root}/sync/assetsRepository.ts`),
         driver: await import(/* @vite-ignore */ `${root}/sync/db/driver.ts`),
         schema: await import(/* @vite-ignore */ `${root}/sync/db/schema.ts`),
       };
@@ -273,21 +256,6 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
       expect(await expectConverged(id, [M])).toMatchObject({ notes: 'waiting in the outbox' });
     });
 
-    // A build pulls only the fields it knows; once updated to one that knows more, its next pull starts
-    // from the beginning, so the values it dropped arrive (status.ts pullCursor).
-    it('a photo the build pulled without its tags has them after the update (skipped for a build that stores tags)', async (ctx) => {
-      if ('tags' in main.schema.assets) ctx.skip();
-      const M = installedPhone();
-      const N = newPhone();
-      const id = await seed([M, N]);
-      await edit(N, S + 100, (a) => a.update(N.db, id, { tags: ['x'] }));
-      await sync(N);
-      await sync(M);
-      await update(M);
-      await sync(M);
-      expect(await localAsset(M, id)).toMatchObject({ tags: ['x'] });
-    });
-
     it('the installed app’s purge against a newer restore on the new app: the restore wins everywhere', async () => {
       const M = installedPhone();
       const N = newPhone();
@@ -334,151 +302,132 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
     // server took stays; every app removes only the files of purges the server kept. FUZZ_SEEDS sets
     // how many runs; RUNS_FROM, RUNS_STEPS and RUNS_SKEWS (ms per phone, comma-separated) widen them
     // by hand.
-    it.runIf(fuzz)(
-      'seeded runs of installed and new apps, with updates mid-run, converge every time',
-      async () => {
-        const SKEWS = process.env.RUNS_SKEWS ? process.env.RUNS_SKEWS.split(',').map(Number) : [0, -700, 900];
-        const from = Number(process.env.RUNS_FROM ?? 1);
-        for (let n = from; n < from + fuzzRuns(3, 24); n++) {
-          let state = n * 7919;
-          const rand = () => (state = (state * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
-          const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
-          await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
-          const phones = [installedPhone(), installedPhone(), newPhone()];
-          const skew = new Map(phones.map((phone, i) => [phone, SKEWS[i]!]));
-          const ids: string[] = [];
-          for (let i = 0; i < 3; i++)
-            ids.push(
-              await seed(phones, {
-                filename: `f${i}.jpg`,
-                thumbnailFilename: `t${i}.jpg`,
-                deletedAt: i === 0 ? S : null,
-              }),
-            );
-          let t = S + 1000;
-          const purgedOnServer = new Map<string, number>();
-          const trail: string[] = [];
-          const write = async (phone: Phone, id: string) => {
-            const row = await localAsset(phone, id);
-            if (!row || row.purgedAt !== null) return;
-            const a = assetsOf(phone);
-            const action = pick(['notes', 'favorite', 'delete', 'restore', 'purge', 'purge'] as const);
-            const skipped = (action === 'restore' || action === 'purge') && row.deletedAt === null;
-            trail.push(
-              `${phones.indexOf(phone)}${phone.old ? 'o' : 'n'} ${action}${skipped ? ' (not deleted: none)' : ''} ${ids.indexOf(id)} @${Date.now()}`,
-            );
-            if (action === 'notes') await a.update(phone.db, id, { notes: `n${t}` });
-            else if (action === 'favorite') await a.toggleFavorite(phone.db, id);
-            else if (action === 'delete') await a.remove(phone.db, [id]);
-            else if (action === 'restore' && row.deletedAt !== null) await a.update(phone.db, id, { deletedAt: null });
-            else if (action === 'purge' && row.deletedAt !== null) await a.purgeAssets(phone.db, [id]);
-          };
-          for (let step = 0; step < Number(process.env.RUNS_STEPS ?? 40); step++) {
-            t += 10 + Math.floor(rand() * 200);
-            const phone = pick(phones);
-            const now = t + skew.get(phone)!;
-            const kind = pick(['edit', 'edit', 'sync', 'sync', 'editInPull', 'editInPush', 'update'] as const);
-            if (kind === 'update') {
-              if (phone.old) {
-                trail.push(`${phones.indexOf(phone)} update`);
-                await update(phone);
-              }
-              continue;
+    it('seeded runs of installed and new apps, with updates mid-run, converge every time', async () => {
+      const SKEWS = process.env.RUNS_SKEWS ? process.env.RUNS_SKEWS.split(',').map(Number) : [0, -700, 900];
+      const from = Number(process.env.RUNS_FROM ?? 1);
+      for (let n = from; n < from + fuzzRuns(3, 24); n++) {
+        let state = n * 7919;
+        const rand = () => (state = (state * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+        const pick = <T>(list: readonly T[]) => list[Math.floor(rand() * list.length)]!;
+        await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
+        const phones = [installedPhone(), installedPhone(), newPhone()];
+        const skew = new Map(phones.map((phone, i) => [phone, SKEWS[i]!]));
+        const ids: string[] = [];
+        for (let i = 0; i < 3; i++)
+          ids.push(
+            await seed(phones, {
+              filename: `f${i}.jpg`,
+              thumbnailFilename: `t${i}.jpg`,
+              deletedAt: i === 0 ? S : null,
+            }),
+          );
+        let t = S + 1000;
+        const purgedOnServer = new Map<string, number>();
+        const trail: string[] = [];
+        const write = async (phone: Phone, id: string) => {
+          const row = await localAsset(phone, id);
+          if (!row || row.purgedAt !== null) return;
+          const a = assetsOf(phone);
+          const action = pick(['notes', 'favorite', 'delete', 'restore', 'purge', 'purge'] as const);
+          const skipped = (action === 'restore' || action === 'purge') && row.deletedAt === null;
+          trail.push(
+            `${phones.indexOf(phone)}${phone.old ? 'o' : 'n'} ${action}${skipped ? ' (not deleted: none)' : ''} ${ids.indexOf(id)} @${Date.now()}`,
+          );
+          if (action === 'notes') await a.update(phone.db, id, { notes: `n${t}` });
+          else if (action === 'favorite') await a.toggleFavorite(phone.db, id);
+          else if (action === 'delete') await a.remove(phone.db, [id]);
+          else if (action === 'restore' && row.deletedAt !== null) await a.update(phone.db, id, { deletedAt: null });
+          else if (action === 'purge' && row.deletedAt !== null) await a.purgeAssets(phone.db, [id]);
+        };
+        for (let step = 0; step < Number(process.env.RUNS_STEPS ?? 40); step++) {
+          t += 10 + Math.floor(rand() * 200);
+          const phone = pick(phones);
+          const now = t + skew.get(phone)!;
+          const kind = pick(['edit', 'edit', 'sync', 'sync', 'editInPull', 'editInPush', 'update'] as const);
+          if (kind === 'update') {
+            if (phone.old) {
+              trail.push(`${phones.indexOf(phone)} update`);
+              await update(phone);
             }
-            if (kind === 'edit') {
-              at(now);
-              await write(phone, pick(ids));
-              continue;
-            }
-            const id = pick(ids);
-            let done = false;
-            const once = async () => {
-              if (done) return;
-              done = true;
-              at(now + 1);
-              await write(phone, id);
-            };
-            const run: SyncTransport = {
-              push: async (req) => {
-                const result = await transport.push(req);
-                for (const [i, r] of result.results.entries())
-                  trail.push(
-                    `  push ${ids.indexOf(r.id)} ${JSON.stringify(req.mutations[i]!.fields ?? 'whole')} del=${req.mutations[i]!.record.deletedAt} purge=${req.mutations[i]!.record.purgedAt} → ${r.status}${r.current ? ` del=${r.current.deletedAt} purge=${r.current.purgedAt}` : ''}`,
-                  );
-                if (kind === 'editInPush') await once();
-                return result;
-              },
-              pull: async (req) => {
-                if (kind === 'editInPull') await once();
-                return transport.pull(req);
-              },
-            };
-            trail.push(`${phones.indexOf(phone)} ${kind} @${now}`);
+            continue;
+          }
+          if (kind === 'edit') {
             at(now);
-            // The server's clock is the true time: a phone ahead is clamped.
-            const serverNow = t;
-            const timed: SyncTransport = {
-              push: async (req) => {
-                at(serverNow);
-                try {
-                  return await run.push(req);
-                } finally {
-                  at(now);
-                }
-              },
-              pull: run.pull,
-            };
-            const before = phone.removed.length;
-            if (phone.old) await main.worker.runSyncOnce(phone.db, timed, { removeFiles: phone.removeFiles });
-            else await runSyncOnce(phone.db, timed, { removeFiles: phone.removeFiles });
-            if (phone.removed.length > before) trail.push(`  removed ${phone.removed.slice(before).join(',')}`);
-            for (const id of ids) {
-              const row = await serverAsset(id);
-              if (row?.purgedAt) {
-                const was = purgedOnServer.get(id);
-                if (was !== undefined) expect(row.purgedAt, `seed ${n}: a purge stays\n${trail.join('\n')}`).toBe(was);
-                purgedOnServer.set(id, row.purgedAt);
-              } else expect(purgedOnServer.has(id), `seed ${n}: un-purged\n${trail.join('\n')}`).toBe(false);
-            }
+            await write(phone, pick(ids));
+            continue;
           }
-          t += 10_000;
-          for (let round = 0; round < 3; round++) for (const phone of phones) await sync(phone, t);
+          const id = pick(ids);
+          let done = false;
+          const once = async () => {
+            if (done) return;
+            done = true;
+            at(now + 1);
+            await write(phone, id);
+          };
+          const run: SyncTransport = {
+            push: async (req) => {
+              const result = await transport.push(req);
+              for (const [i, r] of result.results.entries())
+                trail.push(
+                  `  push ${ids.indexOf(r.id)} ${JSON.stringify(req.mutations[i]!.fields ?? 'whole')} del=${req.mutations[i]!.record.deletedAt} purge=${req.mutations[i]!.record.purgedAt} → ${r.status}${r.current ? ` del=${r.current.deletedAt} purge=${r.current.purgedAt}` : ''}`,
+                );
+              if (kind === 'editInPush') await once();
+              return result;
+            },
+            pull: async (req) => {
+              if (kind === 'editInPull') await once();
+              return transport.pull(req);
+            },
+          };
+          trail.push(`${phones.indexOf(phone)} ${kind} @${now}`);
+          at(now);
+          // The server's clock is the true time: a phone ahead is clamped.
+          const serverNow = t;
+          const timed: SyncTransport = {
+            push: async (req) => {
+              at(serverNow);
+              try {
+                return await run.push(req);
+              } finally {
+                at(now);
+              }
+            },
+            pull: run.pull,
+          };
+          const before = phone.removed.length;
+          if (phone.old) await main.worker.runSyncOnce(phone.db, timed, { removeFiles: phone.removeFiles });
+          else await runSyncOnce(phone.db, timed, { removeFiles: phone.removeFiles });
+          if (phone.removed.length > before) trail.push(`  removed ${phone.removed.slice(before).join(',')}`);
           for (const id of ids) {
-            const server = synced(await serverAsset(id));
-            if (server?.purgedAt) purgedOnServer.set(id, server.purgedAt as number);
-            for (const phone of phones) {
-              expect(
-                synced(await localAsset(phone, id)),
-                `seed ${n}, phone ${phones.indexOf(phone)}, photo ${ids.indexOf(id)}\n${trail.join('\n')}`,
-              ).toEqual(server);
-              expect(await outboxOf(phone), `seed ${n}`).toEqual([]);
-            }
+            const row = await serverAsset(id);
+            if (row?.purgedAt) {
+              const was = purgedOnServer.get(id);
+              if (was !== undefined) expect(row.purgedAt, `seed ${n}: a purge stays\n${trail.join('\n')}`).toBe(was);
+              purgedOnServer.set(id, row.purgedAt);
+            } else expect(purgedOnServer.has(id), `seed ${n}: un-purged\n${trail.join('\n')}`).toBe(false);
           }
-          for (const phone of phones)
-            for (const name of phone.removed) {
-              const i = Number(name.slice(1, 2));
-              expect(
-                purgedOnServer.has(ids[i]!),
-                `seed ${n}: ${name} removed on phone ${phones.indexOf(phone)}\n${trail.join('\n')}`,
-              ).toBe(true);
-            }
         }
-      },
-      240_000,
-    );
+        t += 10_000;
+        for (let round = 0; round < 3; round++) for (const phone of phones) await sync(phone, t);
+        for (const id of ids) {
+          const server = synced(await serverAsset(id));
+          if (server?.purgedAt) purgedOnServer.set(id, server.purgedAt as number);
+          for (const phone of phones) {
+            expect(
+              synced(await localAsset(phone, id)),
+              `seed ${n}, phone ${phones.indexOf(phone)}, photo ${ids.indexOf(id)}\n${trail.join('\n')}`,
+            ).toEqual(server);
+            expect(await outboxOf(phone), `seed ${n}`).toEqual([]);
+          }
+        }
+        for (const phone of phones)
+          for (const name of phone.removed) {
+            const i = Number(name.slice(1, 2));
+            expect(
+              purgedOnServer.has(ids[i]!),
+              `seed ${n}: ${name} removed on phone ${phones.indexOf(phone)}\n${trail.join('\n')}`,
+            ).toBe(true);
+          }
+      }
+    }, 240_000);
   });
-}
-
-// Needed while an installed build older than the repositories' shared verbs is supported: those name them
-// after the collection. Delete it once the oldest build has `create`, `update`, `remove` and the rest.
-function withVerbs(assets: any) {
-  return {
-    ...assets,
-    create: assets.create ?? assets.createAsset,
-    createMany: assets.createMany ?? assets.createAssets,
-    update: assets.update ?? assets.updateAsset,
-    updateMany: assets.updateMany ?? assets.updateAssets,
-    updateAll: assets.updateAll ?? assets.updateAllAssets,
-    remove: assets.remove ?? assets.deleteAssets,
-  };
-}

@@ -1231,21 +1231,16 @@ today's server. The server ships first; the app follows.
 - **A pull fills what the build knows.** A build that learns collections or fields pulls from the
   beginning once, so values an older build dropped arrive (§13, Pulled shape).
 
-### Contract snapshots
+### The baseline
 
-Every App build and update (`preview`, `production`) has its commit's contract snapshotted
-(`npm run contract:snapshot`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json` and
-pushed before it ships (`scripts/iosApp.mjs` does it, its header has the steps).
-`apps/mobile/app.config.js` refuses an App build or update whose commit has no pushed snapshot, so
-neither can be installed without one. A
-snapshot records the build's full commit sha and build date and is never rewritten. Its contract is
-the normalized JSON Schema of every route (request body, params, querystring, every answer, the body
-limit), every collection, the error envelope and the client migrations' hashes
-(`apps/server/src/contract/`). A dev client runs Metro's code: nothing is frozen in it, so it gets
-no snapshot.
+`apps/server/contract/baseline.json` is the contract of the oldest supported build: its full commit
+sha and its contract, the normalized JSON Schema of every route (request body, params, querystring,
+every answer, the body limit), every collection, the error envelope and the client migrations'
+hashes (`apps/server/src/contract/`). Only a raise of the minimum rewrites it (Raising the minimum).
+A dev client runs Metro's code: nothing is frozen in it.
 
-`apps/server/test/contract.test.ts` fails a change today's server makes that a snapshotted build
-couldn't survive, naming the build, the path and what changed: a request may only loosen (an optional
+`apps/server/test/contract.test.ts` fails a change today's server makes that the oldest supported
+build couldn't survive, naming the path and what changed: a request may only loosen (an optional
 field, a wider limit, a value added); a response may only grow (a field added, a value removed); a
 collection may only gain optional fields and wider limits; every recorded route stays, its body
 limit doesn't shrink; the recorded client migrations are a prefix of today's. A JSON Schema keyword
@@ -1261,12 +1256,6 @@ the full git sha the build was made from (`app.config.js` `extra.gitCommit`) and
 per install. The server ignores it for now; recording which builds are installed is a todo before
 other people install the app.
 
-### Retiring a build
-
-An owner decision, once no device runs the build: delete its snapshot file. Keep the installed
-build's snapshot and every update's a phone may still run: a phone that was offline runs the
-build's embedded bundle or an older update.
-
 ### Older code after newer
 
 When an update crashes at launch, expo-updates falls back to the build's embedded bundle, which then
@@ -1279,11 +1268,10 @@ nothing tests a newer database under older code: the installed-build suite goes 
 
 ### The installed-build suite
 
-`apps/mobile/test/installedBuilds.e2e.test.ts` runs the oldest and the newest snapshotted build: each
-build's `apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite
-migrations, against today's server, then updated to today's code and migrations on the same
-database (the `withVerbs` shim lets the test call the oldest builds' repositories by today's names).
-The few `@/` imports of the old sync code (the API client, its errors) still resolve to today's
-`src`. It takes each build's commit from its snapshot and fetches it (depth 1) when the checkout
-lacks it; in CI a commit it can't fetch fails the suite. It proves both builds converge with today's app through edits, purges and
-updates, and that an updated build's pull restarts.
+`apps/mobile/test/installedBuilds.e2e.test.ts` runs one build, the baseline's commit: its
+`apps/mobile/src/sync` as it was built, with its own `packages/shared` and SQLite migrations,
+against today's server, then updated to today's code and migrations on the same database. The few
+`@/` imports of the old sync code (the API client, its errors) still resolve to today's `src`. It
+fetches the commit (depth 1) when the checkout lacks it; in CI a commit it can't fetch fails the
+suite. It proves the build converges with today's app through edits, purges and updates, and that
+an update takes a row in every table it has.

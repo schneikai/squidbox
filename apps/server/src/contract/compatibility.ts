@@ -35,7 +35,7 @@ const breaksCollection: Policy = ({ kind, required }) =>
 
 // An enum value added to what a build reads breaks only that build's else case: what to do instead.
 const ENUM_ADVICE =
-  "a build that doesn't know the value can't read it. Make the app tolerate unknown values here first, ship that build, then add the value.";
+  "a build that doesn't know the value can't read it. Make the app tolerate unknown values here now; the value itself arrives with a raise of the minimum (§15).";
 
 const judge = (policy: Policy, before: JsonSchema, after: JsonSchema, path: string) =>
   schemaChanges(before, after, path)
@@ -72,8 +72,7 @@ export function problems(recorded: Contract, current: Contract): string[] {
     if (now) found.push(...judge(breaksCollection, schema, now, `collections.${name}`));
     else found.push(`collections.${name} is gone`);
   }
-  // The first build predates the shared error envelope: it has none to hold today's server to.
-  if (recorded.error && current.error) found.push(...judge(breaksResponse, recorded.error, current.error, 'error'));
+  found.push(...judge(breaksResponse, recorded.error, current.error, 'error'));
   recorded.clientMigrations.forEach((migration, index) => {
     const now = current.clientMigrations[index];
     if (!now) found.push(`client migration ${migration.tag} is gone`);
