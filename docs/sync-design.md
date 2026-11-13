@@ -1212,9 +1212,9 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
 
 ## 15. Compatibility across app versions
 
-Nobody is ever forced to update: an EAS update (ios-build skill → Path C) reaches a phone only when
-the App launches online, and runs from the launch after that, so every build and update that was
-ever installed keeps syncing and calling today's server. The server ships first; the app follows.
+Nobody is ever forced to update: an EAS update reaches a phone on the phone's schedule (ios-build
+skill → Path C), so every build and update that was ever installed keeps syncing and calling
+today's server. The server ships first; the app follows.
 
 ### The rules
 
@@ -1233,12 +1233,11 @@ ever installed keeps syncing and calling today's server. The server ships first;
 
 ### Contract snapshots
 
-Every App build and update (`preview`, `production`) starts with `npm run ios:app` or
-`npm run ios:update` (`scripts/iosApp.mjs`, the ios-build skill): on the clean, pushed tip of a
-branch it snapshots the commit's contract (`npm run contract:snapshot`) to
-`apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`, commits and pushes it, and only then
-builds or publishes that commit. `apps/mobile/app.config.js` refuses an App build or update whose
-commit has no pushed snapshot, so neither can be installed without one. A
+Every App build and update (`preview`, `production`) has its commit's contract snapshotted
+(`npm run contract:snapshot`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json` and
+pushed before it ships (`scripts/iosApp.mjs` does it, its header has the steps).
+`apps/mobile/app.config.js` refuses an App build or update whose commit has no pushed snapshot, so
+neither can be installed without one. A
 snapshot records the build's full commit sha and build date and is never rewritten. Its contract is
 the normalized JSON Schema of every route (request body, params, querystring, every answer, the body
 limit), every collection, the error envelope and the client migrations' hashes
@@ -1267,6 +1266,13 @@ other people install the app.
 An owner decision, once no device runs the build: delete its snapshot file. Keep the installed
 build's snapshot and every update's a phone may still run: a phone that was offline runs the
 build's embedded bundle or an older update.
+
+### Older code after newer
+
+Code can also run on a database newer code migrated: when an update crashes at launch, expo-updates
+falls back to the build's embedded bundle, and an update published by mistake from an older commit
+does the same (undo an update by fixing forward, from a newer commit). Nothing guards or tests that
+direction yet: the installed-build suite goes from old to new only.
 
 ### The installed-build suite
 

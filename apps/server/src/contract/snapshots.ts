@@ -4,8 +4,7 @@ import type { Contract } from './currentContract.js';
 
 /**
  * Where the contract of each App build and update is kept, one `<YYYYMMDD>-<short sha>.json` per
- * commit, written by `npm run ios:app` or `npm run ios:update` before it ships (docs/sync-design.md
- * §15), never rewritten.
+ * commit, written before it ships (docs/sync-design.md §15), never rewritten.
  */
 export const SNAPSHOTS_DIR = fileURLToPath(new URL('../../contract/builds/', import.meta.url));
 

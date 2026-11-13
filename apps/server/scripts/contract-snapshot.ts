@@ -2,9 +2,8 @@
  * Writes the contract of the App at this checkout's commit (docs/sync-design.md §15): today's
  * routes, collections, error envelope and client migrations, with the commit and the date, to
  * contract/builds/<YYYYMMDD>-<short sha>.json, which test/contract.test.ts holds today's server to.
- * `npm run ios:app` and `npm run ios:update` (scripts/iosApp.mjs) run it before each App build or
- * update, in the clean checkout it ships; a commit that has its snapshot already keeps it, as its
- * contract never changes.
+ * It is written before each App build or update ships, in the clean checkout it ships; a
+ * commit that has its snapshot already keeps it, as its contract never changes.
  *
  * Run from apps/server: npm run contract:snapshot
  */

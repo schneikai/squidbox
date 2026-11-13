@@ -60,9 +60,6 @@ if [ -n "${EXPO_ASC_API_KEY_PATH:-}" ]; then
   fi
 fi
 
-echo
-echo "== app variables in EAS (preview/production builds and updates) =="
-echo "npm run ios:app and npm run ios:update check the App's EAS variables; setting them: ios-build skill -> Env vars."
 
 echo
 if [ "$eas_miss" -eq 1 ]; then

@@ -21,7 +21,7 @@ Use AskUserQuestion:
   dark DEV variant (`assets/icon-dev.png`, set in app.config.js). `EXPO_PUBLIC_*` come from
   **`.env.local`** at runtime.
 - **Update** — a JS-only change to the installed App (preview or production), as an EAS update: no
-  build, no install. Only when a finished build with the same native code exists (the script checks).
+  build, no install. See Path C.
 
 Then follow the matching path below. (The builds share the one-time credential setup.)
 
@@ -90,7 +90,6 @@ below; the gotchas there are load-bearing.
    read it with `eas env:get --name EXPO_PUBLIC_API_URL --environment preview`. If it is
    stale/wrong, fix the VALUE (keep its visibility):
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility sensitive --environment development --environment preview --environment production`
-   (The script checks that the variables the App needs exist.)
 2. Build with ONE command, from the repo root (never `eas build -e preview` directly):
    ```bash
    npm run ios:app                  # or: npm run ios:app -- production
@@ -107,14 +106,12 @@ below; the gotchas there are load-bearing.
 3. Watch the build (see "Watch / manage") until `FINISHED`.
 4. Install from the EAS build page → **Internal Distribution → Install**. Self-contained — no Metro/tunnel.
 5. Do NOT run `eas submit` on `development`/`preview` (those are internal builds, not TestFlight).
-6. This build is the one later updates reach (Path C) while its native code stays the same.
 
 ## Path C — Update (JS-only change to the installed App)
 
-The App checks its channel (`preview` or `production`, eas.json) on launch and runs a new update
-from the launch after that. An update reaches only builds whose runtime version, the native
-fingerprint (`app.config.js`, `fingerprint.config.js`), equals its own: a change to native code,
-a native dependency or the native parts of the config needs a build (Path B) instead.
+An update goes to the profile's channel (eas.json) and reaches only builds whose runtime version,
+the native fingerprint (`app.config.js`, `fingerprint.config.js`), equals its own: a change to
+native code, a native dependency or the native parts of the config needs a build (Path B) instead.
 
 1. The commit's CI run is completed and green (`gh run list --commit <sha>`): an update installs
    itself, no build or install stands between it and the phone.
@@ -124,20 +121,13 @@ a native dependency or the native parts of the config needs a build (Path B) ins
    ```bash
    npm run ios:update                  # or: npm run ios:update -- production
    ```
-   Like `ios:app` it needs the clean, pushed tip of a branch and writes and pushes the commit's
-   contract snapshot first. Before that it refuses, all reasons at once and leaving no trace, when:
-   a variable the App needs is not readable by an update (a `secret` one is not: recreate it as
-   `sensitive`, see Env vars); or no finished build of the profile has this native code (the update
-   would reach no installed app: build with `npm run ios:app`). Then it bundles from the profile's
-   EAS environment alone (never this shell or `.env.local`, always from a cleared Metro cache),
-   uploads the source maps to Sentry, and only then publishes to the profile's channel. A failed
-   step publishes nothing after it, and the branch is checked out again either way.
-4. The phone has it on the launch after the next one (open the App, close it, open it again).
+   It refuses and says why, leaving no trace, when the update can't ship; its steps are in the
+   header of `scripts/iosApp.mjs`.
+4. The App checks its channel when it launches online and runs the update from the launch after
+   that: open the App, close it, open it again.
 
-To undo an update, publish a fix forward from a newer commit, never an older commit. Older code
-can't be ruled out entirely: when an update crashes at launch, expo-updates falls back to the
-build's embedded bundle, and then older code opens a database that newer code migrated. Nothing
-tests that direction yet.
+To undo an update, publish a fix forward from a newer commit, never an older one
+(`docs/sync-design.md` §15, "Older code after newer").
 
 ## Env vars & secrets (how baking works) — READ if a build "can't reach the server"
 
@@ -149,17 +139,18 @@ Facts (current EAS CLI):
   and **nothing hits the backend logs**.
 - **EAS server vars OVERRIDE eas.json `env`** for the same name. Setting `EXPO_PUBLIC_API_URL` in
   eas.json `env` is silently ignored if a server var of that name exists — fix the server var instead.
-- **`EXPO_PUBLIC_API_URL` and `SENTRY_AUTH_TOKEN` are `sensitive`**, not `secret`: a build on the
-  EAS worker gets every variable, but an update reads only plaintext and sensitive ones (through
-  `eas env:exec` / `eas update --environment`), never `secret` ones, and never this shell or
-  `.env.local`. `npm run ios:update` refuses while one isn't readable.
+- **Every variable in `APP_ENV` (`scripts/iosApp.mjs`) is `sensitive` or plaintext**, never
+  `secret`: a build on the EAS worker gets every variable, but an update reads only plaintext and
+  sensitive ones (through `eas env:exec` / `eas update --environment`), never `secret` ones, and
+  never this shell or `.env.local`. `npm run ios:app` and `npm run ios:update` refuse while one
+  isn't readable.
 - You can't flip a `secret` to another visibility (`eas env:set` errors): delete it and recreate it
   (`eas env:create --name <NAME> --value <value> --visibility sensitive --environment …`).
 - A sensitive value can be read back with `eas env:get`. To verify what a build actually baked,
   download the .ipa and grep:
   `unzip -o app.ipa -d x && strings x/Payload/*.app/main.jsbundle | grep -oE "https://[a-z0-9.-]+/api/v1"`.
-- **`SQUIDBOX_APP_BUILD=1`** (plaintext) lives in the preview and production environments, so a
-  direct `eas update --environment <profile>` meets app.config.js's snapshot guard too.
+- **`SQUIDBOX_APP_BUILD=1`** (plaintext) in the preview and production environments is the snapshot
+  guard's marker for updates (where it comes from: `requirePushedSnapshot` in app.config.js).
 - Typical symptom of a wrong baked URL: login works but sync fails, because the URL points at a
   server without `/sync/*`. Check the baked value as above.
 - Any `EXPO_PUBLIC_*` var is baked into the binary regardless (that's what `EXPO_PUBLIC_` means);
@@ -196,8 +187,7 @@ URL (terminals may squish the blocks).
 - **"Failed to resign build, because it has expired"** → the build artifact is past its ~14-day
   retention. Rebuild instead.
 - **Update published but the App doesn't change** → its runtime version differs from the installed
-  build's: `eas fingerprint:compare` shows which source differs. Also check the App was opened twice
-  while online.
+  build's: `eas fingerprint:compare` shows which source differs. Also check Path C step 4.
 - **Dev client overwrites the App (or vice-versa)** → `EAS_BUILD_PROFILE` wasn't exported, so
   app.config.js fell back to the default bundle id. Confirm it matches the profile passed to `eas build`.
 

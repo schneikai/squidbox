@@ -14,10 +14,11 @@ function gitCommit() {
 
 // An App build or update must have its contract snapshot pushed before it ships, so no installed
 // code goes unchecked (docs/sync-design.md §15): `npm run ios:app` and `npm run ios:update` write
-// and push it first. The marker SQUIDBOX_APP_BUILD comes from eas.json (builds), from that script
-// (updates), and from the preview and production EAS environments (any `eas update --environment
-// <profile>`). Checked where eas-cli starts the build or the update, not on the EAS worker. A
-// re-sign or a credentials repair of an earlier build sets SQUIDBOX_NOT_A_BUILD=1.
+// and push it first. The marker SQUIDBOX_APP_BUILD comes from eas.json `env` for a build, and from
+// the preview and production EAS environments for an update (any `eas update --environment
+// <profile>`; the script's preflight checks it is there). Checked where eas-cli starts the build or
+// the update, not on the EAS worker. A re-sign or a credentials repair of an earlier build sets
+// SQUIDBOX_NOT_A_BUILD=1.
 function requirePushedSnapshot(commit) {
   const { SQUIDBOX_APP_BUILD, SQUIDBOX_NOT_A_BUILD, EAS_BUILD } = process.env;
   if (!SQUIDBOX_APP_BUILD || SQUIDBOX_NOT_A_BUILD || EAS_BUILD) return;
@@ -52,10 +53,9 @@ const baseConfig = {
     name: 'Squidbox',
     slug: 'squidbox',
     version: '0.0.1',
-    // The native fingerprint (fingerprint.config.js says what doesn't count): an update reaches only
-    // a build with the same native code.
+    // The native fingerprint; fingerprint.config.js says what doesn't count.
     runtimeVersion: { policy: 'fingerprint' },
-    // A build checks its channel (eas.json) on launch and runs a new update from the next launch.
+    // Where a build fetches updates for its channel (eas.json); ios-build skill → Path C.
     updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
     orientation: 'portrait',
     // Deep links (squidbox://post/…) open the screen at that URL (Expo Router).

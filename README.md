@@ -155,7 +155,7 @@ If `expo-doctor` flags version drift, do NOT run `expo install --fix` (or any `n
 Sentry handles error tracking. Configure it for your own account:
 
 - `app.config.js`: specify organization and project in the Sentry Plugin section
-- `SENTRY_AUTH_TOKEN`: stored in EAS (ios-build skill → Env vars)
+- The auth token for source maps: ios-build skill → Env vars
 - `apps/mobile/src/app/_layout.tsx`: set the DSN in the `Sentry.init` call
 
 ## Caveats
