@@ -254,7 +254,6 @@ routes), F23 (the albums repository lives in a feature), F19 (40 components miss
 and F6–F65 below them, each a complete build request. Plus the ready checks C1–C22 of section 4 whose
 finding no thread took. Take them after the nine threads of Nov 13 land, biggest cost first.
 
-
 ### [ ] Read the chat's "More from your posts" more cheaply
 
 The chat's Mentions sheet lists every handle the owner ever mentioned: while it's open,
@@ -464,7 +463,6 @@ deleted or restored.
 `main` has no branch protection (the API answers 404), so #98 was merged while its CI run was still
 queued (`docs/reviews/2026-11-12-whole-app-run-2.md` R10). In GitHub → Settings → Branches, protect
 `main` and require the `check` and `ui-flows` status checks. Zero code.
-
 
 ### [ ] Renew iOS signing before Oct 10, 2027
 
