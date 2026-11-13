@@ -19,13 +19,14 @@ type TargetContactsSectionProps = {
 };
 
 /**
- * The Contacts section of a photo, album or post (`of`): a chip per contact on the photo, or on any
- * of the album's or post's photos (contacts go on photos only), opening the contact (its × takes it
- * off, TargetContactChip), and Add, which opens the Add contacts sheet (where one is taken off too).
- * Inside a sheet (a photo, album or post opened in New post or Compare) the chips only show who is
- * on it: a contact and the Add contacts sheet open from the main app, never as a second sheet or a
- * screen that edits as you type inside a draft. `guardPress` may wrap the presses
- * (useDetailsPanelDrag's); `isLive: false` reads them once.
+ * The Contacts section of a photo or post (`of`): a chip per contact on the photo, or on any of the
+ * post's photos (contacts go on photos only), opening the contact. A photo's chips also take a
+ * contact off (their ×, TargetContactChip), and Add opens the Add contacts sheet. A post's only show
+ * who is on its photos: a contact goes on a post's photo from that photo. Inside a sheet (a photo or
+ * post opened in New post or Compare) the chips only show who is on it: a contact and the Add
+ * contacts sheet open from the main app, never as a second sheet or a screen that edits as you type
+ * inside a draft. A section that only shows has none when no one is on it. `guardPress` may wrap the
+ * presses (useDetailsPanelDrag's); `isLive: false` reads them once.
  */
 export default function TargetContactsSection({
   of,
@@ -35,31 +36,33 @@ export default function TargetContactsSection({
 }: TargetContactsSectionProps) {
   const contacts = useContactRows({ scope: contactsOfScope(of) }, { isLive });
   const isInSheet = !!useSheetRoute();
+  const assetId = !isInSheet && 'assetId' in of ? of.assetId : undefined;
 
-  if (isInSheet && !contacts?.length) return null;
+  if (!assetId && !contacts?.length) return null;
 
   return (
     <>
       <ScreenSectionHeader title="Contacts" isFlush={isFlush} />
       <ChipRow>
-        {contacts?.map((contact) =>
-          isInSheet ? (
-            <Chip key={contact.id} label={contact.name} leading={<ContactAvatar contact={contact} size="chip" />} />
+        {contacts?.map((contact) => {
+          const onOpen = isInSheet ? undefined : guardPress(() => router.navigate(`/contact/${contact.id}`));
+          return assetId && onOpen ? (
+            <TargetContactChip key={contact.id} contact={contact} assetId={assetId} onOpen={onOpen} />
           ) : (
-            <TargetContactChip
+            <Chip
               key={contact.id}
-              contact={contact}
-              of={of}
-              onOpen={guardPress(() => router.navigate(`/contact/${contact.id}`))}
+              label={contact.name}
+              leading={<ContactAvatar contact={contact} size="chip" />}
+              onPress={onOpen}
             />
-          ),
-        )}
-        {!isInSheet && (
+          );
+        })}
+        {assetId && (
           <Chip
             variant="add"
             label="Add"
             accessibilityLabel="Add contacts"
-            onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: of }))}
+            onPress={guardPress(() => router.navigate({ pathname: '/add-contacts', params: { assetId } }))}
           />
         )}
       </ChipRow>

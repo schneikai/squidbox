@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { SectionList, type SectionListRenderItemInfo, StyleSheet, View } from 'react-native';
 
+import confirmRemoveFromAlbumPhotos from './confirmRemoveFromAlbumPhotos';
 import readAddContactsSeed, { type AddContactsSeed, type AddContactsTarget } from './readAddContactsSeed';
 
 import EditSheetHeader from '@/components/EditSheetHeader';
@@ -10,8 +11,6 @@ import ModalSheet from '@/components/ModalSheet';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SheetSearchField from '@/components/SheetSearchField';
 import { SCREEN_PADDING } from '@/constants';
-import confirmRemoveFromPhotos from '@/features/contact-links/confirmRemoveFromPhotos';
-import { contactsOfName } from '@/features/contact-links/contactsOf';
 import ContactRow from '@/features/contact-list/ContactRow';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useContactSort from '@/features/contact-list/useContactSort';
@@ -21,7 +20,6 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import useSheetSearchList from '@/hooks/useSheetSearchList';
 import type { MembershipChange } from '@/providers/contacts/ContactsContext';
 import useContacts from '@/providers/contacts/useContacts';
-import type { PhotosOf } from '@/sync/assetSql';
 import { matchingIds } from '@/sync/matchingIds';
 import type { ContactSummary } from '@/sync/queries/contactQuery';
 import contactSearchText from '@/sync/queries/contactSearchText';
@@ -33,22 +31,19 @@ type ContactSectionData = { title: string; data: ContactSummary[] };
  * The contacts of a photo (`?assetId=`) or of a list (`?listId=`), to pick: the ones it has now
  * (picked), the ones on the photos of the albums it is in, then everyone else, each in the Contacts tab's
  * sort (useContactSort), under a search field pinned under the header (SheetSearchField). Save adds the ones
- * picked here and removes the ones unpicked here. For an album's or post's photos (`?albumId=`,
- * `?postId=`) it is its Contacts: the ones on all its photos start ticked, those on some with a
- * dash; Save puts the ticked ones on every photo and, once confirmed, takes the emptied ones off all
- * of them.
+ * picked here and removes the ones unpicked here. For an album's photos (`?albumId=`) it is its
+ * Contacts: the ones on all its photos start ticked, those on some with a dash; Save puts the ticked
+ * ones on every photo and, once confirmed, takes the emptied ones off all of them.
  */
 export default function AddContactsScreen() {
-  const params = useLocalSearchParams<{ listId?: string; assetId?: string; albumId?: string; postId?: string }>();
+  const params = useLocalSearchParams<{ listId?: string; assetId?: string; albumId?: string }>();
   const target: AddContactsTarget | null = params.listId
     ? { listId: params.listId }
     : params.assetId
       ? { assetId: params.assetId }
       : params.albumId
         ? { albumId: params.albumId }
-        : params.postId
-          ? { postId: params.postId }
-          : null;
+        : null;
   // A link to a target this app doesn't know closes the sheet, as a deleted one does.
   const seed = useSeedOrClose(
     async (db) => (target ? readAddContactsSeed(db, target) : null),
@@ -102,17 +97,17 @@ function AddContactsPicker({ target, seed }: AddContactsPickerProps) {
     };
     if ('listId' in target) return changeListContacts(target.listId, change);
     if ('assetId' in target) return changePhotoContacts(target.assetId, change);
-    return saveToPhotosOf(target, change);
+    return saveToAlbumPhotos(target.albumId, change);
   }
 
-  async function saveToPhotosOf(of: PhotosOf, change: MembershipChange) {
+  async function saveToAlbumPhotos(albumId: string, change: MembershipChange) {
     if (change.removed.length) {
       const byId = new Map(allContacts?.map((contact) => [contact.id, contact.name]));
       const names = change.removed.map((id) => byId.get(id) ?? 'A contact');
       // An empty refusal keeps the sheet open as it is.
-      if (!(await confirmRemoveFromPhotos(names, contactsOfName(of)))) return { refused: '' };
+      if (!(await confirmRemoveFromAlbumPhotos(names))) return { refused: '' };
     }
-    await changeContactsOnPhotosOf(of, change);
+    await changeContactsOnPhotosOf({ albumId }, change);
     return undefined;
   }
 
