@@ -324,7 +324,9 @@ coalesced row never uploads the same file again. A batch's uploads precede its p
 many photos (a merge) makes the first push wait for all of them; a later change can push the rows
 without file edits first. A `delete` row uploads nothing: a contact made with a photo and deleted
 before any sync pushes a tombstone that may name a file the storage lacks (nothing shows a deleted
-contact; a Restore, when it comes, must treat a named file as possibly missing). A removed photo
+contact; a restore must treat a named file as possibly missing). A delete whose earlier edit
+waits on a refused upload (its photo missing on this device) coalesces onto that row, clears its
+error and pushes: a tombstone never waits on a file. A removed photo
 (null) uploads nothing. The server changes nothing for it.
 
 - **Refused** (`FileUploadRefusedError`): what fails the same way next time, an upload answered
@@ -954,7 +956,12 @@ part set; JSON, merges as one value; a row shows "City, Country", the state too 
 `formatPlace`), `avatarFilename` (the photo's key, a file field:
 §4, §6, §7a), plus the base columns. The app keeps each field within the schema's `CONTACT_LIMITS`
 (a field's length, a place part's length, 20 places), so a push is never rejected for its length. Deleting a contact tombstones it and its edges in one
-transaction (`setContactDeleted`).
+transaction, every edge stamped with the contact's own `deletedAt` (`contactsRepository.deleteContact`).
+Restoring it (Deleted's Restore) puts it back where it was, as for assets: in the same transaction
+it revives exactly the edges whose `deletedAt` is the contact's, so a list membership or photo tag
+removed on its own, before or after, stays removed, and so does one in a list deleted since
+(`contactsRepository.restore`). A delete made by a build before this stamps each edge with its own
+clock, and its restore brings the contact back without them.
 
 **contact_lists** (Contacts → Lists). Synced: `name`, `notes`, plus the base columns; lists are
 shown by name. Deleting a list

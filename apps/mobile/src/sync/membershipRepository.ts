@@ -3,7 +3,7 @@ import { chunk } from '@squidbox/shared';
 import { and, eq, isNull, or, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { nextVersion, tombstone } from './clock';
+import { nextUpdatedAt, nextVersion, tombstone } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
@@ -139,10 +139,34 @@ export function makeMembershipRepository(
 
     /**
      * Tombstones every live edge that `match` names: a parent's (`{ listId }`, its list was deleted)
-     * or a child's (`{ contactId }`, its contact was deleted).
+     * or a child's (`{ contactId }`, its contact was deleted). `deletedAt` stamps them all with the
+     * deletion that took them (the contact's own), so `restoreWhere` can bring back exactly those.
      */
-    async tombstoneWhere(db: SyncDb, match: Parent): Promise<void> {
-      await db.transaction(async (tx) => tombstoneAll(tx, await read(tx, and(matches(match), isNull(t.deletedAt)))));
+    async tombstoneWhere(db: SyncDb, match: Parent, deletedAt?: number): Promise<void> {
+      await db.transaction(async (tx) => {
+        const edges = await read(tx, and(matches(match), isNull(t.deletedAt)));
+        if (deletedAt === undefined) return tombstoneAll(tx, edges);
+        const stamped = edges.map((e) => ({ ...e, updatedAt: nextUpdatedAt(e.updatedAt, deletedAt), deletedAt }));
+        await saveRecords(tx, collection, table, stamped, { previous: edges });
+      });
+    },
+
+    /**
+     * Brings back the edges that `match` names and the deletion stamped `deletedAt` took
+     * (`tombstoneWhere`), and only those: one removed before or after it stays removed. `also`
+     * narrows them further (a list's edges only while the list is live).
+     */
+    async restoreWhere(db: SyncDb, match: Parent, deletedAt: number, also?: SQL): Promise<void> {
+      await db.transaction(async (tx) => {
+        const edges = await read(tx, and(matches(match), eq(t.deletedAt, deletedAt), also));
+        await saveRecords(
+          tx,
+          collection,
+          table,
+          edges.map((e) => nextVersion(e, { deletedAt: null })),
+          { previous: edges },
+        );
+      });
     },
   };
 }
