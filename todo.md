@@ -28,7 +28,8 @@ A contact made with a photo and deleted before any sync pushes a tombstone namin
 storage lacks (`docs/sync-design.md`, file uploads). `restoreContact` (`ContactsProvider`) clears
 only `deletedAt`, so nothing uploads the photo and other devices get a photo that's missing for
 good. A restore should re-upload the photo when this device has it, or drop `avatarFilename` when it
-doesn't.
+doesn't. A wider restore bug is pinned in open PR #84 (its R1, an `it.fails` test): a restore also
+loses the contact's lists and photo links. Fix both in one pass.
 
 ## Features
 
@@ -42,12 +43,19 @@ a `devices` table written per account and install from the header, and a script 
 (`docs/sync-design.md` §15) is retired only once no device runs it. Until then the owner is the
 only user and knows his phone's build.
 
-### [ ] Search suggestions as you type, like Apple Photos
+### [ ] Search: suggestions as you type, and what it matches
 
 Wanted by the owner, later. While typing in a list's search (`SearchOptionsBar`), show a menu of
 matching terms above the field, each with how many assets it finds (Apple Photos: "mvp 3",
 "mvz 1"). Terms would come from the words of the assets' notes, tags and tagged contacts' names,
 which is what `assetQuery` searches.
+
+Maybe, too: the album search (`albumSearchQuery`, `matchedAlbumIds`) matches an album's name, notes
+and the contacts on its photos, not the assistant's tags. Broad tags ("sky", "trail") would match
+nearly every album, so count a tag only when it's on a good share of the album's photos (Apple and
+Google Photos find albums by name only). The post search (`postQuery` `matchedIds`) matches only the
+post's text (an @mention included); matching the contacts tagged on its photos, as the album search
+does (`contactAlbumIds`), would find a post by the person in it.
 
 ### [ ] Make the app work on Android
 
@@ -129,41 +137,37 @@ which handle the link itself is. Needs SSRF guards for user-given URLs (no priva
 and time caps) and a photo from any host. Pages behind a login wall (Instagram, OnlyFans, X's hidden
 profiles) get the "try From screenshot" alert. X may keep its own page read, as its data is cleaner.
 
-### [ ] Look places up in a place database
+### [ ] Contact places: a place database, and merging them in Settings
 
 A contact's place is matched only against the user's own contacts (`citySuggestions`,
 `autofillPlace`, `filledFrom`'s spelling step), so a new library gets places as the AI reads them
 (no state outside the US) and a messy one copies its most used spelling, even a wrong one. Looking
 cities up in a real place database (Apple Maps' place search or similar) would give official names
 and states for both. Investigation: `contact-locations-cleanup/autofill-proposal.md` in the project
-files.
-
-### [ ] Merge places in Settings
-
-A screen that lists the places the contacts use, with their counts, and merges spellings and copies
-of one place into one (as the one-off cleanup of Nov 10 did by script), so a messy library can be
-cleaned up in the app.
+files. Also a Settings screen that lists the places the contacts use, with their counts, and merges
+spellings and copies of one place into one (as the one-off cleanup of Nov 10 did by script), so a
+messy library can be cleaned up in the app.
 
 ### [ ] Saved assistant chats
 
-Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`) lives only while
-the post editor is open. Keep past chats and list them to reopen, like the ChatGPT or Claude apps,
-not tied to one post, so a chat about a trip or a bio can go on later. Needs a synced collection
-for chats and their turns, a list screen, and a rule for when a new chat starts.
-
-### [ ] Keep the chat card's tag edits
-
-Wanted by the owner. Tags edited on the chat's card (`features/post-chat/ItSeesRow`) last only while
-the post editor is open. Decide whether they go to the photos or are saved on the post, which a
-repost could then reuse for a new caption. A post can mix subjects (a selfie and a landscape), so
-writing one tag to every photo is wrong.
+Wanted by the owner. The assistant chat (`features/post-chat`, `chatSessions`, one per post sheet
+since #98) lives only while the post sheet is open. Keep past chats and list them to reopen, like the
+ChatGPT or Claude apps, not tied to one post, so a chat about a trip or a bio can go on later. Needs a
+synced collection for chats and their turns, a list screen, and a rule for when a new chat starts.
+Saving a chat also decides where the tags edited on its card (`ItSeesRow`) go: today they last only
+while the sheet is open and never reach the photos (#89). Saved on the post, a repost could reuse
+them for a new caption; written to every photo they'd be wrong, as a post can mix subjects (a selfie
+and a landscape).
 
 ### [ ] Tag each photo once at upload, on the server
 
-Wanted by the owner. Photos are tagged on the phone when a chat opens or from the photo's details
-(`features/photo-tags/tagAssetOnce.ts`, `useAssetTags.ts`), so "It sees" waits on a vision call the
-first time. Tagging every photo once on the server after its upload would make it instant and work
-for photos added on another device.
+Wanted by the owner. Photos are tagged on the phone (`features/photo-tags/tagAssetAsync.ts`): a chat
+turn tags the never-tagged photos first and waits for them, and the photo's details offer Tag it.
+Tagging every photo once on the server after its upload would make it instant and work for photos
+added on another device. With it, maybe the photo's place: assets keep `latitude` and `longitude`,
+but tagging (`apps/server/src/ai/tagging.ts`) sends only the image. A place name from the coordinates
+(reverse geocoding) in the vision prompt would let tags name the landmark or park ("Half Dome",
+"Yosemite") instead of guessing. Decide first whether a photo's place may go to the AI provider.
 
 ### [ ] Fill in Writing as you from your posts
 
@@ -171,10 +175,13 @@ Bring back "Fill it in for me" as an agent chat session that drafts About you, T
 Rules from the user's posts. It was removed from the setup flow (`features/voice`); the server route
 was `POST /ai/persona/draft`.
 
-### [ ] Alternative texts for a post
+### [ ] Post variants
 
-Save variations of a post's text for a different audience or purpose, e.g. when it's sent as a PPV
-or posted on another platform.
+A post keeps several versions for different platforms or uses: an X teaser, the OnlyFans post (full
+video, other @ mentions), a PPV message. Each variant has a type, its own text and optionally its own
+subset of the post's media and mentions; the post screen shows them as tabs with copy. Needs a synced
+data model change (server and app). Threads already exist as posts of their own (`threadRootId`), so
+a variant needn't be one. Mockups: https://claude.ai/artifact/LxxYDq2r7PNZ3bC37KNqWj, screens 10–12.
 
 ### [ ] Recreate thumbnails
 
@@ -183,21 +190,16 @@ and the tiles already make a missing one again from the original on the device
 (`ensureAssetThumbnailAsync`); one whose original is gone too (already backed up) only gets a backup
 error, and could be made from the cloud original.
 
-### [ ] Sync the model list with the account
-
-Wanted by the owner, after more testing. The model list, its notes, removed models and scores are
-local tables (`ai_models`, `ai_scores` in `apps/mobile/src/sync/db/schema.ts`), so another device
-shows a different list. Make them one synced collection (`docs/sync-design.md` §9), and move them
-from "on the device" to "synced" in CLAUDE.md's "Where data is saved". Needs a server deploy before
-the app.
-
-### [ ] Copy the admin setup from the dev server to the live one
+### [ ] Move the admin setup to the live server
 
 Wanted by the owner, for when testing is done. "Apply changes for everyone" in the dev client writes
 only to the local server. A script (say `npm run admin:copy-to-live`) that reads the local server's
 published instructions (`app_instructions`), model defaults and Verified / Uncensored marks, shows
-what would change on the live server and writes it after a confirm. The model list, notes and
-scores are on the phone, not the server, so they need their own way across.
+what would change on the live server and writes it after a confirm. The model list, its notes,
+removed models and scores are local tables on the phone (`ai_models`, `ai_scores` in
+`apps/mobile/src/sync/db/schema.ts`), so the script can't move them and another device shows a
+different list: make them one synced collection (`docs/sync-design.md` §9) and move them from "on
+the device" to "synced" in CLAUDE.md's "Where data is saved". Needs a server deploy before the app.
 
 ### [ ] Make Compare's fixed lines editable
 
@@ -217,8 +219,7 @@ so a better wording can be tried and published.
   in `styles/designTokens.ts`), but there is no dark set yet: add one and pick it with
   `useColorScheme`, then check the screens that hard-code white (the octopus art).
 - **Tokens left to do.** Two leftovers of the spacing scale: `SCREEN_PADDING` (`constants.ts`, an
-  alias of `layout.sideGutter`) still stands in 19 files, to become `layout.sideGutter` once the TS
-  migration is done with them; and `QuickViewHost`'s `paddingVertical: 50`
+  alias of `layout.sideGutter`) still stands in 12 files and can now become `layout.sideGutter`; and `QuickViewHost`'s `paddingVertical: 50`
   (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.
 
 ## Code quality
@@ -236,16 +237,19 @@ with thousands of posts. Keeping the handles with their counts in a table would 
 only for rows queued by a build before per-field sync (0011_outbox_fields). The phone is past it
 and installedBuilds.e2e no longer covers it: a migration can drop the column once no such row can be left.
 
-### [ ] Widen what CI checks
+### [ ] CI gaps
 
-`.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
-ESLint setup. Nothing bundles the app, so a wrong named import in JS passes until a build
-(`npx expo export` would catch it).
-
-### [ ] Match the test Postgres to production
-
-CI and `apps/server/docker-compose.yml` run Postgres 16; Neon runs 18 (`db-backup.yml`). Bump both
-together; an existing local compose volume needs a dump and restore (or a fresh volume).
+- `.github/workflows/ci.yml` lints only `apps/mobile`; `apps/server` and `packages/shared` have no
+  ESLint setup. Nothing bundles the app, so a wrong named import in JS passes until a build
+  (`npx expo export` would catch it).
+- A worklet that reads a captured binding in a default parameter, or calls a plain (non-worklet)
+  function on the UI thread, only fails at runtime on the phone. A script could catch it: run the
+  `react-native-worklets` Babel plugin over `src/`, find each generated worklet factory, read its
+  `__closure` names, and flag those used in parameter defaults or bound to a plain function, a React
+  hook result or an unresolved import that the worklet calls. An audit prototyped this (unpolished,
+  with hard-coded paths); make it a `scripts/checkWorklets.mjs` run by `npm run lint`.
+- CI and `apps/server/docker-compose.yml` run Postgres 16; Neon runs 18 (`db-backup.yml`). Bump both
+  together; an existing local compose volume needs a dump and restore (or a fresh volume).
 
 ### [ ] One vertical drag per asset page
 
@@ -255,20 +259,17 @@ tried and left: it needs checks on where each touch lands (catching the panel, a
 the details open), zoom state passed up to `AssetPage`, and new relations with the nested zoom
 gestures, which only a phone can test. Revisit only if the two drift apart.
 
-### [ ] Add UI tests
+### [ ] More UI tests
 
 The main flows have Playwright tests on the web build (`apps/mobile/e2e`, `npm run test:ui`);
 everything else is pure logic in vitest. If screens need finer checks than a flow gives, set up
-component tests (for example jest-expo with React Native Testing Library).
-
-### [ ] iPhone simulator smoke tests in the cloud
-
-Run Maestro flows on an iOS simulator with EAS Workflows (a simulator build profile in `eas.json`,
-`.eas/workflows/*.yml`, a `type: maestro` job) before each preview build: open a photo, zoom,
-swipe, open a post's photo, share. Catches iPhone-only crashes the web preview misses (like the
-worklet-capture and post-photo crashes). Needs a test account with a few photos on the live backend
-(login as an EAS secret, since the cloud can't reach the local mock backend) and costs EAS build
-time per run. Can't check gestures' feel or sharing to other apps.
+component tests (for example jest-expo with React Native Testing Library). For iPhone-only crashes the
+web preview misses (like the worklet-capture and post-photo crashes), run Maestro flows on an iOS
+simulator with EAS Workflows (a simulator build profile in `eas.json`, `.eas/workflows/*.yml`, a
+`type: maestro` job) before each preview build: open a photo, zoom, swipe, open a post's photo,
+share. Needs a test account with a few photos on the live backend (login as an EAS secret, since the
+cloud can't reach the local mock backend) and costs EAS build time per run. Can't check gestures'
+feel or sharing to other apps.
 
 ### [ ] Measure WAL on iOS
 
@@ -281,19 +282,16 @@ device justifies an iOS-only setting (web's OPFS storage measured slower with WA
 The app promises not to clutter the phone's storage, so check every place it writes and whether
 each is cleaned up: originals of uploaded assets (`assetFiles`, kept after upload?), thumbnails,
 cloud downloads for Share (cache, kept a day for reuse), each library's SQLite database and
-WAL, parked libraries (see below), the image and video players' caches, the picker's and the
+WAL, parked libraries, the image and video players' caches, the picker's and the
 thumbnail makers' temporary copies (`pickImageFromMediaLibrary`, `createImageThumbnail`,
 `createVideoThumbnail`) and whatever a crash or kill leaves mid-write. Outcome: a list of what
 stays and why, fixes for leaks, and maybe a Settings view of the space used with a "Free up space"
 action.
 
-### [ ] Free the space used by other accounts' cached libraries
-
-Parked libraries stay on the phone forever: signing in as another account parks the current
-library (`src/library/switchLibrary.ts`) and nothing in the UI removes one since "Libraries on this
-iPhone" went (`removeLibrary` now only serves the merge). Rare, multi-account only; a Developer or
-Settings action behind a recount of the parked database would do, and it must keep or warn about
-originals that aren't uploaded yet.
+Parked libraries stay on the phone forever: signing in as another account parks the current library
+(`src/library/switchLibrary.ts`) and nothing in the UI removes one since "Libraries on this iPhone"
+went (`removeLibrary` now only serves the merge). A Developer or Settings action behind a recount of
+the parked database would do, and it must keep or warn about originals that aren't uploaded yet.
 
 ### [ ] Find duplicates by content when the device library joins an account
 
@@ -313,13 +311,13 @@ play in desktop Chrome either).
 
 ### [ ] Sentry receives events from development
 
-`Sentry.init` in `App.js` is always on, so the dev client and the web preview report into the
+`Sentry.init` in `src/app/_layout.tsx` is always on, so the dev client and the web preview report into the
 production project. Consider `enabled: !__DEV__`.
 
 ### [ ] One animation library
 
 Animations use both React Native's `Animated` and Reanimated. Move the `Animated` ones
-(`BlurPopoverRenderer`, `MainTabNavigator`, `AssetImage`) to
+(`BlurPopoverRenderer`, `PopoverSurface`, `AssetImage`) to
 Reanimated, so everything runs on the UI thread with one API.
 
 ### [ ] One sync for data and files
@@ -329,58 +327,41 @@ backup run (`sync/backupRun.ts`), each with its own errors and Retry All (Sync a
 Consolidate into one procedure that syncs data and files together, automatically in the background,
 with one status and one error list. Until then a photo added on one device shows on the others with
 no picture ("Still uploading from your other device.") until someone taps "Back up now" there. The
-owner wants this later, not now.
+owner wants this later, not now. Sync runs only while the app is open; a background task or a silent
+push from the backend could keep the library fresh (real background sync via a native module?).
 
-### [ ] Keep upload failures out of the synced assets table
+It also settles two smaller faults, which can be fixed on their own before it:
 
-Upload failures (`syncError`) are the one local-only field, on the synced `assets` table. Move them
-into a local `sync_failures` table: that drops the `localOnly` descriptor machinery
-(`packages/shared/collections/define.ts`, `localOnlyKeys.ts`, the stripping in `outbox.ts` and
-`upsertRows.ts`, the reset in `mergeLibrary.ts`).
-
-### [ ] Backup doesn't say why it skips an asset whose push failed
-
-The backup run skips assets with an outbox row (`backupRun.ts` `isUnconfirmed`), so their originals
-aren't deleted before the server has their record. The Backup screen still counts them as "N not
-backed up" with no hint why: a failed push is listed on the Library sync screen, and a pending one
-(an import right before Backup) needs another run. Backup could wait for the push first.
-
-### [ ] Worklet capture check in CI
-
-A worklet that reads a captured binding in a default parameter, or calls a plain (non-worklet)
-function on the UI thread, only fails at runtime on the phone. A script could catch it: run the
-`react-native-worklets` Babel plugin over `src/`, find each generated worklet factory, read its
-`__closure` names, and flag those used in parameter defaults or bound to a plain function, a
-React hook result or an unresolved import that the worklet calls. An audit prototyped this
-(unpolished, with hard-coded paths); make it a `scripts/checkWorklets.mjs` run by `npm run lint`.
+- The backup run skips assets with an outbox row (`backupRun.ts` `isUnconfirmed`), so their originals
+  aren't deleted before the server has their record. The Backup screen still counts them as "N not
+  backed up" with no hint why: a failed push is listed on the Library sync screen, and a pending one
+  (an import right before Backup) needs another run. Backup could wait for the push first.
+- Upload failures (`syncError`) are the one local-only field, on the synced `assets` table. Moved into
+  a local `sync_failures` table, the `localOnly` descriptor machinery goes
+  (`packages/shared/collections/define.ts`, `localOnlyKeys.ts`, the stripping in `outbox.ts` and
+  `upsertRows.ts`, the reset in `mergeLibrary.ts`).
 
 ### [ ] Database and caches through the library handle too
 
-Only the asset path helpers lost their `getLibrary()` fallback. `AppInit` still builds the sync target
-from `getDb()`/`getLibrary()`, `switchLibrary` uses `getLibrary()`, and the web thumbnail cache is
+Only the asset path helpers lost their `getLibrary()` fallback. `src/app/_layout.tsx` still builds the
+sync target from `getDb()`/`getLibrary()`, `switchLibrary` uses `getLibrary()`, and the web thumbnail cache is
 module-global. Closing a library already makes a late write fail, so this is tidiness, not safety.
 
-### [ ] A parked device library says nothing outside the first sync
+### [ ] Say when this iPhone's library is stuck
 
-The setup screen says this iPhone's photos join after the first sync (`FirstSyncScreen`), but a
-device library whose merge failed (it retries at each boot, `mergeDeviceLibrary`), or that waits for
-another library or account it joined (`joinedElsewhere` in `library/mergeMarker.ts`), shows nothing in
-the app, so its photos are out of sight until it completes. Show it in the sync status or Settings.
+The setup screen says this iPhone's photos join after the first sync (`FirstSyncScreen`); outside it,
+a device library that doesn't join shows nothing in the app, so its photos are out of sight. Its data
+is safe in each case; show it in the sync status or Settings, and how to get help:
 
-### [ ] Tell the user when this iPhone's library won't open
-
-A device library whose database won't open (a failed migration, a damaged file) is passed over
-silently: `openLibraryForSession` opens the session's own library instead, and the setup screen still
-says this iPhone's photos join after the first sync. Say that its photos can't be opened, and how
-to get help.
-
-### [ ] A merge waits for its target's push; a rejected row holds it
-
-`mergeLibrary` (`src/library/mergeRun.ts`) removes the device library only once the account's library
-has no outbox row left up to the newest at the merge's commit (`isPushed`, sync-design §8). A row the
-server keeps rejecting (too large, invalid) holds the device library parked, with nothing said in the
-app, whether the merge wrote it or it was an older failed row of the account's. Its data is safe
-there; show it, or let the merge finish past a rejected row.
+- Its merge failed (it retries at each boot, `mergeDeviceLibrary`), or it waits for another library or
+  account it joined (`joinedElsewhere` in `library/mergeMarker.ts`).
+- Its database won't open (a failed migration, a damaged file): `openLibraryForSession` opens the
+  session's own library instead, and the setup screen still promises the join.
+- A row the server keeps rejecting (too large, invalid) holds it parked: `mergeLibrary`
+  (`src/library/mergeRun.ts`) removes the device library only once the account's library has no
+  outbox row left up to the newest at the merge's commit (`isPushed`, sync-design §8), whether the
+  merge wrote that row or it was an older failed row of the account's. Or let the merge finish past
+  a rejected row.
 
 ### [ ] Merge marks are one JSON value per source library
 
@@ -399,19 +380,9 @@ deleted or restored.
 
 ## Ideas
 
-- **Album search by tags (maybe).** The album search (`albumSearchQuery`, `matchedAlbumIds`) matches
-  an album's name, notes and the contacts on its photos, not the assistant's tags. Broad tags ("sky",
-  "trail") would match nearly every album; if wanted, count a tag only when it's on a good share of
-  the album's photos. Apple and Google Photos also find albums by name only.
-- **Post search by tagged contacts (maybe).** The post search (`postQuery` `matchedIds`) matches only
-  the post's text (an @mention included). Matching the contacts tagged on its photos, as the album
-  search does (`contactAlbumIds`), would find a post by the person in it.
 - **Backup progress ring.** The Backup screen shows a running backup as "sent / total" text.
   `components/ProgressRing` (now a shared component, used by the progress overlay) could show it
   there too. Owner to decide.
-- **Background sync.** Sync runs only while the app is open. A background task or a silent push
-  from the backend could keep the library fresh. Owner asks: real background sync via a native
-  module?
 - **Thumbnail backfill.** Thumbnails load lazily, so one you never scrolled to is blank offline.
   A low-priority background backfill after the first sync would close that gap, using the existing
   queue's concurrency cap. Decide first: Wi-Fi only (recommended), any network, or stay lazy.
@@ -419,18 +390,13 @@ deleted or restored.
   exported AWS credentials silently win over `apps/server/.env`. `npm run dev:local` strips them;
   plain `npm run dev` in `apps/server` doesn't. Loading `.env` with override semantics for local
   runs would remove the pitfall.
-- **Location in photo tags.** Assets keep `latitude` and `longitude`, but tagging
-  (`apps/server/src/ai/tagging.ts`) sends only the image. Turning the coordinates into a place name
-  (reverse geocoding) and adding it to the vision prompt would let tags name the landmark or park
-  ("Half Dome", "Yosemite") instead of guessing. Decide first: on the phone or the server, and
-  whether a photo's place may go to the AI provider.
 
 ## Owner-side (needs a device, infra or secrets)
 
 ### [ ] Renew iOS signing before Oct 10, 2027
 
 The distribution certificate and both ad hoc profiles expire then, and installed apps stop opening.
-Renew them via the **`/build`** skill (see "expired signing" there) a few weeks ahead.
+Renew them via the **`ios-build`** skill (see "expired signing" there) a few weeks ahead.
 
 ### [ ] A read-only AWS key for the library copy
 
