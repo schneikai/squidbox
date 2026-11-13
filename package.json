@@ -12,6 +12,7 @@
     "ios:app": "node scripts/iosApp.mjs build",
     "ios:update": "node scripts/iosApp.mjs update",
     "contract:raise": "node scripts/raiseContract.mjs",
+    "deploy:server": "NODE_USE_ENV_PROXY=1 node scripts/deployServer.mjs",
     "lint": "npm run --workspace apps/mobile lint",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "knip": "knip",

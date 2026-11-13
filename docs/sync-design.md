@@ -1286,7 +1286,11 @@ command on its own. The steps, in order:
 3. Publish the app from that commit on every channel (`npm run ios:update`, or `npm run ios:app`
    when native code or the client migrations changed). That app must work against the old server
    until the deploy.
-4. Deploy the server.
+4. `npm run deploy:server`. It enforces the order: with a raised version in the checkout and a lower
+   (or unreadable) minimum on the live server (`/up`), it deploys only once, on every EAS channel
+   with a finished build, the newer of the latest update and the latest build holds the new version
+   (`scripts/deployCheck.mjs`). A phone whose native code can't take the newest update needs the
+   newest build installed: the check can't see that.
 
 A raise is when leftovers kept for older builds may be deleted.
 

@@ -5,8 +5,9 @@
     "moduleResolution": "bundler",
     "lib": ["ESNext"],
     "types": ["node"],
-    "outDir": "dist",
-    "rootDir": "."
+    // test/deployCheck.test.ts imports the deploy check, a script outside this app
+    // (scripts/deployCheck.mjs). Nothing is emitted: the server runs through tsx.
+    "allowJs": true
   },
   "include": ["src/**/*.ts", "scripts/**/*.ts", "test/**/*.ts", "drizzle.config.ts"],
   "exclude": ["node_modules", "dist"]

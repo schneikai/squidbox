@@ -21,10 +21,19 @@
  *   npm run ios:update                  # update, preview
  *   npm run ios:update -- production
  */
-import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { fail, git, read, requirePushedTip, retry, run } from './ship.mjs';
+import {
+  eas,
+  fail,
+  finishedBuilds,
+  git,
+  gitSucceeds,
+  hasCommit,
+  latestUpdate,
+  read,
+  requirePushedTip,
+  run,
+} from './ship.mjs';
 
 // What an App build or update needs from its profile's EAS environment.
 const APP_ENV = ['EXPO_PUBLIC_API_URL', 'SENTRY_AUTH_TOKEN'];
@@ -41,8 +50,6 @@ const mobileDir = `${root}/apps/mobile`;
 // The profile's channel and EAS environment, as its builds have them.
 const { channel, environment } = JSON.parse(readFileSync(`${mobileDir}/eas.json`, 'utf8')).build[profile];
 if (!channel || !environment) fail(`eas.json: the ${profile} profile needs a channel and an environment.`);
-// The repo's pinned eas-cli (root package.json).
-const eas = fileURLToPath(import.meta.resolve('eas-cli/bin/run'));
 // The env of every eas call but the build: the EAS environment is the only source of the App's
 // variables, so neither this shell's EXPO_PUBLIC_* and APP_ENV values nor apps/mobile/.env.local can
 // reach the bundle or make the preflight pass.
@@ -132,12 +139,9 @@ function noReachableBuild() {
     ['--platform', 'ios'],
     ['--channel', channel],
     ['--runtime-version', runtimeVersion],
-    ['--status', 'finished'],
     ['--limit', '50'],
   ].flat();
-  const builds = JSON.parse(
-    retry(() => read(eas, ['build:list', ...filters, '--json', '--non-interactive'], mobileDir, easOnlyEnv)),
-  );
+  const builds = finishedBuilds(filters, mobileDir, easOnlyEnv);
   if (builds.length === 0) {
     return [
       `No finished ${profile} build has this native code (runtime ${runtimeVersion}): the update would reach no installed app. Build it with \`npm run ios:app\`.`,
@@ -157,10 +161,7 @@ function noReachableBuild() {
 // An update never puts older code after newer: X descends from the channel's latest update. Its
 // branch is named after the channel (`eas update --channel` creates it so).
 function olderThanLatest() {
-  const branches = JSON.parse(
-    retry(() => read(eas, ['branch:list', '--json', '--non-interactive'], mobileDir, easOnlyEnv)),
-  );
-  const latest = branches.find(({ name }) => name === channel)?.updates[0];
+  const latest = latestUpdate(channel, mobileDir, easOnlyEnv);
   if (
     !latest ||
     (hasCommit(latest.gitCommitHash) && gitSucceeds('merge-base', '--is-ancestor', latest.gitCommitHash, 'HEAD'))
@@ -170,16 +171,4 @@ function olderThanLatest() {
   return [
     `HEAD does not descend from ${String(latest.gitCommitHash).slice(0, 8)}, the commit of the latest ${channel} update (or that commit is unknown): an update never puts older code after newer. Fix forward from a newer commit.`,
   ];
-}
-
-// Whether the commit is in this checkout, fetching it once if not.
-function hasCommit(sha) {
-  if (!sha) return false;
-  if (gitSucceeds('cat-file', '-e', `${sha}^{commit}`)) return true;
-  gitSucceeds('fetch', '-q', 'origin', sha);
-  return gitSucceeds('cat-file', '-e', `${sha}^{commit}`);
-}
-
-function gitSucceeds(...args) {
-  return spawnSync('git', args, { stdio: 'ignore' }).status === 0;
 }

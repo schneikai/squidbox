@@ -144,7 +144,7 @@ A wrong, refused or too slow answer (or any other error about the call) is the m
 
 ## Deploying the backend
 
-Run `/deploy-server`. It builds, migrates and releases via the `fly` CLI.
+Run `/deploy-server`, which deploys with `npm run deploy:server`: it builds, migrates and releases via the `fly` CLI, and refuses a server that raises the minimum contract version before the app with it is published (`docs/sync-design.md` §15).
 
 ## Dependencies
 
