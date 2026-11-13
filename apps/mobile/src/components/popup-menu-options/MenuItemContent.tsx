@@ -8,6 +8,7 @@ import { colors, layout, radii, sizes, space, textStyles } from '@/styles/design
 export type MenuItemContentProps = {
   label: string;
   icon?: IconName;
+  leading?: ReactNode;
   trailing?: ReactNode;
   colorPalette?: Extract<Palette, 'danger'>;
   isSelected?: boolean;
@@ -15,11 +16,13 @@ export type MenuItemContentProps = {
 };
 
 // A menu row's contents, iOS style: the label, `trailing` (a dot when `isSelected` and none is
-// given), and the icon at the end. The row itself (height, padding, press feedback) belongs to
+// given), and the icon at the end. `leading` goes before the label where what the row picks has a
+// mark of its own (a channel's logo). The row itself (height, padding, press feedback) belongs to
 // MenuOption or the popover drawing it.
 export default function MenuItemContent({
   label,
   icon,
+  leading,
   trailing,
   colorPalette,
   isSelected = false,
@@ -36,6 +39,7 @@ export default function MenuItemContent({
   return (
     <>
       {isHeader && iconNode}
+      {leading && <View style={styles.leading}>{leading}</View>}
       <Text style={[styles.label, isDanger && styles.labelDanger, isHeader && styles.labelHeader]}>{label}</Text>
       {trailing ?? (isSelected && <View style={styles.selectedDot} />)}
       {!isHeader && iconNode}
@@ -64,6 +68,9 @@ const styles = StyleSheet.create({
     color: colors.status.danger,
   },
   labelHeader: textStyles.subheadlineBold,
+  leading: {
+    marginRight: layout.iconGap,
+  },
   selectedDot: {
     width: 7,
     height: 7,

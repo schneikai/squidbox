@@ -15,6 +15,7 @@ import { contactListMemberCollection } from './contactListMember';
 import { contactLinkCollection } from './contactLink';
 import { contactSettingCollection } from './contactSetting';
 import { ideaSettingCollection } from './ideaSetting';
+import { channelCollection } from './channel';
 
 // The collection registry the sync engine iterates. Adding a collection: docs/sync-design.md §9.
 export const collections = [
@@ -34,6 +35,7 @@ export const collections = [
   contactLinkCollection,
   contactSettingCollection,
   ideaSettingCollection,
+  channelCollection,
 ] as const satisfies readonly CollectionDescriptor[];
 
 /** A registered collection's name. Maps keyed by it fail typecheck when a collection is missing. */

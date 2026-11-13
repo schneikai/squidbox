@@ -5,11 +5,11 @@ import MenuItemContent, { type MenuItemContentProps } from './MenuItemContent';
 
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
-// The library forwards accessibilityState to the option's touchable (MenuOption.js spreads its
-// accessibility props), but its d.ts leaves it out.
+// The library forwards this to the option's touchable (MenuOption.js spreads its other props), but
+// its d.ts leaves it out.
 declare module 'react-native-popup-menu' {
   interface MenuOptionProps {
-    accessibilityState?: ViewProps['accessibilityState'];
+    'aria-selected'?: ViewProps['aria-selected'];
   }
 }
 
@@ -18,11 +18,12 @@ export type MenuOptionProps = MenuItemContentProps & { onPress?: () => unknown }
 
 // A menu row. The menu closes after `onPress` unless it returns false. `colorPalette="danger"` for
 // one that deletes, `isSelected` for the current choice, `isHeader` for the row that leads back
-// out of a panel (Filter).
+// out of a panel (Filter), `leading` a mark before the label.
 export default function MenuOption({
   onPress,
   label,
   icon,
+  leading,
   trailing,
   colorPalette,
   isSelected = false,
@@ -33,11 +34,12 @@ export default function MenuOption({
       onSelect={onPress}
       style={popupMenuStyles.row}
       accessibilityRole="menuitem"
-      accessibilityState={{ selected: isSelected }}
+      aria-selected={isSelected}
     >
       <MenuItemContent
         label={label}
         icon={icon}
+        leading={leading}
         trailing={trailing}
         colorPalette={colorPalette}
         isSelected={isSelected}

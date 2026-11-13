@@ -152,7 +152,8 @@ test('a posted post has no tray, and its editor starts no ideas', async ({ page,
   await expect(post.getByText('Write with AI')).toHaveCount(0);
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
-  await expect(page.getByTestId('post-editor').getByText('Write with AI')).toBeVisible();
+  // The channel that shows: the post's other channels keep their cards, hidden.
+  await expect(page.getByTestId('post-editor-channel').getByText('Write with AI')).toBeVisible();
 
   expect(assistant.events).toEqual([]);
 });

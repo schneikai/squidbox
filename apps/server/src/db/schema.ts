@@ -171,6 +171,9 @@ export const posts = pgTable(
     // A thread's following post: its first post and its place after it (null on a first post).
     threadRootId: uuid('thread_root_id'),
     threadIndex: integer('thread_index'),
+    // The catalog id of the channel the post is on, and on another channel of a post: that post.
+    channelId: text('channel_id'),
+    channelRootId: uuid('channel_root_id'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('posts_user_seq_idx').on(t.userId, t.serverSeq)],
 );
@@ -344,6 +347,18 @@ export const ideaSettings = pgTable(
     repostIdeasPrompt: text('repost_ideas_prompt'),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('idea_settings_user_seq_idx').on(t.userId, t.serverSeq)],
+);
+
+// The user's channels (Settings → Posts → Channels), one record per catalog channel under its fixed
+// id, ordered by (position, id).
+export const channels = pgTable(
+  'channels',
+  {
+    ...syncableBase(),
+    channelId: text('channel_id').notNull(),
+    position: text('position').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('channels_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 
 export const contactListMembers = pgTable(

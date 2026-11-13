@@ -19,4 +19,5 @@ export const notFuzzed: Record<string, string> = {
   model_choices: PER_USER,
   contact_settings: PER_USER,
   idea_settings: PER_USER,
+  channels: `${PLAIN}; one record per catalog channel under its fixed id, as channelsRepository.test covers`,
 };

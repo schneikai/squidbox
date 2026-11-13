@@ -9,6 +9,7 @@ import Button from '@/components/Button';
 import Card from '@/components/Card';
 import FadeView from '@/components/FadeView';
 import SuperPressable from '@/components/SuperPressable';
+import postChannelIds from '@/features/channels/postChannelIds';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
 import PostView from '@/features/posts/PostView';
 import longPressAccessibility from '@/lib/longPressAccessibility';
@@ -26,6 +27,7 @@ export type PostListItemProps = {
   onToggleThread: (postId: string) => void;
   unfoldedPosts: Map<string, PostDetailRow>;
   hasMenu: boolean;
+  channelOrder: string[];
 };
 
 /**
@@ -39,6 +41,7 @@ export type PostListItemProps = {
  * opens the post like the rest of the item, and the actions stay in the first card. `post` is a
  * postQuery row: it carries its `postAssets` and `threadCount`; the following posts are read only
  * while unfolded, and kept in `unfoldedPosts` (the list's) so the cell comes back on screen with them.
+ * The card's labels show its channels (postChannelIds) in `channelOrder`, the user's channel order.
  */
 function PostListItem({
   post,
@@ -47,6 +50,7 @@ function PostListItem({
   onToggleThread,
   unfoldedPosts,
   hasMenu,
+  channelOrder,
 }: PostListItemProps) {
   // A cell that comes back on screen unfolded shows its following posts at once; once folded, the
   // next unfold animates.
@@ -87,6 +91,7 @@ function PostListItem({
       <View style={styles.firstCard} collapsable={false}>
         <PostView
           post={post}
+          channelIds={postChannelIds(post, channelOrder)}
           meta={
             isThread && (
               <Button

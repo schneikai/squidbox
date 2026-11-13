@@ -3,6 +3,8 @@ import type { AiModelKind, VerifyPlan, VerifyResult } from '@squidbox/shared';
 import isTurnPassed from './isTurnPassed';
 import missReason from './missReason';
 
+import joinWords from '@/utils/joinWords';
+
 /** The done Verify's one sentence on its misses (`result` the run's, `plan` its kind's). */
 export default function missSummary(result: VerifyResult, plan: VerifyPlan, kind: AiModelKind): string {
   const titles = new Map(plan.sections.map((section) => [section.id, section.title]));
@@ -20,6 +22,5 @@ export default function missSummary(result: VerifyResult, plan: VerifyPlan, kind
     return `Missed once: ${missReason(turn)} in ${titles.get(section.id) ?? section.title}.`;
   }
   const where = [...new Set(missed.map(({ section }) => titles.get(section.id) ?? section.title))];
-  const list = where.length === 1 ? where[0] : `${where.slice(0, -1).join(', ')} and ${where.at(-1)}`;
-  return `Missed ${missed.length} turns, in ${list}.`;
+  return `Missed ${missed.length} turns, in ${joinWords(where)}.`;
 }

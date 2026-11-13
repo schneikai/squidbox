@@ -1,21 +1,26 @@
+import { channelById } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import leaveWithNewPostSheet from './leaveWithNewPostSheet';
 
-import PostEditor, { type EditedPost, type PostEditorPost } from '@/features/posts/PostEditor';
+import PostEditor from '@/features/posts/PostEditor';
+import type { EditedPost, PostEditorPost } from '@/features/posts/draft/postDraftReducer';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
 import usePosts from '@/providers/posts/usePosts';
+import { readChannels } from '@/sync/channelsRepository';
 import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
 import readPost from '@/sync/queries/readPost';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
+import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, comma-separated, in that
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
-// without its thread). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
+// without its thread or its other channels). It is on the reposted post's channel, else the user's
+// first channel, else none. Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
 // marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
 // would add the post again. Added from the New post sheet, the post closes that sheet too: the user
 // lands on the posts list with the new post, not back on what to post next.
@@ -50,12 +55,20 @@ async function readSeed(
   db: SyncDb,
   { rePostId, assetIds }: { rePostId: string | undefined; assetIds: string[] },
 ): Promise<PostEditorPost | null> {
+  // The first channel this build knows, as Settings → Channels lists them (useChannels).
+  const firstChannel = (await readChannels(db)).find((row) => channelById(row.channelId));
+  const channelId = firstChannel?.channelId ?? null;
+  const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
   if (rePostId) {
-    const rePost = await readPost(db, rePostId);
+    const rePost = await readPost(db, rePostId, { withChannels: false });
     if (!rePost) return null;
-    const assets = rePost.postAssets.map((postAsset) => postAsset.asset);
-    return { text: rePost.text, postAssets: buildPostAssets(assets), postedAt: getTimestamp(), threadPosts: [] };
+    return {
+      ...fresh,
+      text: rePost.text,
+      postAssets: freshPostAssets(rePost.postAssets),
+      channelId: rePost.channelId ?? channelId,
+    };
   }
   const assets = assetIds.length ? await readByIds(db, schema.assets, assetIds) : [];
-  return { text: '', postAssets: buildPostAssets(assets), postedAt: getTimestamp(), threadPosts: [] };
+  return { ...fresh, text: '', postAssets: buildPostAssets(assets), channelId };
 }

@@ -15,11 +15,13 @@
     "knip": "knip",
     "format": "node scripts/check.mjs --format",
     "check": "node scripts/check.mjs",
-    "check:all": "node scripts/check.mjs --all"
+    "check:all": "node scripts/check.mjs --all",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "eslint": "^10.14.0",
     "knip": "^6.45.1",
+    "patch-package": "^8.0.0",
     "prettier": "^3.10.1",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"

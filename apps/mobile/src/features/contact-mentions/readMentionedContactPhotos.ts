@@ -5,11 +5,12 @@ import extractHandles from '@/lib/extractHandles';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
+import { listedPostId } from '@/sync/postsRepository';
 
 // The suffix a Bluesky handle may be mentioned without (`@maya` for `maya.bsky.social`).
 const BLUESKY_SUFFIX = '.bsky.social';
 
-/** What the posts' mentions match: each contact's photos, and how many posts matched. */
+/** What the posts' mentions match: each contact's photos, and how many posts matched (as listed: listedPostId). */
 export type MentionedContactPhotos = { photosByContact: Map<string, string[]>; postCount: number };
 
 /**
@@ -21,17 +22,21 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
   return db.transaction(async (tx) => {
     const p = schema.posts;
     const posts = await tx
-      .select({ id: p.id, text: p.text })
+      .select({ id: p.id, listedId: listedPostId('posts'), text: p.text })
       .from(p)
       .where(and(isNull(p.deletedAt), like(p.text, '%@%')));
     const contactsByHandle = await readContactsByHandle(tx);
 
     const contactsByPost = new Map<string, string[]>();
+    // A post's other channels and following posts are the post: it counts once.
+    const listedPosts = new Set<string>();
     for (const post of posts) {
       const ids = new Set(
         extractHandles([post.text]).flatMap((handle) => contactsByHandle.get(handleKey(handle)) ?? []),
       );
-      if (ids.size) contactsByPost.set(post.id, [...ids]);
+      if (ids.size === 0) continue;
+      contactsByPost.set(post.id, [...ids]);
+      listedPosts.add(post.listedId);
     }
 
     const photosByContact = new Map<string, Set<string>>();
@@ -44,7 +49,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
     }
     return {
       photosByContact: new Map([...photosByContact].map(([contactId, photos]) => [contactId, [...photos]])),
-      postCount: contactsByPost.size,
+      postCount: listedPosts.size,
     };
   });
 }

@@ -91,7 +91,8 @@ describe('postQuery', () => {
     let post: { id: string } | null = null;
     const work = await measure(async () => (post = await readPost(db, 'p1')));
     expect(post!.id).toBe('p1');
-    expect(work.statements).toBe(2 + 3);
+    // The post, its following posts, its other channels, their edges with their assets, in one transaction.
+    expect(work.statements).toBe(2 + 4);
     expect(await readPost(db, 'missing')).toBeNull();
   });
 
@@ -309,5 +310,66 @@ describe('postQuery: threads', () => {
     await thread('t2', [{ id: 't2-1', text: 'a lake' }], { deletedAt: 5 });
     expect(await ids({ scope: 'all', search: 'lake' })).toEqual(['t2-1', 't1']);
     expect((await postQuery({ scope: 'all', search: 'lake' }).read(db, { limit: 10 })).count).toBe(2);
+  });
+});
+
+describe('postQuery: channels', () => {
+  const copy = (
+    id: string,
+    rootId: string,
+    channelId: string,
+    over: Partial<PostRecord> = {},
+    assetIds: string[] = [],
+  ) => createPost(id, { channelId, channelRootId: rootId, ...over }, assetIds);
+
+  it("lists a post's other channels as the post, uncounted, with their channels", async () => {
+    await createPost('p1', { channelId: 'x' });
+    await copy('p2', 'p1', 'onlyfans');
+    await copy('p3', 'p1', 'bluesky');
+    await copy('p4', 'p1', 'threads', { deletedAt: 5 });
+    const { rows, count } = await postQuery({ scope: 'all' }).read(db, { limit: 10 });
+    expect(rows.map((row) => [row.id, row.otherChannelIds.sort()])).toEqual([['p1', ['bluesky', 'onlyfans']]]);
+    expect(count).toBe(1);
+  });
+
+  it('lists another channel whose post is deleted as a post of its own', async () => {
+    await createPost('p1', { deletedAt: 5 });
+    await copy('p2', 'p1', 'onlyfans');
+    expect(await ids({ scope: 'all' })).toEqual(['p2']);
+  });
+
+  it('finds the post by a search hit or a photo in another channel or its following post', async () => {
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await createPost('p1', { text: 'a walk' });
+    await copy('p2', 'p1', 'onlyfans', { text: 'the lake' }, ['a1']);
+    await createThread(
+      db,
+      { id: 'p3', channelId: 'x', channelRootId: 'p1' },
+      [{ id: 'p3-1', text: 'lake again', assetIds: ['a2'] }],
+      newId,
+    );
+    expect(await ids({ scope: 'all', search: 'lake' })).toEqual(['p1']);
+    expect((await postQuery({ scope: 'all', search: 'lake' }).read(db, { limit: 10 })).count).toBe(1);
+    expect(await ids({ scope: { assetId: 'a1' } })).toEqual(['p1']);
+    expect(await ids({ scope: { assetId: 'a2' } })).toEqual(['p1']);
+  });
+
+  it('reads a post with its other channels, each with its assets and its thread', async () => {
+    await repo.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await createPost('p1', { channelId: 'x' });
+    await createThread(
+      db,
+      { id: 'p2', channelId: 'onlyfans', channelRootId: 'p1', assetIds: ['a1'] },
+      [{ id: 'p2-1', assetIds: ['a2'] }],
+      newId,
+    );
+    const post = await readPost(db, 'p1');
+    expect(post!.channelPosts.map((part) => [part.id, part.postAssets.map((pa) => pa.asset.id)])).toEqual([
+      ['p2', ['a1']],
+    ]);
+    expect(
+      post!.channelPosts[0]!.threadPosts.map((part) => [part.id, part.postAssets.map((pa) => pa.asset.id)]),
+    ).toEqual([['p2-1', ['a2']]]);
+    expect(post!.otherChannelIds).toEqual(['onlyfans']);
   });
 });

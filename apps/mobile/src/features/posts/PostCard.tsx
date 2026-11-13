@@ -1,12 +1,14 @@
-import type { AssetRecord } from '@squidbox/shared';
-import { type ReactNode, useCallback, useMemo, useRef } from 'react';
-import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
+import type { AssetRecord, Channel } from '@squidbox/shared';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import { type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+import Text from '@/components/Text';
 import TextInput from '@/components/TextInput';
+import textLimit from '@/features/channels/textLimit';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
@@ -33,8 +35,11 @@ type PostCardProps = {
   onChange: (key: string, changes: PostCardChange) => void;
   onActivate: (key: string) => void;
   onRemove?: (key: string) => void;
-  // The assistant's tray under the toolbar (the card being edited has it).
-  tray?: ReactNode;
+  // The assistant's tray under the toolbar (the card being edited has it), placed by `style`: on the
+  // card's layout only when it shows, so a card without one has no room left under its toolbar.
+  tray?: (style: StyleProp<ViewStyle>) => ReactNode;
+  // The limits of the post's channel.
+  limits?: Pick<Channel, 'maxTextLength' | 'maxMedia'>;
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
@@ -44,7 +49,9 @@ type PostCardProps = {
  * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
  * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
  * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
- * being edited (its tray shows), without the keyboard.
+ * being edited (its tray shows), without the keyboard. With `limits` (its channel's) the text's
+ * counter ("45 / 280") follows the text, at its right, while its text is typed in, or while the text is over; the
+ * counter and the media line turn red over a limit.
  */
 export default function PostCard({
   card,
@@ -59,11 +66,14 @@ export default function PostCard({
   onRemove,
   onAddToThread,
   tray,
+  limits,
 }: PostCardProps) {
   const { key, text, postAssets } = card;
   // Where a touch on the card began: a tap anywhere on it (a touch that ends near there, so scrolling
   // the editor past it doesn't count) makes it the one being edited.
   const touchStartRef = useRef<Point | null>(null);
+  // While its text is being typed in: the counter shows only then (or once the text is over).
+  const [isTyping, setIsTyping] = useState(false);
   const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
   const autocomplete = useMentionAutocomplete(text, setText);
   // The handle being typed in the card being edited, whose suggestions show.
@@ -74,8 +84,21 @@ export default function PostCard({
   // handle being typed, which follow the text closely.
   const isRoomy = isFirst && postAssets.length === 0 && !mention;
 
+  const { counter, isOver } = textLimit(limits, text);
+  // The date's look beside it (Text `status`: regular, grey), so the toolbar has one grey.
+  const counterNode = counter && (isTyping || isOver) && (
+    <Text variant="status" tone={isOver ? 'danger' : undefined} style={styles.counter}>
+      {counter}
+    </Text>
+  );
+
   function activate() {
     onActivate(key);
+  }
+
+  function handleFocus() {
+    setIsTyping(true);
+    activate();
   }
 
   function handleTouchStart({ nativeEvent }: GestureResponderEvent) {
@@ -106,7 +129,8 @@ export default function PostCard({
           placeholder="What's new?"
           minHeight={isRoomy ? scale(84) : scale(48)}
           autoFocus={autoFocus}
-          onFocus={activate}
+          onFocus={handleFocus}
+          onBlur={() => setIsTyping(false)}
           value={text}
           {...autocomplete.inputProps}
           style={styles.text}
@@ -121,10 +145,12 @@ export default function PostCard({
           />
         )}
       </View>
+      {counterNode}
       {mention && <MentionSuggestions query={mention.query} assetIds={assetIds} onPick={autocomplete.pick} />}
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
+        limits={limits}
         style={styles.assets}
       />
       <PostCardToolbar
@@ -137,7 +163,7 @@ export default function PostCard({
         onAddToThread={onAddToThread}
         onActivate={activate}
       />
-      {tray && <View style={styles.tray}>{tray}</View>}
+      {tray?.(styles.tray)}
     </Card>
   );
 }
@@ -161,6 +187,10 @@ const styles = StyleSheet.create({
   tray: {
     marginTop: layout.cardGap - layout.controlRowSlack,
     marginBottom: layout.cardInset - layout.controlRowSlack,
+  },
+  // Right under the text's end, where the eye is while typing.
+  counter: {
+    alignSelf: 'flex-end',
   },
   // The × lines up with the text's first line.
   remove: {

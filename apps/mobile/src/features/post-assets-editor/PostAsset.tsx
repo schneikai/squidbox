@@ -4,10 +4,9 @@ import { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import AssetImage from '@/components/AssetImage';
 import Button from '@/components/Button';
-import ThumbnailBadge from '@/components/ThumbnailBadge';
+import VideoLengthBadge from '@/components/VideoLengthBadge';
 import cornerStyles from '@/styles/cornerStyles';
 import { press, radii } from '@/styles/designTokens';
-import formatVideoDuration from '@/utils/formatVideoDuration';
 import type { PostAsset as BuiltPostAsset } from '@/utils/posts/buildPostAsset';
 
 // What PostCard builds the strip's items with (buildPostAssets): a row, or a record just added from
@@ -35,7 +34,7 @@ export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, 
         style={({ pressed }) => [styles.tile, style, pressed && press.flat]}
       >
         <AssetImage asset={asset} />
-        {!!asset.duration && <ThumbnailBadge label={formatVideoDuration(asset.duration)} corner="bottomRight" />}
+        <VideoLengthBadge duration={asset.duration} />
         <Button
           variant="secondary"
           size="small"

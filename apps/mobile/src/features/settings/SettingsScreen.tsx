@@ -9,6 +9,7 @@ import Switch from '@/components/Switch';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import useChannels from '@/features/channels/useChannels';
 import getBackupStatusText from '@/features/cloud-sync/getBackupStatusText';
 import useBackupCounts from '@/features/cloud-sync/useBackupCounts';
 import useTagPhotosFromMentions from '@/features/contact-mentions/useTagPhotosFromMentions';
@@ -39,6 +40,7 @@ export default function SettingsScreen() {
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
   const isAssistantAvailable = useIsAssistantAvailable();
   const isDeveloper = useHasFeature('developer');
+  const channels = useChannels();
 
   const [isLoggingOut, startLogoutTransition] = useTransition();
 
@@ -156,6 +158,16 @@ export default function SettingsScreen() {
             </Section>
           </>
         )}
+
+        <ScreenSectionHeader title="Posts" />
+        <Section>
+          <Row
+            label="Channels"
+            value={channels && (channels.length === 0 ? 'None' : String(channels.length))}
+            onPress={() => router.navigate('/settings/channels')}
+            hasChevron
+          />
+        </Section>
 
         <ScreenSectionHeader title="Videos" />
         <Section>

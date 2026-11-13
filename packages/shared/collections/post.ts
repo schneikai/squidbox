@@ -10,6 +10,13 @@ import { baseRecordSchema, defineCollection, int4Schema, textSchema, timestampSc
 // null while unset, so a push from a build without them keeps the stored values, and an older build
 // sees the following posts as ordinary posts. Readers show a thread as its first post; a following
 // post whose first post is deleted reads as a post of its own.
+//
+// Channels: `channelId` is the catalog id of the channel the post is on (channels.ts; null: none). A
+// post's other channels are posts of their own, each carrying `channelRootId` (the post they are
+// another channel of) and its own channelId, edges and thread. Both are optional and null while unset,
+// so a push from a build without them keeps the stored values, and an older build sees a post's other
+// channels as ordinary posts. Readers show a post as itself with its other channels; another channel
+// whose post is deleted reads as a post of its own.
 export const postCollection = defineCollection({
   name: 'posts',
   schema: baseRecordSchema.extend({
@@ -22,6 +29,8 @@ export const postCollection = defineCollection({
     hasBeenReposted: z.boolean(),
     threadRootId: z.uuid().nullable().optional(),
     threadIndex: int4Schema.nullable().optional(),
+    channelId: textSchema.max(40).nullable().optional(),
+    channelRootId: z.string().uuid().nullable().optional(),
   }),
 });
 

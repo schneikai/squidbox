@@ -274,6 +274,13 @@
       "when": 1794386684875,
       "tag": "0038_idea_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1794565024661,
+      "tag": "0039_post_channels",
+      "breakpoints": true
     }
   ]
 }

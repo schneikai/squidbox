@@ -1,26 +1,34 @@
-import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import type { Channel } from '@squidbox/shared';
+import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-flatlist';
 
 import PostAsset, { type EditorPostAsset } from './PostAsset';
 
+import Text from '@/components/Text';
+import isMediaOver from '@/features/channels/isMediaOver';
 import useHaptics from '@/hooks/useHaptics';
 import { scale, space } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
+import assetCountText from '@/utils/assets/assetCountText';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 export type PostAssetsEditorProps = {
   postAssets: EditorPostAsset[];
   onChange: (postAssets: EditorPostAsset[]) => void;
+  limits?: Pick<Channel, 'maxMedia'>;
   style: StyleProp<ViewStyle>;
 };
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list. style is for layout only.
-export default function PostAssetsEditor({ postAssets, onChange, style }: PostAssetsEditorProps) {
+// hold one to reorder, × to take it out. `onChange` gets the new list. With `limits` (its channel's)
+// the caption counts against its media limit ("2 of 4 Assets"), red over it. style is for layout only.
+export default function PostAssetsEditor({ postAssets, onChange, limits, style }: PostAssetsEditorProps) {
   const haptics = useHaptics();
 
-  const countInfo = getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
+  const countInfo =
+    limits?.maxMedia != null
+      ? `${postAssets.length} of ${assetCountText(limits.maxMedia)}`
+      : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
 
   function deletePostAsset(postAsset: EditorPostAsset) {
@@ -54,7 +62,9 @@ export default function PostAssetsEditor({ postAssets, onChange, style }: PostAs
           />
         )}
       />
-      <Text style={listTextStyles.caption}>{caption}</Text>
+      <Text variant="label" tone={isMediaOver(limits, postAssets.length) ? 'danger' : undefined}>
+        {caption}
+      </Text>
     </View>
   );
 }

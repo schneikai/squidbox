@@ -3,7 +3,8 @@
  * unsplash.com and stock videos with music from mixkit.co (all free to use, baked into
  * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
- * and posts, all by one guy who posts his outdoor photos on Bluesky, the people he shoots and
+ * and posts, all by one guy who posts his outdoor photos on Bluesky (his channels: Bluesky, then X and
+ * Instagram, where a few posts have their own text and photos), the people he shoots and
  * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
@@ -18,6 +19,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import {
+  channelById,
   collectionsByName,
   DEFAULT_PROMPT_BUTTONS,
   initialKeys,
@@ -26,6 +28,7 @@ import {
   type AlbumAssetRecord,
   type AlbumRecord,
   type AssetRecord,
+  type ChannelRecord,
   type ContactLinkRecord,
   type ContactListMemberRecord,
   type ContactListRecord,
@@ -120,15 +123,30 @@ const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | '
   { name: 'To post', media: [33, 34, 35, 36, 37, 38, 40, 4] },
 ];
 
-// `thread`: the posts that follow this one in its thread, each with its own text and photos.
-const POSTS: {
-  text: string;
-  media: number[];
+// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts.
+const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
+
+// Every post is on Bluesky. `thread`: the posts that follow this one in its thread, each with its own
+// text and photos. `channels`: the post on his other channels, each with its own text, photos and thread.
+type MockPostPart = { text: string; media: number[]; thread?: { text: string; media: number[] }[] };
+const POSTS: (MockPostPart & {
   postedDaysAgo: number | null;
   isFavorite?: boolean;
-  thread?: { text: string; media: number[] }[];
-}[] = [
-  { text: 'First light over the hills ☀️', media: [0, 1], postedDaysAgo: 40, isFavorite: true },
+  channels?: (MockPostPart & { channelId: (typeof CHANNEL_IDS)[number] })[];
+})[] = [
+  {
+    text: 'First light over the hills ☀️',
+    media: [0, 1],
+    postedDaysAgo: 40,
+    isFavorite: true,
+    channels: [
+      {
+        channelId: 'instagram',
+        text: 'First light over the hills ☀️ Up at 4:30, an hour of switchbacks in the dark, and then this. The valley was still asleep under the fog, and for ten minutes the whole ridge turned gold. Worth every step. #hiking #sunrise #landscapephotography',
+        media: [0, 1, 2, 9, 10],
+      },
+    ],
+  },
   { text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲', media: [14, 15, 17, 32], postedDaysAgo: 32 },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
   {
@@ -140,8 +158,25 @@ const POSTS: {
       { text: 'Last walk before heading home. Part 2 soon.', media: [16] },
       { text: 'Thanks for following along. Back on the trail next weekend 🥾', media: [] },
     ],
+    channels: [
+      {
+        channelId: 'x',
+        text: 'Summer recap, part 1 🧵',
+        media: [3, 5],
+        thread: [
+          { text: 'The coast road, one stop at every pull-out 🌊', media: [6] },
+          { text: 'Part 2 next week.', media: [] },
+        ],
+      },
+    ],
   },
-  { text: 'Quiet roads, loud thoughts.', media: [19], postedDaysAgo: 5, isFavorite: true },
+  {
+    text: 'Quiet roads, loud thoughts.',
+    media: [19],
+    postedDaysAgo: 5,
+    isFavorite: true,
+    channels: [{ channelId: 'x', text: 'Quiet roads.', media: [19] }],
+  },
   { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
   { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
   { text: 'Golden hour, again 🌅', media: [2, 6], postedDaysAgo: 45 },
@@ -346,15 +381,38 @@ const posts: PostRecord[] = POSTS.map((post, index) => {
   const postedAt = post.postedDaysAgo === null ? null : now - post.postedDaysAgo * DAY;
   return postRecord(`post:${index}`, postedAt ?? now - index * DAY, {
     text: post.text,
+    channelId: 'bluesky',
     isFavorite: post.isFavorite ?? false,
     postedAt,
     suggestRepostAt: postedAt === null ? 0 : postedAt + 90 * DAY,
   });
 });
 
-// A thread's following posts: their own records, linked to the first post, with its Posted time.
-const threadParts = POSTS.flatMap((post, index) =>
-  (post.thread ?? []).map((part, j) => ({ ...part, key: `post:${index}:part:${j + 1}`, root: posts[index]!, j })),
+// A post on another channel: its own record, linked to the post, with its Posted time.
+const channelPosts = POSTS.flatMap((post, index) =>
+  (post.channels ?? []).map((channel) => {
+    const root = posts[index]!;
+    const key = `post:${index}:channel:${channel.channelId}`;
+    posts.push(
+      postRecord(key, root.createdAt, {
+        text: channel.text,
+        channelId: channel.channelId,
+        channelRootId: root.id,
+        postedAt: root.postedAt,
+        suggestRepostAt: root.suggestRepostAt,
+      }),
+    );
+    return { ...channel, key };
+  }),
+);
+
+// A thread's following posts (a post's, or its post on another channel's): their own records, linked
+// to the first post, with its Posted time.
+const threadParts = [...POSTS.map((post, index) => ({ ...post, key: `post:${index}` })), ...channelPosts].flatMap(
+  ({ thread, key: rootKey }) => {
+    const root = posts.find((post) => post.id === mockUuid(rootKey))!;
+    return (thread ?? []).map((part, j) => ({ ...part, key: `${rootKey}:part:${j + 1}`, root, j }));
+  },
 );
 for (const { text, key, root, j } of threadParts) {
   posts.push(
@@ -371,6 +429,7 @@ for (const { text, key, root, j } of threadParts) {
 // Each post's edges to its `media`, in that order.
 const postAssets: PostAssetRecord[] = [
   ...POSTS.map((post, index) => ({ key: `post:${index}`, media: post.media })),
+  ...channelPosts,
   ...threadParts,
 ].flatMap(({ key, media }) => {
   const positions = initialKeys(media.length);
@@ -470,6 +529,15 @@ const promptButtons: PromptButtonRecord[] = PROMPT_BUTTONS.map((button) => {
   });
 });
 
+// His channels, each under the catalog's fixed id for it (as the app adds one).
+const channelPositions = initialKeys(CHANNEL_IDS.length);
+const channels: ChannelRecord[] = CHANNEL_IDS.map((channelId, i) => ({
+  ...baseRecord(`channel:${channelId}`, now - 60 * DAY),
+  id: channelById(channelId)!.recordId,
+  channelId,
+  position: channelPositions[i]!,
+}));
+
 const mockRecords: Record<string, { id: string }[]> = {
   assets,
   albums,
@@ -484,13 +552,14 @@ const mockRecords: Record<string, { id: string }[]> = {
   contact_lists: contactLists,
   contact_list_members: contactListMembers,
   contact_links: contactLinks,
+  channels,
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
 await push(mutations);
 
 console.log(
   `Mock data ready: ${assets.length} assets, ${albums.length} albums, ${posts.length} posts, a persona,` +
-    ` ${promptButtons.length} prompt buttons, default instructions, his ideas prompts, ${contacts.length} contacts in` +
+    ` ${promptButtons.length} prompt buttons, default instructions, his ideas prompts, ${channels.length} channels, ${contacts.length} contacts in` +
     ` ${contactLists.length} lists (${mutations.length} records pushed).`,
 );
 

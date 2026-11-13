@@ -371,15 +371,25 @@ describe('plan guard', () => {
     expect(work.plans).toContain('SEARCH a USING INDEX sqlite_autoindex_assets_1 (id=?)');
   });
 
-  it("reads a thread's first posts by a primary-key probe of the first post, their count over the thread index", async () => {
+  it("reads a post's thread and other channels by primary-key probes and their indexes", async () => {
     const { measure, db } = await library();
     const work = await measure(() => postQuery({ scope: 'all' }).read(db, { limit: 20 }));
+    expect(unindexedScans(work)).toEqual([]);
     expect(work.plans).toContain('CORRELATED SCALAR SUBQUERY 1');
+    // listedPostId: the first post, the post it is another channel of, by primary key.
     expect(work.plans).toContain('SEARCH r USING INDEX sqlite_autoindex_posts_1 (id=?)');
+    expect(work.plans).toContain('SEARCH c USING INDEX sqlite_autoindex_posts_1 (id=?)');
     expect(work.plans).toContain('SEARCH c USING INDEX posts_thread_idx (thread_root_id=?)');
+    expect(work.plans).toContain('SEARCH o USING INDEX posts_channel_root_idx (channel_root_id=?)');
     const post = await measure(() => readPost(db, 'post-1'));
     expect(unindexedScans(post)).toEqual([]);
     expect(post.plans).toContain('SEARCH posts USING INDEX posts_thread_idx (thread_root_id=?)');
+    expect(post.plans).toContain('SEARCH posts USING INDEX posts_channel_root_idx (channel_root_id=?)');
+    const contactsOfPost = await measure(() =>
+      contactQuery({ scope: { photosOf: { postId: 'post-1' } } }).read(db, { limit: 100 }),
+    );
+    expect(unindexedScans(contactsOfPost)).toEqual([]);
+    expect(contactsOfPost.plans).toContain('SEARCH posts USING INDEX posts_channel_root_idx (channel_root_id=?)');
   });
 
   it("reads each post's first asset in one windowed pass over the edges, through their indexes", async () => {
@@ -432,8 +442,12 @@ function isBigTableScan(detail: string): boolean {
 }
 
 // The table scans without an index; a list of ids passed as JSON (json_each) is the input, not a table.
+// A post's own id in postFamilyIds reads as a constant row: no table.
 function unindexedScans(work: Work): string[] {
-  return work.fullScans.filter((line) => !/USING (COVERING )?INDEX/.test(line) && !line.startsWith('SCAN json_each'));
+  return work.fullScans.filter(
+    (line) =>
+      !/USING (COVERING )?INDEX/.test(line) && !line.startsWith('SCAN json_each') && line !== 'SCAN CONSTANT ROW',
+  );
 }
 
 // Every table is walked through an index (an ordered walk prints as SCAN … USING INDEX) and nothing

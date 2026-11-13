@@ -3,8 +3,6 @@ import { Tabs, type BottomTabBarProps, type TabsScreenOptions } from 'expo-route
 import FloatingNavigationBar from '@/components/floating-bars/FloatingNavigationBar';
 import { motion } from '@/styles/designTokens';
 
-const SLIDE_DISTANCE = 40; // a subtle nudge toward the tab's side, not a full-page swipe
-
 // expo-router/js-tabs exports the options type but not the interpolator's prop types.
 type SceneInterpolation = Parameters<NonNullable<TabsScreenOptions['sceneStyleInterpolator']>>[0];
 
@@ -18,7 +16,7 @@ function slideFromSide({ current }: SceneInterpolation) {
         {
           translateX: current.progress.interpolate({
             inputRange: [-1, 0, 1],
-            outputRange: [-SLIDE_DISTANCE, 0, SLIDE_DISTANCE],
+            outputRange: [-motion.slideDistance, 0, motion.slideDistance],
           }),
         },
       ],

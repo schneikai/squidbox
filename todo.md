@@ -166,14 +166,6 @@ Bring back "Fill it in for me" as an agent chat session that drafts About you, T
 Rules from the user's posts. It was removed from the setup flow (`features/voice`); the server route
 was `POST /ai/persona/draft`.
 
-### [ ] Post variants
-
-A post keeps several versions for different platforms or uses: an X teaser, the OnlyFans post (full
-video, other @ mentions), a PPV message. Each variant has a type, its own text and optionally its own
-subset of the post's media and mentions; the post screen shows them as tabs with copy. Needs a synced
-data model change (server and app). Threads already exist as posts of their own (`threadRootId`), so
-a variant needn't be one. Mockups: https://claude.ai/artifact/LxxYDq2r7PNZ3bC37KNqWj, screens 10–12.
-
 ### [ ] Recreate thumbnails
 
 An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken. The backup
@@ -227,6 +219,26 @@ encrypted.
   (`components/quick-view`) is a safe-area inset in disguise, to take the real insets.
 
 ## Code quality
+
+### [ ] Make UI work with the agent reliable
+
+Designing the post channel switcher (PR #127) took a dozen rounds of the owner correcting the agent:
+canvases drawn in hand-written CSS instead of from the real components, no idea how the screens look
+today, a new `Bubble` that copied Chip with the toolbar's raised look, violet in content, and
+proposals that ignored the screens they would sit in. What went wrong and the fixes:
+`docs/reviews/2026-11-13-ui-work-with-the-agent.md`. In short: screenshots of every screen and
+gallery specimen the agent can read, canvases built from them, and a design step in the
+`squidbox-ui` skill that names the component behind every element before a design is shown.
+
+### [ ] Inventory the component library and split it by purpose
+
+`Chip` is used for everything: tags, toggles, a page's tabs (post channels), the assistant's prompt
+buttons, Add, mixed tags, all told apart by props. Inventory what each UI element in the app is and
+which component draws it, then give each purpose its own component, built up atomic-design style
+(tokens → atoms → molecules → the screens' pieces), and make the library rules match CLAUDE.md
+(violet only for the assistant: `Button isSelected` is still violet). Make it easy for the agent to
+find the right one: an index of the components by purpose, with a picture of each, read by the
+`squidbox-ui` skill. Goes with "Make UI work with the agent reliable".
 
 ### [ ] One voice in the UI (review run 2, decision 3)
 

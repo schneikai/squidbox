@@ -4,8 +4,10 @@ import {
   Text as RNText,
   StyleSheet,
   View,
+  type AccessibilityActionEvent,
   type AccessibilityRole,
   type AccessibilityState,
+  type ViewProps,
 } from 'react-native';
 
 import type { Palette } from '@/components/Button';
@@ -62,6 +64,8 @@ export type RowProps = {
   size?: 'regular' | 'small';
   accessibilityRole?: AccessibilityRole;
   accessibilityState?: AccessibilityState;
+  accessibilityActions?: ViewProps['accessibilityActions'];
+  onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
   children?: ReactNode;
 };
 
@@ -74,7 +78,10 @@ export type RowProps = {
 // `colorPalette="danger"` for one that deletes or signs out; `size="small"` for a tighter row in a
 // long list (a pick row, a photo's). `disabled` keeps it from taking presses; `accessibilityRole`
 // (a button by default) and `accessibilityState` say what a pressable one is (a checkbox, checked).
-// `onLongPress` is for a row with a menu of its own (a list's Edit and Delete), on a pressable row.
+// `onLongPress` is for a row with a menu of its own (a list's Edit and Delete): with it alone the row
+// takes a hold and no tap (a channel's Delete), with no press highlight and no button role.
+// `accessibilityActions` are its other actions for VoiceOver (a channel's Move up), handled by
+// `onAccessibilityAction`.
 // `leading` may be several parts (a status icon and a thumbnail), set in a row.
 export function Row({
   label,
@@ -90,6 +97,8 @@ export function Row({
   size = 'regular',
   accessibilityRole = 'button',
   accessibilityState,
+  accessibilityActions,
+  onAccessibilityAction,
   children,
 }: RowProps) {
   const content = (
@@ -110,16 +119,19 @@ export function Row({
     </RowSlots>
   );
 
-  if (onPress) {
+  if (onPress || onLongPress) {
     return (
       <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
-        {...longPressAccessibility(onLongPress)}
+        {...longPressAccessibility(onLongPress, {
+          actions: accessibilityActions,
+          onOtherAction: onAccessibilityAction,
+        })}
         disabled={disabled}
-        accessibilityRole={accessibilityRole}
+        accessibilityRole={onPress ? accessibilityRole : undefined}
         accessibilityState={{ disabled, selected: !!isSelected, ...accessibilityState }}
-        style={({ pressed }) => pressed && !disabled && press.flat}
+        style={({ pressed }) => !!onPress && pressed && !disabled && press.flat}
       >
         {content}
       </Pressable>

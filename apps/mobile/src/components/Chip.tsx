@@ -16,6 +16,10 @@ export type ChipProps = Pick<
   variant?: ChipVariant;
   icon?: IconName;
   leading?: ReactNode;
+  mark?: ReactNode;
+  hasCaret?: boolean;
+  isIconOnly?: boolean;
+  isExpanded?: boolean;
   onRemove?: () => void;
   removeLabel?: string;
   isSelected?: boolean;
@@ -24,7 +28,8 @@ export type ChipProps = Pick<
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: a thing, such as a tag
- * or a contact, grey on white or on the page; violet only for a toggle that `isSelected`), `raised`
+ * or a contact, grey on white or on the page; plain white when it `isSelected`, a toggle that is on or
+ * the tab a row of chips shows, such as a post's channel), `raised`
  * (white and lifted by a soft shadow, with a violet label and icon: a prompt button in the
  * assistant's tray, which is tinted),
  * `lead` (light violet with a semibold violet label, lifted like `raised`, the assistant's own
@@ -35,7 +40,11 @@ export type ChipProps = Pick<
  *
  * icon — leads the label (Icon name), grey, or violet when it is the assistant's sparkle; `leading` leads it instead with a node
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
- * chip would be wider than its row. `isSelected` tells VoiceOver it's on (as
+ * chip would be wider than its row; `mark` takes the icon's place with a node of the icon's size (a
+ * channel's logo). `hasCaret` ends it with a ⌄: it opens a menu (in a row of tabs, every tab that
+ * opens one when selected has it, so none changes width), and `isExpanded` tells VoiceOver whether
+ * that is open. `isIconOnly` is a round chip of its icon alone (the `add` + at the end of a
+ * row of tabs); its label is then only what VoiceOver reads. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `detail` follows the label in grey, after a ·: what tells it apart from a chip of the same label
@@ -49,6 +58,10 @@ export default function Chip({
   variant = 'tag',
   icon,
   leading,
+  mark,
+  hasCaret = false,
+  isIconOnly = false,
+  isExpanded,
   onRemove,
   removeLabel = 'Remove',
   isSelected = false,
@@ -60,16 +73,16 @@ export default function Chip({
   style,
 }: ChipProps) {
   const leadingIcon = variant === 'add' ? 'add' : icon;
-  const isAccentFill = variant === 'lead' || (variant === 'tag' && isSelected);
-  // Violet marks the assistant only: its fill and tray (`raised`), and its sparkle.
-  const isAccent = isAccentFill || variant === 'raised';
+  // Violet marks the assistant only: its fill and tray (`raised`, `lead`), and its sparkle.
+  const isAccent = variant === 'lead' || variant === 'raised';
   const iconColor = isAccent || leadingIcon === 'sparkle' ? colors.accent.base : colors.text.secondary;
   const isLifted = variant === 'raised' || variant === 'lead';
   const frame = [
     chipFrame,
     styles.chip,
     VARIANT_STYLES[variant],
-    isAccentFill && styles.accentFill,
+    variant === 'tag' && isSelected && styles.selected,
+    isIconOnly && styles.iconOnly,
     isLifted && styles.lifted,
     !!leading && styles.withLeading,
   ];
@@ -77,18 +90,24 @@ export default function Chip({
     accessibilityRole === 'checkbox' ? { checked: isSelected, disabled } : { selected: isSelected, disabled };
   // A `mixed` tag reads as mixed, in the app and the web build alike (aria-checked reaches both).
   const ariaChecked = variant === 'mixed' ? ('mixed' as const) : undefined;
+  // A tab says whether it is the one shown, pressable or not (the web build reads aria-selected only).
+  const ariaSelected = accessibilityRole === 'tab' ? isSelected : undefined;
   const content = (
     <>
-      {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={iconColor} />)}
-      <Text
-        style={[styles.label, styles.shrinks, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}
-        numberOfLines={leading ? 1 : undefined}
-      >
-        {label}
-        {detail ? <Text style={styles.detail}>{` · ${detail}`}</Text> : null}
-      </Text>
+      {leading ?? mark ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={iconColor} />)}
+      {!isIconOnly && (
+        <Text
+          style={[styles.label, styles.shrinks, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}
+          numberOfLines={leading || mark ? 1 : undefined}
+        >
+          {label}
+          {detail ? <Text style={styles.detail}>{` · ${detail}`}</Text> : null}
+        </Text>
+      )}
+      {hasCaret && <Icon name="chevron-down" size={sizes.menuIcon} color={colors.text.secondary} />}
     </>
   );
+  const a11yLabel = accessibilityLabel ?? (isIconOnly ? label : undefined);
 
   const remove = onRemove && (
     <Pressable
@@ -106,8 +125,10 @@ export default function Chip({
   if (!onPress && !remove) {
     return (
       <View
-        accessibilityLabel={accessibilityLabel}
+        accessibilityRole={ariaSelected === undefined ? undefined : 'tab'}
+        accessibilityLabel={a11yLabel}
         aria-checked={ariaChecked}
+        aria-selected={ariaSelected}
         style={[frame, disabled && styles.disabled, style]}
       >
         {content}
@@ -126,18 +147,14 @@ export default function Chip({
             accessibilityRole={accessibilityRole}
             accessibilityState={accessibilityState}
             aria-checked={ariaChecked}
-            accessibilityLabel={accessibilityLabel}
+            accessibilityLabel={a11yLabel}
             accessibilityHint={accessibilityHint}
             style={({ pressed }) => [styles.chip, styles.shrinks, pressed && press.flat]}
           >
             {content}
           </Pressable>
         ) : (
-          <View
-            accessibilityLabel={accessibilityLabel}
-            aria-checked={ariaChecked}
-            style={[styles.chip, styles.shrinks]}
-          >
+          <View accessibilityLabel={a11yLabel} aria-checked={ariaChecked} style={[styles.chip, styles.shrinks]}>
             {content}
           </View>
         )}
@@ -155,7 +172,9 @@ export default function Chip({
       accessibilityRole={accessibilityRole}
       accessibilityState={accessibilityState}
       aria-checked={ariaChecked}
-      accessibilityLabel={accessibilityLabel}
+      aria-selected={ariaSelected}
+      aria-expanded={isExpanded}
+      accessibilityLabel={a11yLabel}
       accessibilityHint={accessibilityHint}
       style={({ pressed }) => [frame, pressed && press.flat, disabled && styles.disabled, style]}
     >
@@ -184,7 +203,18 @@ const styles = StyleSheet.create({
     paddingLeft: space.hair,
     paddingRight: space.md + space.hair,
   },
-  // A selected tag and the `lead` chip.
+  // A selected tag: plain white with a hairline edge, flat (a shadow is the toolbar's and the assistant's lift).
+  selected: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.border.divider, // its edge on a white card, where the white fill alone vanishes
+  },
+  // Round, the frame's height wide.
+  iconOnly: {
+    width: chipFrame.minHeight,
+    paddingHorizontal: 0,
+    alignItems: 'center',
+  },
+  // The `lead` chip.
   accentFill: {
     backgroundColor: colors.accent.light,
   },
@@ -225,9 +255,10 @@ const styles = StyleSheet.create({
   },
 });
 
-// Each variant's own look, where it has one (`lead` is `accentFill` and `lifted`).
+// Each variant's own look, where it has one (`lead` is also `lifted`).
 const VARIANT_STYLES: Partial<Record<ChipVariant, ViewStyle>> = {
   tag: styles.tag,
+  lead: styles.accentFill,
   raised: styles.raised,
   add: styles.dashed,
   mixed: styles.dashed,

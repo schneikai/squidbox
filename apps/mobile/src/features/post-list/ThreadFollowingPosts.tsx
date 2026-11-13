@@ -58,7 +58,7 @@ export default function ThreadFollowingPosts({
   unfoldedPosts,
   roomStyle,
 }: ThreadFollowingPostsProps) {
-  const livePost = usePost(postId);
+  const livePost = usePost(postId, { withChannels: false });
   const [unfoldPartIds, setUnfoldPartIds] = useState<Set<string> | null>(null);
   const contentOpacity = useSharedValue(isUnfoldAnimated ? 0 : 1);
 

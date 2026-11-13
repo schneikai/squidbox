@@ -47,6 +47,13 @@ const palette = {
   cyan200: '#8EDDF0',
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
+  // The channels' brand colors, each Simple Icons' hex for it (features/channels/channelGlyphs.ts);
+  // the black ones are `black`.
+  brandBluesky: '#1185FE',
+  brandInstagram: '#FF0069',
+  brandYoutube: '#FF0000',
+  brandReddit: '#FF4500',
+  brandOnlyfans: '#00AFF0',
 };
 
 // Semantic roles, grouped by what they paint. To add a color, add its raw value to `palette` and
@@ -100,6 +107,18 @@ export const colors = {
     shimmer: palette.white, // the pulse over a loading picture's placeholder
     media: palette.black, // behind a photo or video shown full screen
     splash: palette.violet900, // app.config.js `SPLASH_BACKGROUND` (the native splash's), for the boot and first-sync screens (SplashStage)
+  },
+  // A channel's logo in its brand's official color (ChannelLogo).
+  brand: {
+    x: palette.black,
+    bluesky: palette.brandBluesky,
+    threads: palette.black,
+    instagram: palette.brandInstagram,
+    tiktok: palette.black,
+    youtube: palette.brandYoutube,
+    reddit: palette.brandReddit,
+    patreon: palette.black,
+    onlyfans: palette.brandOnlyfans,
   },
   octopus: {
     // The octopus's bubbles (OctopusBubble), light cyan on the violet splash and the light app alike;
@@ -366,6 +385,7 @@ export const motion = {
   settle: springConfig({ duration: 0.38, bounce: 0 }), // settles after a tap or a slow release, without overshoot
   pulse: { duration: 1000, easing: Easing.inOut(Easing.sin) }, // one half of a loading placeholder's breath
   shoot: { easing: Easing.bezierFn(0.1, 0.6, 0.7, 0.75) }, // shoots off and slows, still moving when it ends
+  slideDistance: 40, // a tab or channel switch's slide from its side: a subtle nudge, not a page swipe
   // The assistant at work (AssistantTray): one light band sweeping across its sparkle and title.
   working: {
     band: { duration: 2000, easing: Easing.linear },

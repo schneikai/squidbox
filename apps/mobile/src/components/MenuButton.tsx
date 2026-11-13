@@ -4,12 +4,14 @@ import { Menu, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 import Button, { type ButtonProps } from '@/components/Button';
 import Divider from '@/components/Divider';
 import MenuOption, { type MenuOptionProps } from '@/components/popup-menu-options/MenuOption';
+import MenuTitle from '@/components/popup-menu-options/MenuTitle';
 import useHaptics from '@/hooks/useHaptics';
 import popupMenuStyles from '@/styles/popupMenuStyles';
 
 export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
   trigger?: (menu: { toggle: () => void; openFromLongPress: () => void; isOpen: boolean }) => ReactNode;
   children: ReactNode;
+  title?: string;
 };
 
 /**
@@ -31,6 +33,7 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  *
  * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
  * by a wider band, as iOS groups it; a menu drawn by one component (SortFilterMenu) parts its own.
+ * `title` heads the rows in small grey (MenuTitle): what the menu picks (Change X to, Add channel).
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */
@@ -40,6 +43,7 @@ export default function MenuButton({
   accessibilityLabel = 'More options',
   style,
   children,
+  title,
   ...buttonProps
 }: MenuButtonProps) {
   const menuRef = useRef<Menu>(null);
@@ -70,7 +74,10 @@ export default function MenuButton({
           <Button {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
         )}
       </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{separated(children)}</MenuOptions>
+      <MenuOptions customStyles={popupMenuStyles.menuOptions}>
+        {title && <MenuTitle label={title} />}
+        {separated(children)}
+      </MenuOptions>
     </Menu>
   );
 }

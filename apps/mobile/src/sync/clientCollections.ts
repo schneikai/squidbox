@@ -21,6 +21,7 @@ const tables = {
   contact_links: schema.contactLinks,
   contact_settings: schema.contactSettings,
   idea_settings: schema.ideaSettings,
+  channels: schema.channels,
 } satisfies Record<CollectionName, unknown>;
 
 /** A collection's table: one of the registry's. */

@@ -39,6 +39,8 @@ import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import ChannelLogo from '@/features/channels/ChannelLogo';
+import ChannelLogos from '@/features/channels/ChannelLogos';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
@@ -215,6 +217,39 @@ export default function ComponentGalleryScreen() {
             <Chip variant="mixed" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
+          </ChipRow>
+        </Specimen>
+        <Specimen name="Channel tabs">
+          <View accessibilityRole="tablist">
+            <ChipRow>
+              <Chip
+                label="X"
+                mark={<ChannelLogo channelId="x" size={sizes.menuIcon} />}
+                accessibilityRole="tab"
+                onPress={noop}
+              />
+              <Chip
+                label="Bluesky"
+                mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
+                isSelected
+                accessibilityRole="tab"
+              />
+              <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
+              <Chip variant="add" label="Add channel" isIconOnly onPress={noop} />
+            </ChipRow>
+          </View>
+          <ChipRow>
+            <Chip
+              label="OnlyFans PPV"
+              mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
+              isSelected
+              hasCaret
+              accessibilityRole="tab"
+              onPress={noop}
+            />
+          </ChipRow>
+          <ChipRow>
+            <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
           </ChipRow>
         </Specimen>
       </>

@@ -18,8 +18,8 @@ export type PostCardToolbarProps = {
 };
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
-// Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and ⊕ Add to
-// thread on the trailing side (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
+// Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and on the
+// trailing side ⊕ Add to thread (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
 // the one being edited.
 export default function PostCardToolbar({
   isFirst,
