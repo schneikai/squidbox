@@ -105,14 +105,17 @@ export default function PostCards({
             onAddToThread={hasThreads && index === cards.length - 1 ? addToThread : undefined}
             limits={channel}
             tray={
-              card.key === activeKey && (
-                <IdeasTray
-                  sessionId={sessionId}
-                  target={card.key}
-                  ideas={index === 0 ? ideas : null}
-                  settings={settings}
-                />
-              )
+              card.key === activeKey
+                ? (style) => (
+                    <IdeasTray
+                      sessionId={sessionId}
+                      target={card.key}
+                      ideas={index === 0 ? ideas : null}
+                      settings={settings}
+                      style={style}
+                    />
+                  )
+                : undefined
             }
           />
         </View>

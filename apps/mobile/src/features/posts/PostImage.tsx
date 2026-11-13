@@ -5,16 +5,25 @@ import SuperPressable from '@/components/SuperPressable';
 import ThumbnailBadge from '@/components/ThumbnailBadge';
 import { radii, scale, space } from '@/styles/designTokens';
 import type { AssetRow } from '@/sync/db/schema';
+import formatVideoDuration from '@/utils/formatVideoDuration';
 
 const IMAGE_ELEMENT_HEIGHT = scale(240);
 const GAP = space.xs;
 
 // A post's pictures as rounded tiles: one or two side by side, three as one and a column of two,
-// four or more as a 2×2 grid with "+N" for the rest. With `onPressAsset(asset)` each tile opens its
+// four or more as a 2×2 grid with "+N" for the rest. A video's tile shows its length at the bottom
+// right, as in the post editor's photo strip (PostAsset), except the tile that carries the "+N". With `onPressAsset(asset)` each tile opens its
 // picture (the post screen); without it the tiles are part of whatever holds them (a list card).
 export type PostImageProps = { assets: AssetRow[]; onPressAsset?: (asset: AssetRow) => void };
 export default function PostImage({ assets, onPressAsset }: PostImageProps) {
-  const tile = (asset: AssetRow) => <Tile key={asset.id} asset={asset} onPressAsset={onPressAsset} />;
+  const tile = (asset: AssetRow, index: number) => (
+    <Tile
+      key={asset.id}
+      asset={asset}
+      onPressAsset={onPressAsset}
+      isLengthShown={!(index === 3 && assets.length > 4)}
+    />
+  );
 
   switch (assets.length) {
     case 0:
@@ -25,35 +34,41 @@ export default function PostImage({ assets, onPressAsset }: PostImageProps) {
     case 3:
       return (
         <View style={[styles.frame, styles.row]}>
-          {tile(assets[0])}
-          <View style={[styles.half, styles.column]}>{assets.slice(1).map(tile)}</View>
+          {tile(assets[0], 0)}
+          <View style={[styles.half, styles.column]}>
+            {assets.slice(1).map((asset, index) => tile(asset, index + 1))}
+          </View>
         </View>
       );
     default:
       return (
         <View style={[styles.frame, styles.column]}>
           <View style={[styles.half, styles.row]}>{assets.slice(0, 2).map(tile)}</View>
-          <View style={[styles.half, styles.row]}>{assets.slice(2, 4).map(tile)}</View>
+          <View style={[styles.half, styles.row]}>
+            {assets.slice(2, 4).map((asset, index) => tile(asset, index + 2))}
+          </View>
           {assets.length > 4 && <ThumbnailBadge label={`+${assets.length - 4}`} corner="bottomRight" />}
         </View>
       );
   }
 }
 
-type TileProps = { asset: AssetRow; onPressAsset?: PostImageProps['onPressAsset'] };
+type TileProps = { asset: AssetRow; onPressAsset?: PostImageProps['onPressAsset']; isLengthShown: boolean };
 
 // Each picture in its own box: a loading placeholder fills its box, not the whole row.
-function Tile({ asset, onPressAsset }: TileProps) {
-  if (!onPressAsset) {
-    return (
-      <View style={styles.tile}>
-        <AssetImage asset={asset} />
-      </View>
-    );
-  }
+function Tile({ asset, onPressAsset, isLengthShown }: TileProps) {
+  const content = (
+    <>
+      <AssetImage asset={asset} />
+      {isLengthShown && !!asset.duration && (
+        <ThumbnailBadge label={formatVideoDuration(asset.duration)} corner="bottomRight" />
+      )}
+    </>
+  );
+  if (!onPressAsset) return <View style={styles.tile}>{content}</View>;
   return (
     <SuperPressable style={styles.tile} onPress={() => onPressAsset(asset)}>
-      <AssetImage asset={asset} />
+      {content}
     </SuperPressable>
   );
 }

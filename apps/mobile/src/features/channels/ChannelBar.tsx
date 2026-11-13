@@ -37,9 +37,8 @@ type ChannelBarProps = {
  * order (orderPostChannels over `channelOrder`): each its channel's logo and name, the selected one
  * (`selectedKey`) white. A tap on another calls `onSelect(key)`, with a selection tap.
  * With `editing` (the editor) every chip has a caret, so none changes width when another is
- * selected, and a tap on the selected one opens Channel of this post: the user's
- * channels (and the part's own when it isn't among them), the current one marked, one another part is
- * on off, then Remove <Channel> with `onRemove`; and a dashed + after the chips opens Add channel, the
+ * selected, and a tap on the selected one opens its menu: Change <Channel> to, the user's channels no
+ * part is on, then Remove <Channel> with `onRemove` (no menu when it would be empty); and a dashed + after the chips opens Add channel, the
  * user's channels no part is on (no + when there are none). The row scrolls sideways under the edges of
  * a parent padded by the screen's padding.
  */
@@ -72,14 +71,14 @@ export default function ChannelBar({ parts, channelOrder, selectedKey, onSelect,
       );
     }
     if (!editing) return <Chip key={part.key} label={label} mark={mark} isSelected accessibilityRole="tab" />;
-    const options =
-      current && !editing.channels.some((channel) => channel.id === current.id)
-        ? [...editing.channels, current]
-        : editing.channels;
+    // Nothing to change to and nothing to remove (a lone post on every channel): a plain selected tab.
+    if (unused.length === 0 && !editing.onRemove) {
+      return <Chip key={part.key} label={label} mark={mark} isSelected hasCaret accessibilityRole="tab" />;
+    }
     return (
       <MenuButton
         key={part.key}
-        title="Channel of this post"
+        title={unused.length > 0 ? `Change ${label} to` : undefined}
         trigger={({ toggle, isOpen }) => (
           <Chip
             label={label}
@@ -92,19 +91,14 @@ export default function ChannelBar({ parts, channelOrder, selectedKey, onSelect,
           />
         )}
       >
-        {options.map((channel) => {
-          const isCurrent = channel.id === part.channelId;
-          return (
-            <MenuOption
-              key={channel.id}
-              label={channel.name}
-              leading={<ChannelLogo channelId={channel.id} />}
-              isSelected={isCurrent}
-              disabled={!isCurrent && used.has(channel.id)}
-              onPress={() => !isCurrent && editing.onChange(channel.id)}
-            />
-          );
-        })}
+        {unused.map((channel) => (
+          <MenuOption
+            key={channel.id}
+            label={channel.name}
+            leading={<ChannelLogo channelId={channel.id} />}
+            onPress={() => editing.onChange(channel.id)}
+          />
+        ))}
         {editing.onRemove && (
           <MenuOption
             key="remove"

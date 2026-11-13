@@ -102,7 +102,7 @@ test('a post written for Bluesky and X switches, adds, changes and removes chann
 
   // The only channel's menu has no Remove.
   await tab(editor, 'Bluesky').click();
-  await expect(page.getByRole('heading', { name: 'Channel of this post' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Change Bluesky to' })).toBeVisible();
   await expect(menuItem(page, 'Remove Bluesky')).toHaveCount(0);
   // A tap outside the menu closes it.
   await page.mouse.click(5, 5);

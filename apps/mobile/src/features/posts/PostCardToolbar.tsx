@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostedAtPicker, { type PostedAtPickerProps } from './PostedAtPicker';
@@ -16,13 +15,11 @@ export type PostCardToolbarProps = {
   onChangePostedAt: PostedAtPickerProps['onChange'];
   onAddToThread?: () => void;
   onActivate: () => void;
-  trailing?: ReactNode;
 };
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
 // Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and on the
-// trailing side `trailing` (the card's text counter) and ⊕ Add
-// to thread (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
+// trailing side ⊕ Add to thread (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
 // the one being edited.
 export default function PostCardToolbar({
   isFirst,
@@ -33,7 +30,6 @@ export default function PostCardToolbar({
   onChangePostedAt,
   onAddToThread,
   onActivate,
-  trailing,
 }: PostCardToolbarProps) {
   function handleAddMedia(toggle: () => void) {
     onActivate();
@@ -66,18 +62,14 @@ export default function PostCardToolbar({
         onAdd={onAddMedia}
       />
       {isFirst && <PostedAtPicker timestamp={postedAt} isShown={isPostedAtShown} onChange={handleChangePostedAt} />}
-      {(trailing || onAddToThread) && (
-        <View style={styles.trailing}>
-          {trailing}
-          {onAddToThread && (
-            <Button
-              icon="add-circle"
-              colorPalette="accent"
-              accessibilityLabel="Add to thread"
-              onPress={handleAddToThread}
-            />
-          )}
-        </View>
+      {onAddToThread && (
+        <Button
+          icon="add-circle"
+          colorPalette="accent"
+          accessibilityLabel="Add to thread"
+          onPress={handleAddToThread}
+          style={styles.trailing}
+        />
       )}
     </View>
   );
@@ -92,8 +84,5 @@ const styles = StyleSheet.create({
   },
   trailing: {
     marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
   },
 });

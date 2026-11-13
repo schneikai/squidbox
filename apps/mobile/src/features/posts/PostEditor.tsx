@@ -1,6 +1,7 @@
 import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { memo, useCallback, useMemo, useReducer, useState } from 'react';
 import { Keyboard, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import PostCards from './PostCards';
 import type { PostedAtPickerProps } from './PostedAtPicker';
@@ -16,6 +17,7 @@ import EditSheet from '@/components/EditSheet';
 import ChannelBar from '@/features/channels/ChannelBar';
 import channelName from '@/features/channels/channelName';
 import useChannelOrder from '@/features/channels/useChannelOrder';
+import useChannelSlide from '@/features/channels/useChannelSlide';
 import useChannels from '@/features/channels/useChannels';
 import useEditSheet from '@/hooks/useEditSheet';
 import { layout } from '@/styles/designTokens';
@@ -67,6 +69,7 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
   const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
   const data = postData(draft, postedAt);
   const parts = [draft.main, ...draft.others];
+  const slide = useChannelSlide(draft.selectedKey, parts, channelOrder);
 
   // The posts store syncs by itself. The save resolves an untouched Posted time (postedAtToSave): a
   // new post's is the time of the save.
@@ -133,21 +136,23 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
             style={styles.bar}
           />
         )}
-        {parts.map((part) => (
-          <ChannelPanel
-            key={part.key}
-            channel={part}
-            isSelected={part.key === draft.selectedKey}
-            isOpenedPost={part.key === openedKey}
-            dispatch={dispatch}
-            kind={kind}
-            ideas={ideas}
-            autoFocusFirst={isOpenedEmpty && part.key === openedKey}
-            postedAt={postedAt}
-            isPostedAtShown={isPostedAtShown}
-            onChangePostedAt={handleChangePostedAt}
-          />
-        ))}
+        <Animated.View style={slide}>
+          {parts.map((part) => (
+            <ChannelPanel
+              key={part.key}
+              channel={part}
+              isSelected={part.key === draft.selectedKey}
+              isOpenedPost={part.key === openedKey}
+              dispatch={dispatch}
+              kind={kind}
+              ideas={ideas}
+              autoFocusFirst={isOpenedEmpty && part.key === openedKey}
+              postedAt={postedAt}
+              isPostedAtShown={isPostedAtShown}
+              onChangePostedAt={handleChangePostedAt}
+            />
+          ))}
+        </Animated.View>
       </View>
     );
   }

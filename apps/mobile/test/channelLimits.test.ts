@@ -24,6 +24,11 @@ describe('channelLimits', () => {
 
   it('counts a character outside the BMP, one code point, once', () => {
     expect(textLength('🌲')).toBe(1);
-    expect(counterText(x, 'Ridge 🌲')).toBe('7 / 280');
+    expect(counterText(x, `${'a'.repeat(254)}Ridge 🌲`)).toBe('261 / 280');
+  });
+
+  it('shows the counter only once the text is near the limit', () => {
+    expect(counterText(x, 'a'.repeat(251))).toBeNull();
+    expect(counterText(x, 'a'.repeat(252))).toBe('252 / 280');
   });
 });

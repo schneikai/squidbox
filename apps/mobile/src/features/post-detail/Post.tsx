@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import ChannelBar from '@/features/channels/ChannelBar';
 import useChannelOrder from '@/features/channels/useChannelOrder';
+import useChannelSlide from '@/features/channels/useChannelSlide';
 import useChannels from '@/features/channels/useChannels';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
@@ -48,6 +50,8 @@ export default function Post({
     ],
     [post.id, post.channelId, post.channelPosts],
   );
+  const selectedKey = channelPost?.id ?? post.id;
+  const slide = useChannelSlide(selectedKey, parts, channelOrder);
   // The pictures of the whole post: its thread's and its other channels' (with their threads) too.
   const assetIds = useMemo(() => {
     const all = [post, ...post.threadPosts, ...post.channelPosts.flatMap((each) => [each, ...each.threadPosts])];
@@ -64,13 +68,15 @@ export default function Post({
         <ChannelBar
           parts={parts}
           channelOrder={channelOrder}
-          selectedKey={channelPost?.id ?? post.id}
+          selectedKey={selectedKey}
           onSelect={(key) => onSelectChannel(key === post.id ? null : key)}
           style={styles.bar}
         />
       )}
 
-      <PostThreadCards post={channelPost ?? post} />
+      <Animated.View style={slide}>
+        <PostThreadCards post={channelPost ?? post} />
+      </Animated.View>
 
       {/* Contacts go on photos: a post without any has none. */}
       {assetIds.length > 0 && <TargetContactsSection of={{ postId: post.id }} isFlush />}
