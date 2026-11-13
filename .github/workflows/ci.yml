@@ -67,8 +67,7 @@ jobs:
   # needs a command, and its buckets a one-shot), so scripts/dev.mjs --web brings up the compose stack
   # itself (Postgres + MinIO), then the API server and Metro; the mock photos and videos are committed.
   ui-flows:
-    # Playwright 1.56 can't install Chromium's dependencies on ubuntu-latest (26.04): pinned until it can.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     # Cold Docker pulls and the first web bundle come before the first test.
     timeout-minutes: 40
     steps:
@@ -88,7 +87,7 @@ jobs:
         run: echo "version=$(npx playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
         working-directory: apps/mobile
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
@@ -99,7 +98,7 @@ jobs:
 
       # Metro's transform cache, with the key dev.mjs checks before it clears it (metroCacheArgs:
       # the packages and the Babel and Metro configs; CI has no .env.local).
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             /tmp/metro-cache
@@ -109,7 +108,7 @@ jobs:
       - run: npm run test:ui --workspace apps/mobile
 
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ui-flows-test-results
           # The traces, and the API server's log (scripts/dev.mjs writes it to the temp folder).

@@ -12,10 +12,10 @@ const opened: string[] = [];
 
 vi.mock('../src/library/fs', () => ({ listDatabaseNames: async () => device.names }));
 vi.mock('../src/sync/db/client', () => ({
-  withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => {
+  withAppDb: async (name: string, run: (db: AppDb) => Promise<unknown>) => {
     opened.push(name);
     try {
-      return await use(stores.get(name)!);
+      return await run(stores.get(name)!);
     } finally {
       opened.push(`closed ${name}`);
     }

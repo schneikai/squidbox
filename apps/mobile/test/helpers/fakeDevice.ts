@@ -67,7 +67,7 @@ export function dbClient() {
   };
   return {
     openAppDb,
-    withAppDb: async (name: string, use: (db: AppDb) => Promise<unknown>) => use(await openAppDb(name)),
+    withAppDb: async (name: string, run: (db: AppDb) => Promise<unknown>) => run(await openAppDb(name)),
     deleteAppDb: async (name: string) => {
       if (faults.dead) return;
       reach('deleteDb');

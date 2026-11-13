@@ -9,10 +9,10 @@ import deletePath from '@/utils/files/deletePath';
 
 export type WithAssetFileOptions = AssetFileLocation & DownloadProgressOptions;
 
-// Runs `use` with a local uri of an asset's full-resolution file: the on-device original (kept, the
+// Runs `run` with a local uri of an asset's full-resolution file: the on-device original (kept, the
 // upload still needs it), a download of the cloud copy kept from the last day (marked used again),
 // or else the cloud copy downloaded into the asset's download folder (getDownloadFolderUri) and kept
-// there for a later run, `use` included, which may read the file after it returns
+// there for a later run, `run` included, which may read the file after it returns
 // (deleteStaleDownloadsAsync removes it a day after its last use). The download lands in the
 // folder's `partial/` and moves up only once whole, so a Cancel or a crash mid-download never leaves
 // a file that gets reused; on a failure the folder goes. Resolved right before, so a URL hasn't
@@ -20,7 +20,7 @@ export type WithAssetFileOptions = AssetFileLocation & DownloadProgressOptions;
 export default async function withAssetFileAsync(
   asset: AssetFileAsset,
   { isAuthenticated, library, onProgress, signal }: WithAssetFileOptions,
-  use: (uri: string) => Promise<unknown> | unknown,
+  run: (uri: string) => Promise<unknown> | unknown,
 ): Promise<void> {
   const source = await getAssetFileSourceAsync(asset, { isAuthenticated, library });
   if (source.status) throw new Error(`${asset.filename} is ${source.status}`);
@@ -29,7 +29,7 @@ export default async function withAssetFileAsync(
   const uri = source.isRemote
     ? await downloadToKeepAsync(asset, source.uri, library, { onProgress, signal })
     : source.uri;
-  await use(uri);
+  await run(uri);
 }
 
 async function downloadToKeepAsync(
