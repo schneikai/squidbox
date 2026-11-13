@@ -1,8 +1,6 @@
 import type { ContactListRecord, ContactPlace, ContactRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
-import type { PhotosOf } from '@/sync/assetSql';
-
 // The children that join a parent and those that leave it (membershipRepository's `change`).
 export type MembershipChange = { added: string[]; removed: string[] };
 
@@ -27,7 +25,7 @@ export type ContactsContextValue = {
   changeListContacts: (listId: string, change: MembershipChange) => Promise<void>;
   changePhotoContacts: (assetId: string, change: MembershipChange) => Promise<void>;
   addContactsToPhotos: (assetIds: string[], contactIds: string[]) => Promise<void>;
-  changeContactsOnPhotosOf: (of: PhotosOf, change: MembershipChange) => Promise<void>;
+  changeContactsOnAlbumPhotos: (albumId: string, change: MembershipChange) => Promise<void>;
 };
 
 const ContactsContext = createContext<ContactsContextValue | null>(null);

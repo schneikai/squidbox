@@ -6,7 +6,7 @@ import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import ThreadParts from '@/components/ThreadParts';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
 import assetHref from '@/features/asset-list/assetHref';
-import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
+import ContactChipsSection from '@/features/contact-links/ContactChipsSection';
 import PostRows from '@/features/post-list/PostRows';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
@@ -48,8 +48,8 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
         )}
       />
 
-      {/* Contacts go on photos: a post without any has none. */}
-      {assetIds.length > 0 && <TargetContactsSection of={{ postId: post.id }} isFlush />}
+      {/* Contacts go on photos: a post shows who is on its photos, and one without any reads none. */}
+      {assetIds.length > 0 && <ContactChipsSection scope={{ photosOf: { postId: post.id } }} isFlush />}
 
       <ScreenSectionHeader title="Posted Albums" isFlush />
       <AssetAlbums scope={{ assetIds }} emptyText="Not in an album" />

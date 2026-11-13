@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
+import { createPost, createThread, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import { EMPTY_PLACE } from '../src/features/contact-detail/contactFields';
 import pinnedList from '../src/features/contact-list/pinnedList';
@@ -235,6 +235,13 @@ describe("a contact's photos and albums", () => {
     const listed = async (photosOf: PhotosOf) => contactQuery({ scope: { photosOf } }).ids(db);
     expect([await listed({ albumId: 'al1' }), await listed({ postId: 'p1' })]).toEqual([['maya'], ['maya']]);
     expect([await listed({ albumId: 'al2' }), await listed({ postId: 'p2' })]).toEqual([[], []]);
+  });
+
+  it("a post's contacts include those on its thread parts' photos", async () => {
+    await assets.createMany(db, [makeAssetRecord({ id: 'a1' }), makeAssetRecord({ id: 'a2' })]);
+    await contactLinks.add(db, { targetType: 'asset', targetId: 'a2' }, ['maya'], newId);
+    await createThread(db, { id: 'p1', assetIds: ['a1'] }, [{ id: 'p2', assetIds: ['a2'] }], newId);
+    expect(await contactQuery({ scope: { photosOf: { postId: 'p1' } } }).ids(db)).toEqual(['maya']);
   });
 });
 
