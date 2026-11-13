@@ -15,6 +15,7 @@ import { contactListMemberCollection } from './contactListMember';
 import { contactLinkCollection } from './contactLink';
 import { contactSettingCollection } from './contactSetting';
 import { ideaSettingCollection } from './ideaSetting';
+import { channelCollection } from './channel';
 
 // The collection registry the sync engine iterates. Adding a collection is: define it, add it
 // here, add its migrations + server_seq trigger (the trigger is attached registry-driven).
@@ -35,6 +36,7 @@ export const collections: readonly CollectionDescriptor[] = [
   contactLinkCollection,
   contactSettingCollection,
   ideaSettingCollection,
+  channelCollection,
 ];
 
 export const collectionsByName: Record<string, CollectionDescriptor> = Object.fromEntries(
@@ -59,4 +61,5 @@ export type CollectionName =
   | 'contact_list_members'
   | 'contact_links'
   | 'contact_settings'
-  | 'idea_settings';
+  | 'idea_settings'
+  | 'channels';

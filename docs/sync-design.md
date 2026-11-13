@@ -30,8 +30,8 @@ Everything synced is a **record** in a **collection**. Each collection is define
 specific collections; it iterates the registry and dispatches by collection name. Adding a
 collection is a short recipe (§9).
 
-The registered collections are `assets`, `albums`, `posts`, `album_assets` and `post_assets`
-(§10).
+The registered collections are listed in §10 (the registry, `collections/registry.ts` in
+`packages/shared`).
 
 ---
 
@@ -429,7 +429,8 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
     `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThread`). Deleting or purging an asset does not touch its edges, so a restore puts
+    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThread`), and deleting
+    a post for every post of it on all its channels (`removePost`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
     post still shows a deleted one (it can come back) but never a purged one, and ids that don't
     resolve are skipped.
@@ -918,6 +919,28 @@ and an older build shows the following posts as ordinary posts; server 0030, app
 a thread as its first post (lists, counts, searches, a photo's or an album's posts, Repost
 suggestions, the assistant's example posts) and a following post whose first post is deleted as a
 post of its own. Deleting a thread tombstones every post of it and their edges, in one transaction.
+
+A post can be on channels (Settings → Posts → Channels): `channelId` (optional, null | the catalog
+id of the channel it is on, `CHANNELS` in `packages/shared`; free text, so a build keeps a channel a
+newer build added) and `channelRootId` (optional, null | on another channel of a post: that post).
+A post's other channels are posts of their own, each with its own `channelId`, text, `post_assets`
+edges (the post's assets at first, its own list afterwards) and thread (`threadRootId` = its id),
+and the post's `postedAt` (changing the post's changes theirs and their threads'). Readers show a
+post as itself with its other channels (lists, counts, searches, a photo's or an album's posts, the
+assistant's example posts, a post screen's contacts and albums): `listedPostId` lists a following
+post of another channel as the post too; another channel whose post is deleted reads as a post of
+its own. Deleting a post tombstones it, its thread, its other channels and their threads with their
+edges (`removePost`). Like the thread fields, an older build sees another channel as an ordinary
+post (it lists, counts and offers it for a repost, and its Delete leaves it) until it is updated.
+Server 0039, app 0039.
+
+**channels** (Settings → Posts → Channels: the user's channels, in their order). Synced:
+`channelId` (the catalog id) and `position` (a fractional-index key, the order by `(position, id)`),
+plus the base columns. One record per catalog channel, under the catalog's fixed `recordId`, so two
+devices adding the same channel write one record, adding a deleted one again revives its tombstone
+at the end, and a library merge copies a device's channel only when the account has no record of it
+(live or deleted). Deleting one is a tombstone; posts keep their `channelId`. The mock data has none.
+Server 0039, app 0039.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
 columns. One record per album and asset.

@@ -1,3 +1,4 @@
+import { channelById } from '@squidbox/shared';
 import { asc, count } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -104,6 +105,8 @@ function describe(
       return 'Pinned list on Contacts';
     case 'idea_settings':
       return 'Post ideas and Repost ideas';
+    case 'channels':
+      return `Channel "${channelById(String(payload.channelId))?.name ?? String(payload.channelId)}"`;
     default:
       return `${collection} ${recordId}`;
   }

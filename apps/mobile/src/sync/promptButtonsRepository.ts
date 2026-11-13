@@ -1,18 +1,18 @@
 import {
   DEFAULT_PROMPT_BUTTONS,
   keyBetween,
-  movePositions,
   promptButtonCollection,
   RETIRED_PROMPT_BUTTONS,
   type NewPromptButton,
   type PromptButtonFields,
   type PromptButtonRecord,
 } from '@squidbox/shared';
-import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNull } from 'drizzle-orm';
 
 import { nextVersion, tombstone } from './clock';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { moveInList, positionAtEnd, readInOrder } from './positionedList';
 import { readByIdMap } from './readByIds';
 import { makeRepository } from './repository';
 import { saveRecords } from './saveRecords';
@@ -33,8 +33,7 @@ const repository = makeRepository('prompt_buttons', t);
 
 /** The live buttons, in their order. */
 export async function readPromptButtons(db: SyncDb): Promise<PromptButtonRecord[]> {
-  const rows = await db.select().from(t).where(isNull(t.deletedAt)).orderBy(asc(t.position), asc(t.id));
-  return rows as PromptButtonRecord[];
+  return (await readInOrder(db, t)) as PromptButtonRecord[];
 }
 
 /** How many live buttons there are. */
@@ -52,21 +51,10 @@ export async function readPromptButton(db: SyncDb, id: string): Promise<PromptBu
   return (row as PromptButtonRecord | undefined) ?? null;
 }
 
-// The key after the last live button.
-async function positionAtEnd(db: SyncDb): Promise<string> {
-  const [last] = await db
-    .select({ position: t.position })
-    .from(t)
-    .where(isNull(t.deletedAt))
-    .orderBy(desc(t.position), desc(t.id))
-    .limit(1);
-  return keyBetween(last?.position ?? null, null);
-}
-
 /** A new button at the end of the list. */
 export async function createPromptButton(db: SyncDb, fields: NewPromptButton): Promise<PromptButtonRecord> {
   return db.transaction(async (tx) => {
-    const position = await positionAtEnd(tx);
+    const position = await positionAtEnd(tx, t);
     const record = newRecord(promptButtonCollection, {}, { ...fields, position });
     await saveRecords(tx, 'prompt_buttons', t, [record], { isNew: true });
     return record;
@@ -91,16 +79,10 @@ export function removePromptButton(db: SyncDb, id: string): Promise<void> {
 
 /**
  * Move a button right after `afterId` (`null`: first), with one new position between its new
- * neighbours as the database has them (movePositions). Nothing when either is gone.
+ * neighbours as the database has them. Nothing when either is gone.
  */
-export async function movePromptButton(db: SyncDb, id: string, afterId: string | null): Promise<void> {
-  await db.transaction(async (tx) => {
-    const live = await readPromptButtons(tx);
-    if (!live.some((row) => row.id === id)) return;
-    const updates = movePositions(live, id, afterId);
-    const changed = live.filter((row) => updates[row.id]).map((row) => nextVersion(row, updates[row.id]));
-    await saveRecords(tx, 'prompt_buttons', t, changed, { previous: live });
-  });
+export function movePromptButton(db: SyncDb, id: string, afterId: string | null): Promise<void> {
+  return moveInList(db, 'prompt_buttons', t, id, afterId);
 }
 
 /**
@@ -142,7 +124,7 @@ export async function seedPromptButtons(
     );
     const missing = defaults.filter((button) => !held.has(button.id));
     if (missing.length === 0) return unedited.length > 0;
-    let position = await positionAtEnd(tx);
+    let position = await positionAtEnd(tx, t);
     const records = [];
     for (const button of missing) {
       records.push(newRecord(promptButtonCollection, {}, { ...button, position, updatedAt: SEED_CLOCK }));

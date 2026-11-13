@@ -51,6 +51,7 @@ export interface MergePlan {
   contactLists: schema.ContactListRow[];
   contactListMembers: schema.ContactListMemberRow[];
   contactLinks: schema.ContactLinkRow[];
+  channels: schema.ChannelRow[];
   // Target assets that device photos are merged into (camera-roll matches), and what they bring.
   duplicates: { id: string; photos: Photo[] }[];
   // Edits replayed onto records the target has, one per record: the target's row with what applies,
@@ -404,6 +405,11 @@ export async function planMerge(
   const contactLists = await freshRecords('contact_lists', schema.contactLists, allSourceLists);
   for (const list of contactLists) mark('contact_lists', list, { as: 'copy' });
 
+  // The user's channels, by their ids: each catalog channel has one fixed id, so one the account has
+  // (live or deleted) stays as the account has it.
+  const channels = await freshRecords('channels', schema.channels, await source.select().from(schema.channels));
+  for (const channel of channels) mark('channels', channel, { as: 'copy' });
+
   // Contact edges, between records that will be in the target: a member of a live list, a link to a
   // photo (re-pointed at a matched one), album or post that comes over.
   const liveContacts = new Set(live(allSourceContacts).map((contact) => contact.id));
@@ -477,6 +483,7 @@ export async function planMerge(
     contactLists,
     contactListMembers,
     contactLinks,
+    channels,
     duplicates,
     replays: [...replays.values()],
     marks: { source: name, decided: marks },
@@ -590,6 +597,7 @@ export function writesTarget(plan: MergePlan): boolean {
     plan.contactLists,
     plan.contactListMembers,
     plan.contactLinks,
+    plan.channels,
     plan.duplicates,
     plan.replays,
   ].some((list) => list.length > 0);
@@ -625,6 +633,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
     await saveRecords(tx, 'contact_lists', schema.contactLists, plan.contactLists, { isNew: true });
     await saveRecords(tx, 'contact_list_members', schema.contactListMembers, plan.contactListMembers, { isNew: true });
     await saveRecords(tx, 'contact_links', schema.contactLinks, plan.contactLinks, { isNew: true });
+    await saveRecords(tx, 'channels', schema.channels, plan.channels, { isNew: true });
     const duplicateIds = plan.duplicates.map((duplicate) => duplicate.id);
     const beforeReplays = await readByIdMap(tx, schema.assets, duplicateIds);
     // A replayed edit is written to the target's row as well as its outbox: a push alone would leave

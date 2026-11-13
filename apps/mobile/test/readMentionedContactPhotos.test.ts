@@ -42,4 +42,10 @@ describe('readMentionedContactPhotos', () => {
     await contacts.create(db, makeContactRecord({ id: 'gone', xHandle: 'gone', deletedAt: 5 }));
     expect(await read()).toEqual({ photos: { ben: ['p2'] }, postCount: 1 });
   });
+
+  it("counts a post once when another channel of it mentions the same handle, with that channel's photos", async () => {
+    await createPost(db, { id: 'post-1', text: 'Ridge run with @BenClimbs', channelId: 'x' }, ['p1']);
+    await createPost(db, { text: 'Full set with @benclimbs', channelId: 'onlyfans', channelRootId: 'post-1' }, ['p2']);
+    expect(await read()).toEqual({ photos: { ben: ['p1', 'p2'] }, postCount: 1 });
+  });
 });

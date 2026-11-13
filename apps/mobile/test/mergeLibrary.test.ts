@@ -1,3 +1,4 @@
+import { channelById } from '@squidbox/shared';
 import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import { tick } from '@squidbox/shared/testing/tick';
 import { isNull } from 'drizzle-orm';
@@ -8,6 +9,7 @@ import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { writesTarget, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
 import * as repo from '../src/sync/assetsRepository';
+import { addChannel, readChannels, removeChannel } from '../src/sync/channelsRepository';
 import * as contactLists from '../src/sync/contactListsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
@@ -825,5 +827,23 @@ describe('contacts', () => {
 
     expect(plan.fieldFiles).toEqual({});
     expect(await target.select().from(schema.contacts)).toMatchObject([{ avatarFilename: null }]);
+  });
+});
+
+describe('channels', () => {
+  it('come over when the account has no record of them, live or deleted', async () => {
+    await addChannel(source, channelById('x')!);
+    await addChannel(source, channelById('onlyfans')!);
+    await addChannel(source, channelById('bluesky')!);
+    await addChannel(target, channelById('bluesky')!);
+    await addChannel(target, channelById('onlyfans')!);
+    await removeChannel(target, channelById('onlyfans')!);
+
+    const plan = await commitPass();
+
+    expect(plan.channels.map((row) => row.channelId)).toEqual(['x']);
+    expect((await readChannels(target)).map((row) => row.channelId)).toEqual(['bluesky', 'x']);
+    expect((await outbox(target)).filter((row) => row.collection === 'channels')).toHaveLength(3);
+    expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false);
   });
 });

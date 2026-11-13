@@ -60,6 +60,8 @@ d('readSamplePosts', () => {
         post(USER, 'a following post', { threadRootId: threadRoot.id, threadIndex: 1 }),
         post(USER, 'removed first post', { deletedAt: 2000, id: orphanRoot }),
         post(USER, 'an orphaned following post', { threadRootId: orphanRoot, threadIndex: 1 }),
+        post(USER, 'on OnlyFans', { channelId: 'onlyfans', channelRootId: threadRoot.id }),
+        post(USER, 'on OnlyFans, its post removed', { channelId: 'onlyfans', channelRootId: orphanRoot }),
         post(USER, '  '),
         post(OTHER, 'not yours'),
       ]);
@@ -72,7 +74,7 @@ d('readSamplePosts', () => {
   });
 
   it("reads only the user's live, posted posts with text, no reposts", async () => {
-    const expected = [...posted, 'a thread', 'an orphaned following post'];
+    const expected = [...posted, 'a thread', 'an orphaned following post', 'on OnlyFans, its post removed'];
     expect((await readSamplePosts(db, USER, 'chat-1')).sort()).toEqual(expected.sort());
   });
 
@@ -80,6 +82,12 @@ d('readSamplePosts', () => {
     const sample = await readSamplePosts(db, USER, 'chat-1');
     expect(sample).not.toContain('a following post');
     expect(sample).toContain('an orphaned following post');
+  });
+
+  it('leaves another channel of a live post out of the sample, unless its post is deleted', async () => {
+    const sample = await readSamplePosts(db, USER, 'chat-1');
+    expect(sample).not.toContain('on OnlyFans');
+    expect(sample).toContain('on OnlyFans, its post removed');
   });
 
   it('picks the same posts in the same order for the same seed, within the limit', async () => {

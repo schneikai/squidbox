@@ -40,6 +40,7 @@ import m0035 from './0035_contact_settings.sql';
 import m0036 from './0036_album_favorited_at.sql';
 import m0037 from './0037_search_index.sql';
 import m0038 from './0038_idea_settings.sql';
+import m0039 from './0039_post_channels.sql';
 
   export default {
     journal,
@@ -82,7 +83,8 @@ m0034,
 m0035,
 m0036,
 m0037,
-m0038
+m0038,
+m0039
     }
   }
   

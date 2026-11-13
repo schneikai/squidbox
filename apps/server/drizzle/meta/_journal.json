@@ -274,6 +274,13 @@
       "when": 1794386384879,
       "tag": "0038_retire_default_prompt_buttons",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1794565009474,
+      "tag": "0039_post_channels",
+      "breakpoints": true
     }
   ]
 }

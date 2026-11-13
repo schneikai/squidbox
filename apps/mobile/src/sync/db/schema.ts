@@ -124,6 +124,9 @@ export const posts = sqliteTable(
     // A thread's following post: its first post and its place after it (null on a first post).
     threadRootId: text('thread_root_id'),
     threadIndex: integer('thread_index'),
+    // The catalog id of the channel the post is on, and on another channel of a post: that post.
+    channelId: text('channel_id'),
+    channelRootId: text('channel_root_id'),
   },
   (t) => [
     index('posts_live_posted_idx')
@@ -133,6 +136,10 @@ export const posts = sqliteTable(
     index('posts_thread_idx')
       .on(t.threadRootId, t.threadIndex, t.id)
       .where(sql`${t.deletedAt} is null and ${t.threadRootId} is not null`),
+    // A post's other channels (readChannelPosts, otherChannelIds, listedPostId).
+    index('posts_channel_root_idx')
+      .on(t.channelRootId, t.id)
+      .where(sql`${t.deletedAt} is null and ${t.channelRootId} is not null`),
   ],
 );
 export type PostRow = typeof posts.$inferSelect;
@@ -195,6 +202,18 @@ export const personas = sqliteTable('personas', {
   adultContent: integer('adult_content', { mode: 'boolean' }).notNull().default(false),
 });
 export type PersonaRow = typeof personas.$inferSelect;
+
+// The user's channels (mirror @squidbox/shared channels), one per catalog channel under its fixed
+// id, ordered by (position, id).
+export const channels = sqliteTable('channels', {
+  id: text('id').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  deletedAt: integer('deleted_at'),
+  channelId: text('channel_id').notNull(),
+  position: text('position').notNull(),
+});
+export type ChannelRow = typeof channels.$inferSelect;
 
 export const promptButtons = sqliteTable('prompt_buttons', {
   id: text('id').primaryKey(),

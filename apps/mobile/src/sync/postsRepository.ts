@@ -23,24 +23,31 @@ export function repostDate(posts: Record<'suggestRepostAt' | 'postedAt', SQLiteC
 }
 
 /**
- * A thread is listed as its first post (sync-design §10): the id the post row `alias` (a name of the
- * posts table in the query) lists under, its thread's first post while that is live, else its own (a
- * first or standalone post, or a following post whose first post was deleted). Raw SQL over the
+ * A post is listed as itself, with its thread and its other channels (sync-design §10): the id the
+ * post row `alias` (a name of the posts table in the query) lists under. A following post lists as its
+ * live first post, and another channel as its live post, so in order: the live post its live first
+ * post is another channel of; else its live first post; else the live post it is another channel of;
+ * else its own id (a post of its own, or one whose first post or post was deleted). Raw SQL over the
  * alias, so it reads the outer row in a select list too, where drizzle leaves columns unqualified.
  */
 export function listedPostId(alias: string): SQL<string> {
   const row = sql.raw(alias);
-  return sql<string>`coalesce((select r.id from posts r where r.id = ${row}.thread_root_id and r.deleted_at is null), ${row}.id)`;
+  return sql<string>`coalesce(
+    (select c.id from posts r join posts c on c.id = r.channel_root_id and c.deleted_at is null
+      where r.id = ${row}.thread_root_id and r.deleted_at is null),
+    (select r.id from posts r where r.id = ${row}.thread_root_id and r.deleted_at is null),
+    (select c.id from posts c where c.id = ${row}.channel_root_id and c.deleted_at is null),
+    ${row}.id)`;
 }
 
-/** Whether the post row `alias` is listed as itself: not a following post of a live first post. */
+/** Whether the post row `alias` is listed as itself: not a following post or another channel of a live post. */
 export function isListedPost(alias: string): SQL {
   return sql`${listedPostId(alias)} = ${sql.raw(alias)}.id`;
 }
 
 /**
  * The listed posts (listedPostId) of the live posts with a live edge to an asset `assetCondition`
- * (SQL on `asset_id`) picks: a photo in a following post finds its thread's first post.
+ * (SQL on `asset_id`) picks: a photo in a following post or another channel finds the post.
  */
 export function postsHoldingAssets(assetCondition: SQL): SQL {
   return sql`(select ${listedPostId('q')} from posts q where q.deleted_at is null and q.id in
@@ -59,8 +66,8 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
 // The posts the chat reads its mentions from, at most.
 const MENTION_POSTS = 100;
 
-// The mention reads take every live post, a thread's following posts too: a handle the user wrote in
-// one is still a handle they mentioned.
+// The mention reads take every live post, a thread's following posts and a post's other channels too:
+// a handle the user wrote in one is still a handle they mentioned.
 
 /**
  * The texts of the live posts whose assets share a live album with `assetIds` (through live edges),

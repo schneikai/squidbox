@@ -18,6 +18,7 @@ import {
   contactLinkCollection,
   contactSettingCollection,
   ideaSettingCollection,
+  channelCollection,
   type CollectionDescriptor,
 } from '@squidbox/shared';
 import {
@@ -37,6 +38,7 @@ import {
   contactLinks,
   contactSettings,
   ideaSettings,
+  channels,
 } from '../db/schema.js';
 
 // Server-side view of a syncable collection: its table and shared descriptor, the columns of the
@@ -111,4 +113,5 @@ export const serverCollections: Record<string, ServerCollection> = {
   contact_links: serverCollection(contactLinks, contactLinkCollection),
   contact_settings: serverCollection(contactSettings, contactSettingCollection),
   idea_settings: serverCollection(ideaSettings, ideaSettingCollection),
+  channels: serverCollection(channels, channelCollection),
 };

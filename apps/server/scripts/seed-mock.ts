@@ -484,6 +484,8 @@ const mockRecords: Record<string, { id: string }[]> = {
   contact_lists: contactLists,
   contact_list_members: contactListMembers,
   contact_links: contactLinks,
+  // He has no channels; a reset tombstones the ones a test added.
+  channels: [],
 };
 const mutations = [...toMutations(mockRecords), ...(await tombstonesForOtherRecords(mockRecords))];
 await push(mutations);

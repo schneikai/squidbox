@@ -46,6 +46,8 @@ export async function readSamplePosts(
         isNull(posts.rePostId),
         // A thread is its first post; a following post whose first post is deleted counts on its own.
         sql`not exists (select 1 from ${posts} r where r.user_id = ${posts.userId} and r.id = ${posts.threadRootId} and r.deleted_at is null)`,
+        // Another channel of a live post is that post's text again; one whose post is deleted counts on its own.
+        sql`not exists (select 1 from ${posts} r where r.user_id = ${posts.userId} and r.id = ${posts.channelRootId} and r.deleted_at is null)`,
         sql`trim(${posts.text}) <> ''`,
       ),
     )

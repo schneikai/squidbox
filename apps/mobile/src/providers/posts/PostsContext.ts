@@ -1,14 +1,19 @@
 import type { PostRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
+import type { ChannelPart } from '@/sync/postChannels';
 import type { AssetRef, ThreadPart } from '@/sync/postThreads';
 
-// A post as an editor writes it: its fields, its photos (`assetRefs`) and its following posts
-// (`threadPosts`, postThreads).
-export type PostFields = Partial<PostRecord> & { assetRefs?: AssetRef[]; threadPosts?: ThreadPart[] };
+// A post as an editor writes it: its fields, its photos (`assetRefs`), its following posts
+// (`threadPosts`, postThreads) and its other channels (`channelPosts`, postChannels).
+export type PostFields = Partial<PostRecord> & {
+  assetRefs?: AssetRef[];
+  threadPosts?: ThreadPart[];
+  channelPosts?: ChannelPart[];
+};
 
-// The post an editor was seeded with: what a changed photo list or thread is saved over.
-export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts'>;
+// The post an editor was seeded with: what a changed photo list, thread or other channels are saved over.
+export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts' | 'channelPosts'>;
 
 export type PostsContextValue = {
   addPost: (fields: PostFields) => Promise<PostRecord & { assetRefs: AssetRef[] }>;

@@ -410,6 +410,7 @@ d('sync engine (Postgres)', () => {
         postIdeasPrompt: 'Three captions for the trail photos.',
         repostIdeasPrompt: null,
       }),
+      channels: () => ({ ...base(), channelId: 'bluesky', position: 'a0' }),
     };
 
     for (const name of collectionNames) {

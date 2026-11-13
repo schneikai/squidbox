@@ -41,35 +41,49 @@ export async function saveThreadPosts(
   newPart: (fields: NewPart) => PostRecord,
 ): Promise<void> {
   if (parts.length === 0 && seedParts.length === 0) return;
-  const [root] = await tx
-    .select({ postedAt: schema.posts.postedAt })
-    .from(schema.posts)
-    .where(eq(schema.posts.id, rootId));
-  const postedAt = root?.postedAt ?? null;
+  const postedAt = await readPostedAt(tx, rootId);
   const live = await readThreadPosts(tx, [rootId]);
-  const liveById = new Map(live.map((post) => [post.id, post]));
-  const listed = new Set(parts.map((part) => part.id));
-  const seedById = new Map(seedParts.map((part) => [part.id, part]));
-
-  const removed = seedParts.filter((part) => part.id && liveById.has(part.id) && !listed.has(part.id));
-  await removePosts(
-    tx,
-    removed.map((part) => part.id!),
-  );
+  const { removed, kept, added } = splitParts(parts, seedParts, new Set(live.map((post) => post.id)));
+  await removePosts(tx, removed);
 
   let threadIndex = Math.max(0, ...live.map((post) => post.threadIndex ?? 0));
-  for (const part of parts) {
-    if (part.id === null) {
-      threadIndex += 1;
-      const created = await posts.create(tx, newPart({ text: part.text, postedAt, threadRootId: rootId, threadIndex }));
-      await posts.postEdges.createFromRefs(tx, created.id, part.assetRefs);
-      continue;
-    }
-    const seed = seedById.get(part.id);
-    if (!liveById.has(part.id) || !seed) continue;
-    if (part.text !== seed.text) await posts.update(tx, part.id, { text: part.text });
-    await posts.postEdges.setRefs(tx, part.id, part.assetRefs, seed.assetRefs); // writes only what changed
+  for (const part of added) {
+    threadIndex += 1;
+    const created = await posts.create(tx, newPart({ text: part.text, postedAt, threadRootId: rootId, threadIndex }));
+    await posts.postEdges.createFromRefs(tx, created.id, part.assetRefs);
   }
+  for (const { id, part, seed } of kept) {
+    if (part.text !== seed.text) await posts.update(tx, id, { text: part.text });
+    await posts.postEdges.setRefs(tx, id, part.assetRefs, seed.assetRefs); // writes only what changed
+  }
+}
+
+/**
+ * How an editor's parts (`parts`, `id` null for a new one) split over the ones it was seeded with
+ * (`seedParts`), against the ids still live in the database: the ids of the seed parts no longer
+ * listed (`removed`), the new parts in order (`added`), and the listed ones with their seed
+ * (`kept`). A seed part deleted meanwhile (another device) is in neither.
+ */
+export function splitParts<P extends { id: string | null }>(parts: P[], seedParts: P[], liveIds: Set<string>) {
+  const listed = new Set(parts.map((part) => part.id));
+  const seedById = new Map(seedParts.map((part) => [part.id, part]));
+  return {
+    removed: seedParts.flatMap((part) => (part.id && liveIds.has(part.id) && !listed.has(part.id) ? [part.id] : [])),
+    added: parts.filter((part) => part.id === null),
+    kept: parts.flatMap((part) => {
+      const seed = part.id === null ? undefined : seedById.get(part.id);
+      return part.id !== null && seed && liveIds.has(part.id) ? [{ id: part.id, part, seed }] : [];
+    }),
+  };
+}
+
+/** A post's Posted time as it stands in `tx` (null for none, or no such post). */
+export async function readPostedAt(tx: SyncDb, postId: string): Promise<number | null> {
+  const [post] = await tx
+    .select({ postedAt: schema.posts.postedAt })
+    .from(schema.posts)
+    .where(eq(schema.posts.id, postId));
+  return post?.postedAt ?? null;
 }
 
 /** Give the thread's live following posts the first post's Posted time (null included). */
