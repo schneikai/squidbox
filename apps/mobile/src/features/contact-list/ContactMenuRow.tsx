@@ -2,7 +2,8 @@ import { memo } from 'react';
 
 import ContactRow from './ContactRow';
 import ContactRowMenu from './ContactRowMenu';
-import type { ContactSummary } from './contactQuery';
+
+import type { ContactSummary } from '@/sync/queries/contactQuery';
 
 /**
  * A contact in a list of contacts that opens the contact on a tap and its menu (ContactRowMenu) on

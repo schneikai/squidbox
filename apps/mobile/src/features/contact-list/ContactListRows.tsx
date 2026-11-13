@@ -1,14 +1,13 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { builtInContactList } from './builtInContactLists';
-import type { ContactListSummary } from './contactListQuery';
-
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import ContactListMenu from '@/features/contact-list-detail/ContactListMenu';
 import { space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
+import { builtInContactList } from '@/sync/queries/builtInContactLists';
+import type { ContactListSummary } from '@/sync/queries/contactListQuery';
 import pluralizeText from '@/utils/pluralizeText';
 
 const OVERLAP = -space.xxl;

@@ -33,12 +33,12 @@ import {
   useTwoDeviceServer,
 } from './helpers/twoDeviceServer';
 import * as serverSchema from '../../server/src/db/schema.js';
-import readPost from '../src/features/post-list/readPost';
 import * as repo from '../src/sync/assetsRepository';
 import * as contacts from '../src/sync/contactsRepository';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
+import readPost from '../src/sync/queries/readPost';
 import { readByIds } from '../src/sync/readByIds';
 import { runSyncOnce } from '../src/sync/worker';
 import changedValues from '../src/utils/changedValues';

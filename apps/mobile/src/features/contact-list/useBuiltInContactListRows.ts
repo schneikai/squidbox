@@ -1,5 +1,4 @@
-import { builtInContactListsQuery as query } from './builtInContactLists';
-
+import { builtInContactListsQuery as query } from '@/sync/queries/builtInContactLists';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 /**

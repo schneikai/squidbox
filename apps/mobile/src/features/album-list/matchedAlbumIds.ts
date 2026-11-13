@@ -1,5 +1,5 @@
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import { matchingIds } from '@/sync/matchingIds';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 import isBlank from '@/utils/isBlank';
 
 /**

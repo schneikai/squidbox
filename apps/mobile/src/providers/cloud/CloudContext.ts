@@ -1,8 +1,7 @@
 import { createContext } from 'react';
 
-import type preloadAssetThumbnailsAsync from './assets/preloadAssetThumbnailsAsync';
-
 import type { Session } from '@/library/session';
+import type preloadAssetThumbnailsAsync from '@/utils/cloud-api/assets/preloadAssetThumbnailsAsync';
 
 // Who the stored session is for (signed in or with its tokens dropped).
 export type CloudUser = { id: Session['userId']; email: Session['email']; features: NonNullable<Session['features']> };

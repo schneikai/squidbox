@@ -33,7 +33,7 @@ vi.mock('../src/utils/cloud-api/assets/getAssetFileDownloadUrlAsync', () => ({
     return 'https://s3/a.jpg';
   },
 }));
-vi.mock('../src/features/cloud/assets/downloadAssetFileAsync', () => ({
+vi.mock('../src/utils/cloud-api/assets/downloadAssetFileAsync', () => ({
   default: async ({ filename }: { filename: string }, _url: string, directory: string) => {
     if (outcome.download !== 'ok') throw outcome.download;
     fs.push(`download ${directory}${filename}`);

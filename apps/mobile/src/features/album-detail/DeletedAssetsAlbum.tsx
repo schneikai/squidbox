@@ -8,12 +8,12 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import AssetList from '@/features/asset-list/AssetList';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import assetQuery from '@/features/asset-list/assetQuery';
 import useAssetCells from '@/features/asset-list/useAssetCells';
-import useDeletedAssetsActions from '@/features/assets-context/useDeletedAssetsActions';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import useDeletedAssetsActions from '@/providers/assets/useDeletedAssetsActions';
 import { getDb } from '@/sync/db/client';
 import type { AlbumRow } from '@/sync/db/schema';
+import assetQuery from '@/sync/queries/assetQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 

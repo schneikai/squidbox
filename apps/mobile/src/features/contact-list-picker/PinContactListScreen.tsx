@@ -8,7 +8,7 @@ import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import useBuiltInContactListRows from '@/features/contact-list/useBuiltInContactListRows';
 import usePinnedContactList from '@/features/contact-list/usePinnedContactList';
-import useContacts from '@/features/contacts-context/useContacts';
+import useContacts from '@/providers/contacts/useContacts';
 
 // The Contacts tab's pinned row's name, tapped: Favorites, Tagged (in an account's library) or one of the
 // lists to show there, the shown one checked. A tap pins it and closes the sheet, as Add to Album does.

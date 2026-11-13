@@ -1,10 +1,10 @@
 import { collections, contactCollection } from '@squidbox/shared';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import UploadFailedError from '../src/features/cloud/assets/UploadFailedError';
 import { FILE_FIELDS, isFileName } from '../src/library/fileFields';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { FileUploadRefusedError } from '../src/sync/fileUploadErrors';
+import UploadFailedError from '../src/utils/cloud-api/assets/UploadFailedError';
 
 const onDevice = new Set<string>();
 const upload = vi.fn();
@@ -13,7 +13,7 @@ vi.mock('../src/utils/assets/assetStorage', () => ({
   getFieldFileUri: (folder: string, filename: string, library: Record<string, string>) =>
     `file:///docs/${library[folder]}${filename}`,
 }));
-vi.mock('../src/features/cloud/assets/uploadFileAsync', () => ({
+vi.mock('../src/utils/cloud-api/assets/uploadFileAsync', () => ({
   default: (...args: unknown[]) => upload(...args),
 }));
 

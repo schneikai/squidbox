@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 
 import Button from '@/components/Button';
 import SplashStage from '@/components/SplashStage';
-import useCloud from '@/features/cloud/useCloud';
 import getFirstSyncStep from '@/features/sync-status/getFirstSyncStep';
 import useAfterDelay from '@/hooks/useAfterDelay';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
+import useCloud from '@/providers/cloud/useCloud';
 import type { PullStep } from '@/sync/status';
 import { type LiveSyncStatus, useSyncStatus } from '@/sync/useSyncStatus';
 import { requestSync } from '@/sync/worker';

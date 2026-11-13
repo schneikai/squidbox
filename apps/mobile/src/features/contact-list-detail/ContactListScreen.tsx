@@ -2,9 +2,9 @@ import { useLocalSearchParams } from 'expo-router';
 
 import ContactList from './ContactList';
 
-import { builtInContactList } from '@/features/contact-list/builtInContactLists';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import { schema } from '@/sync/db/client';
+import { builtInContactList } from '@/sync/queries/builtInContactLists';
 import { useLiveRecord } from '@/sync/useLiveRecord';
 
 export default function ContactListScreen() {

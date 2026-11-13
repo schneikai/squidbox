@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import type { PostDetailRow } from './readPost';
 import stackEdge from './stackEdge';
 import usePost from './usePost';
 
@@ -19,6 +18,7 @@ import ThreadConnector from '@/components/ThreadConnector';
 import ThreadParts from '@/components/ThreadParts';
 import ThreadPost from '@/features/posts/ThreadPost';
 import { motion } from '@/styles/designTokens';
+import type { PostDetailRow } from '@/sync/queries/readPost';
 
 // Reanimated runs custom entering and exiting animations only on native: in the web preview the cards
 // don't come out of the stack, they show at their place (their content and lines still fade, and the

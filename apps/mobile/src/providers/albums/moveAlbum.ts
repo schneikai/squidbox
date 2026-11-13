@@ -1,8 +1,8 @@
 import { movePositions, positionsInOrder } from '@squidbox/shared';
 
-import readAlbumsInCustomOrder from '@/features/album-list/readAlbumsInCustomOrder';
 import type { AppDb } from '@/sync/db/driver';
 import type { AlbumRow, albums } from '@/sync/db/schema';
+import readAlbumsInCustomOrder from '@/sync/queries/readAlbumsInCustomOrder';
 import type { makeRepository } from '@/sync/repository';
 
 // A drop in the albums list: under Custom (the default) only where it landed; under another sort also

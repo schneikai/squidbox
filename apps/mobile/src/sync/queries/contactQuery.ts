@@ -3,13 +3,15 @@ import { and, asc, count, desc, eq, isNotNull, isNull, type SQL, sql } from 'dri
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import contactSearchText, { SEARCHED_FIELDS } from './contactSearchText';
-import type { ContactSort } from './contactSortOptions';
 
 import { livePhotoIdsOf, type PhotosOf } from '@/sync/assetSql';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
+
+/** The contacts' sort choices (contactSortOptions labels them). */
+export type ContactSort = 'name:asc' | 'createdAt:desc';
 
 const c = schema.contacts;
 
@@ -60,8 +62,14 @@ const listNames = (withTagged: boolean) =>
 export type ContactScope =
   'all' | 'favorites' | 'tagged' | 'deleted' | { listId: string } | { photoIds: string[] } | { photosOf: PhotosOf };
 
+// The Contacts tab's filters (contactFilterOptions): each one narrows the scope's contacts to the
+// favorites or to the contacts on a photo still there (the built-in lists' rules).
+export type ContactFilter = 'favorites' | 'tagged';
+
 export type ContactDescriptor = {
   scope?: ContactScope;
+  // Every filter must hold (as the asset grids' filters).
+  filter?: ContactFilter[];
   // A substring of the name, a handle, the phone number or a place: Unicode-aware, literal,
   // case-insensitive.
   search?: string;
@@ -83,6 +91,7 @@ export type ContactDescriptor = {
  */
 export default function contactQuery({
   scope = 'all',
+  filter = [],
   search = '',
   sort = 'name:asc',
   withLists = false,
@@ -98,18 +107,13 @@ export default function contactQuery({
     tables.push(schema.contactLinks, schema.assets);
     tables.push(...('albumId' in photosOf ? [schema.albumAssets] : [schema.postAssets, schema.posts]));
   }
-  if (scope === 'tagged') tables.push(schema.contactLinks, schema.assets);
+  if (scope === 'tagged' || filter.includes('tagged')) tables.push(schema.contactLinks, schema.assets);
   const withTagged = withLists && scope !== 'tagged';
   if (withLists) tables.push(schema.contactLists, ...(listId ? [] : [schema.contactListMembers]));
   if (withTagged) tables.push(schema.contactLinks, schema.assets);
 
   const scopeCondition = ((): SQL | undefined => {
-    if (scope === 'favorites') return eq(c.isFavorite, true);
-    // On a photo still there: trashing a photo leaves its links be.
-    if (scope === 'tagged')
-      return sql`${c.id} in (select l.contact_id from contact_links l
-        join assets a on a.id = l.target_id and a.deleted_at is null
-        where l.target_type = 'asset' and l.deleted_at is null)`;
+    if (scope === 'favorites' || scope === 'tagged') return filterCondition(scope);
     if (listId) {
       return sql`${c.id} in (select contact_id from contact_list_members where list_id = ${listId} and deleted_at is null)`;
     }
@@ -142,10 +146,12 @@ export default function contactQuery({
   async function matchedIds(tx: SyncDb): Promise<string[] | null> {
     return searchText ? matchingContactIds(tx, searchText, liveness) : null;
   }
-  const where = (ids: string[] | null) => and(liveness, scopeCondition, ids ? inJson(c.id, ids) : undefined);
+  const filterConditions = filter.map(filterCondition);
+  const where = (ids: string[] | null) =>
+    and(liveness, scopeCondition, ...filterConditions, ids ? inJson(c.id, ids) : undefined);
 
   return {
-    descriptor: { scope, search, sort, withLists },
+    descriptor: { scope, filter, search, sort, withLists },
     tables,
     read(db: SyncDb, { limit }: { limit?: number } = {}): Promise<{ rows: ContactSummary[]; count: number }> {
       return db.transaction(async (tx) => {
@@ -185,6 +191,15 @@ export default function contactQuery({
       });
     },
   };
+}
+
+// The favorites, or the contacts on a photo still there: trashing a photo leaves its links be. The rule of the
+// Favorites and Tagged scopes and of the filters of the same names.
+function filterCondition(filter: ContactFilter): SQL {
+  if (filter === 'favorites') return eq(c.isFavorite, true);
+  return sql`${c.id} in (select l.contact_id from contact_links l
+    join assets a on a.id = l.target_id and a.deleted_at is null
+    where l.target_type = 'asset' and l.deleted_at is null)`;
 }
 
 /**

@@ -3,8 +3,8 @@ import { StyleSheet } from 'react-native';
 
 import CoverImage from '@/components/CoverImage';
 import PictureRow from '@/components/PictureRow';
-import type { AlbumListRow } from '@/features/album-list/albumQuery';
 import { sizes } from '@/styles/designTokens';
+import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 /**
  * The starred albums atop the Albums tab: each one's cover, small and square, with its name, side by

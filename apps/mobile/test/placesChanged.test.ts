@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { placesChanged } from '../src/features/contact-detail/contactFields';
+import placesChanged from '../src/utils/contacts/placesChanged';
 
 const place = (city: string, state = '', country = '') => ({ city, state, country });
 const squamish = place('Squamish', 'British Columbia', 'Canada');

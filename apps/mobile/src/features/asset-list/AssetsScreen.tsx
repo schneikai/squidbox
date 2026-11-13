@@ -6,20 +6,21 @@ import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext'
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import useProgressOverlay from '@/components/progress-overlay/useProgressOverlay';
 import useRunWithProgress from '@/components/progress-overlay/useRunWithProgress';
-import useAppSettings from '@/features/app-settings/useAppSettings';
 import AssetGrid from '@/features/asset-list/AssetGrid';
+import SelectionActions from '@/features/asset-list/SelectionActions';
 import assetFilterOptions from '@/features/asset-list/actions/filter-assets-action/assetFilterOptions';
 import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/assetSortOptions';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
-import assetQuery, { type AssetFilter } from '@/features/asset-list/assetQuery';
 import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
-import useAddAssetsFromCameraRoll from '@/features/assets-context/useAddAssetsFromCameraRoll';
-import useAssets from '@/features/assets-context/useAssets';
 import useListControls from '@/hooks/useListControls';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useScrollY from '@/hooks/useScrollY';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
+import useAddAssetsFromCameraRoll from '@/providers/assets/useAddAssetsFromCameraRoll';
+import useAssets from '@/providers/assets/useAssets';
 import type { AssetSort } from '@/sync/assetSql';
+import assetQuery, { type AssetFilter } from '@/sync/queries/assetQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import confirmAsync from '@/utils/confirmAsync';
@@ -77,8 +78,9 @@ export default function AssetsScreen() {
         scrollY={scrollY}
         onAdd={handleAdd}
         selection={selection}
-        selectionActions={actions}
-        onDelete={handleDelete}
+        selectionSlot={
+          <SelectionActions actions={actions} onDelete={handleDelete} onClose={selection.exitSelectMode} />
+        }
       />
       <AssetGrid
         listRef={listRef}
