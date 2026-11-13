@@ -17,11 +17,13 @@ export function requirePushedTip() {
   if (git('status', '--porcelain') !== '') fail('The checkout has changes: commit and push them first.');
   const branch = git('branch', '--show-current');
   if (!branch) fail('Check out a branch (HEAD is detached).');
+  const notPushed = () => fail(`HEAD is not the pushed tip of origin/${branch}: push it, or pull, first.`);
+  // ls-remote exits 2 when origin has no such branch (never pushed), other codes on an error.
+  if (spawnSync('git', ['ls-remote', '--exit-code', '--heads', 'origin', branch], { stdio: 'ignore' }).status === 2)
+    notPushed();
   retry(() => git('fetch', 'origin', branch));
   const commit = git('rev-parse', 'HEAD');
-  if (git('rev-parse', `origin/${branch}`) !== commit) {
-    fail(`HEAD is not the pushed tip of origin/${branch}: push it, or pull, first.`);
-  }
+  if (git('rev-parse', `origin/${branch}`) !== commit) notPushed();
   return { branch, commit };
 }
 

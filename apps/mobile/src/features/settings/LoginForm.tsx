@@ -6,6 +6,7 @@ import TextInput from '@/components/TextInput';
 import { Section } from '@/components/settings-list/SettingsList';
 import useCloud from '@/providers/cloud/useCloud';
 import { colors, layout, sizes, space } from '@/styles/designTokens';
+import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import isBlank from '@/utils/isBlank';
 
 export type LoginFormProps = { ownerEmail?: string | null };
@@ -29,7 +30,7 @@ export default function LoginForm({ ownerEmail }: LoginFormProps) {
       try {
         await loginAsync(email, password);
       } catch (error) {
-        Alert.alert("Couldn't sign in", error instanceof Error ? error.message : String(error));
+        Alert.alert("Couldn't sign in", apiErrorMessage(error));
       }
     });
   }
