@@ -48,21 +48,12 @@ export default function DeletedAssetsAlbum({ album }: DeletedAssetsAlbumProps) {
   }
 
   function handleDeleteAssets() {
-    const message = isSelectMode
-      ? pluralizeText(
-          'Permanently delete the selected asset?',
-          'Permanently delete the %{count} selected assets?',
-          targetCount,
-        )
-      : pluralizeText(
-          'Permanently delete the deleted asset?',
-          'Permanently delete all %{count} deleted assets?',
-          targetCount,
-        );
+    const name = isSelectMode
+      ? pluralizeText('the selected asset', 'the %{count} selected assets', targetCount)
+      : pluralizeText('the deleted asset', 'all %{count} deleted assets', targetCount);
 
     deletePermanently({
-      title: isSelectMode ? 'Delete selected' : 'Delete all',
-      message,
+      name,
       ids: targetIds,
       onConfirm: exitSelectMode,
     });

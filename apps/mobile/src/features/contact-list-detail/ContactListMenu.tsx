@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useContacts from '@/providers/contacts/useContacts';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 
 /**
  * A contact list's menu: Edit list (its name and description, in a sheet), delete it (its contacts
@@ -21,12 +21,7 @@ export default function ContactListMenu({ list, afterDelete, trigger }: ContactL
   const { setListDeleted } = useContacts();
 
   async function handleDelete() {
-    const confirmed = await confirmAsync({
-      title: `Delete ${list.name}?`,
-      message: 'Its contacts stay in your contacts.',
-      action: 'Delete list',
-      destructive: true,
-    });
+    const confirmed = await confirmDeleteAsync({ name: list.name, also: 'Its contacts stay in your contacts.' });
     if (!confirmed) return;
     afterDelete?.();
     await setListDeleted(list.id);

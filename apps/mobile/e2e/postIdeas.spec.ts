@@ -2,7 +2,7 @@ import { DEFAULT_IDEA_PROMPTS } from '@squidbox/shared';
 import type { Locator, Page } from 'playwright/test';
 
 import { expect, STUB_TAGS, test } from './fixtures';
-import { button, openTab, pickFromSquidbox } from './helpers';
+import { button, openTab, pickFromSquidbox, withDialog } from './helpers';
 import { loadAppAsync } from '../scripts/webPreview.mjs';
 
 // The assistant's ideas in the post editor, on the stubbed assistant (fixtures): a new post's start
@@ -224,7 +224,20 @@ test.describe('Post ideas settings', () => {
 
     await loadAppAsync(page);
     await openPostIdeas(page);
-    await savedAsync(page, () => button(page, 'Reset changes').click());
+    // Reset changes asks first: Cancel keeps the prompt, Reset puts the built-in text back.
+    await withDialog(
+      page,
+      (dialog) => dialog.dismiss(),
+      () => button(page, 'Reset changes').click(),
+    );
+    await expect(page.getByRole('textbox')).toHaveValue(mine);
+    await savedAsync(page, () =>
+      withDialog(
+        page,
+        (dialog) => dialog.accept(),
+        () => button(page, 'Reset changes').click(),
+      ),
+    );
     await expect(page.getByRole('textbox')).toHaveValue(DEFAULT_IDEA_PROMPTS.post);
 
     // The mock account's own prompt back, for the flows after this one.

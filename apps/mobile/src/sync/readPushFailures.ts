@@ -1,3 +1,4 @@
+import type { CollectionName } from '@squidbox/shared';
 import { asc, count } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -63,50 +64,46 @@ function parentIds(rows: schema.OutboxRow[], collection: string, key: string): s
 
 const LINK_TARGETS: Record<string, string> = { asset: 'a photo', album: 'an album', post: 'a post' };
 
-function describe(
-  { collection, recordId, payload }: schema.OutboxRow,
-  {
-    albums,
-    posts,
-    lists,
-  }: {
-    albums: Map<string, schema.AlbumRow>;
-    posts: Map<string, schema.PostRow>;
-    lists: Map<string, schema.ContactListRow>;
+type Parents = {
+  albums: Map<string, schema.AlbumRow>;
+  posts: Map<string, schema.PostRow>;
+  lists: Map<string, schema.ContactListRow>;
+};
+
+// What failed, in words, per collection: keyed by the registry's names, so a new collection fails
+// typecheck until it has one.
+const TITLES: Record<CollectionName, (payload: Record<string, unknown>, parents: Parents) => string> = {
+  albums: (payload) => `Album "${payload.name}"`,
+  posts: (payload) => `Post${snippet(String(payload.text ?? ''))}`,
+  assets: (payload) => describeAsset(payload),
+  album_assets: (payload, { albums }) => {
+    const album = albums.get(String(payload.albumId));
+    return album ? `Photo in album "${album.name}"` : 'Photo in an album';
   },
-): string {
-  switch (collection) {
-    case 'albums':
-      return `Album "${payload.name}"`;
-    case 'posts':
-      return `Post${snippet(String(payload.text ?? ''))}`;
-    case 'assets':
-      return describeAsset(payload);
-    case 'album_assets': {
-      const album = albums.get(String(payload.albumId));
-      return album ? `Photo in album "${album.name}"` : 'Photo in an album';
-    }
-    case 'post_assets': {
-      const post = posts.get(String(payload.postId));
-      return post ? `Photo in post${snippet(post.text)}` : 'Photo in a post';
-    }
-    case 'contacts':
-      return `Contact "${payload.name}"`;
-    case 'contact_lists':
-      return `List "${payload.name}"`;
-    case 'contact_list_members': {
-      const list = lists.get(String(payload.listId));
-      return list ? `Contact in list "${list.name}"` : 'Contact in a list';
-    }
-    case 'contact_links':
-      return `Contact on ${LINK_TARGETS[String(payload.targetType)] ?? 'a photo'}`;
-    case 'contact_settings':
-      return 'Pinned list on Contacts';
-    case 'idea_settings':
-      return 'Post ideas and Repost ideas';
-    default:
-      return `${collection} ${recordId}`;
-  }
+  post_assets: (payload, { posts }) => {
+    const post = posts.get(String(payload.postId));
+    return post ? `Photo in post${snippet(post.text)}` : 'Photo in a post';
+  },
+  personas: () => 'Writing as you',
+  prompt_buttons: (payload) => `Prompt button "${payload.name}"`,
+  favorites: (payload) => `Favorite${snippet(String(payload.text ?? ''))}`,
+  instructions: () => 'Instructions',
+  model_choices: () => 'Default models',
+  contacts: (payload) => `Contact "${payload.name}"`,
+  contact_lists: (payload) => `List "${payload.name}"`,
+  contact_list_members: (payload, { lists }) => {
+    const list = lists.get(String(payload.listId));
+    return list ? `Contact in list "${list.name}"` : 'Contact in a list';
+  },
+  contact_links: (payload) => `Contact on ${LINK_TARGETS[String(payload.targetType)] ?? 'a photo'}`,
+  contact_settings: () => 'Pinned list on Contacts',
+  idea_settings: () => 'Post ideas and Repost ideas',
+};
+
+function describe({ collection, recordId, payload }: schema.OutboxRow, parents: Parents): string {
+  return Object.hasOwn(TITLES, collection)
+    ? TITLES[collection as CollectionName](payload, parents)
+    : `${collection} ${recordId}`;
 }
 
 // ` "First words of the caption…"`, or nothing for an empty caption. Cut by code point, so an emoji

@@ -251,7 +251,11 @@ advisory lock (§3), for each mutation:
    newer than the stored one (strict `>`), and its clock with it; every other field keeps its value
    and clock; `updated_at` becomes the newest clock. The row is written, with `user_id` from the
    token, only when a field applied; a new record is always written whole, whatever its `fields`
-   name. So an optional column an older app doesn't send (e.g. `albums.position`) keeps its stored
+   name, but its clocks are per field: a named field keeps its clock, an unnamed one takes 0 (never
+   edited, it holds the default), so another device's edit of it applies even when older than the
+   insert (two phones' first saves of a per-user record keep both). An insert newer than every
+   clock it names, or naming none, gives its unnamed fields its `updatedAt`, as a row without
+   clocks reads back. So an optional column an older app doesn't send (e.g. `albums.position`) keeps its stored
    value; a new synced column is added as optional, and the server ships before the app.
    After the merges, the batch writes one multi-row upsert per collection (a row merged twice is
    written once, with its last merge), in one savepoint; reads and upserts are split to stay within
@@ -862,16 +866,32 @@ SQLite tables are declared by hand per dialect from the same field list.
 
 ### Adding a collection
 
-1. Add a descriptor in `packages/shared/collections/` and add it to `collections` and
-   `CollectionName` in `registry.ts`.
+Names per layer: the descriptor file is singular (`ideaSetting.ts`, `ideaSettingCollection`), the
+collection and its tables plural in snake case (`idea_settings`), the drizzle tables plural in
+camel case (`ideaSettings`), and so are the repository and its hook (`ideaSettingsRepository`,
+`useIdeaSettings`).
+
+1. Shared: add the descriptor in `packages/shared/collections/`, export it from
+   `packages/shared/index.ts`, and add it to `collections` in `registry.ts`. `CollectionName` is
+   inferred from that list, so every step below marked *typed* fails `npm run typecheck` until it
+   is done.
 2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()` (which brings
-   `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index. Add
-   it to `serverCollections` in `apps/server/src/sync/collections.ts`. Generate the Drizzle
-   migration. `migrate.ts` attaches the `server_seq` trigger.
-3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables`
-   in `clientCollections.ts`, and generate the SQLite migration.
-4. Add a sample record to the registry guard test.
-5. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
+   `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index, and
+   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (*typed*). Generate the
+   migration from `apps/server`: `npm run db:generate -- --name <collection>`. `migrate.ts` attaches
+   the `server_seq` trigger.
+3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables` in
+   `clientCollections.ts` (*typed*), and generate the migration from `apps/mobile`:
+   `npx drizzle-kit generate --name <collection>` (it also regenerates `migrations.js`). A pull
+   skips a collection without a client table on purpose, so an older build survives a newer
+   server; only the typecheck catches a new build that forgot it.
+4. Name a failed push of it in words in `TITLES` in `apps/mobile/src/sync/readPushFailures.ts`
+   (*typed*).
+5. Add a sample record to the "collection registry guard" in `apps/server/test/sync.test.ts`
+   (*typed*), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
+   should have some.
+6. Describe its fields in §10.
+7. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
    `apps/mobile/src/library/fileFields.ts` (the folders, the uploads, the loader and the merge
    read it).
 
@@ -936,7 +956,7 @@ part set; JSON, merges as one value; a row shows "City, Country", the state too 
 `formatPlace`), `avatarFilename` (the photo's key, a file field:
 §4, §6, §7a), plus the base columns. The app keeps each field within the schema's `CONTACT_LIMITS`
 (a field's length, a place part's length, 20 places), so a push is never rejected for its length. Deleting a contact tombstones it and its edges in one
-transaction, every edge stamped with the contact's own `deletedAt` (`contactsRepository.remove`).
+transaction, every edge stamped with the contact's own `deletedAt` (`contactsRepository.deleteContact`).
 Restoring it (Deleted's Restore) puts it back where it was, as for assets: in the same transaction
 it revives exactly the edges whose `deletedAt` is the contact's, so a list membership or photo tag
 removed on its own, before or after, stays removed, and so does one in a list deleted since

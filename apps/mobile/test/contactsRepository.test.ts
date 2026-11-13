@@ -38,7 +38,7 @@ describe('contactsRepository', () => {
     await contactListMembers.add(db, { listId: 'hikes' }, ['maya'], newId);
     await contactLinks.add(db, PHOTO, ['maya'], newId);
 
-    await contacts.remove(db, ['maya']);
+    await contacts.deleteContact(db, 'maya');
     expect(await live()).toEqual([]);
     await contacts.restore(db, 'maya');
 
@@ -52,7 +52,7 @@ describe('contactsRepository', () => {
     await contactLinks.add(db, PHOTO, ['maya'], newId);
     await contactLinks.remove(db, PHOTO, ['maya']); // untagged before the delete
 
-    await contacts.remove(db, ['maya']);
+    await contacts.deleteContact(db, 'maya');
     await lists.remove(db, ['climbs']);
     await contacts.restore(db, 'maya');
 

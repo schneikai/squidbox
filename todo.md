@@ -208,6 +208,19 @@ other prompt (CLAUDE.md "AI prompts"): the format lines and "Write different one
 different tags." (`COMPARE_*` in `apps/server/src/ai/prompts.ts`). Give them instruction kinds
 so a better wording can be tried and published.
 
+### [ ] Import photos from Ente
+
+Wanted by the owner (asked about, not started). Read an Ente export (`ente photos export` or the
+desktop app's Export): one folder per album, originals, and `metadata/<file>.json` with
+`photoTakenTime`, `geoData`, `description`, `favorited` and Ente's `fileID`. These map to `takenAt`,
+`latitude`/`longitude`, `notes`, `isFavorite` and the albums with their `album_assets`. People and
+faces aren't exported, and a Live Photo comes out as an image and a video. Recommended: a script in
+`apps/server/scripts/` modeled on `seed-mock.ts` (upload the files and thumbnails, push the records),
+with a dry run and `mediaLibraryAssetId` = `ente:<fileID>`, so a photo in several albums is imported
+once and a rerun skips it. Thumbnails in Node need sharp (with HEIF) and ffmpeg. An in-app import
+from the web app is the fallback for other users. Ente's API is ruled out because it is end-to-end
+encrypted.
+
 ## Design
 
 - **Asset detail background:** a blurred background in the asset's colors.

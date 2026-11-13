@@ -24,9 +24,13 @@ export const baseRecordSchema = z.object({
 });
 export type BaseRecord = z.infer<typeof baseRecordSchema>;
 
-export interface CollectionDescriptor<S extends z.ZodTypeAny = z.ZodTypeAny, L extends z.ZodRawShape = z.ZodRawShape> {
+export interface CollectionDescriptor<
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+  L extends z.ZodRawShape = z.ZodRawShape,
+  N extends string = string,
+> {
   /** Collection name = table name on both server (Postgres) and client (SQLite). */
-  name: string;
+  name: N;
   /** Synced fields (includes the base columns). Validated on push; inferred on both sides. */
   schema: S;
   /** Client-only fields, never sent over the wire (e.g. per-device syncError). */
@@ -47,14 +51,18 @@ export interface CollectionDescriptor<S extends z.ZodTypeAny = z.ZodTypeAny, L e
 }
 
 /** Define a sync collection once — the single source of truth shared by app and server. */
-export function defineCollection<S extends z.ZodTypeAny, L extends z.ZodRawShape = z.ZodRawShape>(config: {
-  name: string;
+export function defineCollection<
+  N extends string,
+  S extends z.ZodTypeAny,
+  L extends z.ZodRawShape = z.ZodRawShape,
+>(config: {
+  name: N;
   schema: S;
   localOnly?: L;
   fieldGroups?: readonly (readonly string[])[];
   finalField?: string;
   fileFields?: readonly string[];
-}): CollectionDescriptor<S, L> {
+}): CollectionDescriptor<S, L, N> {
   const { shape } = config.schema as unknown as z.ZodObject<z.ZodRawShape>;
   for (const field of config.fileFields ?? [])
     if (!(field in shape)) throw new Error(`${config.name}: file field "${field}" is not in its schema`);

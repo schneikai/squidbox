@@ -10,35 +10,35 @@ import { saveRecords } from './saveRecords';
 
 const repository = makeRepository('contacts', schema.contacts);
 
+// `remove` is the tombstone (deletedAt) alone; a contact the user deletes is `deleteContact`.
 // The photo (`avatarFilename`, a file field) is uploaded by the sync before the record is pushed.
-export const { create, update, toggle } = repository;
+export const { create, update, remove, toggle } = repository;
 
 /**
- * Deletes the contacts (a tombstone, deletedAt): each leaves its lists and the photos, albums and
- * posts it is on, those edges tombstoned at the contact's own `deletedAt`, in one transaction, so
- * `restore` can put it back where it was. That stamp is newer than every edge of the contact, so no
- * edge removed before (in the same millisecond, say) carries it.
+ * Deletes a contact: its tombstone, and it leaves every list, photo, album and post, those edges
+ * tombstoned at the contact's own `deletedAt`, in one write, so `restore` can put it back where it
+ * was. That stamp is newer than every edge of the contact, so no edge removed before (in the same
+ * millisecond, say) carries it.
  */
-export async function remove(db: SyncDb, ids: string[]): Promise<void> {
+export async function deleteContact(db: SyncDb, id: string): Promise<void> {
   await db.transaction(async (tx) => {
-    for (const contact of await readByIds(tx, schema.contacts, ids)) {
-      if (contact.deletedAt !== null) continue;
-      const newestEdge = await Promise.all(
-        [schema.contactListMembers, schema.contactLinks].map(async (table) => {
-          const [row] = await tx
-            .select({ newest: max(table.updatedAt) })
-            .from(table)
-            .where(eq(table.contactId, contact.id));
-          return row?.newest ?? 0;
-        }),
-      );
-      const deletedAt = nextUpdatedAt(Math.max(contact.updatedAt, ...newestEdge));
-      await saveRecords(tx, 'contacts', schema.contacts, [{ ...contact, updatedAt: deletedAt, deletedAt }], {
-        previous: [contact],
-      });
-      await contactListMembers.tombstoneWhere(tx, { contactId: contact.id }, deletedAt);
-      await contactLinks.tombstoneWhere(tx, { contactId: contact.id }, deletedAt);
-    }
+    const [contact] = await readByIds(tx, schema.contacts, [id]);
+    if (!contact || contact.deletedAt !== null) return;
+    const newestEdge = await Promise.all(
+      [schema.contactListMembers, schema.contactLinks].map(async (table) => {
+        const [row] = await tx
+          .select({ newest: max(table.updatedAt) })
+          .from(table)
+          .where(eq(table.contactId, id));
+        return row?.newest ?? 0;
+      }),
+    );
+    const deletedAt = nextUpdatedAt(Math.max(contact.updatedAt, ...newestEdge));
+    await saveRecords(tx, 'contacts', schema.contacts, [{ ...contact, updatedAt: deletedAt, deletedAt }], {
+      previous: [contact],
+    });
+    await contactListMembers.tombstoneWhere(tx, { contactId: id }, deletedAt);
+    await contactLinks.tombstoneWhere(tx, { contactId: id }, deletedAt);
   });
 }
 
@@ -64,4 +64,9 @@ export async function restore(db: SyncDb, id: string): Promise<void> {
     );
     await contactLinks.restoreWhere(tx, { contactId: id }, contact.deletedAt);
   });
+}
+
+/** Favorites or unfavorites a contact; favoritedAt is the time of the favoriting, null once unfavorited. */
+export function toggleFavorite(db: SyncDb, id: string): Promise<void> {
+  return toggle(db, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null }));
 }

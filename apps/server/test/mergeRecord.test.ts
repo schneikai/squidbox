@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assetCollection, mergeRecord, type FieldClocks, type MergeInput } from '@squidbox/shared';
+import { assetCollection, contactCollection, mergeRecord, type FieldClocks, type MergeInput } from '@squidbox/shared';
 
 const fields = ['deletedAt', 'notes', 'isFavorite', 'isFileSynced', 'isThumbnailSynced', 'isSynced'];
 const asset = (over: Record<string, unknown> = {}) => ({
@@ -41,12 +41,34 @@ describe('mergeRecord', () => {
     expect(replay).toMatchObject({ applied: [], lost: [] });
   });
 
+  // The stored row comes back from Postgres as a new object, so a JSON field is compared by content.
+  it('a replay of a JSON field (a contact’s places) holds its value: it is not told it lost', () => {
+    const contact = {
+      id: 'c',
+      updatedAt: 2000,
+      deletedAt: null,
+      name: 'Ann',
+      places: [{ city: 'Bend', state: 'OR', country: 'US' }],
+    };
+    const replay = mergeRecord(contactCollection, {
+      stored: { ...contact, places: [{ country: 'US', state: 'OR', city: 'Bend' }] },
+      storedClocks: { places: 2000 },
+      sent: contact,
+      sentClocks: { places: 2000 },
+    });
+    expect(replay).toMatchObject({ applied: [], lost: [] });
+  });
+
   it('inserts a new record with the sent clocks', () => {
     const result = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: at(3000) });
     expect(result.applied).toContain('notes');
-    expect(result.clocks).toMatchObject(at(3000)); // and every other clocked field at the record's updatedAt, as written
-    const partial = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 2000 } });
-    expect(partial.clocks).toMatchObject({ notes: 2000, isFavorite: 3000, deletedAt: 3000 });
+    expect(result.clocks).toMatchObject(at(3000));
+    // A field the sender didn't edit holds the default: clock 0, so any real edit of it wins.
+    const partial = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 3000 } });
+    expect(partial.clocks).toMatchObject({ notes: 3000, isFavorite: 0, deletedAt: 0 });
+    // An insert newer than every clock it names is written whole: the others at its updatedAt.
+    const whole = merge({ stored: undefined, sent: asset({ updatedAt: 3000 }), sentClocks: { notes: 2000 } });
+    expect(whole.clocks).toMatchObject({ notes: 2000, isFavorite: 3000, deletedAt: 3000 });
     expect(partial.clocks).not.toHaveProperty('purgedAt');
     expect(result.record.updatedAt).toBe(3000);
   });
