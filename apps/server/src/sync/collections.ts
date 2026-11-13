@@ -19,6 +19,7 @@ import {
   contactSettingCollection,
   ideaSettingCollection,
   type CollectionDescriptor,
+  type CollectionName,
 } from '@squidbox/shared';
 import {
   assets,
@@ -102,4 +103,4 @@ export const serverCollections: Record<string, ServerCollection> = {
   contact_links: serverCollection(contactLinks, contactLinkCollection),
   contact_settings: serverCollection(contactSettings, contactSettingCollection),
   idea_settings: serverCollection(ideaSettings, ideaSettingCollection),
-};
+} satisfies Record<CollectionName, ServerCollection>;

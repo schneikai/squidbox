@@ -207,6 +207,38 @@ describe('push failures of contacts, lists and their edges', () => {
   });
 });
 
+describe('push failures of the assistant setup', () => {
+  it('are named after the setting, a prompt button by its name and a favorite by its text', async () => {
+    const failed = (collection: string, payload: Record<string, unknown> = {}) => ({
+      collection,
+      recordId: crypto.randomUUID(),
+      op: 'upsert' as const,
+      payload,
+      updatedAt: 1,
+      error: 'schema:name',
+    });
+    await db
+      .insert(schema.outbox)
+      .values([
+        failed('personas'),
+        failed('prompt_buttons', { name: 'Shorter' }),
+        failed('favorites', { text: 'Fog lifting off the ridge at dawn' }),
+        failed('instructions'),
+        failed('model_choices'),
+        failed('idea_settings'),
+      ]);
+
+    expect((await failures()).map((failure) => failure.title)).toEqual([
+      'Writing as you',
+      'Prompt button "Shorter"',
+      'Favorite "Fog lifting off the ridge at dawn"',
+      'Instructions',
+      'Default models',
+      'Post ideas and Repost ideas',
+    ]);
+  });
+});
+
 describe('upload failures', () => {
   it('are named after their asset', async () => {
     const video = await assets.create(db, makeAssetRecord({ filename: 'IMG_2.mov', mediaType: 'video' }));
