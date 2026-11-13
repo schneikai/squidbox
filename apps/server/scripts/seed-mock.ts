@@ -183,7 +183,10 @@ const CONTACTS: {
     fields: {
       xHandle: 'mayalindqvist',
       blueskyHandle: 'mayalindqvist.bsky.social',
-      places: [{ city: 'Tromsø', state: '', country: 'Norway' }],
+      places: [
+        { city: 'Tromsø', state: '', country: 'Norway' },
+        { city: '', state: 'Nordland', country: 'Norway' },
+      ],
       notes: 'Landscape photographer. Met at the print fair; swap prints every spring.',
     },
     isFavorite: true,
@@ -195,7 +198,10 @@ const CONTACTS: {
     fields: {
       xHandle: 'theoparkphoto',
       phoneNumber: '+1 303 555 0187',
-      places: [{ city: 'Denver', state: 'Colorado', country: 'United States' }],
+      places: [
+        { city: 'Denver', state: 'Colorado', country: 'United States' },
+        { city: 'Moab', state: 'Utah', country: 'United States' },
+      ],
     },
     on: { asset: 14 },
   },
