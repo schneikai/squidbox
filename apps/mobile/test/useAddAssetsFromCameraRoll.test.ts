@@ -14,13 +14,13 @@ const removeAssetFiles = vi.fn();
 vi.mock('../src/library/fs', () => ({ removeAssetFiles }));
 
 const addAssetsAsync = vi.fn();
-vi.mock('../src/features/assets-context/useAssets', () => ({ default: () => ({ addAssetsAsync }) }));
+vi.mock('../src/providers/assets/useAssets', () => ({ default: () => ({ addAssetsAsync }) }));
 
 const picked = vi.fn<() => Promise<ImagePickerAsset[]>>();
 vi.mock('../src/utils/media-library/pickImageFromMediaLibrary', () => ({ default: () => picked() }));
 
 const readMetadata = vi.fn();
-vi.mock('../src/features/assets-context/getPickedAssetMetadataAsync', () => ({ default: readMetadata }));
+vi.mock('../src/providers/assets/getPickedAssetMetadataAsync', () => ({ default: readMetadata }));
 
 const deletePath = vi.fn();
 vi.mock('../src/utils/files/deletePath', () => ({ default: deletePath }));
@@ -29,8 +29,7 @@ vi.mock('../src/utils/assets/buildAssetAsync', () => ({
   default: async ({ sourceFileUri, ...fields }: PickedAsset) => ({ ...fields, id: sourceFileUri }) as AssetRecord,
 }));
 
-const { default: useAddAssetsFromCameraRoll } =
-  await import('../src/features/assets-context/useAddAssetsFromCameraRoll');
+const { default: useAddAssetsFromCameraRoll } = await import('../src/providers/assets/useAddAssetsFromCameraRoll');
 
 function pickerAsset(name: string): ImagePickerAsset {
   return { assetId: name, uri: `file:///cache/${name}.jpg`, type: 'image', width: 10, height: 10 } as ImagePickerAsset;

@@ -14,8 +14,7 @@ vi.mock('expo-media-library', () => ({
   },
 }));
 
-const { default: getPickedAssetMetadataAsync } =
-  await import('../src/features/assets-context/getPickedAssetMetadataAsync');
+const { default: getPickedAssetMetadataAsync } = await import('../src/providers/assets/getPickedAssetMetadataAsync');
 
 describe('getPickedAssetMetadataAsync', () => {
   beforeEach(() => {
