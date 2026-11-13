@@ -16,9 +16,8 @@ import { contactLinkCollection } from './contactLink';
 import { contactSettingCollection } from './contactSetting';
 import { ideaSettingCollection } from './ideaSetting';
 
-// The collection registry the sync engine iterates. Adding a collection is: define it, add it
-// here, add its migrations + server_seq trigger (the trigger is attached registry-driven).
-export const collections: readonly CollectionDescriptor[] = [
+// The collection registry the sync engine iterates. Adding a collection: docs/sync-design.md §9.
+export const collections = [
   assetCollection,
   albumCollection,
   postCollection,
@@ -35,28 +34,13 @@ export const collections: readonly CollectionDescriptor[] = [
   contactLinkCollection,
   contactSettingCollection,
   ideaSettingCollection,
-];
+] as const satisfies readonly CollectionDescriptor[];
+
+/** A registered collection's name. Maps keyed by it fail typecheck when a collection is missing. */
+export type CollectionName = (typeof collections)[number]['name'];
 
 export const collectionsByName: Record<string, CollectionDescriptor> = Object.fromEntries(
   collections.map((c) => [c.name, c]),
 );
 
-export const collectionNames: readonly string[] = collections.map((c) => c.name);
-
-export type CollectionName =
-  | 'assets'
-  | 'albums'
-  | 'posts'
-  | 'album_assets'
-  | 'post_assets'
-  | 'personas'
-  | 'prompt_buttons'
-  | 'favorites'
-  | 'instructions'
-  | 'model_choices'
-  | 'contacts'
-  | 'contact_lists'
-  | 'contact_list_members'
-  | 'contact_links'
-  | 'contact_settings'
-  | 'idea_settings';
+export const collectionNames: readonly CollectionName[] = collections.map((c) => c.name);
