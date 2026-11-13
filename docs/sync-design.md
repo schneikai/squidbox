@@ -961,7 +961,8 @@ Server 0039, app 0039.
 plus the base columns. One record per catalog channel, under the catalog's fixed `recordId`, so two
 devices adding the same channel write one record, adding a deleted one again revives its tombstone
 at the end, and a library merge copies a device's channel only when the account has no record of it
-(live or deleted). Deleting one is a tombstone; posts keep their `channelId`. The mock data has none.
+(live or deleted). Deleting one is a tombstone; posts keep their `channelId`. The mock account has
+Bluesky, X and Instagram; its posts are on Bluesky, and a few have an X or Instagram channel.
 Server 0039, app 0039.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
