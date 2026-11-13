@@ -23,6 +23,7 @@ const LOGO_OF: Record<ChannelId, { glyph: Glyph; badge?: 'lock' }> = {
   patreon: { glyph: 'patreon' },
   onlyfans: { glyph: 'onlyfans' },
   'onlyfans-ppv': { glyph: 'onlyfans', badge: 'lock' },
+  justforfans: { glyph: 'justforfans' },
 };
 
 // The badge's disc, and the icon in it, as parts of the logo's size.

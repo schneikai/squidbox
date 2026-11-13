@@ -119,6 +119,7 @@ export const colors = {
     reddit: palette.brandReddit,
     patreon: palette.black,
     onlyfans: palette.brandOnlyfans,
+    justforfans: palette.black,
   },
   octopus: {
     // The octopus's bubbles (OctopusBubble), light cyan on the violet splash and the light app alike;
