@@ -50,7 +50,7 @@ test('a post written for X and OnlyFans shows both, and Delete removes it on bot
   await expect(editor.getByText('0 / 280')).toBeVisible();
   await button(editor, 'Add photos').click();
   await pickFromSquidbox(page, 2);
-  await expect(editor.getByText('2 of 4 media', { exact: false })).toBeVisible();
+  await expect(editor.getByText('2 of 4 Assets', { exact: false })).toBeVisible();
 
   // Past X's limit: the counter turns red, and Add stays on.
   await caption(editor).fill(TEXT);
@@ -66,7 +66,7 @@ test('a post written for X and OnlyFans shows both, and Delete removes it on bot
   const step = page.getByTestId('post-channel-editor');
   await expect(step.getByText('OnlyFans', { exact: true }).first()).toBeVisible();
   await expect(caption(step)).toHaveValue(TEXT);
-  await expect(step.getByText('2 of 20 media', { exact: false })).toBeVisible();
+  await expect(step.getByText('2 of 20 Assets', { exact: false })).toBeVisible();
   await caption(step).fill(ONLYFANS_TEXT);
   await button(step, 'Done').click();
 

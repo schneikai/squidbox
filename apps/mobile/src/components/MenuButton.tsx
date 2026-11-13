@@ -10,6 +10,7 @@ import popupMenuStyles from '@/styles/popupMenuStyles';
 export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
   trigger?: (menu: { toggle: () => void; openFromLongPress: () => void; isOpen: boolean }) => ReactNode;
   children: ReactNode;
+  isGrouped?: boolean;
 };
 
 /**
@@ -30,8 +31,9 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  *   </MenuButton>
  *
  * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
- * by a wider band, as iOS groups it; a `<Divider variant="menu" />` among them breaks them into
- * groups; a menu drawn by one component (SortFilterMenu) parts its own.
+ * by a wider band, as iOS groups it. With `isGrouped`, a `<Divider variant="menu" />` among them breaks
+ * them into groups, each parted the same way; without it, a menu with any other child (a Divider
+ * included) is drawn as given, and a menu drawn by one component (SortFilterMenu) parts its own.
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */
@@ -41,6 +43,7 @@ export default function MenuButton({
   accessibilityLabel = 'More options',
   style,
   children,
+  isGrouped = false,
   ...buttonProps
 }: MenuButtonProps) {
   const menuRef = useRef<Menu>(null);
@@ -71,20 +74,19 @@ export default function MenuButton({
           <Button {...buttonProps} icon={icon} onPress={toggle} accessibilityLabel={accessibilityLabel} />
         )}
       </MenuTrigger>
-      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{separated(children)}</MenuOptions>
+      <MenuOptions customStyles={popupMenuStyles.menuOptions}>{separated(children, isGrouped)}</MenuOptions>
     </Menu>
   );
 }
 
-// The options with a line between each two: a hairline, or a band before a destructive one. A
-// `Divider` among them is a group break: it stays as the band, and the options around it keep their
-// hairlines. Only when every child is a MenuOption or such a Divider.
-function separated(children: ReactNode): ReactNode {
+// The options with a line between each two: a hairline, or a band before a destructive one. With
+// `isGrouped` a `Divider` among them is a group break: it stays as the band, and the options around it
+// keep their hairlines. Only when every child is a MenuOption (or, `isGrouped`, such a Divider).
+function separated(children: ReactNode, isGrouped: boolean): ReactNode {
   const nodes = Children.toArray(children);
   const all = nodes.filter(isValidElement);
-  if (all.length !== nodes.length || !all.every((child) => child.type === MenuOption || child.type === Divider)) {
-    return children;
-  }
+  const isPart = (child: ReactElement) => child.type === MenuOption || (isGrouped && child.type === Divider);
+  if (all.length !== nodes.length || !all.every(isPart)) return children;
   return all.flatMap((child, i) => {
     const previous = all[i - 1];
     if (child.type !== MenuOption || !previous || previous.type !== MenuOption) return [child];

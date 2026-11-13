@@ -3,18 +3,16 @@ import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useReducer, useState } from 'react';
 
 import PostCards from './PostCards';
-import channelDraftReducer, { hasCardContent } from './draft/channelDraftReducer';
-import {
-  newChannelDraft,
-  postData,
-  usedChannelIds,
-  type OtherChannelDraft,
-  type PostDraft,
-  type PostDraftAction,
-} from './draft/postDraftReducer';
+import channelDraftReducer from './draft/channelDraftReducer';
+import hasCardContent from './draft/hasCardContent';
+import newChannelDraft from './draft/newChannelDraft';
+import postData from './draft/postData';
+import type { OtherChannelDraft, PostDraft, PostDraftAction } from './draft/postDraftReducer';
 import usePostDraft from './draft/usePostDraft';
+import usedChannelIds from './draft/usedChannelIds';
 
 import EditSheet from '@/components/EditSheet';
+import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannels from '@/features/channels/useChannels';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useEditSheet from '@/hooks/useEditSheet';
@@ -29,20 +27,24 @@ import isPresent from '@/utils/isPresent';
  * and goes back, Back drops its changes (asking first when there are any); nothing is saved before the
  * sheet's Add or Save. Its cards are PostCards with the channel's selector (the post's other channels
  * off), without a Posted time; one opened from its row ends with Remove <Channel> from this post. A key
- * the draft doesn't hold, or no channel left for a new one, closes it.
+ * the draft doesn't hold, no channel left for a new one, or no draft (opened by a link) closes it.
  */
 export default function PostChannelEditScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const { draft: postDraft, dispatch } = usePostDraft();
   const channels = useChannels();
+  const channelOrder = useChannelOrder(channels);
   // The copy the step edits, taken once: the sheet's draft may change under it (its own Remove).
   const [seed, setSeed] = useState<OtherChannelDraft | null>(null);
   const isNew = key === 'new';
 
+  // Undefined while the channels are read; null with nothing to edit: a key the draft doesn't hold, no
+  // channel left for a new one, or no draft at all (the step opened by a link or a reload).
   const found = (() => {
     if (seed) return seed;
-    if (!channels || !postDraft) return undefined;
-    if (isNew) return newChannelDraft(postDraft, userChannelIds(channels));
+    if (!channels) return undefined;
+    if (!postDraft) return null;
+    if (isNew) return newChannelDraft(postDraft, channelOrder);
     return postDraft.others.find((other) => other.key === key) ?? null;
   })();
   if (!seed && found) setSeed(found);
@@ -104,8 +106,4 @@ function ChannelStep({ seed, isNew, postDraft, channels, dispatch }: ChannelStep
       />
     </EditSheet>
   );
-}
-
-function userChannelIds(channels: Channel[]) {
-  return channels.map((channel) => channel.id);
 }

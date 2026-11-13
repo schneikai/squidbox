@@ -35,6 +35,7 @@ export default function ChannelSelector({
 
   return (
     <MenuButton
+      isGrouped
       trigger={({ toggle }) => (
         <Chip
           label={name}

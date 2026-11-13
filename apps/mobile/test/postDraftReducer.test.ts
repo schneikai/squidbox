@@ -2,13 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
-import postDraftReducer, {
-  draftFromPost,
-  newChannelDraft,
-  postData,
-  usedChannelIds,
-  type PostEditorPost,
-} from '../src/features/posts/draft/postDraftReducer';
+import draftFromPost from '../src/features/posts/draft/draftFromPost';
+import newChannelDraft from '../src/features/posts/draft/newChannelDraft';
+import postData from '../src/features/posts/draft/postData';
+import postDraftReducer, { type PostEditorPost } from '../src/features/posts/draft/postDraftReducer';
+import usedChannelIds from '../src/features/posts/draft/usedChannelIds';
 import * as assets from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { readByIds } from '../src/sync/readByIds';

@@ -26,7 +26,7 @@ export default function PostScreen() {
         title={headerDate.title}
         subtitle={headerDate.subtitle}
         onBack={() => navigation.goBack()}
-        menuSlot={<MoreAction post={post} afterDelete={() => navigation.goBack()} />}
+        menuSlot={<MoreAction post={post} beforeDelete={() => navigation.goBack()} />}
       />
 
       <Post post={post} contentPaddingTop={paddingTop} contentPaddingBottom={paddingBottom} />

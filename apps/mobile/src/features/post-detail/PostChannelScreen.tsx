@@ -35,7 +35,7 @@ export default function PostChannelScreen() {
         title={title}
         subtitle={subtitle}
         onBack={() => navigation.goBack()}
-        menuSlot={<MoreAction post={post} channelPost={channelPost} afterDelete={() => router.dismiss(2)} />}
+        menuSlot={<MoreAction post={post} channelPost={channelPost} beforeDelete={() => router.dismiss(2)} />}
       />
       <DetailScrollView>
         <PostThreadCards post={channelPost} channelIds={[channelPost.channelId]} />

@@ -28,14 +28,19 @@ export type PostDetailRow = PostListRow & { threadPosts: PostWithAssets[]; chann
 /**
  * One post with its `postAssets`, its following posts (`threadPosts`, in order) and its other channels
  * (`channelPosts`, with their following posts), each with its `postAssets`, or `null` when it doesn't
- * exist: one transaction, one edge read for all of them.
+ * exist: one transaction, one edge read for all of them. Without `withChannels` (a caller that shows
+ * only the thread) the other channels aren't read and `channelPosts` is empty.
  */
-export default function readPost(db: SyncDb, postId: string): Promise<PostDetailRow | null> {
+export default function readPost(
+  db: SyncDb,
+  postId: string,
+  { withChannels = true }: { withChannels?: boolean } = {},
+): Promise<PostDetailRow | null> {
   return db.transaction(async (tx) => {
     const post = await readPostRow(tx, postId);
     if (!post) return null;
     const following = await readThreadPosts(tx, [postId]);
-    const copies = await readChannelPosts(tx, [postId]);
+    const copies = withChannels ? await readChannelPosts(tx, [postId]) : [];
     const copyIds = copies.map((copy) => copy.id);
     const copiesFollowing = copyIds.length > 0 ? await readThreadPosts(tx, copyIds) : [];
     const [first, ...rest] = await withPostAssets(tx, [post, ...following, ...copies, ...copiesFollowing]);

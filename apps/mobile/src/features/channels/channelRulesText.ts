@@ -1,12 +1,14 @@
 import type { Channel } from '@squidbox/shared';
 
+import pluralizeText from '@/utils/pluralizeText';
+
 /**
- * A channel's rules in one line: "4 media · threads · 280 characters"; the parts it has no limit for
+ * A channel's rules in one line: "4 Assets · threads · 280 characters"; the parts it has no limit for
  * left out, null when none is left.
  */
 export default function channelRulesText({ maxMedia, hasThreads, maxTextLength }: Channel): string | null {
   const parts = [
-    maxMedia !== null && `${maxMedia.toLocaleString('en-US')} media`,
+    maxMedia !== null && pluralizeText('1 Asset', `${maxMedia.toLocaleString('en-US')} Assets`, maxMedia),
     hasThreads && 'threads',
     maxTextLength !== null && `${maxTextLength.toLocaleString('en-US')} characters`,
   ].filter((part): part is string => !!part);

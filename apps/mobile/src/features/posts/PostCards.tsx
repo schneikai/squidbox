@@ -4,7 +4,9 @@ import { StyleSheet, View } from 'react-native';
 
 import PostCard, { type PostCardChange } from './PostCard';
 import type { PostedAtPickerProps } from './PostedAtPicker';
-import { hasCardContent, nextCardKey, type ChannelDraft, type ChannelDraftAction } from './draft/channelDraftReducer';
+import type { ChannelDraft, ChannelDraftAction } from './draft/channelDraftReducer';
+import hasCardContent from './draft/hasCardContent';
+import nextCardKey from './draft/nextCardKey';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import WarningNote from '@/components/WarningNote';

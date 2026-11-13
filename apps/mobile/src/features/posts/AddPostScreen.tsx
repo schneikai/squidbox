@@ -57,7 +57,7 @@ async function readSeed(
   const channelId = firstChannel?.channelId ?? null;
   const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
   if (rePostId) {
-    const rePost = await readPost(db, rePostId);
+    const rePost = await readPost(db, rePostId, { withChannels: false });
     if (!rePost) return null;
     const assets = rePost.postAssets.map((postAsset) => postAsset.asset);
     return {

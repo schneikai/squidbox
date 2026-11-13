@@ -5,11 +5,12 @@ import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-fl
 import PostAsset, { type EditorPostAsset } from './PostAsset';
 
 import Text from '@/components/Text';
-import { isMediaOver } from '@/features/channels/channelLimits';
+import isMediaOver from '@/features/channels/isMediaOver';
 import useHaptics from '@/hooks/useHaptics';
 import { scale, space } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
+import pluralizeText from '@/utils/pluralizeText';
 
 export type PostAssetsEditorProps = {
   postAssets: EditorPostAsset[];
@@ -20,13 +21,13 @@ export type PostAssetsEditorProps = {
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
 // hold one to reorder, × to take it out. `onChange` gets the new list. With `limits` (its channel's)
-// the caption counts against its media limit ("2 of 4 media"), red over it. style is for layout only.
+// the caption counts against its media limit ("2 of 4 Assets"), red over it. style is for layout only.
 export default function PostAssetsEditor({ postAssets, onChange, limits, style }: PostAssetsEditorProps) {
   const haptics = useHaptics();
 
   const countInfo =
     limits?.maxMedia != null
-      ? `${postAssets.length} of ${limits.maxMedia} media`
+      ? `${postAssets.length} of ${pluralizeText('1 Asset', `${limits.maxMedia} Assets`, limits.maxMedia)}`
       : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
 

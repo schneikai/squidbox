@@ -20,6 +20,11 @@ export async function readChannels(db: SyncDb): Promise<ChannelRecord[]> {
   return readInOrder(db, t);
 }
 
+/** The ids of the user's channels in their order, as read now (useChannelOrder is the live one). */
+export async function readChannelOrder(db: SyncDb): Promise<string[]> {
+  return (await readChannels(db)).map((row) => row.channelId);
+}
+
 /**
  * Add a channel at the end of the list: its record is created, or revived when it was deleted (a new
  * position at the end). Nothing when it is in the list already.

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { counterText, isMediaOver, isTextOver, textLength } from '../src/features/channels/channelLimits';
+import counterText from '../src/features/channels/counterText';
+import isMediaOver from '../src/features/channels/isMediaOver';
+import isTextOver from '../src/features/channels/isTextOver';
+import textLength from '../src/features/channels/textLength';
 
 const x = { maxTextLength: 280, maxMedia: 4 };
 const unlimited = { maxTextLength: null, maxMedia: null };

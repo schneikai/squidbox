@@ -1,10 +1,8 @@
 import type { PostRecord } from '@squidbox/shared';
-import { and, asc, isNull } from 'drizzle-orm';
 
-import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
-import { inJson } from './inJson';
 import {
+  readChildPosts,
   readPostedAt,
   removeThreads,
   saveThreadPosts,
@@ -33,12 +31,7 @@ type NewPost = (fields: Partial<PostRecord>) => PostRecord;
 
 /** The live other channels of `rootIds`, each post's in id order. */
 export function readChannelPosts(tx: SyncDb, rootIds: string[]) {
-  const p = schema.posts;
-  return tx
-    .select()
-    .from(p)
-    .where(and(inJson(p.channelRootId, rootIds), isNull(p.deletedAt)))
-    .orderBy(asc(p.channelRootId), asc(p.id));
+  return readChildPosts(tx, 'channelRootId', rootIds);
 }
 
 /**

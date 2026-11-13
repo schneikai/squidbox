@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
+import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannels from '@/features/channels/useChannels';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
@@ -33,7 +34,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
   const sessionId = useSubjectChat({ kind: 'post', posts, activeKey: post.id });
   const settings = useIdeaSettings();
   const channels = useChannels();
-  const channelOrder = useMemo(() => (channels ?? []).map((channel) => channel.id), [channels]);
+  const channelOrder = useChannelOrder(channels);
 
   const channelPosts = useMemo(
     () => post.channelPosts.map((channelPost) => ({ ...channelPost, key: channelPost.id })),

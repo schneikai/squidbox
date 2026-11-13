@@ -8,7 +8,7 @@ import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import postChannelIds from '@/features/channels/postChannelIds';
 import usePosts from '@/providers/posts/usePosts';
-import { readChannels } from '@/sync/channelsRepository';
+import { readChannelOrder } from '@/sync/channelsRepository';
 import { getDb } from '@/sync/db/client';
 import type { PostListRow, PostWithAssets } from '@/sync/queries/postQuery';
 import readPost from '@/sync/queries/readPost';
@@ -19,16 +19,17 @@ import canShareFiles from '@/utils/files/canShareFiles';
 export type MoreActionProps = {
   post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount' | 'channelId' | 'otherChannelIds'>;
   channelPost?: PostWithAssets & { threadPosts: PostWithAssets[] };
-  afterDelete?: () => void;
+  beforeDelete?: () => void;
   trigger?: MenuButtonProps['trigger'];
 };
 
 // The post's menu: Share (where canShareFiles, when what the screen shows has photos), Edit, Repost
-// and Delete (all of a thread's posts and every channel's; then `afterDelete`). Its ⋯ on the post screen
+// and Delete (all of a thread's posts and every channel's), after `beforeDelete` (leaving the screen
+// first, so no screen is open on the post when it goes: none says "This post was deleted"). Its ⋯ on the post screen
 // and on one of its channels' screens (`channelPost`, what that screen shows: Share shares its and its
 // thread's media), or `trigger` (MenuButton's): its card in a list of posts, on a long press. Share reads
 // a thread's following posts when tapped.
-export default function MoreAction({ post, channelPost, afterDelete, trigger }: MoreActionProps) {
+export default function MoreAction({ post, channelPost, beforeDelete, trigger }: MoreActionProps) {
   const { deletePost } = usePosts();
   const shareAssetsAsync = useShareAssets();
 
@@ -42,12 +43,16 @@ export default function MoreAction({ post, channelPost, afterDelete, trigger }: 
 
   async function handleDeletePost() {
     // Read at the tap: the menu sits on every card of a list, which shouldn't each read the channels.
-    const channelOrder = (await readChannels(getDb())).map((row) => row.channelId);
+    const channelOrder = await readChannelOrder(getDb());
     const channelNames = postChannelIds(post, channelOrder).map((id) => channelById(id)?.name ?? id);
-    const message = deletePostMessage({ threadCount: post.threadCount, channelNames });
+    const message = deletePostMessage({
+      threadCount: post.threadCount,
+      otherChannelCount: post.otherChannelIds.length,
+      channelNames,
+    });
     if (!(await confirmAsync({ title: 'Delete Post', message, action: 'Delete', destructive: true }))) return;
+    beforeDelete?.();
     await deletePost(post.id);
-    if (afterDelete) afterDelete();
   }
 
   function handleRepost() {
@@ -58,7 +63,10 @@ export default function MoreAction({ post, channelPost, afterDelete, trigger }: 
     // What the screen shows: a channel's post with its thread, else the post with its (read now).
     const parts = channelPost
       ? [channelPost, ...channelPost.threadPosts]
-      : [post, ...(post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : [])];
+      : [
+          post,
+          ...(post.threadCount ? ((await readPost(getDb(), post.id, { withChannels: false }))?.threadPosts ?? []) : []),
+        ];
     await shareAssetsAsync(parts.flatMap((part) => part.postAssets.map((postAsset) => postAsset.asset)));
   }
 

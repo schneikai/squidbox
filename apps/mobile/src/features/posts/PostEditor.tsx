@@ -6,19 +6,18 @@ import { View } from 'react-native';
 import OtherChannels from './OtherChannels';
 import PostCards from './PostCards';
 import channelStepPath from './channelStepPath';
-import { hasCardContent, type ChannelDraftAction } from './draft/channelDraftReducer';
-import {
-  draftFromPost,
-  firstUnusedChannelId,
-  postData,
-  usedChannelIds,
-  type EditedPost,
-  type PostEditorPost,
-} from './draft/postDraftReducer';
+import type { ChannelDraftAction } from './draft/channelDraftReducer';
+import draftFromPost from './draft/draftFromPost';
+import firstUnusedChannelId from './draft/firstUnusedChannelId';
+import hasCardContent from './draft/hasCardContent';
+import postData from './draft/postData';
+import type { EditedPost, PostEditorPost } from './draft/postDraftReducer';
 import usePostDraft from './draft/usePostDraft';
+import usedChannelIds from './draft/usedChannelIds';
 import postedAtToSave from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
+import useChannelOrder from '@/features/channels/useChannelOrder';
 import useChannels from '@/features/channels/useChannels';
 import useEditSheet from '@/hooks/useEditSheet';
 import changedValues from '@/utils/changedValues';
@@ -61,7 +60,7 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
   // toolbar shows only its clock.
   const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
   const data = draft && postData(draft, postedAt);
-  const userChannelIds = useMemo(() => (channels ?? []).map((channel) => channel.id), [channels]);
+  const userChannelIds = useChannelOrder(channels);
 
   // The posts store syncs by itself. The save resolves an untouched Posted time (postedAtToSave): a
   // new post's is the time of the save.

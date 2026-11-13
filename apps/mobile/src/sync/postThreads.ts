@@ -16,14 +16,24 @@ export type AssetRef = Pick<PostAssetRecord, 'id' | 'assetId'>;
 export type ThreadPart = { id: string | null; text: string; assetRefs: AssetRef[] };
 type NewPart = Pick<PostRecord, 'text' | 'postedAt'> & { threadRootId: string; threadIndex: number };
 
-/** The live following posts of `rootIds`, each thread's in `(threadIndex, id)` order. */
-export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
+/**
+ * The live posts linked to `rootIds` by `root`: a thread's following posts (`threadRootId`), each
+ * thread's in `(threadIndex, id)` order, or a post's other channels (`channelRootId`), in id order.
+ */
+export function readChildPosts(tx: SyncDb, root: 'threadRootId' | 'channelRootId', rootIds: string[]) {
   const p = schema.posts;
+  const order =
+    root === 'threadRootId' ? [asc(p.threadRootId), asc(p.threadIndex), asc(p.id)] : [asc(p.channelRootId), asc(p.id)];
   return tx
     .select()
     .from(p)
-    .where(and(inJson(p.threadRootId, rootIds), isNull(p.deletedAt)))
-    .orderBy(asc(p.threadRootId), asc(p.threadIndex), asc(p.id));
+    .where(and(inJson(p[root], rootIds), isNull(p.deletedAt)))
+    .orderBy(...order);
+}
+
+/** The live following posts of `rootIds`, each thread's in `(threadIndex, id)` order. */
+export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
+  return readChildPosts(tx, 'threadRootId', rootIds);
 }
 
 /**

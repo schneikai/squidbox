@@ -1,4 +1,6 @@
-import type { PostCardChange, PostCardContent, PostCardData } from '@/features/posts/PostCard';
+import nextCardKey from './nextCardKey';
+
+import type { PostCardChange, PostCardData } from '@/features/posts/PostCard';
 
 /**
  * One channel of a post as the editor drafts it: the post itself (`key` 'main') or another channel.
@@ -20,22 +22,6 @@ export type ChannelDraftAction =
   | { type: 'removeCard'; key: string }
   | { type: 'setChannel'; channelId: string };
 
-/** The key the next card added to `draft` takes (addCard). */
-export function nextCardKey(draft: Pick<ChannelDraft, 'key' | 'nextCard'>): string {
-  return `${draft.key}-card-${draft.nextCard}`;
-}
-
-/** A channel's draft from its posts' contents (the first post, then its thread), keyed from `key`. */
-export function channelDraftOf(
-  key: string,
-  id: string | null,
-  channelId: string | null,
-  contents: PostCardContent[],
-): ChannelDraft {
-  const cards = contents.map((content, i) => ({ ...content, key: nextCardKey({ key, nextCard: i }) }));
-  return { key, id, channelId, cards, nextCard: cards.length };
-}
-
 /** Edits one channel's cards: the post editor's and a channel's step run it. */
 export default function channelDraftReducer<D extends ChannelDraft>(draft: D, action: ChannelDraftAction): D {
   switch (action.type) {
@@ -56,9 +42,4 @@ export default function channelDraftReducer<D extends ChannelDraft>(draft: D, ac
     case 'setChannel':
       return { ...draft, channelId: action.channelId };
   }
-}
-
-/** A post needs text or at least one photo. */
-export function hasCardContent({ text, postAssets }: Pick<PostCardContent, 'text' | 'postAssets'>): boolean {
-  return Boolean(text) || postAssets.length > 0;
 }
