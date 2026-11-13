@@ -39,7 +39,10 @@ export async function addChannel(db: SyncDb, channel: Channel): Promise<void> {
   });
 }
 
-/** Take a channel out of the list (a tombstone; posts on it keep their channel). */
+/**
+ * Take a channel out of the list (a tombstone; posts on it keep their channel). Written by hand, not
+ * with makeRepository's remove: that one tombstones a deleted record again, a write and a push for nothing.
+ */
 export async function removeChannel(db: SyncDb, channel: Channel): Promise<void> {
   await db.transaction(async (tx) => {
     const stored = (await readByIdMap(tx, t, [channel.recordId])).get(channel.recordId);

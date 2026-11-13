@@ -1,10 +1,11 @@
 import { channelById } from '@squidbox/shared';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import ChannelLogo from './ChannelLogo';
 
 import Chip from '@/components/Chip';
-import { colors, layout, sizes, space, textStyles } from '@/styles/designTokens';
+import Text from '@/components/Text';
+import { layout, sizes, space } from '@/styles/designTokens';
 
 export type ChannelLabelProps = { channelId: string; size?: 'regular' | 'small' };
 
@@ -19,7 +20,7 @@ export default function ChannelLabel({ channelId, size = 'regular' }: ChannelLab
     return (
       <View style={styles.small}>
         <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
-        <Text style={styles.smallName} numberOfLines={1}>
+        <Text variant="label" numberOfLines={1}>
           {channel.name}
         </Text>
       </View>
@@ -35,9 +36,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.iconGap - space.xs,
-  },
-  smallName: {
-    ...textStyles.footnoteBold,
-    color: colors.text.secondary,
   },
 });

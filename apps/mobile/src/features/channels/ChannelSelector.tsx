@@ -30,18 +30,19 @@ export default function ChannelSelector({
   onAddChannel,
 }: ChannelSelectorProps) {
   const current = channelById(channelId);
+  const name = current?.name ?? 'No channel';
   const options = current && !channels.some((channel) => channel.id === current.id) ? [...channels, current] : channels;
 
   return (
     <MenuButton
       trigger={({ toggle }) => (
         <Chip
-          label={current?.name ?? 'No channel'}
+          label={name}
           leading={current && <ChannelLogo channelId={current.id} size={sizes.menuIcon} />}
           isLeadingInset
           hasCaret
           onPress={toggle}
-          accessibilityLabel={`Channel: ${current?.name ?? 'No channel'}`}
+          accessibilityLabel={`Channel: ${name}`}
         />
       )}
     >

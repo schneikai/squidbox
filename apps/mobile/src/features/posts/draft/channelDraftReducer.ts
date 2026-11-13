@@ -59,6 +59,6 @@ export default function channelDraftReducer<D extends ChannelDraft>(draft: D, ac
 }
 
 /** A post needs text or at least one photo. */
-export function hasCardContent({ text, postAssets }: PostCardContent): boolean {
+export function hasCardContent({ text, postAssets }: Pick<PostCardContent, 'text' | 'postAssets'>): boolean {
   return Boolean(text) || postAssets.length > 0;
 }

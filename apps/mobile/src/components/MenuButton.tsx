@@ -80,9 +80,11 @@ export default function MenuButton({
 // `Divider` among them is a group break: it stays as the band, and the options around it keep their
 // hairlines. Only when every child is a MenuOption or such a Divider.
 function separated(children: ReactNode): ReactNode {
-  const all = Children.toArray(children).filter(isValidElement);
-  if (all.length !== Children.toArray(children).length) return children;
-  if (!all.every((child) => child.type === MenuOption || child.type === Divider)) return children;
+  const nodes = Children.toArray(children);
+  const all = nodes.filter(isValidElement);
+  if (all.length !== nodes.length || !all.every((child) => child.type === MenuOption || child.type === Divider)) {
+    return children;
+  }
   return all.flatMap((child, i) => {
     const previous = all[i - 1];
     if (child.type !== MenuOption || !previous || previous.type !== MenuOption) return [child];

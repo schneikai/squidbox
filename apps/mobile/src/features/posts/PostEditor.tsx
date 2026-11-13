@@ -9,6 +9,7 @@ import channelStepPath from './channelStepPath';
 import { hasCardContent, type ChannelDraftAction } from './draft/channelDraftReducer';
 import {
   draftFromPost,
+  firstUnusedChannelId,
   postData,
   usedChannelIds,
   type EditedPost,
@@ -48,7 +49,7 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
   const { draft, dispatch } = usePostDraft();
   const channels = useChannels();
   // A new post that opens empty (New post's card) is there to be written: its text takes the cursor.
-  const [isOpenedEmpty] = useState(() => kind === 'draft' && !post.text && post.postAssets.length === 0);
+  const [isOpenedEmpty] = useState(() => kind === 'draft' && !hasCardContent(post));
 
   useEffect(() => dispatch({ type: 'seed', post }), [dispatch, post]);
 
@@ -82,6 +83,19 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
   });
 
   const dispatchMain = useCallback((action: ChannelDraftAction) => dispatch({ type: 'main', action }), [dispatch]);
+  const openChannel = useCallback((key: string) => router.push(channelStepPath(key)), []);
+  // The other channels' rows, kept while only the post's own cards change (a keystroke there).
+  const others = draft?.others;
+  const otherRows = useMemo(
+    () =>
+      (others ?? []).map((other) => ({
+        key: other.key,
+        channelId: other.channelId,
+        text: other.cards[0]!.text,
+        postAssets: other.cards[0]!.postAssets,
+      })),
+    [others],
+  );
   const handleChangePostedAt = useCallback(
     (value: number | null) => dispatch({ type: 'pickPostedAt', postedAt: value }),
     [dispatch],
@@ -89,8 +103,7 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
 
   function renderBody() {
     if (!draft || !channels) return null;
-    const used = usedChannelIds(draft, '');
-    const hasChannelLeft = userChannelIds.some((id) => !used.has(id));
+    const hasChannelLeft = firstUnusedChannelId(draft, userChannelIds) !== undefined;
     const hasSelector = channels.length > 0 || !!draft.main.channelId || draft.others.length > 0;
     return (
       <View>
@@ -110,18 +123,10 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
                   disabledIds: usedChannelIds(draft, draft.main.key),
                   onAddChannel: hasChannelLeft ? () => router.push(channelStepPath('new')) : undefined,
                 }
-              : null
+              : undefined
           }
         />
-        <OtherChannels
-          posts={draft.others.map((other) => ({
-            key: other.key,
-            channelId: other.channelId,
-            text: other.cards[0]!.text,
-            postAssets: other.cards[0]!.postAssets,
-          }))}
-          onOpen={(key) => router.push(channelStepPath(key))}
-        />
+        <OtherChannels posts={otherRows} channelOrder={userChannelIds} onOpen={openChannel} />
       </View>
     );
   }

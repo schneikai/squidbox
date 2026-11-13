@@ -55,14 +55,11 @@ export default function MoreAction({ post, channelPost, afterDelete, trigger }: 
   }
 
   async function handleShare() {
-    if (channelPost) {
-      await shareAssetsAsync(
-        [channelPost, ...channelPost.threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset)),
-      );
-      return;
-    }
-    const threadPosts = post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : [];
-    await shareAssetsAsync([post, ...threadPosts].flatMap((p) => p.postAssets.map((postAsset) => postAsset.asset)));
+    // What the screen shows: a channel's post with its thread, else the post with its (read now).
+    const parts = channelPost
+      ? [channelPost, ...channelPost.threadPosts]
+      : [post, ...(post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : [])];
+    await shareAssetsAsync(parts.flatMap((part) => part.postAssets.map((postAsset) => postAsset.asset)));
   }
 
   return (

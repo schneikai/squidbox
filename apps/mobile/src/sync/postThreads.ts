@@ -86,16 +86,17 @@ export async function readPostedAt(tx: SyncDb, postId: string): Promise<number |
   return post?.postedAt ?? null;
 }
 
-/** Give the thread's live following posts the first post's Posted time (null included). */
-export async function setThreadPostedAt(tx: SyncDb, rootId: string, postedAt: number | null): Promise<void> {
-  const ids = (await readThreadPosts(tx, [rootId])).map((post) => post.id);
+/** Give the live following posts of the threads of `rootIds` their first post's Posted time (null included). */
+export async function setThreadsPostedAt(tx: SyncDb, rootIds: string[], postedAt: number | null): Promise<void> {
+  const ids = (await readThreadPosts(tx, rootIds)).map((post) => post.id);
   if (ids.length > 0) await posts.updateAll(tx, ids, { postedAt });
 }
 
-/** Delete a post with its thread: tombstones the post, its live following posts and all their edges. */
-export async function removeThread(tx: SyncDb, rootId: string): Promise<void> {
-  const following = (await readThreadPosts(tx, [rootId])).map((post) => post.id);
-  await removePosts(tx, [rootId, ...following]);
+/** Delete posts with their threads: tombstones the posts, their live following posts and all their edges. */
+export async function removeThreads(tx: SyncDb, rootIds: string[]): Promise<void> {
+  if (rootIds.length === 0) return;
+  const following = (await readThreadPosts(tx, rootIds)).map((post) => post.id);
+  await removePosts(tx, [...rootIds, ...following]);
 }
 
 async function removePosts(tx: SyncDb, ids: string[]): Promise<void> {

@@ -1,25 +1,26 @@
-import { channelById } from '@squidbox/shared';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { useEffect, useReducer, useState } from 'react';
+import { channelById, type Channel } from '@squidbox/shared';
+import { useLocalSearchParams } from 'expo-router';
+import { useMemo, useReducer, useState } from 'react';
 
 import PostCards from './PostCards';
-import channelDraftReducer, { hasCardContent, type ChannelDraftAction } from './draft/channelDraftReducer';
-import { newChannelDraft, usedChannelIds, type OtherChannelDraft } from './draft/postDraftReducer';
+import channelDraftReducer, { hasCardContent } from './draft/channelDraftReducer';
+import {
+  newChannelDraft,
+  postData,
+  usedChannelIds,
+  type OtherChannelDraft,
+  type PostDraft,
+  type PostDraftAction,
+} from './draft/postDraftReducer';
 import usePostDraft from './draft/usePostDraft';
 
 import EditSheet from '@/components/EditSheet';
 import useChannels from '@/features/channels/useChannels';
+import useCloseWhen from '@/hooks/useCloseWhen';
 import useEditSheet from '@/hooks/useEditSheet';
+import changedValues from '@/utils/changedValues';
 import confirmAsync from '@/utils/confirmAsync';
-
-// The step's own copy of the channel it edits: null until seeded.
-function stepReducer(
-  draft: OtherChannelDraft | null,
-  action: ChannelDraftAction | { type: 'seed'; draft: OtherChannelDraft },
-): OtherChannelDraft | null {
-  if (action.type === 'seed') return action.draft;
-  return draft && channelDraftReducer(draft, action);
-}
+import isPresent from '@/utils/isPresent';
 
 /**
  * Another channel of the post, pushed inside the post editor's sheet (`key`: a channel of the sheet's
@@ -32,44 +33,49 @@ function stepReducer(
  */
 export default function PostChannelEditScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
-  const navigation = useNavigation();
   const { draft: postDraft, dispatch } = usePostDraft();
   const channels = useChannels();
-  const [local, localDispatch] = useReducer(stepReducer, null);
+  // The copy the step edits, taken once: the sheet's draft may change under it (its own Remove).
   const [seed, setSeed] = useState<OtherChannelDraft | null>(null);
   const isNew = key === 'new';
 
-  useEffect(() => {
-    if (seed || !channels) return;
-    const found = !postDraft
-      ? null
-      : isNew
-        ? newChannelDraft(
-            postDraft,
-            channels.map((channel) => channel.id),
-          )
-        : (postDraft.others.find((other) => other.key === key) ?? null);
-    if (!found) {
-      navigation.goBack();
-      return;
-    }
-    setSeed(found);
-    localDispatch({ type: 'seed', draft: found });
-  }, [seed, channels, postDraft, isNew, key, navigation]);
+  const found = (() => {
+    if (seed) return seed;
+    if (!channels || !postDraft) return undefined;
+    if (isNew) return newChannelDraft(postDraft, userChannelIds(channels));
+    return postDraft.others.find((other) => other.key === key) ?? null;
+  })();
+  if (!seed && found) setSeed(found);
+  useCloseWhen(found === null);
 
-  const channel = channelById(local?.channelId);
+  if (!seed || !postDraft || !channels) return null;
+  return <ChannelStep seed={seed} isNew={isNew} postDraft={postDraft} channels={channels} dispatch={dispatch} />;
+}
+
+type ChannelStepProps = {
+  seed: OtherChannelDraft;
+  isNew: boolean;
+  postDraft: PostDraft;
+  channels: Channel[];
+  dispatch: (action: PostDraftAction) => void;
+};
+
+// The step's sheet over its own copy of the channel, seeded once.
+function ChannelStep({ seed, isNew, postDraft, channels, dispatch }: ChannelStepProps) {
+  const [local, localDispatch] = useReducer(channelDraftReducer<OtherChannelDraft>, seed);
+  const seedData = useMemo(() => postData({ main: seed, others: [] }, null), [seed]);
+
+  const channel = channelById(local.channelId);
+  const name = channel?.name ?? 'this channel';
   const { sheetProps, finish } = useEditSheet({
     isNew,
-    isValid: !!local && local.cards.every(hasCardContent),
-    isDirty: !!local && JSON.stringify(local) !== JSON.stringify(seed),
-    save: async () => {
-      if (local) dispatch({ type: 'putChannel', channel: local });
-    },
+    isValid: local.cards.every(hasCardContent),
+    isDirty: isPresent(changedValues(seedData, postData({ main: local, others: [] }, null))),
+    save: async () => dispatch({ type: 'putChannel', channel: local }),
     syncsItself: true,
   });
 
-  async function handleRemove(channelKey: string) {
-    const name = channel?.name ?? 'this channel';
+  async function handleRemove() {
     const isConfirmed = await confirmAsync({
       title: `Remove ${name} from this post?`,
       message: 'Its text and photos go with it.',
@@ -77,7 +83,7 @@ export default function PostChannelEditScreen() {
       destructive: true,
     });
     if (!isConfirmed) return;
-    await finish(async () => dispatch({ type: 'removeChannel', key: channelKey }), "Couldn't remove the channel");
+    await finish(async () => dispatch({ type: 'removeChannel', key: local.key }), "Couldn't remove the channel");
   }
 
   return (
@@ -86,28 +92,20 @@ export default function PostChannelEditScreen() {
       {...sheetProps}
       title={channel?.name}
       confirmLabel="Done"
-      actions={
-        !isNew && local
-          ? [
-              {
-                label: `Remove ${channel?.name ?? 'this channel'} from this post`,
-                colorPalette: 'danger',
-                onPress: () => handleRemove(local.key),
-              },
-            ]
-          : []
-      }
+      actions={isNew ? [] : [{ label: `Remove ${name} from this post`, colorPalette: 'danger', onPress: handleRemove }]}
     >
-      {local && postDraft && channels && (
-        <PostCards
-          draft={local}
-          dispatch={localDispatch}
-          kind={local.id ? 'edit' : 'draft'}
-          ideas="post"
-          startsOnItsOwn={false}
-          selector={{ channels, disabledIds: usedChannelIds(postDraft, local.key) }}
-        />
-      )}
+      <PostCards
+        draft={local}
+        dispatch={localDispatch}
+        kind={local.id ? 'edit' : 'draft'}
+        ideas="post"
+        startsOnItsOwn={false}
+        selector={{ channels, disabledIds: usedChannelIds(postDraft, local.key) }}
+      />
     </EditSheet>
   );
+}
+
+function userChannelIds(channels: Channel[]) {
+  return channels.map((channel) => channel.id);
 }

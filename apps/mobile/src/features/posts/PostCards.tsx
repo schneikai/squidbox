@@ -16,7 +16,7 @@ import { layout } from '@/styles/designTokens';
 import confirmAsync from '@/utils/confirmAsync';
 
 /** The channel selector of the first card: shown, with the user's channels to pick from. */
-export type PostCardsSelector = {
+type PostCardsSelector = {
   channels: Channel[];
   disabledIds: Set<string>;
   onAddChannel?: () => void;
@@ -29,7 +29,7 @@ type PostCardsProps = {
   ideas: IdeasKind;
   startsOnItsOwn?: boolean;
   autoFocusFirst?: boolean;
-  selector?: PostCardsSelector | null;
+  selector?: PostCardsSelector;
   postedAt?: PostedAtPickerProps['timestamp'];
   isPostedAtShown?: boolean;
   onChangePostedAt?: PostedAtPickerProps['onChange'];

@@ -1,24 +1,20 @@
+import { memo } from 'react';
+
 import ChannelPostRow, { type ChannelPostRowPost } from './ChannelPostRow';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import orderChannelIds from '@/features/channels/orderChannelIds';
-import useChannels from '@/features/channels/useChannels';
 
-type OtherChannelsProps = { posts: ChannelPostRowPost[]; onOpen: (key: string) => void };
+type OtherChannelsProps = { posts: ChannelPostRowPost[]; channelOrder: string[]; onOpen: (key: string) => void };
 
 /**
  * A post's Other channels: one row per other channel (ChannelPostRow; two on one channel are two
- * rows), in the user's channel order, then the catalog's; nothing without any. A row's tap opens it
- * by its key.
+ * rows), in the user's channel order (`channelOrder`), then the catalog's; nothing without any. A row's
+ * tap opens it by its key. Memoized: it re-renders only when its rows or the order change.
  */
-export default function OtherChannels({ posts, onOpen }: OtherChannelsProps) {
-  const channels = useChannels();
+function OtherChannels({ posts, channelOrder, onOpen }: OtherChannelsProps) {
   if (posts.length === 0) return null;
-  const ordered = orderChannelIds(
-    posts,
-    (post) => post.channelId,
-    (channels ?? []).map((channel) => channel.id),
-  );
+  const ordered = orderChannelIds(posts, (post) => post.channelId, channelOrder);
 
   return (
     <>
@@ -29,3 +25,5 @@ export default function OtherChannels({ posts, onOpen }: OtherChannelsProps) {
     </>
   );
 }
+
+export default memo(OtherChannels);

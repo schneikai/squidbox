@@ -6,7 +6,7 @@ import { createPost, createThread, makePostRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { readThreadPosts, removeThread, saveThreadPosts, setThreadPostedAt } from '../src/sync/postThreads';
+import { readThreadPosts, removeThreads, saveThreadPosts, setThreadsPostedAt } from '../src/sync/postThreads';
 import { makeRepository } from '../src/sync/repository';
 
 const posts = makeRepository('posts', schema.posts);
@@ -104,7 +104,7 @@ describe('postThreads', () => {
 
   it('leaves a following post deleted meanwhile as it is', async () => {
     const seed = await seedThread();
-    await db.transaction((tx) => removeThread(tx, 't1-1')); // another device deleted it
+    await db.transaction((tx) => removeThreads(tx, ['t1-1'])); // another device deleted it
     await save([{ ...seed[0]!, text: 'edited', assetRefs: [{ id: 'e-new', assetId: 'a3' }] }, seed[1]!], seed);
     expect((await row('t1-1')).text).toBe('one');
     expect(await edgesOf('t1-1')).toEqual([{ assetId: 'a1', live: false }]);
@@ -112,15 +112,15 @@ describe('postThreads', () => {
 
   it("gives the following posts the first post's Posted time, null included", async () => {
     await seedThread();
-    await db.transaction((tx) => setThreadPostedAt(tx, 't1', 70));
+    await db.transaction((tx) => setThreadsPostedAt(tx, ['t1'], 70));
     expect((await readThreadPosts(db, ['t1'])).map((post) => post.postedAt)).toEqual([70, 70]);
-    await db.transaction((tx) => setThreadPostedAt(tx, 't1', null));
+    await db.transaction((tx) => setThreadsPostedAt(tx, ['t1'], null));
     expect((await readThreadPosts(db, ['t1'])).map((post) => post.postedAt)).toEqual([null, null]);
   });
 
   it('deletes a thread as tombstones of the first post, its following posts and all their edges', async () => {
     await seedThread();
-    await db.transaction((tx) => removeThread(tx, 't1'));
+    await db.transaction((tx) => removeThreads(tx, ['t1']));
     const rows = await db.select().from(schema.posts);
     expect(rows.map((post) => [post.id, post.deletedAt !== null])).toEqual([
       ['t1', true],

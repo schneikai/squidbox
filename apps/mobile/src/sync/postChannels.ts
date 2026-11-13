@@ -6,9 +6,9 @@ import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
 import {
   readPostedAt,
-  removeThread,
+  removeThreads,
   saveThreadPosts,
-  setThreadPostedAt,
+  setThreadsPostedAt,
   splitParts,
   type AssetRef,
   type ThreadPart,
@@ -57,7 +57,7 @@ export async function saveChannelPosts(
   if (parts.length === 0 && seedParts.length === 0) return;
   const live = await readChannelPosts(tx, [rootId]);
   const { removed, kept, added } = splitParts(parts, seedParts, new Set(live.map((post) => post.id)));
-  for (const id of removed) await removeThread(tx, id);
+  await removeThreads(tx, removed);
 
   const postedAt = await readPostedAt(tx, rootId);
   for (const part of added) {
@@ -78,15 +78,13 @@ export async function saveChannelPosts(
 
 /** Give the post's thread, its live other channels and their threads the post's Posted time. */
 export async function setPostPostedAt(tx: SyncDb, rootId: string, postedAt: number | null): Promise<void> {
-  await setThreadPostedAt(tx, rootId, postedAt);
   const copies = (await readChannelPosts(tx, [rootId])).map((post) => post.id);
-  if (copies.length === 0) return;
-  await posts.updateAll(tx, copies, { postedAt });
-  for (const id of copies) await setThreadPostedAt(tx, id, postedAt);
+  if (copies.length > 0) await posts.updateAll(tx, copies, { postedAt });
+  await setThreadsPostedAt(tx, [rootId, ...copies], postedAt);
 }
 
 /** Delete a post on all its channels: its thread, its live other channels and their threads, with their edges. */
 export async function removePost(tx: SyncDb, rootId: string): Promise<void> {
   const copies = (await readChannelPosts(tx, [rootId])).map((post) => post.id);
-  for (const id of [rootId, ...copies]) await removeThread(tx, id);
+  await removeThreads(tx, [rootId, ...copies]);
 }

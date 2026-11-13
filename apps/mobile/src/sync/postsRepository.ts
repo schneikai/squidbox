@@ -32,12 +32,14 @@ export function repostDate(posts: Record<'suggestRepostAt' | 'postedAt', SQLiteC
  */
 export function listedPostId(alias: string): SQL<string> {
   const row = sql.raw(alias);
-  return sql<string>`coalesce(
-    (select c.id from posts r join posts c on c.id = r.channel_root_id and c.deleted_at is null
-      where r.id = ${row}.thread_root_id and r.deleted_at is null),
-    (select r.id from posts r where r.id = ${row}.thread_root_id and r.deleted_at is null),
-    (select c.id from posts c where c.id = ${row}.channel_root_id and c.deleted_at is null),
-    ${row}.id)`;
+  // A post of its own (most rows) reads nothing more; a following post reads its first post once.
+  return sql<string>`case when ${row}.thread_root_id is null and ${row}.channel_root_id is null then ${row}.id
+    else coalesce(
+      (select coalesce(c.id, r.id) from posts r left join posts c on c.id = r.channel_root_id and c.deleted_at is null
+        where r.id = ${row}.thread_root_id and r.deleted_at is null),
+      (select c.id from posts c where c.id = ${row}.channel_root_id and c.deleted_at is null),
+      ${row}.id)
+    end`;
 }
 
 /** Whether the post row `alias` is listed as itself: not a following post or another channel of a live post. */

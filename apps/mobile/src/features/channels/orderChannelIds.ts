@@ -12,5 +12,9 @@ export default function orderChannelIds<T>(items: T[], channelIdOf: (item: T) =>
     const catalog = CHANNELS.findIndex((channel) => channel.id === id);
     return userOrder.length + (catalog >= 0 ? catalog : CHANNELS.length);
   };
-  return [...items].sort((a, b) => rank(channelIdOf(a)) - rank(channelIdOf(b)));
+  // Each item ranked once, not on every comparison.
+  return items
+    .map((item) => ({ item, rank: rank(channelIdOf(item)) }))
+    .sort((a, b) => a.rank - b.rank)
+    .map(({ item }) => item);
 }

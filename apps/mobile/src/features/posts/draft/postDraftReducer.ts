@@ -68,14 +68,10 @@ export default function postDraftReducer(draft: PostDraft | null, action: PostDr
 }
 
 // A post's cards: its own, then one per following post.
-function contentsOf({ text, postAssets, threadPosts }: PostContent): PostCardContent[] {
+function contentsOf(post: PostContent): PostCardContent[] {
   return [
-    { id: null, text, postAssets },
-    ...threadPosts.map(({ id, text: partText, postAssets: partAssets }) => ({
-      id,
-      text: partText,
-      postAssets: partAssets,
-    })),
+    { id: null, text: post.text, postAssets: post.postAssets },
+    ...post.threadPosts.map(({ id, text, postAssets }) => ({ id, text, postAssets })),
   ];
 }
 
@@ -123,11 +119,20 @@ export function postData(draft: Pick<PostDraft, 'main' | 'others'>, postedAt: Ed
   };
 }
 
-/** The channels the post's parts are on, but the one keyed `exceptKey`. */
-export function usedChannelIds(draft: Pick<PostDraft, 'main' | 'others'>, exceptKey: string): Set<string> {
+/** The channels the post's parts are on, but the one keyed `exceptKey` (none left out without it). */
+export function usedChannelIds(draft: Pick<PostDraft, 'main' | 'others'>, exceptKey?: string): Set<string> {
   return new Set(
     [draft.main, ...draft.others].flatMap((part) => (part.key !== exceptKey && part.channelId ? [part.channelId] : [])),
   );
+}
+
+/** The first of the user's channels (`userChannelIds`, in order) the post doesn't use yet; none when all are used. */
+export function firstUnusedChannelId(
+  draft: Pick<PostDraft, 'main' | 'others'>,
+  userChannelIds: string[],
+): string | undefined {
+  const used = usedChannelIds(draft);
+  return userChannelIds.find((id) => !used.has(id));
 }
 
 /**
@@ -135,8 +140,7 @@ export function usedChannelIds(draft: Pick<PostDraft, 'main' | 'others'>, except
  * first card's text and its media as fresh refs (not its thread); null when every one is used.
  */
 export function newChannelDraft(draft: PostDraft, userChannelIds: string[]): OtherChannelDraft | null {
-  const used = usedChannelIds(draft, '');
-  const channelId = userChannelIds.find((id) => !used.has(id));
+  const channelId = firstUnusedChannelId(draft, userChannelIds);
   if (!channelId) return null;
   const first = draft.main.cards[0]!;
   const postAssets = buildPostAssets(first.postAssets.map((postAsset) => postAsset.asset));

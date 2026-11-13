@@ -1,11 +1,12 @@
 import type { AssetRecord, Channel } from '@squidbox/shared';
 import { type ReactNode, useCallback, useMemo, useRef } from 'react';
-import { type GestureResponderEvent, StyleSheet, Text, View } from 'react-native';
+import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
 
 import Button from '@/components/Button';
 import Card from '@/components/Card';
+import Text from '@/components/Text';
 import TextInput from '@/components/TextInput';
 import { counterText, isTextOver } from '@/features/channels/channelLimits';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
@@ -14,8 +15,7 @@ import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
 import useMentionAutocomplete from '@/features/post-mentions/useMentionAutocomplete';
 import type { Point } from '@/lib/Point';
 import isPastTapSlop from '@/lib/isPastTapSlop';
-import { colors, layout, scale, space } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
+import { layout, scale, space } from '@/styles/designTokens';
 import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
@@ -88,7 +88,9 @@ export default function PostCard({
 
   const counter = counterText(limits, text);
   const counterNode = counter && (
-    <Text style={[listTextStyles.caption, isTextOver(limits, text) && styles.over]}>{counter}</Text>
+    <Text variant="label" tone={isTextOver(limits, text) ? 'danger' : undefined}>
+      {counter}
+    </Text>
   );
   const hasTopRow = isFirst && (!!selector || !!counterNode);
 
@@ -149,7 +151,7 @@ export default function PostCard({
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
-        maxCount={limits?.maxMedia}
+        limits={limits}
         style={styles.assets}
       />
       <PostCardToolbar
@@ -178,9 +180,6 @@ const styles = StyleSheet.create({
   counter: {
     marginLeft: 'auto',
     paddingLeft: space.sm,
-  },
-  over: {
-    color: colors.status.danger,
   },
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {

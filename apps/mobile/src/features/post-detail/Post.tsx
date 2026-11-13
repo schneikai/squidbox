@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
+import useChannels from '@/features/channels/useChannels';
 import TargetContactsSection from '@/features/contact-links/TargetContactsSection';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
@@ -31,24 +32,16 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
   const posts = useMemo(() => [post, ...post.threadPosts].map((each) => toChatDraftPost(each.id, each)), [post]);
   const sessionId = useSubjectChat({ kind: 'post', posts, activeKey: post.id });
   const settings = useIdeaSettings();
+  const channels = useChannels();
+  const channelOrder = useMemo(() => (channels ?? []).map((channel) => channel.id), [channels]);
 
   const channelPosts = useMemo(
-    () =>
-      post.channelPosts.map((channelPost) => ({
-        ...channelPost,
-        key: channelPost.id,
-        channelId: channelPost.channelId ?? '',
-      })),
+    () => post.channelPosts.map((channelPost) => ({ ...channelPost, key: channelPost.id })),
     [post.channelPosts],
   );
   // The pictures of the whole post: its thread's and its other channels' (with their threads) too.
-  const assetIds = [
-    ...new Set(
-      [post, ...post.threadPosts, ...post.channelPosts.flatMap((each) => [each, ...each.threadPosts])].flatMap((each) =>
-        each.postAssets.map((postAsset) => postAsset.asset.id),
-      ),
-    ),
-  ];
+  const parts = [post, ...post.threadPosts, ...post.channelPosts.flatMap((each) => [each, ...each.threadPosts])];
+  const assetIds = [...new Set(parts.flatMap((each) => each.postAssets.map((postAsset) => postAsset.asset.id)))];
 
   // Pushed, so back returns to the post.
   function openChannel(channelPostId: string) {
@@ -61,7 +54,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
     >
       <PostThreadCards post={post} channelIds={post.channelId ? [post.channelId] : []} />
 
-      <OtherChannels posts={channelPosts} onOpen={openChannel} />
+      <OtherChannels posts={channelPosts} channelOrder={channelOrder} onOpen={openChannel} />
 
       <IdeasTray sessionId={sessionId} target={post.id} ideas="repost" settings={settings} style={styles.tray} />
 

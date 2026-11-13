@@ -33,7 +33,7 @@ const repository = makeRepository('prompt_buttons', t);
 
 /** The live buttons, in their order. */
 export async function readPromptButtons(db: SyncDb): Promise<PromptButtonRecord[]> {
-  return (await readInOrder(db, t)) as PromptButtonRecord[];
+  return readInOrder(db, t);
 }
 
 /** How many live buttons there are. */

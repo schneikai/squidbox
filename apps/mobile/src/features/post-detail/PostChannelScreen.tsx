@@ -1,15 +1,13 @@
 import { channelById } from '@squidbox/shared';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { ScrollView, StyleSheet } from 'react-native';
 
+import DetailScrollView from '@/components/DetailScrollView';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
 import usePost from '@/features/post-list/usePost';
 import useCloseWhen from '@/hooks/useCloseWhen';
-import useScreenPadding from '@/hooks/useScreenPadding';
-import { layout } from '@/styles/designTokens';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
 /**
@@ -24,13 +22,11 @@ export default function PostChannelScreen() {
   const { postId, channelPostId } = useLocalSearchParams<{ postId: string; channelPostId: string }>();
   const post = usePost(postId);
   const channelPost = post?.channelPosts.find((each) => each.id === channelPostId);
-  const { paddingTop, paddingBottom } = useScreenPadding('detail');
   useCloseWhen(post === null || (post !== undefined && !channelPost));
 
   if (!post || !channelPost) return null;
 
-  const channelId = channelPost.channelId ?? '';
-  const title = channelById(channelId)?.name ?? channelId;
+  const title = channelById(channelPost.channelId)?.name ?? channelPost.channelId;
   const subtitle = post.postedAt ? formatDetailHeaderDate(post.postedAt).title : 'Not posted';
 
   return (
@@ -41,15 +37,9 @@ export default function PostChannelScreen() {
         onBack={() => navigation.goBack()}
         menuSlot={<MoreAction post={post} channelPost={channelPost} afterDelete={() => router.dismiss(2)} />}
       />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop, paddingBottom }]}>
-        <PostThreadCards post={channelPost} channelIds={[channelId]} />
-      </ScrollView>
+      <DetailScrollView>
+        <PostThreadCards post={channelPost} channelIds={[channelPost.channelId]} />
+      </DetailScrollView>
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: layout.sideGutter,
-  },
-});

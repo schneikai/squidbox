@@ -105,8 +105,10 @@ function describe(
       return 'Pinned list on Contacts';
     case 'idea_settings':
       return 'Post ideas and Repost ideas';
-    case 'channels':
-      return `Channel "${channelById(String(payload.channelId))?.name ?? String(payload.channelId)}"`;
+    case 'channels': {
+      const channelId = String(payload.channelId);
+      return `Channel "${channelById(channelId)?.name ?? channelId}"`;
+    }
     default:
       return `${collection} ${recordId}`;
   }

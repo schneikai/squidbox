@@ -13,8 +13,11 @@ import { readThreadPosts } from '@/sync/postThreads';
 
 const p = alias(schema.posts, 'p');
 
-/** Another channel of a post, with its assets and its following posts in order, each with its assets. */
-export type ChannelPostRow = PostWithAssets & { threadPosts: PostWithAssets[] };
+/**
+ * Another channel of a post, with its assets and its following posts in order, each with its assets.
+ * It always has its channel (`channelId`).
+ */
+export type ChannelPostRow = PostWithAssets & { channelId: string; threadPosts: PostWithAssets[] };
 
 /**
  * A post as the post screen and the editor read it: with its following posts in order and its other
@@ -38,10 +41,15 @@ export default function readPost(db: SyncDb, postId: string): Promise<PostDetail
     const [first, ...rest] = await withPostAssets(tx, [post, ...following, ...copies, ...copiesFollowing]);
     const threadPosts = rest.slice(0, following.length);
     const withAssets = rest.slice(following.length);
-    const channelPosts = withAssets.slice(0, copies.length).map((copy) => ({
-      ...copy,
-      threadPosts: withAssets.slice(copies.length).filter((part) => part.threadRootId === copy.id),
-    }));
+    const copiesThreadPosts = withAssets.slice(copies.length);
+    // A copy is always written with its channel; one without (no build writes it) isn't listed.
+    const channelPosts = withAssets
+      .slice(0, copies.length)
+      .flatMap(({ channelId, ...copy }) =>
+        channelId
+          ? [{ ...copy, channelId, threadPosts: copiesThreadPosts.filter((part) => part.threadRootId === copy.id) }]
+          : [],
+      );
     // `first` is typed as either kind of post: the row's own fields come from `post`.
     return { ...post, postAssets: first.postAssets, threadPosts, channelPosts };
   });

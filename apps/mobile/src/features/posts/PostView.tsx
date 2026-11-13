@@ -4,10 +4,11 @@ import { StyleSheet, View } from 'react-native';
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
+import ChipRow from '@/components/ChipRow';
 import Text from '@/components/Text';
 import ChannelLabel from '@/features/channels/ChannelLabel';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { layout, scale, space } from '@/styles/designTokens';
+import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
@@ -40,11 +41,11 @@ export default function PostView({
   return (
     <Card testID="post-card" style={styles.card}>
       {channelIds.length > 0 && (
-        <View style={styles.channels}>
+        <ChipRow>
           {channelIds.map((channelId) => (
             <ChannelLabel key={channelId} channelId={channelId} />
           ))}
-        </View>
+        </ChipRow>
       )}
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
@@ -74,11 +75,6 @@ const styles = StyleSheet.create({
   // Without pictures the text starts as far from the card's top as from its sides.
   bodyTextOnly: {
     paddingTop: layout.postTextInset,
-  },
-  channels: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: space.sm,
   },
   meta: {
     flexDirection: 'row',

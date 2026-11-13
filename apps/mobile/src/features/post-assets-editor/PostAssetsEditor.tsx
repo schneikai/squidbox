@@ -1,33 +1,34 @@
-import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import type { Channel } from '@squidbox/shared';
+import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-flatlist';
 
 import PostAsset, { type EditorPostAsset } from './PostAsset';
 
+import Text from '@/components/Text';
+import { isMediaOver } from '@/features/channels/channelLimits';
 import useHaptics from '@/hooks/useHaptics';
-import { colors, scale, space } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
+import { scale, space } from '@/styles/designTokens';
 import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 export type PostAssetsEditorProps = {
   postAssets: EditorPostAsset[];
   onChange: (postAssets: EditorPostAsset[]) => void;
-  maxCount?: number | null;
+  limits?: Pick<Channel, 'maxMedia'>;
   style: StyleProp<ViewStyle>;
 };
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list. With `maxCount` (its channel's
-// limit) the caption counts against it ("2 of 4 media"), red over it. style is for layout only.
-export default function PostAssetsEditor({ postAssets, onChange, maxCount, style }: PostAssetsEditorProps) {
+// hold one to reorder, × to take it out. `onChange` gets the new list. With `limits` (its channel's)
+// the caption counts against its media limit ("2 of 4 media"), red over it. style is for layout only.
+export default function PostAssetsEditor({ postAssets, onChange, limits, style }: PostAssetsEditorProps) {
   const haptics = useHaptics();
 
   const countInfo =
-    maxCount != null
-      ? `${postAssets.length} of ${maxCount} media`
+    limits?.maxMedia != null
+      ? `${postAssets.length} of ${limits.maxMedia} media`
       : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
-  const isOver = maxCount != null && postAssets.length > maxCount;
 
   function deletePostAsset(postAsset: EditorPostAsset) {
     onChange(postAssets.filter((x) => x.id !== postAsset.id));
@@ -60,7 +61,9 @@ export default function PostAssetsEditor({ postAssets, onChange, maxCount, style
           />
         )}
       />
-      <Text style={[listTextStyles.caption, isOver && styles.over]}>{caption}</Text>
+      <Text variant="label" tone={isMediaOver(limits, postAssets.length) ? 'danger' : undefined}>
+        {caption}
+      </Text>
     </View>
   );
 }
@@ -71,9 +74,6 @@ const styles = StyleSheet.create({
   },
   strip: {
     gap: space.sm,
-  },
-  over: {
-    color: colors.status.danger,
   },
   tile: {
     width: scale(120),
