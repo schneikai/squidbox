@@ -13,7 +13,7 @@ import { layout } from '@/styles/designTokens';
 import type { AssetFileAsset } from '@/utils/assets/files/getAssetFileStatusAsync';
 import humanizeMediaType from '@/utils/assets/humanizeMediaType';
 import useShareAssets from '@/utils/assets/useShareAssets';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
 // What the bar reads of the asset, and what sharing it takes.
@@ -68,19 +68,15 @@ export default function FloatingDetailActionsBar({
   }
 
   function handleDeletePermanently() {
-    const mediaType = humanizeMediaType(asset.mediaType);
     deletePermanently({
-      title: `Delete ${mediaType}`,
-      message: `Permanently delete this ${mediaType}?`,
+      name: `this ${humanizeMediaType(asset.mediaType).toLowerCase()}`,
       ids: [asset.id],
       onConfirm: () => navigation.goBack(),
     });
   }
 
   async function handleDelete() {
-    const mediaType = humanizeMediaType(asset.mediaType);
-    const message = `Are you sure you want to delete this ${mediaType}?`;
-    if (!(await confirmAsync({ title: `Delete ${mediaType}`, message, action: 'Delete', destructive: true }))) return;
+    if (!(await confirmDeleteAsync({ name: `this ${humanizeMediaType(asset.mediaType).toLowerCase()}` }))) return;
     onDeleteAsset(asset);
     navigation.goBack();
   }

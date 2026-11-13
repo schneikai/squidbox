@@ -8,7 +8,7 @@ import readPost from '@/features/post-list/readPost';
 import usePosts from '@/features/posts-context/usePosts';
 import { getDb } from '@/sync/db/client';
 import useShareAssets from '@/utils/assets/useShareAssets';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
 export type MoreActionProps = {
@@ -33,9 +33,10 @@ export default function MoreAction({ post, afterDelete, trigger }: MoreActionPro
 
   async function handleDeletePost() {
     const count = 1 + post.threadCount;
-    const message =
-      count > 1 ? `This deletes all ${count} posts of the thread.` : 'Are you sure you want to delete this post?';
-    if (!(await confirmAsync({ title: 'Delete Post', message, action: 'Delete', destructive: true }))) return;
+    const confirmed = await confirmDeleteAsync(
+      count > 1 ? { name: 'this thread', also: `All ${count} of its posts go.` } : { name: 'this post' },
+    );
+    if (!confirmed) return;
     await deletePost(post.id);
     if (afterDelete) afterDelete();
   }

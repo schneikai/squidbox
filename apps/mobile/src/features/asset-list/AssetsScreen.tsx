@@ -22,7 +22,7 @@ import useScrollY from '@/hooks/useScrollY';
 import type { AssetSort } from '@/sync/assetSql';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import pluralizeText from '@/utils/pluralizeText';
 
 export default function AssetsScreen() {
@@ -64,8 +64,8 @@ export default function AssetsScreen() {
   }
 
   async function handleDelete() {
-    const title = pluralizeText('Delete 1 item?', 'Delete %{count} items?', selectedAssetIds.length);
-    if (!(await confirmAsync({ title, action: 'Delete', destructive: true }))) return;
+    const name = pluralizeText('1 item', '%{count} items', selectedAssetIds.length);
+    if (!(await confirmDeleteAsync({ name }))) return;
     exitSelectMode();
     runWithProgress((batchOptions) => setAssetsDeleted(selectedAssetIds, batchOptions));
   }

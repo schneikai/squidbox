@@ -20,7 +20,7 @@ import {
   updatePromptButton,
 } from '@/sync/promptButtonsRepository';
 import changedValues from '@/utils/changedValues';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import getNewItemId from '@/utils/getNewItemId';
 import isPresent from '@/utils/isPresent';
 
@@ -93,13 +93,7 @@ function PromptButtonEditor({ id, seed }: PromptButtonEditorProps) {
   }
 
   async function handleDelete(buttonId: string) {
-    const isConfirmed = await confirmAsync({
-      title: `Delete “${values.name || seed.name}”?`,
-      message: 'It goes from every device.',
-      action: 'Delete',
-      destructive: true,
-    });
-    if (!isConfirmed) return;
+    if (!(await confirmDeleteAsync({ name: values.name || seed.name, also: 'It goes from every device.' }))) return;
     await finish(() => removePromptButton(getDb(), buttonId), "Couldn't delete the prompt button");
   }
 

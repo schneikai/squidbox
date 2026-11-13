@@ -6,7 +6,7 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useAlbums from '@/features/albums-context/useAlbums';
 import type { AlbumRow } from '@/sync/db/schema';
 import isSmartAlbum from '@/utils/albums/isSmartAlbum';
-import confirmAsync from '@/utils/confirmAsync';
+import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
 type MoreActionProps = { album: AlbumRow; hasPhotos?: boolean; afterDelete?: () => void; onSelect?: () => void };
@@ -17,7 +17,7 @@ export default function MoreAction({ album, hasPhotos = false, afterDelete, onSe
   const canEditPhotos = hasPhotos && !isSmartAlbum(album);
 
   async function handleDeleteAlbum() {
-    if (!(await confirmAsync({ title: 'Delete Album?', action: 'Delete', destructive: true }))) return;
+    if (!(await confirmDeleteAsync({ name: album.name }))) return;
     await setAlbumDeleted(album);
     if (afterDelete) afterDelete();
   }
