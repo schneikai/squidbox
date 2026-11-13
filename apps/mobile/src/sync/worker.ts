@@ -24,7 +24,7 @@ import {
   type PendingEdit,
 } from './outbox';
 import { planPushOutcome } from './pushPlan';
-import { pauseRuns, startRun } from './runGate';
+import { endsRun, pauseRuns, startRun } from './runGate';
 import { createSingleFlight } from './singleFlight';
 import {
   pullCursor,
@@ -42,7 +42,6 @@ import { upsertRows } from './upsertRows';
 
 import type { LibraryPaths } from '@/library/libraryPaths';
 import type { SyncIdentity } from '@/library/sessionMatches';
-import UpdateRequiredError from '@/utils/cloud-api/UpdateRequiredError';
 
 const PULL_LIMIT = 1000; // server/contract cap
 // Bytes of mutations per request: half the server's body limit, so a batch of large records never
@@ -189,8 +188,8 @@ function filesToUpload(row: schema.OutboxRow): [field: string, filename: string]
 // leaves it out of the push, so one file that keeps failing never holds back the other rows or the
 // pull: a refused one (FileUploadRefusedError) waits for the user, any other is tried again with
 // the failed pushes (on the app's return to the foreground, a launch, Retry All). An abort stops
-// before the push. The server's refusal of this build as too old (UpdateRequiredError) ends the run
-// instead: no row is flagged, every row waits for the update.
+// before the push. What ends a run (runGate's endsRun: a changed session, the server's refusal of
+// this build as too old) ends it here too: no row is flagged, every row waits.
 async function uploadBatchFiles(
   db: SyncDb,
   batch: schema.OutboxRow[],
@@ -208,7 +207,7 @@ async function uploadBatchFiles(
         await uploadFile(row.collection, field, filename, signal);
       } catch (error) {
         if (signal.aborted) return { refused, notes, stopped: true };
-        if (error instanceof UpdateRequiredError) throw error;
+        if (endsRun(error)) throw error;
         const isRefusal = error instanceof FileUploadRefusedError;
         const message = error instanceof Error ? error.message : String(error);
         await flagOutboxRow(db, row, isRefusal ? message : `Upload of ${filename} failed: ${message}`);

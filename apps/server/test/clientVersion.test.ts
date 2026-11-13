@@ -35,9 +35,10 @@ describe('the update gate', () => {
   });
 
   it.each([
-    ['without a version (a build from before the gate)', `${COMMIT} ${DEVICE}`],
-    ['with a version that is not a positive integer', `${COMMIT} ${DEVICE} two`],
-  ])('counts a header %s as version 1', async (_, header) => {
+    ['no header (a build from before the header)', undefined],
+    ['a header without a version (a build from before the gate)', `${COMMIT} ${DEVICE}`],
+    ['a header with a version that is not a positive integer', `${COMMIT} ${DEVICE} two`],
+  ])('counts a request with %s as version 1', async (_, header) => {
     expect((await request('/api/v1/auth/login', header)).statusCode).toBe(UPDATE_REQUIRED_STATUS);
   });
 
@@ -45,11 +46,8 @@ describe('the update gate', () => {
     expect((await request('/api/v1/auth/login', `- - 2`)).statusCode).toBe(400);
   });
 
-  it('lets a request without the header through: it is not the app', async () => {
-    expect((await request('/api/v1/auth/login')).statusCode).toBe(400);
-  });
-
   it('never gates /up', async () => {
     expect((await request('/up', `${COMMIT} ${DEVICE} 1`)).statusCode).toBe(200);
+    expect((await request('/up')).statusCode).toBe(200);
   });
 });

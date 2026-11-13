@@ -14,7 +14,7 @@ function apiAnswering(...statuses: number[]) {
     if (status >= 300) throw Object.assign(new Error(`Request failed with status code ${status}`), { response });
     return response;
   };
-  const api = create({ adapter });
+  const api = create({ adapter, baseURL: 'https://squidbox.test/api/v1' });
   watchUpdateGate(api);
   return api;
 }
@@ -25,6 +25,15 @@ describe('the update gate in the API client', () => {
     const refused = api.get('/sync/pull');
     await expect(refused).rejects.toBeInstanceOf(UpdateRequiredError);
     await expect(refused).rejects.toThrow(UPDATE_REQUIRED_TEXT);
+    expect(updateRequiredStore.get()).toBe(true);
+    await api.get('/sync/pull');
+    expect(updateRequiredStore.get()).toBe(false);
+  });
+
+  it('a success from /up, which the gate never covers, leaves the store set', async () => {
+    const api = apiAnswering(426, 200, 200);
+    await expect(api.get('/sync/pull')).rejects.toBeInstanceOf(UpdateRequiredError);
+    await api.get('https://squidbox.test/up');
     expect(updateRequiredStore.get()).toBe(true);
     await api.get('/sync/pull');
     expect(updateRequiredStore.get()).toBe(false);

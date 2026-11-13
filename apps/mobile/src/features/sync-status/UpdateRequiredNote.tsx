@@ -1,8 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 
-import Button from '@/components/Button';
 import WarningNote from '@/components/WarningNote';
-import useUpdateApp from '@/features/sync-status/useUpdateApp';
+import UpdateButton from '@/features/sync-status/UpdateButton';
 import useUpdateRequired from '@/hooks/useUpdateRequired';
 import { UPDATE_REQUIRED_TEXT } from '@/utils/cloud-api/updateRequiredText';
 
@@ -14,10 +13,9 @@ type UpdateRequiredNoteProps = { style?: StyleProp<ViewStyle> };
  */
 export default function UpdateRequiredNote({ style }: UpdateRequiredNoteProps) {
   const updateRequired = useUpdateRequired();
-  const { update, updating } = useUpdateApp();
   if (!updateRequired) return null;
   return (
-    <WarningNote style={style} trailing={<Button label="Update" size="small" loading={updating} onPress={update} />}>
+    <WarningNote style={style} trailing={<UpdateButton size="small" />}>
       {UPDATE_REQUIRED_TEXT}
     </WarningNote>
   );

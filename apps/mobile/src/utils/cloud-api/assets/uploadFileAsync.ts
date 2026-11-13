@@ -6,9 +6,9 @@ import cancelledError from '@/utils/cloud-api/assets/cancelledError';
 import refreshAccessTokenAsync from '@/utils/cloud-api/authentication/refreshAccessTokenAsync';
 import { clientHeader } from '@/utils/cloud-api/clientHeader';
 import envelopeMessage from '@/utils/cloud-api/envelopeMessage';
+import noteServerStatus from '@/utils/cloud-api/noteServerStatus';
 import requireApiBaseUrl from '@/utils/cloud-api/requireApiBaseUrl';
 import requireSession from '@/utils/cloud-api/requireSession';
-import { noteServerStatus } from '@/utils/cloud-api/updateRequiredStore';
 
 type UploadOptions = { onProgress?: (progress: UploadProgress) => void; signal?: AbortSignal };
 
@@ -79,7 +79,7 @@ function byteCounts(bytesSent: number | bigint, totalBytes: number | bigint): Up
 
 function assertSuccess(result: UploadResult | undefined, filename: string, signal?: AbortSignal) {
   if (signal?.aborted) throw cancelled(filename);
-  noteServerStatus(result?.status);
+  noteServerStatus(result?.status, true);
   if (!result || result.status < 200 || result.status >= 300) {
     const body = parseBody(result?.body);
     throw new UploadFailedError(envelopeMessage(body) ?? `Upload failed with status ${result?.status}`, {

@@ -1260,18 +1260,20 @@ every `/api/v1` route (sign-in and uploads included; `/up` stays open and answer
 
 - a header naming a version below the minimum gets HTTP 426 (`UPDATE_REQUIRED_STATUS`) with the
   usual envelope, code `update_required`;
-- a header without a version or with one that isn't a positive integer counts as
-  `FIRST_CONTRACT_VERSION`, never a 400 (one on `auth/refresh` would end the session);
-- no header at all is not the app (tests, curl, the health check) and passes.
+- no header, or one without a version or with one that isn't a positive integer, counts as
+  `FIRST_CONTRACT_VERSION`, never a 400 (one on `auth/refresh` would end the session): builds from
+  before the header left it out, so tests and curl pass only until the first raise. The app always
+  sends it.
 
 The 426 never changes: every build made from now on keys on it, by the status, never the text. The
 app's API layer turns it into an `UpdateRequiredError` and notes it in an in-memory store
-(`utils/cloud-api/updateRequiredStore.ts`, cleared by the next success); wherever the sync status
+(`utils/cloud-api/updateRequiredStore.ts`, cleared by the next success on a gated route, never by
+`/up`); wherever the sync status
 shows, `useUpdateRequired` puts `UPDATE_REQUIRED_TEXT` with an Update action, which fetches the EAS
 update and restarts. The app keeps working locally: a 426 ends a sync or backup run like a session
 change (`sync/runGate.ts`), without flagging a row or an asset, and local edits stay in the outbox
-(§6) until the update. Builds from before the gate send no version and can't show any of this: the
-gate refuses them (after a raise) with what they show as a generic sync error.
+(§6) until the update. Builds from before the gate send no version (or no header) and can't show any of
+this: the gate refuses them (after a raise) with what they show as a generic sync error.
 
 ### Raising the minimum
 
@@ -1288,9 +1290,10 @@ Whose decision it is: CLAUDE.md. The steps, in order:
    until the deploy.
 4. `npm run deploy:server`. It enforces the order: with a raised version in the checkout and a lower
    (or unreadable) minimum on the live server (`/up`), it deploys only once, on every EAS channel
-   with a finished build, the newer of the latest update and the latest build holds the new version
-   (`scripts/deployCheck.mjs`). A phone whose native code can't take the newest update needs the
-   newest build installed: the check can't see that.
+   with a finished build, what phones on its latest build run (the newer of that build and the
+   latest update for its runtime) holds the new version (`scripts/deployCheck.mjs`). A phone on an
+   older build (another runtime) gets no such update and needs the newest build installed, as the
+   Update action tells it.
 
 A raise is when leftovers kept for older builds may be deleted.
 

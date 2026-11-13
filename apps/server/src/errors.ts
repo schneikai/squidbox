@@ -1,7 +1,7 @@
 // Single, consistent error envelope for the whole API: { error: { code, message } }.
 // Throw AppError anywhere; the Fastify error handler (plugins/errorHandler) renders it. The codes and
 // the envelope are the shared contract (packages/shared/contracts/server.ts), which the app reads.
-import type { ApiErrorCode } from '@squidbox/shared';
+import type { ApiError, ApiErrorCode } from '@squidbox/shared';
 
 export class AppError extends Error {
   readonly statusCode: number;
@@ -52,10 +52,17 @@ export class AppError extends Error {
 // The gate's code (plugins/clientVersion.ts): sent only to a build below the server's contract
 // version, which the app reads by its status (UPDATE_REQUIRED_STATUS), so it is no part of the
 // shared apiErrorCodeSchema a supported build reads.
-export const UPDATE_REQUIRED_CODE = 'update_required';
+const UPDATE_REQUIRED_CODE = 'update_required';
 
-export function errorBody(code: ApiErrorCode | typeof UPDATE_REQUIRED_CODE, message: string) {
+export function errorBody(code: ApiErrorCode, message: string): ApiError {
   return { error: { code, message } };
+}
+
+/** The gate's envelope: the shared one (ApiError) with UPDATE_REQUIRED_CODE for its code. */
+export function updateRequiredBody(message: string): {
+  error: Omit<ApiError['error'], 'code'> & { code: typeof UPDATE_REQUIRED_CODE };
+} {
+  return { error: { code: UPDATE_REQUIRED_CODE, message } };
 }
 
 /** What went wrong, as one line: an Error's message, else the thrown value as text. */

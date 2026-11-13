@@ -23,7 +23,10 @@ export function requirePushedTip() {
   if (!branch) fail('Check out a branch (HEAD is detached).');
   const notPushed = () => fail(`HEAD is not the pushed tip of origin/${branch}: push it, or pull, first.`);
   // ls-remote exits 2 when origin has no such branch (never pushed), other codes on an error.
-  if (spawnSync('git', ['ls-remote', '--exit-code', '--heads', 'origin', branch], { stdio: 'ignore' }).status === 2)
+  if (
+    spawnSync('git', ['ls-remote', '--exit-code', '--heads', 'origin', `refs/heads/${branch}`], { stdio: 'ignore' })
+      .status === 2
+  )
     notPushed();
   retry(() => git('fetch', 'origin', branch));
   const commit = git('rev-parse', 'HEAD');
@@ -43,6 +46,19 @@ export function easProfiles() {
 export function latestUpdates(cwd, env) {
   const branches = JSON.parse(retry(() => read(eas, ['branch:list', '--json', '--non-interactive'], cwd, env)));
   return new Map(branches.map(({ name, updates }) => [name, updates[0]]));
+}
+
+/**
+ * The latest iOS update on `branch` for `runtimeVersion`, with `gitCommitHash`, `createdAt` and
+ * `runtimeVersion` (eas update:view); undefined when there is none. The branch must exist.
+ */
+export function latestUpdateFor(branch, runtimeVersion, cwd, env) {
+  const filters = ['--branch', branch, '--runtime-version', runtimeVersion, '--platform', 'ios', '--limit', '1'];
+  const list = JSON.parse(retry(() => read(eas, ['update:list', ...filters, '--json', '--non-interactive'], cwd, env)));
+  const group = list.currentPage[0]?.group;
+  if (!group) return undefined;
+  const updates = JSON.parse(retry(() => read(eas, ['update:view', group, '--json', '--non-interactive'], cwd, env)));
+  return updates.find(({ platform }) => platform === 'ios');
 }
 
 /** The finished builds `filters` (eas build:list flags) select, newest first, with `gitCommitHash` and `completedAt`. */

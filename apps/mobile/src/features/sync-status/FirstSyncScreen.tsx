@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 import Button from '@/components/Button';
 import SplashStage from '@/components/SplashStage';
+import UpdateButton from '@/features/sync-status/UpdateButton';
 import getFirstSyncStep from '@/features/sync-status/getFirstSyncStep';
-import useUpdateApp from '@/features/sync-status/useUpdateApp';
 import useAfterDelay from '@/hooks/useAfterDelay';
 import useUpdateRequired from '@/hooks/useUpdateRequired';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
@@ -26,7 +26,6 @@ export default function FirstSyncScreen() {
   const status = useSyncStatus();
   const updateRequired = useUpdateRequired();
   const { logoutAsync } = useCloud();
-  const { update, updating } = useUpdateApp();
   const { label, failed } = useFirstSyncStep({ ...status, updateRequired });
 
   // Never sit dead on an error: auto-retry the pull on a short interval while this screen shows an
@@ -57,7 +56,7 @@ export default function FirstSyncScreen() {
       footer={<Button label="Sign out" isInverse onPress={handleSignOut} />}
     >
       {updateRequired ? (
-        <Button label="Update" isInverse colorPalette="neutral" loading={updating} onPress={update} />
+        <UpdateButton isInverse colorPalette="neutral" />
       ) : (
         failed && <Button label="Try again" isInverse colorPalette="neutral" onPress={() => requestSync()} />
       )}
