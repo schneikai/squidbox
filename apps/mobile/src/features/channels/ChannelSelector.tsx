@@ -38,6 +38,7 @@ export default function ChannelSelector({
         <Chip
           label={current?.name ?? 'No channel'}
           leading={current && <ChannelLogo channelId={current.id} size={sizes.menuIcon} />}
+          isLeadingInset
           hasCaret
           onPress={toggle}
           accessibilityLabel={`Channel: ${current?.name ?? 'No channel'}`}

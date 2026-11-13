@@ -25,7 +25,9 @@ export default function ChannelLabel({ channelId, size = 'regular' }: ChannelLab
       </View>
     );
   }
-  return <Chip label={channel.name} leading={<ChannelLogo channelId={channel.id} size={sizes.menuIcon} />} />;
+  return (
+    <Chip label={channel.name} leading={<ChannelLogo channelId={channel.id} size={sizes.menuIcon} />} isLeadingInset />
+  );
 }
 
 const styles = StyleSheet.create({

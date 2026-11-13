@@ -219,6 +219,7 @@ export default function ComponentGalleryScreen() {
             <Chip
               label="Bluesky"
               leading={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
+              isLeadingInset
               hasCaret
               onPress={noop}
             />

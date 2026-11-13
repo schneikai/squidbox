@@ -5,8 +5,9 @@ import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
+import ChannelLabel from '@/features/channels/ChannelLabel';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import { layout, scale } from '@/styles/designTokens';
+import { layout, scale, space } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
@@ -15,6 +16,7 @@ type PostViewProps = {
   onPressAsset?: PostImageProps['onPressAsset'];
   isTextSelectable?: boolean;
   meta?: ReactNode;
+  channelIds?: readonly string[];
   children?: ReactNode;
 };
 
@@ -22,13 +24,28 @@ type PostViewProps = {
  * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text (copied on a
  * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
  * place shows about it: a thread's size), and `children` under that row (buttons for this post).
- * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
+ * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]). `channelIds` are the
+ * channels it is on, as labels at the card's top (ChannelLabel), in the order given; none for an empty list.
  */
-export default function PostView({ post, onPressAsset, isTextSelectable = false, meta, children }: PostViewProps) {
+export default function PostView({
+  post,
+  onPressAsset,
+  isTextSelectable = false,
+  meta,
+  channelIds = [],
+  children,
+}: PostViewProps) {
   const { text, postAssets, postedAt } = post;
 
   return (
     <Card testID="post-card" style={styles.card}>
+      {channelIds.length > 0 && (
+        <View style={styles.channels}>
+          {channelIds.map((channelId) => (
+            <ChannelLabel key={channelId} channelId={channelId} />
+          ))}
+        </View>
+      )}
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}
@@ -57,6 +74,11 @@ const styles = StyleSheet.create({
   // Without pictures the text starts as far from the card's top as from its sides.
   bodyTextOnly: {
     paddingTop: layout.postTextInset,
+  },
+  channels: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
   },
   meta: {
     flexDirection: 'row',

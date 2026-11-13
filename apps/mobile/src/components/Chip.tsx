@@ -16,6 +16,7 @@ export type ChipProps = Pick<
   variant?: ChipVariant;
   icon?: IconName;
   leading?: ReactNode;
+  isLeadingInset?: boolean;
   onRemove?: () => void;
   removeLabel?: string;
   isSelected?: boolean;
@@ -35,7 +36,8 @@ export type ChipProps = Pick<
  * frame, so a tag tapped on never changes its width and moves the chips after it.
  *
  * icon — leads the label (Icon name), grey, or violet when it is the assistant's sparkle; `leading` leads it instead with a node
- * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
+ * (a contact's chip avatar, sizes.avatar.chip, close to the frame's start; with `isLeadingInset` as far in as an
+ * icon: a channel's logo) and the label stays on one line, cut short when the
  * chip would be wider than its row. `isSelected` tells VoiceOver it's on (as
  * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
@@ -51,6 +53,7 @@ export default function Chip({
   variant = 'tag',
   icon,
   leading,
+  isLeadingInset = false,
   onRemove,
   removeLabel = 'Remove',
   isSelected = false,
@@ -74,7 +77,7 @@ export default function Chip({
     VARIANT_STYLES[variant],
     isAccentFill && styles.accentFill,
     isLifted && styles.lifted,
-    !!leading && styles.withLeading,
+    !!leading && !isLeadingInset && styles.withLeading,
   ];
   const accessibilityState =
     accessibilityRole === 'checkbox' ? { checked: isSelected, disabled } : { selected: isSelected, disabled };
