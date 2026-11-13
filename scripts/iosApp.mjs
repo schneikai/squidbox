@@ -4,9 +4,13 @@
  * goes without its contract snapshot (docs/sync-design.md §15, ios-build skill → Paths B and C):
  *
  *   1. The checkout must be clean and its commit (X) the pushed tip of its branch.
- *   2. Preflight, read-only, so a refusal leaves no trace: every APP_ENV variable is readable in the
- *      profile's EAS environment, and an update has a finished build with its runtime version (the
- *      native fingerprint) to reach. All refusals are printed at once.
+ *   2. Preflight, read-only, so a refusal leaves no trace: every APP_ENV variable (and, for an
+ *      update, the marker) is readable in the profile's EAS environment. An update also needs a
+ *      finished build on its channel with its runtime version (the native fingerprint) to reach,
+ *      the same client migrations as every such build (a migration ships only with a build, so
+ *      expo-updates' fallback to the build's embedded bundle never runs code older than the
+ *      database), and X must descend from the channel's latest update (never older code after
+ *      newer, docs/sync-design.md §15). All refusals are printed at once.
  *   3. Unless X has a snapshot already, `contract:snapshot` writes it; commit it on top (Y) and
  *      push. A failed push stops here, before anything ships.
  *   4. Check out X itself and ship it, so the build or update and its header name X, then return
@@ -21,28 +25,38 @@
  *   npm run ios:update -- production
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// What an App build or update needs from its profile's EAS environment. SQUIDBOX_APP_BUILD is the
-// snapshot guard's marker (app.config.js), which an update gets from there only.
-const APP_ENV = ['EXPO_PUBLIC_API_URL', 'SENTRY_AUTH_TOKEN', 'SQUIDBOX_APP_BUILD'];
+// What an App build or update needs from its profile's EAS environment.
+const APP_ENV = ['EXPO_PUBLIC_API_URL', 'SENTRY_AUTH_TOKEN'];
+// The snapshot guard's marker (app.config.js): a build gets it from eas.json, an update from the
+// EAS environment only.
+const MARKER = 'SQUIDBOX_APP_BUILD';
+// A change here ships only with a build (see the preflight above).
+const MIGRATIONS = 'apps/mobile/src/sync/db/migrations';
 
 const [command, profile = 'preview'] = process.argv.slice(2);
 if (!['build', 'update'].includes(command)) fail(`Unknown command "${command}": build or update.`);
-// One value: the EAS build profile, the channel, the EAS environment and EAS_BUILD_PROFILE.
+// The EAS build profile, also EAS_BUILD_PROFILE.
 if (!['preview', 'production'].includes(profile)) fail(`Unknown App profile "${profile}": preview or production.`);
 
 const root = git('rev-parse', '--show-toplevel');
 const mobileDir = `${root}/apps/mobile`;
 const buildsDir = `${root}/apps/server/contract/builds`;
+// The profile's channel and EAS environment, as its builds have them.
+const { channel, environment } = JSON.parse(readFileSync(`${mobileDir}/eas.json`, 'utf8')).build[profile];
+if (!channel || !environment) fail(`eas.json: the ${profile} profile needs a channel and an environment.`);
 // The repo's pinned eas-cli (root package.json).
 const eas = fileURLToPath(import.meta.resolve('eas-cli/bin/run'));
 // The env of every eas call but the build: the EAS environment is the only source of the App's
-// variables, so neither this shell's EXPO_PUBLIC_* and APP_ENV values nor apps/mobile/.env.local
-// can reach the bundle or make the preflight pass.
+// variables and the marker, so neither this shell's EXPO_PUBLIC_*, APP_ENV and marker values nor
+// apps/mobile/.env.local can reach the bundle or make the preflight pass, and a leftover
+// SQUIDBOX_NOT_A_BUILD or EAS_BUILD can't switch the snapshot guard off.
+const SHELL_ONLY = [...APP_ENV, MARKER, 'SQUIDBOX_NOT_A_BUILD', 'EAS_BUILD'];
 const easOnlyEnv = {
   ...Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => !name.startsWith('EXPO_PUBLIC_') && !APP_ENV.includes(name)),
+    Object.entries(process.env).filter(([name]) => !name.startsWith('EXPO_PUBLIC_') && !SHELL_ONLY.includes(name)),
   ),
   EAS_BUILD_PROFILE: profile,
   EXPO_NO_DOTENV: '1',
@@ -57,7 +71,10 @@ if (git('rev-parse', `origin/${branch}`) !== commit) {
   fail(`HEAD is not the pushed tip of origin/${branch}: push it, or pull, first.`);
 }
 
-const refusals = [...unreadable(), ...(command === 'update' ? noBuildForRuntime() : [])];
+const refusals =
+  command === 'build'
+    ? unreadable(APP_ENV)
+    : [...unreadable([...APP_ENV, MARKER]), ...noReachableBuild(), ...olderThanLatest()];
 if (refusals.length > 0) fail(refusals.join('\n'));
 
 const short = commit.slice(0, 8);
@@ -98,12 +115,12 @@ function shipUpdate() {
     '(npx expo export --platform ios --output-dir dist --source-maps --dump-assetmap --clear || (echo "Bundling failed." >&2; exit 1))',
     '(npx sentry-expo-upload-sourcemaps dist || (echo "Uploading the source maps to Sentry failed." >&2; exit 1))',
   ].join(' && ');
-  if (!run(eas, ['env:exec', profile, bundleAndUpload, '--non-interactive'], mobileDir, easOnlyEnv)) {
+  if (!run(eas, ['env:exec', environment, bundleAndUpload, '--non-interactive'], mobileDir, easOnlyEnv)) {
     return 'Nothing was published.';
   }
   const publishArgs = [
-    ['--channel', profile],
-    ['--environment', profile],
+    ['--channel', channel],
+    ['--environment', environment],
     ['--platform', 'ios'],
     ['--skip-bundler'],
     ['--input-dir', 'dist'],
@@ -113,38 +130,92 @@ function shipUpdate() {
   if (!run(eas, ['update', ...publishArgs], mobileDir, easOnlyEnv)) return 'Publishing the update failed.';
 }
 
-// Each APP_ENV variable must be readable through env:exec, which gets what `eas update
-// --environment` gets: plaintext and sensitive variables, not secret ones.
-function unreadable() {
+// Each variable must be readable through env:exec, which gets what `eas update --environment`
+// gets: plaintext and sensitive variables, not secret ones.
+function unreadable(names) {
   // Prints the name of each one that is unset or empty, never a value.
-  const check = `for name in ${APP_ENV.join(' ')}; do [ -n "$(printenv "$name")" ] || echo "$name"; done`;
-  const printed = retry(() => read(eas, ['env:exec', profile, check, '--non-interactive'], mobileDir, easOnlyEnv));
-  return APP_ENV.filter((name) => printed.split('\n').includes(name)).map(
-    (name) =>
-      `${name} is not readable in the ${profile} EAS environment: it is missing or secret (ios-build skill → Env vars).`,
-  );
+  const check = `for name in ${names.join(' ')}; do [ -n "$(printenv "$name")" ] || echo "$name"; done`;
+  let printed;
+  try {
+    printed = read(eas, ['env:exec', environment, check, '--non-interactive'], mobileDir, easOnlyEnv);
+  } catch {
+    // With --non-interactive, env:exec swallows its own error: run it again without, to print it.
+    run(eas, ['env:exec', environment, check], mobileDir, easOnlyEnv);
+    return [`Reading the ${environment} EAS environment failed (above).`];
+  }
+  return names
+    .filter((name) => printed.split('\n').includes(name))
+    .map(
+      (name) =>
+        `${name} is not readable in the ${environment} EAS environment: it is missing or secret (ios-build skill → Env vars).`,
+    );
 }
 
-// An update reaches only the builds with its runtime version.
-function noBuildForRuntime() {
-  const { runtimeVersion } = JSON.parse(
-    read('npx', ['expo-updates', 'runtimeversion:resolve', '--platform', 'ios'], mobileDir, easOnlyEnv),
-  );
+// An update reaches only the finished builds on its channel with its runtime version, and must
+// carry the client migrations each of them embeds.
+function noReachableBuild() {
+  let runtimeVersion;
+  try {
+    ({ runtimeVersion } = JSON.parse(
+      read('npx', ['expo-updates', 'runtimeversion:resolve', '--platform', 'ios'], mobileDir, easOnlyEnv),
+    ));
+  } catch (error) {
+    return [`Resolving the runtime version failed: ${error.message}`];
+  }
   const filters = [
     ['--platform', 'ios'],
-    ['--channel', profile],
+    ['--channel', channel],
     ['--runtime-version', runtimeVersion],
     ['--status', 'finished'],
-    ['--limit', '1'],
+    ['--limit', '50'],
   ].flat();
   const builds = JSON.parse(
     retry(() => read(eas, ['build:list', ...filters, '--json', '--non-interactive'], mobileDir, easOnlyEnv)),
   );
-  return builds.length > 0
-    ? []
-    : [
-        `No finished ${profile} build has this native code (runtime ${runtimeVersion}): the update would reach no installed app. Build it with \`npm run ios:app\`.`,
-      ];
+  if (builds.length === 0) {
+    return [
+      `No finished ${profile} build has this native code (runtime ${runtimeVersion}): the update would reach no installed app. Build it with \`npm run ios:app\`.`,
+    ];
+  }
+  return builds
+    .filter(
+      ({ gitCommitHash }) =>
+        !hasCommit(gitCommitHash) || !gitSucceeds('diff', '--quiet', gitCommitHash, 'HEAD', '--', MIGRATIONS),
+    )
+    .map(
+      ({ gitCommitHash }) =>
+        `The client migrations differ from those of the ${profile} build of ${String(gitCommitHash).slice(0, 8)} (or its commit is unknown): a migration ships only with a build. Build it with \`npm run ios:app\`.`,
+    );
+}
+
+// An update never puts older code after newer: X descends from the channel's latest update. Its
+// branch is named after the channel (`eas update --channel` creates it so).
+function olderThanLatest() {
+  const branches = JSON.parse(
+    retry(() => read(eas, ['branch:list', '--json', '--non-interactive'], mobileDir, easOnlyEnv)),
+  );
+  const latest = branches.find(({ name }) => name === channel)?.updates[0];
+  if (
+    !latest ||
+    (hasCommit(latest.gitCommitHash) && gitSucceeds('merge-base', '--is-ancestor', latest.gitCommitHash, 'HEAD'))
+  ) {
+    return [];
+  }
+  return [
+    `HEAD does not descend from ${String(latest.gitCommitHash).slice(0, 8)}, the commit of the latest ${channel} update (or that commit is unknown): an update never puts older code after newer. Fix forward from a newer commit.`,
+  ];
+}
+
+// Whether the commit is in this checkout, fetching it once if not.
+function hasCommit(sha) {
+  if (!sha) return false;
+  if (gitSucceeds('cat-file', '-e', `${sha}^{commit}`)) return true;
+  gitSucceeds('fetch', '-q', 'origin', sha);
+  return gitSucceeds('cat-file', '-e', `${sha}^{commit}`);
+}
+
+function gitSucceeds(...args) {
+  return spawnSync('git', args, { stdio: 'ignore' }).status === 0;
 }
 
 function git(...args) {

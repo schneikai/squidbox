@@ -88,7 +88,8 @@ below; the gotchas there are load-bearing.
 
 1. `EXPO_PUBLIC_API_URL`'s value must be the Fly URL (`https://squidbox-server.fly.dev/api/v1`);
    read it with `eas env:get --name EXPO_PUBLIC_API_URL --environment preview`. If it is
-   stale/wrong, fix the VALUE (keep its visibility):
+   stale/wrong and still `secret`, delete and recreate it as `sensitive` (see Env vars); otherwise
+   fix the VALUE:
    `eas env:set --name EXPO_PUBLIC_API_URL --value <fly-url> --visibility sensitive --environment development --environment preview --environment production`
 2. Build with ONE command, from the repo root (never `eas build -e preview` directly):
    ```bash
@@ -111,7 +112,8 @@ below; the gotchas there are load-bearing.
 
 An update goes to the profile's channel (eas.json) and reaches only builds whose runtime version,
 the native fingerprint (`app.config.js`, `fingerprint.config.js`), equals its own: a change to
-native code, a native dependency or the native parts of the config needs a build (Path B) instead.
+native code, a native dependency or the native parts of the config needs a build (Path B) instead,
+and so does a change to the client migrations (`docs/sync-design.md` §15, "Older code after newer").
 
 1. The commit's CI run is completed and green (`gh run list --commit <sha>`): an update installs
    itself, no build or install stands between it and the phone.

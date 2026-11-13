@@ -1269,10 +1269,13 @@ build's embedded bundle or an older update.
 
 ### Older code after newer
 
-Code can also run on a database newer code migrated: when an update crashes at launch, expo-updates
-falls back to the build's embedded bundle, and an update published by mistake from an older commit
-does the same (undo an update by fixing forward, from a newer commit). Nothing guards or tests that
-direction yet: the installed-build suite goes from old to new only.
+When an update crashes at launch, expo-updates falls back to the build's embedded bundle, which then
+opens the database the update used. So `npm run ios:update` refuses an update whose client
+migrations differ from those of any build on its channel with its runtime version: a migration
+ships only with a build, and the fallback runs code older than the update but never older than the
+database. It also refuses a commit that doesn't descend from the channel's latest update: undo an
+update by fixing forward, from a newer commit. A direct `eas update` passes neither check, and
+nothing tests a newer database under older code: the installed-build suite goes from old to new only.
 
 ### The installed-build suite
 
