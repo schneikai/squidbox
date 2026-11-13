@@ -33,6 +33,8 @@ export interface SyncStatus {
   lastPushAt?: number;
   lastPullAt?: number;
   lastError?: string | null;
+  /** The last run ended on the server's refusal of this build as too old (§15, The update gate). */
+  updateRequired?: boolean;
 }
 
 async function getMeta(db: SyncDb, key: string): Promise<string | null> {
@@ -217,6 +219,10 @@ export async function patchStatus(db: SyncDb, patch: Partial<SyncStatus>): Promi
 export async function getStatus(db: SyncDb): Promise<SyncStatus> {
   const raw = await getMeta(db, STATUS_KEY);
   return { phase: 'idle', ...(raw ? (JSON.parse(raw) as Partial<SyncStatus>) : {}) };
+}
+
+export async function isUpdateRequiredStored(db: SyncDb): Promise<boolean> {
+  return (await getStatus(db)).updateRequired === true;
 }
 
 const SYNC_LOG_MAX = 100;

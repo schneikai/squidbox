@@ -3,8 +3,12 @@
 import { z } from 'zod';
 
 // GET /up (outside the /api/v1 prefix): the server's stable identity (SERVER_ID), which a session is
-// bound to.
-export const upResponseSchema = z.object({ status: z.literal('ok'), serverId: z.uuid() });
+// bound to, and the lowest contract version it serves (CONTRACT_VERSION, docs/sync-design.md §15).
+export const upResponseSchema = z.object({
+  status: z.literal('ok'),
+  serverId: z.uuid(),
+  minContractVersion: z.number().int(),
+});
 export type UpResponse = z.infer<typeof upResponseSchema>;
 
 // What went wrong, by kind (apps/server/src/errors.ts throws them as AppError).

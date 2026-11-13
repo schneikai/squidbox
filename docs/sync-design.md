@@ -1212,9 +1212,11 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
 
 ## 15. Compatibility across app versions
 
-Nobody is ever forced to update: an EAS update reaches a phone on the phone's schedule (ios-build
-skill → Path C), so every build and update that was ever installed keeps syncing and calling
-today's server. The server ships first; the app follows.
+Every change is backward compatible: the server ships first and only adds, so a build that hasn't
+updated (an EAS update reaches a phone on the phone's schedule, ios-build skill → Path C) keeps
+syncing and calling today's server. The one exception is a raise of the minimum contract version
+(Raising the minimum), which the update gate makes survivable: a build below the minimum is told to
+update, and its edits wait.
 
 ### The rules
 
@@ -1222,10 +1224,10 @@ today's server. The server ships first; the app follows.
   sends or needs it. Never remove, rename, retype or narrow what an old build sends or reads: fields,
   enum values, limits (`maxLength`, `max`, list sizes, body limits), routes.
 - **Enum values.** Removing one breaks a build that sends it; adding one breaks a build that reads
-  it and doesn't know it. Before adding a value to an enum an old build reads, ship a build that
-  tolerates unknown values there, and add the value once no build without that tolerance is
-  installed (the check's message says so).
-- **A behaviour change keeps the old path** for old builds, until no device runs them.
+  it and doesn't know it. Make the app tolerate unknown values there now; the new value itself
+  arrives with a raise of the minimum (the check's message says so).
+- **A behaviour change keeps the old path** for old builds, until the minimum is raised past the
+  builds that need it.
 - **Client migrations are append-only:** never edited once shipped, never removed.
 - **One-time data fixes are migrations**, not boot code to delete later.
 - **A pull fills what the build knows.** A build that learns collections or fields pulls from the
@@ -1248,13 +1250,53 @@ the check doesn't read is a problem, so it never passes what it can't judge. Wha
 zod `.refine` rules and `.transform`s leave no trace in JSON Schema, and stay under the rules above.
 The dev-only routes (`/api/v1/dev/*`) are no build's contract.
 
+### The update gate
+
+Every app request names the contract version it was built with (`CONTRACT_VERSION`,
+`packages/shared/contracts/contractVersion.json`, in the client header below); the server's minimum
+is the version it was deployed with. `apps/server/src/plugins/clientVersion.ts` reads the header on
+every `/api/v1` route (sign-in and uploads included; `/up` stays open and answers
+`minContractVersion`):
+
+- a header naming a version below the minimum gets HTTP 426 (`UPDATE_REQUIRED_STATUS`) with the
+  usual envelope, code `update_required`;
+- a header without a version (every build from before the gate) or with one that isn't a positive
+  integer counts as version 1, never a 400 (one on `auth/refresh` would end the session);
+- no header at all is not the app (tests, curl, the health check) and passes.
+
+The 426 never changes: every build made from now on keys on it, by the status, never the text. The
+app then says "Update Squidbox to keep syncing" (`apiErrorMessage` for any alert; the note with an
+Update button on Settings and Library sync, "Update required" in the Library sync row, the account
+button's dot, the first-sync screen), and Update fetches the EAS update and restarts
+(`lib/updateApp.ts`). A 426 ends the sync run without flagging a row or an asset: local edits stay in
+the outbox (§6) and go up after the update. The flag lives in the sync status (`sync_meta`) and is
+cleared by a finished run and by a library's open, so it never outlives the build.
+
+### Raising the minimum
+
+The owner's decision only. An agent proposes it when no compatible way exists and never runs the
+command on its own. The steps, in order:
+
+1. In a clean checkout whose HEAD holds the breaking change (the contract test is red there) and is
+   the pushed tip of its branch, `npm run contract:raise` rewrites the baseline to HEAD's commit and
+   contract and raises `CONTRACT_VERSION` by one. It commits nothing.
+2. Commit both files and push. Never rebase or force-push the branch after a raise: the baseline
+   names its commit, which the installed-build suite fetches (a squash merge keeps it fetchable
+   through the pull request).
+3. Publish the app from that commit on every channel (`npm run ios:update`, or `npm run ios:app`
+   when native code or the client migrations changed). That app must work against the old server
+   until the deploy.
+4. Deploy the server.
+
+A raise is when leftovers kept for older builds may be deleted.
+
 ### The client header
 
-Every request names its build and install: `x-squidbox-client: <commit> <device>`
-(`packages/shared/contracts/client.ts`, sent by `apps/mobile/src/utils/cloud-api/clientHeader.ts`):
-the full git sha the build was made from (`app.config.js` `extra.gitCommit`) and a uuid minted once
-per install. The server ignores it for now; recording which builds are installed is a todo before
-other people install the app.
+Every request names its build, install and contract version: `x-squidbox-client: <commit> <device>
+<version>` (`packages/shared/contracts/client.ts`, sent by
+`apps/mobile/src/utils/cloud-api/clientHeader.ts`): the full git sha the build was made from
+(`app.config.js` `extra.gitCommit`), a uuid minted once per install, `-` for either when it isn't
+known, and the build's `CONTRACT_VERSION`. The server reads only the version (The update gate).
 
 ### Older code after newer
 

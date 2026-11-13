@@ -3,7 +3,7 @@ import { getRegistry, type Library } from './registry';
 
 import { getDb, openAppDb, setOpenDb } from '@/sync/db/client';
 import { retryFailures } from '@/sync/outbox';
-import { getOwner, setOwner } from '@/sync/status';
+import { getOwner, patchStatus, setOwner } from '@/sync/status';
 import { sweepPurgedFiles } from '@/sync/sweepPurgedFiles';
 import webFileUrls from '@/utils/assets/webFileUrls';
 
@@ -25,8 +25,10 @@ export async function openLibrary(library: Library): Promise<void> {
   try {
     // A new database learns its owner here; an existing one keeps what it recorded itself.
     if (!(await getOwner(db))) await setOwner(db, library.owner);
-    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6).
+    // Each open (a launch, a switch) gives the failed pushes another try (sync-design §6), and forgets
+    // the server's refusal of an older build: this one may be the update it asked for (§15).
     await retryFailures(db);
+    await patchStatus(db, { updateRequired: false });
   } catch (error) {
     await db.close().catch(() => {}); // not published yet: closeLibrary wouldn't see it
     throw error;

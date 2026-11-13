@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import Button from '@/components/Button';
 import SplashStage from '@/components/SplashStage';
 import getFirstSyncStep from '@/features/sync-status/getFirstSyncStep';
+import useUpdateApp from '@/features/sync-status/useUpdateApp';
 import useAfterDelay from '@/hooks/useAfterDelay';
+import useUpdateRequired from '@/hooks/useUpdateRequired';
 import { deviceLibraryToJoin } from '@/library/sessionLibrary';
 import useCloud from '@/providers/cloud/useCloud';
 import type { PullStep } from '@/sync/status';
@@ -22,16 +24,19 @@ const ALMOST_DONE_MS = 5_000;
 
 export default function FirstSyncScreen() {
   const status = useSyncStatus();
+  const updateRequired = useUpdateRequired();
   const { logoutAsync } = useCloud();
-  const { label, failed } = useFirstSyncStep(status);
+  const { update, updating } = useUpdateApp();
+  const { label, failed } = useFirstSyncStep({ ...status, updateRequired });
 
   // Never sit dead on an error: auto-retry the pull on a short interval while this screen shows an
-  // error, and self-heal without the user restarting. (The normal 30s trigger still runs too.)
+  // error, and self-heal without the user restarting. (The normal 30s trigger still runs too.) Not
+  // while the server asks for an update: only the update helps then.
   useEffect(() => {
-    if (!failed) return undefined;
+    if (!failed || updateRequired) return undefined;
     const id = setInterval(() => requestSync(), RETRY_MS);
     return () => clearInterval(id);
-  }, [failed]);
+  }, [failed, updateRequired]);
 
   // Signing out stops the first pull, so it asks first; watchTokenDrops then opens the library to
   // show. This device's library waits to join the account's until the first pull is done (mergeWaits
@@ -51,7 +56,11 @@ export default function FirstSyncScreen() {
       // A sign-out stops the pull at its next batch; the library keeps what it pulled.
       footer={<Button label="Sign out" isInverse onPress={handleSignOut} />}
     >
-      {failed && <Button label="Try again" isInverse colorPalette="neutral" onPress={() => requestSync()} />}
+      {updateRequired ? (
+        <Button label="Update" isInverse colorPalette="neutral" loading={updating} onPress={update} />
+      ) : (
+        failed && <Button label="Try again" isInverse colorPalette="neutral" onPress={() => requestSync()} />
+      )}
     </SplashStage>
   );
 }

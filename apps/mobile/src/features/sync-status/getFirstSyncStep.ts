@@ -1,7 +1,9 @@
 import type { PullStep } from '@/sync/status';
 import type { LiveSyncStatus } from '@/sync/useSyncStatus';
+import { UPDATE_REQUIRED_TEXT } from '@/utils/cloud-api/updateRequiredText';
 
-type FirstSyncStatus = Pick<LiveSyncStatus, 'phase' | 'lastError' | 'pullStep'>;
+// `updateRequired`: useUpdateRequired.
+type FirstSyncStatus = Pick<LiveSyncStatus, 'phase' | 'lastError' | 'pullStep'> & { updateRequired: boolean };
 // `wasFailed`: the screen showed the failure last time and no batch arrived since. `almostDone`: the
 // finishing step has shown for a while.
 type Shown = { wasFailed: boolean; almostDone: boolean };
@@ -11,13 +13,15 @@ type Shown = { wasFailed: boolean; almostDone: boolean };
  * as it counts (only while pulling). A failed run fails the screen; the failure it showed stays
  * through the auto-retries (their push and the pull's connecting stretch) until a retry pulls a batch.
  * An error a run left behind is not shown by itself: the run after it (on a new launch) says where it
- * is until it fails too.
+ * is until it fails too. A server that refused this build as too old fails it with the update it asks
+ * for, until the update.
  */
 export default function getFirstSyncStep(
-  { phase, lastError, pullStep }: FirstSyncStatus,
+  { phase, lastError, pullStep, updateRequired }: FirstSyncStatus,
   { wasFailed, almostDone }: Shown,
 ): { label: string; failed: boolean; step: PullStep | undefined } {
   const step = phase === 'pulling' ? pullStep : undefined;
+  if (updateRequired) return { label: UPDATE_REQUIRED_TEXT, failed: true, step };
   if (lastError && (phase === 'error' || (wasFailed && !step)))
     return { label: "Can't reach the server", failed: true, step };
   if (step === 'finishing') return { label: almostDone ? 'Almost done' : 'Finishing up', failed: false, step };

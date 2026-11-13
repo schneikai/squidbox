@@ -195,6 +195,19 @@ describe('a file field in the sync', () => {
     });
   }
 
+  it('an upload the server refused as from a too-old build ends the run, no row flagged and nothing pushed', async () => {
+    await contacts.create(db, makeContactRecord({ avatarFilename: 'avatar-x-1.jpg' }));
+    await contacts.create(db, makeContactRecord({ name: 'Jon' }));
+    const uploadFile = recording(async () => {
+      throw new UploadFailedError('Update required', { status: 426, code: 'update_required' });
+    });
+
+    await expect(runSyncOnce(db, server(), { uploadFile })).rejects.toThrow('Update required');
+
+    expect(pushed).toEqual([]);
+    expect(await outboxRows()).toMatchObject([{ error: null }, { error: null }]);
+  });
+
   it('a photo changed during its upload is uploaded and pushed by the next run', async () => {
     const contact = await pushedContact();
     await contacts.update(db, contact.id, { avatarFilename: 'avatar-x-1.jpg' });

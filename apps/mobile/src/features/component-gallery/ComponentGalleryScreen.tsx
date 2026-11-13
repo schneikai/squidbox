@@ -270,6 +270,11 @@ export default function ComponentGalleryScreen() {
         <Specimen name="WarningNote">
           <WarningNote style={styles.fill}>This instruction text is missing its {'{voice}'} placeholder.</WarningNote>
         </Specimen>
+        <Specimen name="WarningNote: with an action">
+          <WarningNote style={styles.fill} trailing={<Button label="Update" size="small" onPress={noop} />}>
+            Update Squidbox to keep syncing. Your changes stay on this iPhone until then.
+          </WarningNote>
+        </Specimen>
       </>
     );
   }

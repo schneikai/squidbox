@@ -1,3 +1,4 @@
+import { CONTRACT_VERSION } from '@squidbox/shared';
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { z } from 'zod';
 
@@ -22,7 +23,7 @@ describe('the oldest supported build', () => {
     if (found.length === 0) return;
     expect.fail(
       [
-        `The oldest supported build (${baseline.commit.slice(0, 8)}) can't take this change:`,
+        `Contract version ${CONTRACT_VERSION} (the oldest supported build, ${baseline.commit.slice(0, 8)}) can't take this change:`,
         ...found.map((problem) => `  ${problem}`),
         'Make the change additive (docs/sync-design.md §15, The rules). If no compatible way exists, propose raising the minimum to the owner: only the owner decides it (§15, Raising the minimum).',
       ].join('\n'),

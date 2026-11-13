@@ -3,30 +3,37 @@ import { describe, it, expect } from 'vitest';
 import getFirstSyncStep from '../src/features/sync-status/getFirstSyncStep';
 
 type Status = Parameters<typeof getFirstSyncStep>[0];
-const idle: Status = { phase: 'idle', lastError: null };
+const idle: Status = { phase: 'idle', lastError: null, updateRequired: false };
 const fresh = { wasFailed: false, almostDone: false };
 const labelOf = (status: Status, shown = fresh) => getFirstSyncStep(status, shown).label;
 
 describe('getFirstSyncStep', () => {
   it("says Can't reach the server, failed, when a run failed", () => {
-    expect(getFirstSyncStep({ phase: 'error', lastError: 'offline' }, fresh)).toMatchObject({
+    expect(getFirstSyncStep({ ...idle, phase: 'error', lastError: 'offline' }, fresh)).toMatchObject({
       label: "Can't reach the server",
       failed: true,
     });
   });
 
+  it('says to update, failed, when the server refused this build, whatever the run does', () => {
+    for (const phase of ['error', 'pulling'] as const)
+      expect(
+        getFirstSyncStep({ phase, lastError: 'Update required', pullStep: 'downloading', updateRequired: true }, fresh),
+      ).toMatchObject({ label: 'Update Squidbox to keep syncing', failed: true });
+  });
+
   it('keeps the failure it showed while a retry pushes or pulls without a step, and drops it once a step comes', () => {
     const shownFailed = { ...fresh, wasFailed: true };
-    expect(labelOf({ phase: 'pushing', lastError: 'offline' }, shownFailed)).toBe("Can't reach the server");
-    expect(labelOf({ phase: 'pulling', lastError: 'offline' }, shownFailed)).toBe("Can't reach the server");
+    expect(labelOf({ ...idle, phase: 'pushing', lastError: 'offline' }, shownFailed)).toBe("Can't reach the server");
+    expect(labelOf({ ...idle, phase: 'pulling', lastError: 'offline' }, shownFailed)).toBe("Can't reach the server");
     expect(
-      getFirstSyncStep({ phase: 'pulling', lastError: 'offline', pullStep: 'downloading' }, shownFailed),
+      getFirstSyncStep({ ...idle, phase: 'pulling', lastError: 'offline', pullStep: 'downloading' }, shownFailed),
     ).toMatchObject({ label: 'Downloading your library', failed: false });
   });
 
   // A launch after the app was closed on the error: the blob still has the last run's error.
   it('does not show an error a run left behind while a new run has not failed', () => {
-    expect(getFirstSyncStep({ phase: 'pulling', lastError: 'offline' }, fresh)).toMatchObject({
+    expect(getFirstSyncStep({ ...idle, phase: 'pulling', lastError: 'offline' }, fresh)).toMatchObject({
       label: 'Setting up your library',
       failed: false,
     });
@@ -53,6 +60,8 @@ describe('getFirstSyncStep', () => {
       label: 'Setting up your library',
       step: undefined,
     });
-    expect(labelOf({ phase: 'error', lastError: 'boom', pullStep: 'downloading' })).toBe("Can't reach the server");
+    expect(labelOf({ ...idle, phase: 'error', lastError: 'boom', pullStep: 'downloading' })).toBe(
+      "Can't reach the server",
+    );
   });
 });

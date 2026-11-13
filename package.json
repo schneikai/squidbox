@@ -11,6 +11,7 @@
     "dev:local": "node scripts/dev.mjs",
     "ios:app": "node scripts/iosApp.mjs build",
     "ios:update": "node scripts/iosApp.mjs update",
+    "contract:raise": "node scripts/raiseContract.mjs",
     "lint": "npm run --workspace apps/mobile lint",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "knip": "knip",

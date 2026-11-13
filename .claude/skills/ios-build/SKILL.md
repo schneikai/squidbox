@@ -112,7 +112,8 @@ and so does a change to the client migrations (`docs/sync-design.md` §15, "Olde
 1. The commit's CI run is completed and green (`gh run list --commit <sha>`): an update installs
    itself, no build or install stands between it and the phone.
 2. The server this JS needs is deployed (`docs/sync-design.md` §15, the server ships first): an
-   update can outrun a deploy by minutes.
+   update can outrun a deploy by minutes. Except a raise of the minimum, where the app ships first
+   (§15, Raising the minimum).
 3. Publish with ONE command, from the repo root (never `eas update` directly):
    ```bash
    npm run ios:update                  # or: npm run ios:update -- production

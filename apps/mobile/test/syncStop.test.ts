@@ -17,6 +17,7 @@ import { getCursor, getStatus, isFirstSyncDone, markFirstSyncDone, pullCursor, s
 import type { SyncTransport } from '../src/sync/transport';
 import {
   APPLY_BATCH,
+  requestSync,
   runFullResync,
   runSyncOnce,
   setSyncTarget,
@@ -167,6 +168,39 @@ describe('withSyncPaused', () => {
   it('a session that changed under a run ends it like an abort, not as a failure', async () => {
     await expect(startRun(async () => Promise.reject(new SessionChangedError()))).resolves.toBeUndefined();
     await expect(startRun(async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+  });
+});
+
+describe('the update gate', () => {
+  it('a run the server refuses as from a too-old build is flagged, and the next finished run clears the flag', async () => {
+    // As apiWithAuthentication rejects it: axios's error, with the server's answer.
+    const refused = Object.assign(new Error('Request failed with status code 426'), {
+      response: { status: 426, data: { error: { code: 'update_required', message: 'too old' } } },
+    });
+    transportImpl.current = {
+      push: async () => Promise.reject(refused),
+      pull: async () => Promise.reject(refused),
+    } satisfies SyncTransport;
+    setSyncTarget({ db, identity: IDENTITY, library: LIBRARY });
+    await syncSettled();
+    expect(await getStatus(db)).toMatchObject({ phase: 'error', updateRequired: true });
+
+    transportImpl.current = server(0);
+    requestSync();
+    await syncSettled();
+    expect(await getStatus(db)).toMatchObject({ phase: 'idle', updateRequired: false });
+    await withSyncPaused(async () => setSyncTarget(null));
+  });
+
+  it('any other failed run is not flagged', async () => {
+    transportImpl.current = {
+      push: async () => Promise.reject(new Error('offline')),
+      pull: async () => Promise.reject(new Error('offline')),
+    } satisfies SyncTransport;
+    setSyncTarget({ db, identity: IDENTITY, library: LIBRARY });
+    await syncSettled();
+    expect(await getStatus(db)).toMatchObject({ phase: 'error', updateRequired: false });
+    await withSyncPaused(async () => setSyncTarget(null));
   });
 });
 

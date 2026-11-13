@@ -8,6 +8,7 @@ const idle: Parameters<typeof getLibrarySyncStatusText>[0] = {
   pendingCount: 0,
   failedCount: 0,
   needsReauth: false,
+  updateRequired: false,
 };
 
 describe('getLibrarySyncStatusText', () => {
@@ -34,6 +35,18 @@ describe('getLibrarySyncStatusText', () => {
 
   it('counts what waits for a sign-in once the session ended', () => {
     expect(getLibrarySyncStatusText({ ...idle, needsReauth: true, pendingCount: 12 })).toBe('12 waiting for sign-in');
+  });
+
+  it('says Update required when the server refused this build, before an error', () => {
+    expect(getLibrarySyncStatusText({ ...idle, phase: 'error', lastError: 'boom', updateRequired: true })).toBe(
+      'Update required',
+    );
+  });
+
+  it('counts what waits for a sign-in before an update the server asks for', () => {
+    expect(getLibrarySyncStatusText({ ...idle, needsReauth: true, updateRequired: true, pendingCount: 2 })).toBe(
+      '2 waiting for sign-in',
+    );
   });
 
   it('says Up to date once the session ended with nothing waiting, even after an error', () => {

@@ -15,9 +15,11 @@ import useTagPhotosFromMentions from '@/features/contact-mentions/useTagPhotosFr
 import DevAccountsSection from '@/features/dev-accounts/DevAccountsSection';
 import LoginForm from '@/features/settings/LoginForm';
 import confirmBackupSignOutAsync from '@/features/settings/confirmBackupSignOutAsync';
+import UpdateRequiredNote from '@/features/sync-status/UpdateRequiredNote';
 import getLibrarySyncStatusText from '@/features/sync-status/getLibrarySyncStatusText';
 import useHasFeature from '@/hooks/useHasFeature';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
+import useUpdateRequired from '@/hooks/useUpdateRequired';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import useAppSettings from '@/providers/app-settings/useAppSettings';
 import useCloud from '@/providers/cloud/useCloud';
@@ -36,6 +38,7 @@ export default function SettingsScreen() {
   const cloudSync = useCloudSync();
   const counts = useBackupCounts();
   const { phase, lastError, pendingCount, failedCount } = useSyncStatus();
+  const updateRequired = useUpdateRequired();
   const { isVideoAutoplayOn, setIsVideoAutoplayOn, isHapticsOn, setIsHapticsOn } = useAppSettings();
   const isAssistantAvailable = useIsAssistantAvailable();
   const isDeveloper = useHasFeature('developer');
@@ -122,6 +125,7 @@ export default function SettingsScreen() {
     <Page testID="settings-screen">
       <FloatingDetailHeader title="Settings" onBack={() => navigation.goBack()} />
       <DetailScrollView>
+        <UpdateRequiredNote style={styles.updateNote} />
         <ScreenSectionHeader title="Account" />
         {renderAccount()}
         <DevAccountsSection />
@@ -140,7 +144,14 @@ export default function SettingsScreen() {
               />
               <Row
                 label="Library sync"
-                value={getLibrarySyncStatusText({ phase, lastError, pendingCount, failedCount, needsReauth })}
+                value={getLibrarySyncStatusText({
+                  phase,
+                  lastError,
+                  pendingCount,
+                  failedCount,
+                  needsReauth,
+                  updateRequired,
+                })}
                 onPress={() => router.navigate('/settings/sync')}
                 hasChevron
               />
@@ -196,4 +207,5 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   loginWrapper: { paddingTop: space.sm, marginBottom: space.xs },
+  updateNote: { marginTop: space.sm },
 });

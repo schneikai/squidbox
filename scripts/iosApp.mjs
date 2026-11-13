@@ -21,9 +21,10 @@
  *   npm run ios:update                  # update, preview
  *   npm run ios:update -- production
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { fail, git, read, requirePushedTip, retry, run } from './ship.mjs';
 
 // What an App build or update needs from its profile's EAS environment.
 const APP_ENV = ['EXPO_PUBLIC_API_URL', 'SENTRY_AUTH_TOKEN'];
@@ -53,14 +54,7 @@ const easOnlyEnv = {
   EXPO_NO_DOTENV: '1',
 };
 
-if (git('status', '--porcelain') !== '') fail('The checkout has changes: commit and push them first.');
-const branch = git('branch', '--show-current');
-if (!branch) fail('Check out the branch to ship (HEAD is detached).');
-retry(() => git('fetch', 'origin', branch));
-const commit = git('rev-parse', 'HEAD');
-if (git('rev-parse', `origin/${branch}`) !== commit) {
-  fail(`HEAD is not the pushed tip of origin/${branch}: push it, or pull, first.`);
-}
+const { commit } = requirePushedTip();
 
 const refusals =
   command === 'build' ? unreadable(APP_ENV) : [...unreadable(APP_ENV), ...noReachableBuild(), ...olderThanLatest()];
@@ -188,34 +182,4 @@ function hasCommit(sha) {
 
 function gitSucceeds(...args) {
   return spawnSync('git', args, { stdio: 'ignore' }).status === 0;
-}
-
-function git(...args) {
-  return read('git', args);
-}
-
-// A command's captured stdout; its stderr goes to the terminal.
-function read(command, args, cwd, env = process.env) {
-  return execFileSync(command, args, { cwd, env, encoding: 'utf8' }).trim();
-}
-
-function run(command, args, cwd, env = process.env) {
-  return spawnSync(command, args, { cwd, stdio: 'inherit', env }).status === 0;
-}
-
-// Network calls are retried with backoff (2, 4, 8, 16 s) before giving up.
-function retry(action) {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return action();
-    } catch (error) {
-      if (attempt === 4) fail(error.message);
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000 * 2 ** attempt);
-    }
-  }
-}
-
-function fail(message) {
-  console.error(message);
-  process.exit(1);
 }
