@@ -1,5 +1,4 @@
 import type { AssetRecord } from '@squidbox/shared';
-import { Alert } from 'react-native';
 
 import { openLibraryId } from '@/library/current';
 import { removeAssetFiles } from '@/library/fs';
@@ -8,9 +7,7 @@ import getPickedAssetMetadataAsync from '@/providers/assets/getPickedAssetMetada
 import useAssets from '@/providers/assets/useAssets';
 import buildAssetAsync from '@/utils/assets/buildAssetAsync';
 import imagePickerMediaTypeToAssetMediaType from '@/utils/assets/imagePickerMediaTypeToAssetMediaType';
-import deletePath from '@/utils/files/deletePath';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
-import pluralizeText from '@/utils/pluralizeText';
 
 type AddAssetsOptions = {
   onStart?: () => void;
@@ -26,30 +23,18 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
     try {
       // The picker only resolves once iOS has exported the picked files, which can take seconds.
       // Starting the progress overlay as the picker opens means it is already showing when the
-      // picker closes, instead of a silent pause before the new assets appear.
-      const imagePickerResults = await pickImageFromMediaLibrary({ onOpen: onStart });
+      // picker closes, instead of a silent pause before the new assets appear. `exif` reads each
+      // photo's date taken and place off its file, for when Photos can't give them.
+      const imagePickerResults = await pickImageFromMediaLibrary({ onOpen: onStart, exif: true });
       if (!imagePickerResults || imagePickerResults.length === 0) return [];
 
       // The files go into this screen's library; the records must too (a sign-in meanwhile would
       // open another one), else the files are removed again.
       const newAssets: AssetRecord[] = [];
-      let skipped = 0;
-      const reportProgress = () => onProgress?.(((newAssets.length + skipped) / imagePickerResults.length) * 100);
       try {
         for (const result of imagePickerResults) {
-          // Its metadata only (the picker exported the file). A photo whose details Photos failed to
-          // give is left out (its exported file removed) rather than saved without its date and
-          // place for good; the user is told and can add it again.
-          let assetInfo;
-          try {
-            assetInfo = await getPickedAssetMetadataAsync(result);
-          } catch (error) {
-            console.warn(`Could not read the details of picked asset ${result.assetId}`, error);
-            deletePath(result.uri);
-            skipped += 1;
-            reportProgress();
-            continue;
-          }
+          // Its details only (the picker exported the file): from Photos, else from the file itself.
+          const assetInfo = await getPickedAssetMetadataAsync(result);
           const newAsset = await buildAssetAsync(
             {
               // iOS always exports these with a picked file; one missing stays out, so newRecord's
@@ -62,16 +47,16 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
               width: Math.round(result.width),
               height: Math.round(result.height),
               duration: result.duration,
-              isFavorite: assetInfo?.isFavorite ?? false,
-              takenAt: assetInfo?.creationTime == null ? null : Math.round(assetInfo.creationTime),
-              originalFilename: assetInfo?.filename ?? result.fileName ?? null,
-              latitude: assetInfo?.location?.latitude ?? null,
-              longitude: assetInfo?.location?.longitude ?? null,
+              isFavorite: assetInfo.isFavorite,
+              takenAt: assetInfo.creationTime == null ? null : Math.round(assetInfo.creationTime),
+              originalFilename: assetInfo.filename,
+              latitude: assetInfo.location?.latitude ?? null,
+              longitude: assetInfo.location?.longitude ?? null,
             },
             library,
           );
           newAssets.push(newAsset);
-          reportProgress();
+          onProgress?.((newAssets.length / imagePickerResults.length) * 100);
         }
         if (openLibraryId() !== library.id) throw new Error('The library changed while the photos were added');
       } catch (e) {
@@ -80,12 +65,6 @@ export default function useAddAssetsFromCameraRoll({ onStart, onProgress, onFini
       }
 
       if (newAssets.length) await addAssetsAsync(newAssets);
-      if (skipped) {
-        Alert.alert(
-          pluralizeText("1 item wasn't added", "%{count} items weren't added", skipped),
-          "Photos couldn't give their date, location and name. Try adding them again.",
-        );
-      }
       return newAssets;
     } finally {
       // Hide only once the assets are saved, so they are in the list when the overlay goes away.
