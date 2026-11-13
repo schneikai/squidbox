@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 // The builds that show test-only UI (Settings → Assistant → Testing): a development bundle (Metro:
 // the dev client, the web preview) and the EAS `development` and `preview` builds. An allowlist, so
 // production, a release built without EAS and any unknown profile are a release. app.config.js sets
-// extra.buildProfile from EAS_BUILD_PROFILE.
+// extra.buildProfile from EAS_BUILD_PROFILE; an update carries the profile it was published for.
 const TEST_BUILD_PROFILES = ['development', 'preview'];
 
 export default function isTestBuild(): boolean {

@@ -1212,8 +1212,9 @@ the applied / skipped-lww / rejected tally. `GET /up` is the health check.
 
 ## 15. Compatibility across app versions
 
-An installed build can't be updated by us, and nobody is ever forced to update: every build that
-was ever installed keeps syncing and calling today's server. The server ships first; the app follows.
+Nobody is ever forced to update: an EAS update (ios-build skill → Path C) reaches a phone only when
+the App launches online, and runs from the launch after that, so every build and update that was
+ever installed keeps syncing and calling today's server. The server ships first; the app follows.
 
 ### The rules
 
@@ -1232,11 +1233,12 @@ was ever installed keeps syncing and calling today's server. The server ships fi
 
 ### Contract snapshots
 
-Every App build (`preview`, `production`) starts with `npm run ios:app` (`scripts/iosAppBuild.mjs`,
-the ios-build skill): on the clean, pushed tip of a branch it snapshots the commit's contract
-(`npm run contract:snapshot`) to `apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`, commits
-and pushes it, and only then builds that commit. `apps/mobile/app.config.js` refuses an App build
-whose commit has no pushed snapshot, so a build can't be installed without one. A
+Every App build and update (`preview`, `production`) starts with `npm run ios:app` or
+`npm run ios:update` (`scripts/iosApp.mjs`, the ios-build skill): on the clean, pushed tip of a
+branch it snapshots the commit's contract (`npm run contract:snapshot`) to
+`apps/server/contract/builds/<YYYYMMDD>-<short sha>.json`, commits and pushes it, and only then
+builds or publishes that commit. `apps/mobile/app.config.js` refuses an App build or update whose
+commit has no pushed snapshot, so neither can be installed without one. A
 snapshot records the build's full commit sha and build date and is never rewritten. Its contract is
 the normalized JSON Schema of every route (request body, params, querystring, every answer, the body
 limit), every collection, the error envelope and the client migrations' hashes
@@ -1262,7 +1264,9 @@ other people install the app.
 
 ### Retiring a build
 
-An owner decision, once no device runs the build: delete its snapshot file.
+An owner decision, once no device runs the build: delete its snapshot file. Keep the installed
+build's snapshot and every update's a phone may still run: a phone that was offline runs the
+build's embedded bundle or an older update.
 
 ### The installed-build suite
 

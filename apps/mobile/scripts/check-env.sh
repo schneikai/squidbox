@@ -61,9 +61,8 @@ if [ -n "${EXPO_ASC_API_KEY_PATH:-}" ]; then
 fi
 
 echo
-echo "== app secrets in EAS (preview/production builds) =="
-echo "Run: eas env:list --environment preview  -> confirm EXPO_PUBLIC_API_URL, SENTRY_AUTH_TOKEN exist."
-echo "Set/update via: eas env:set --name <NAME> --value <value> --visibility secret --environment preview --environment production"
+echo "== app variables in EAS (preview/production builds and updates) =="
+echo "npm run ios:app and npm run ios:update check the App's EAS variables; setting them: ios-build skill -> Env vars."
 
 echo
 if [ "$eas_miss" -eq 1 ]; then

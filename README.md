@@ -56,16 +56,16 @@ The sync engine is described in `docs/sync-design.md`. Open work and ideas are i
 
 Two gitignored env files in `apps/mobile/`, each for a different audience:
 
-| File         | Read by           | Purpose                                                                                                                                                                                         |
-| ------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File         | Read by           | Purpose                                                                                                                                                                                                             |
+| ------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.env.local` | Metro, at runtime | Supplies `EXPO_PUBLIC_*` to the **dev client** over the tunnel. Copy from `.env.local.example`, or let `scripts/check-env.sh` (or `npm run dev:local` on the live backend) write it from the environment variables. |
-| `.secrets`   | you, once         | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime.                                                                                                                  |
+| `.secrets`   | you, once         | Upload bundle to push **preview/release** secrets to EAS. Not read at runtime.                                                                                                                                      |
 
 `.env.local` holds `EXPO_PUBLIC_API_URL`, optional login prefill and Sentry debug. Each variable is explained in `.env.local.example`.
 
 `EXPO_PUBLIC_API_URL` is the deployed backend, `https://squidbox-server.fly.dev/api/v1`. `npm run dev:local` points the dev client at the local backend instead, without touching the file (see [Dev client](#dev-client)). Restart `npm run dev:local` after changing `.env.local`; it then rebuilds the bundle from scratch.
 
-`.secrets` lists the values the **preview/production** builds need (`EXPO_PUBLIC_API_URL`, `SENTRY_AUTH_TOKEN`). They are stored as EAS environment variables; the `ios-build` skill has the commands, how they get baked into the app and the pitfalls around them.
+`.secrets` lists what the App's **preview/production** builds and updates need. They are stored as EAS environment variables; `npm run ios:app` and `npm run ios:update` check them, and the `ios-build` skill has their visibility, how they get baked into the app and the pitfalls around them.
 
 On a fresh checkout, runtime secrets are already in EAS. Restore the rest from your password manager (`.env.local`, `EXPO_TOKEN`, and the App Store Connect `.p8` + IDs), then run `scripts/check-env.sh` to verify.
 
@@ -73,19 +73,19 @@ On a fresh checkout, runtime secrets are already in EAS. Restore the rest from y
 
 Run `/ios-build`: it asks what to build and drives EAS for you (no flags or profiles to type). The two build types install as **separate apps** (different bundle IDs), so both can coexist on the phone:
 
-|                                                | Dev client                                                                                      | Preview / release build                 |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Profile                                        | `development`                                                                                   | `preview` / `production`                |
-| Bundle ID                                      | `com.schneikai.squidbox.dev`                                                                    | `com.schneikai.squidbox`                |
-| App name                                       | Squidbox (Dev)                                                                                  | Squidbox                                |
-| Icon                                           | dark, with a yellow DEV band (`assets/icon-dev.png`)                                            | the regular icon                        |
-| JS bundle                                      | served by Metro over a tunnel (hot reload); reads `EXPO_PUBLIC_*` from `apps/mobile/.env.local` | baked in at build time from EAS secrets |
-| Use for                                        | fast iteration                                                                                  | testing / shipping a stable snapshot    |
-| Test-build UI (Settings → Assistant → Testing) | yes                                                                                             | `preview` yes, `production` no          |
+|                                                | Dev client                                                                                      | Preview / release build                                                      |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Profile                                        | `development`                                                                                   | `preview` / `production`                                                     |
+| Bundle ID                                      | `com.schneikai.squidbox.dev`                                                                    | `com.schneikai.squidbox`                                                     |
+| App name                                       | Squidbox (Dev)                                                                                  | Squidbox                                                                     |
+| Icon                                           | dark, with a yellow DEV band (`assets/icon-dev.png`)                                            | the regular icon                                                             |
+| JS bundle                                      | served by Metro over a tunnel (hot reload); reads `EXPO_PUBLIC_*` from `apps/mobile/.env.local` | from the profile's EAS environment, at build time or by `npm run ios:update` |
+| Use for                                        | fast iteration                                                                                  | testing / shipping a stable snapshot                                         |
+| Test-build UI (Settings → Assistant → Testing) | yes                                                                                             | `preview` yes, `production` no                                               |
 
 The bundle ID is chosen in `app.config.js` from `EAS_BUILD_PROFILE`, which is why the two don't overwrite each other. The same variable sets `extra.buildProfile` (unset for a build made without EAS); `src/utils/isTestBuild.ts` shows the test-only UI under Metro (a development bundle) and in the `development` and `preview` builds only. Builds are distributed via [Internal Distribution](https://docs.expo.dev/build/internal-distribution/) (no App Store). Installing, credentials (an App Store Connect API key, no Mac), signing renewal and the full runbook are in the `ios-build` skill.
 
-A preview or release build starts with `npm run ios:app`, which first records the commit and its contract (`apps/server/contract/builds/`), which `contract.test.ts` holds today's server to; the old-build e2e suite (`installedBuilds.e2e.test.ts`) runs the oldest and the newest of those builds (`docs/sync-design.md` §15).
+A preview or release build starts with `npm run ios:app`, and a JS-only change reaches the installed App with `npm run ios:update` (an EAS update, ios-build skill → Path C); each first records the commit and its contract (`apps/server/contract/builds/`), which `contract.test.ts` holds today's server to; the old-build e2e suite (`installedBuilds.e2e.test.ts`) runs the oldest and the newest of those builds (`docs/sync-design.md` §15).
 
 ### Dev client
 
@@ -155,7 +155,7 @@ If `expo-doctor` flags version drift, do NOT run `expo install --fix` (or any `n
 Sentry handles error tracking. Configure it for your own account:
 
 - `app.config.js`: specify organization and project in the Sentry Plugin section
-- `SENTRY_AUTH_TOKEN`: a secret stored in EAS (see [Environment & secrets](#environment--secrets))
+- `SENTRY_AUTH_TOKEN`: stored in EAS (ios-build skill → Env vars)
 - `apps/mobile/src/app/_layout.tsx`: set the DSN in the `Sentry.init` call
 
 ## Caveats

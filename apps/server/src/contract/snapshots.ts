@@ -3,8 +3,9 @@ import { fileURLToPath } from 'node:url';
 import type { Contract } from './currentContract.js';
 
 /**
- * Where each App build's contract is kept, one `<YYYYMMDD>-<short sha>.json` per build, written by
- * `npm run ios:app` before the build (docs/sync-design.md §15), never rewritten.
+ * Where the contract of each App build and update is kept, one `<YYYYMMDD>-<short sha>.json` per
+ * commit, written by `npm run ios:app` or `npm run ios:update` before it ships (docs/sync-design.md
+ * §15), never rewritten.
  */
 export const SNAPSHOTS_DIR = fileURLToPath(new URL('../../contract/builds/', import.meta.url));
 
