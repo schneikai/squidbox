@@ -251,7 +251,11 @@ advisory lock (§3), for each mutation:
    newer than the stored one (strict `>`), and its clock with it; every other field keeps its value
    and clock; `updated_at` becomes the newest clock. The row is written, with `user_id` from the
    token, only when a field applied; a new record is always written whole, whatever its `fields`
-   name. So an optional column an older app doesn't send (e.g. `albums.position`) keeps its stored
+   name, but its clocks are per field: a named field keeps its clock, an unnamed one takes 0 (never
+   edited, it holds the default), so another device's edit of it applies even when older than the
+   insert (two phones' first saves of a per-user record keep both). An insert newer than every
+   clock it names, or naming none, gives its unnamed fields its `updatedAt`, as a row without
+   clocks reads back. So an optional column an older app doesn't send (e.g. `albums.position`) keeps its stored
    value; a new synced column is added as optional, and the server ships before the app.
    After the merges, the batch writes one multi-row upsert per collection (a row merged twice is
    written once, with its last merge), in one savepoint; reads and upserts are split to stay within

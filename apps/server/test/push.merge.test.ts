@@ -285,6 +285,24 @@ d('push: the merge rules (Postgres)', () => {
       expect((await rowOf(r.id))!.fieldClock).toMatchObject({ notes: 3000, isFavorite: 2000, filename: 1000 });
     });
 
+    it('an insert naming some fields, then an older edit of an unnamed field from another device: applied', async () => {
+      // Two phones' first saves of one per-user record: B's (tone, at 2000) is older than A's (aboutYou,
+      // at 3000) but pushed after it. A's insert never edited tone, so B's edit of it applies.
+      const id = randomUUID();
+      const empty = { id, createdAt: 1000, deletedAt: null, aboutYou: '', contentTags: [], tone: '', rules: [] };
+      const fromA = { ...empty, updatedAt: 3000, aboutYou: 'Hiker.' };
+      const fromB = { ...empty, updatedAt: 2000, tone: 'Calm.' };
+      await push(db, USER_A, [{ collection: 'personas', record: fromA, fields: { aboutYou: 3000 } }]);
+      const [result] = await push(db, USER_A, [{ collection: 'personas', record: fromB, fields: { tone: 2000 } }]);
+      expect(result.status).toBe('applied');
+      expect(await rowOf(id, { collection: 'personas' })).toMatchObject({
+        aboutYou: 'Hiker.',
+        tone: 'Calm.',
+        updatedAt: 3000,
+      });
+      await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
+    });
+
     it('an older edit of the same field is skipped with the merged record as current', async () => {
       const r = assetRecord();
       await push(db, USER_A, [mut(r)]);
