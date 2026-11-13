@@ -6,8 +6,9 @@ import Animated from 'react-native-reanimated';
 import ContactAvatarRow from './ContactAvatarRow';
 import ContactMenuRow from './ContactMenuRow';
 import { builtInContactList } from './builtInContactLists';
-import contactQuery, { type ContactSummary } from './contactQuery';
-import contactSortOptions from './contactSortOptions';
+import contactFilterOptions from './contactFilterOptions';
+import contactQuery, { type ContactFilter, type ContactSummary } from './contactQuery';
+import contactSortOptions, { type ContactSort } from './contactSortOptions';
 import useContactSort from './useContactSort';
 import usePinnedContactList from './usePinnedContactList';
 
@@ -29,21 +30,29 @@ const PINNED_PAGE_SIZE = 30;
 const keyExtractor = (contact: ContactSummary) => contact.id;
 
 // The Contacts tab: favorites first as a row of avatars (or the list pinned in their place: tapping the row's name picks it),
-// then everyone, by name or recently added, searched and sorted in the floating bar. All lists, at the end of the
+// then everyone, by name or recently added, searched, sorted and filtered (Favorites, Tagged) in the floating bar. All lists, at the end of the
 // pinned row's header, pushes the contact lists (ContactListsScreen). + adds a contact.
 export default function ContactsScreen() {
   const { paddingTop, paddingBottom } = useScreenPadding('main');
   const { sortOrder, setSortOrder } = useContactSort('contacts');
-  const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
+  const {
+    listRef,
+    sort,
+    activeFilter,
+    toggleFilter,
+    searchBar,
+    searchText: search,
+  } = useListControls<ContactSort, ContactFilter>({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);
   const { onScroll, scrollY } = useScrollY();
 
-  // Trimmed, so a trailing space doesn't read the list again.
-  const isSearching = !!search;
-  const query = contactQuery({ scope: 'all', search, sort: sortOrder, withLists: true });
+  // Trimmed, so a trailing space doesn't read the list again. A search or a filter narrows the list: the pinned row
+  // makes way for its matches.
+  const isNarrowed = !!search || activeFilter.length > 0;
+  const query = contactQuery({ scope: 'all', filter: activeFilter, search, sort: sortOrder, withLists: true });
   const { rows, count, loadMore } = usePagedQuery(query, PAGE_SIZE);
   // What is pinned in place of Favorites, and whether there is anything else to pin (the name's tap).
-  const pin = usePinnedContactList({ isLive: !isSearching });
+  const pin = usePinnedContactList({ isLive: !isNarrowed });
   const pinned = pin.pinned ?? null;
   const canChangePin = pin.canPinBuiltIn || !!pin.lists?.length;
   // Paged as the row scrolls: Tagged can hold nearly everyone.
@@ -51,14 +60,14 @@ export default function ContactsScreen() {
     rows: pinnedContacts,
     isCurrent: isPinnedCurrent,
     loadMore: loadMorePinned,
-  } = usePagedQuery(contactQuery({ scope: pinned?.scope ?? 'favorites' }), PINNED_PAGE_SIZE, { isLive: !isSearching });
+  } = usePagedQuery(contactQuery({ scope: pinned?.scope ?? 'favorites' }), PINNED_PAGE_SIZE, { isLive: !isNarrowed });
   // The tab first shows once the pin and its contacts are read too, so the pinned row doesn't land a moment
   // after the list and push it down. From then on it stays: a new pin or search keeps the last rows until its own land.
   const [isShown, setIsShown] = useState(false);
   if (!isShown && rows && pin.pinned !== undefined && isPinnedCurrent) setIsShown(true);
   // The pinned row's header (its name, All lists) heads the tab whenever it isn't searching; the row under it once there
   // are contacts, even while it is empty, so its name can change it.
-  const hasPinnedHeader = isShown && !isSearching && !!pinnedContacts;
+  const hasPinnedHeader = isShown && !isNarrowed && !!pinnedContacts;
   const hasPinned = hasPinnedHeader && (pinnedContacts.length > 0 || !!pinned || !!count);
   const emptyTitle = builtInContactList(pinned?.id ?? 'favorites')?.emptyTitle ?? 'No contacts in this list yet';
   const pinnedEmptyText = pinned ? `${emptyTitle}.` : `${emptyTitle}. Double-tap a contact's photo to add one.`;
@@ -100,9 +109,9 @@ export default function ContactsScreen() {
       )}
       {isShown && count === 0 && (
         <EmptyState
-          icon={isSearching ? 'search' : 'contacts'}
-          title={isSearching ? 'No contacts match' : 'No contacts yet'}
-          subtitle={isSearching ? undefined : 'Tap + to add the people you work with.'}
+          icon={isNarrowed ? 'search' : 'contacts'}
+          title={isNarrowed ? 'No contacts match' : 'No contacts yet'}
+          subtitle={isNarrowed ? undefined : 'Tap + to add the people you work with.'}
         />
       )}
     </View>
@@ -131,6 +140,9 @@ export default function ContactsScreen() {
         sortOrder={sortOrder}
         sortOptions={contactSortOptions}
         onSort={sort}
+        activeFilter={activeFilter}
+        filterOptions={contactFilterOptions}
+        onFilter={toggleFilter}
       />
     </View>
   );
