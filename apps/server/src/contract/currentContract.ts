@@ -61,10 +61,10 @@ const JSON_SCHEMA_OPTIONS = {
 function holdBothSidesOfPipe({ zodSchema, jsonSchema }: { zodSchema: z.core.$ZodType; jsonSchema: JsonSchema }) {
   if (!(zodSchema instanceof z.ZodPipe)) return;
   if (zodSchema.in instanceof z.ZodTransform || zodSchema.out instanceof z.ZodTransform) return;
-  jsonSchema.allOf = [
-    ...((jsonSchema.allOf as JsonSchema[]) ?? []),
-    z.toJSONSchema(zodSchema.out, JSON_SCHEMA_OPTIONS),
-  ];
+  // The input side moves into the allOf too, so normalize folds its nullable before the merge.
+  const input = { ...jsonSchema };
+  for (const keyword of Object.keys(jsonSchema)) delete jsonSchema[keyword];
+  jsonSchema.allOf = [input, z.toJSONSchema(zodSchema.out, JSON_SCHEMA_OPTIONS)];
 }
 
 /** A zod schema as the contract keeps it; none as `{}`. */

@@ -40,6 +40,11 @@ describe('normalize', () => {
     const schema = z.string().max(10).trim().pipe(z.string().min(1).max(5));
     expect(jsonSchemaOf(schema)).toEqual({ type: 'string', minLength: 1, maxLength: 5 });
   });
+
+  it('keeps the output side’s bound of a pipe whose input is nullable', () => {
+    const schema = z.string().max(10).nullable().pipe(z.string().max(5).nullable());
+    expect(jsonSchemaOf(schema)).toEqual({ type: ['string', 'null'], maxLength: 5 });
+  });
 });
 
 // One-route, one-collection contracts to judge a change with.

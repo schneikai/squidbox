@@ -1,6 +1,5 @@
 import { getTableColumns, getTableName, sql, type SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import type { z } from 'zod';
 import {
   type CollectionSchema,
   assetCollection,
