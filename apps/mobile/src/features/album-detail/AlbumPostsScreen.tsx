@@ -4,9 +4,9 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useAlbum from '@/features/album-detail/useAlbum';
 import PostList from '@/features/post-list/PostList';
-import postQuery from '@/features/post-list/postQuery';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
+import postQuery from '@/sync/queries/postQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 
 // An album's posts, newest first, pushed from the posts chip at its top (AlbumHeader).

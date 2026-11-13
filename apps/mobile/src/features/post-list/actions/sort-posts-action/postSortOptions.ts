@@ -1,5 +1,5 @@
 import type { SortOption } from '@/components/floating-bars/SortFilterMenu';
-import type { PostSort } from '@/features/post-list/postQuery';
+import type { PostSort } from '@/sync/queries/postQuery';
 
 // The post list's sort choices (postQuery sorts by posted date), for the sort / filter menus.
 const postSortOptions: SortOption<PostSort>[] = [

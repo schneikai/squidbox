@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 
 import MenuButton, { type MenuButtonProps } from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import useContacts from '@/features/contacts-context/useContacts';
+import useContacts from '@/providers/contacts/useContacts';
 import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 
 /**

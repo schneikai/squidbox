@@ -5,10 +5,8 @@ import Animated from 'react-native-reanimated';
 
 import ContactAvatarRow from './ContactAvatarRow';
 import ContactMenuRow from './ContactMenuRow';
-import { builtInContactList } from './builtInContactLists';
 import contactFilterOptions from './contactFilterOptions';
-import contactQuery, { type ContactFilter, type ContactSummary } from './contactQuery';
-import contactSortOptions, { type ContactSort } from './contactSortOptions';
+import contactSortOptions from './contactSortOptions';
 import useContactSort from './useContactSort';
 import usePinnedContactList from './usePinnedContactList';
 
@@ -22,6 +20,8 @@ import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useScrollY from '@/hooks/useScrollY';
 import { layout } from '@/styles/designTokens';
+import { builtInContactList } from '@/sync/queries/builtInContactLists';
+import contactQuery, { type ContactFilter, type ContactSort, type ContactSummary } from '@/sync/queries/contactQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
 

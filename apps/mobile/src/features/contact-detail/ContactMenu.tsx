@@ -7,8 +7,8 @@ import handleLink from './handleLink';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
-import useContacts from '@/features/contacts-context/useContacts';
-import useDeleteContact from '@/features/contacts-context/useDeleteContact';
+import useContacts from '@/providers/contacts/useContacts';
+import useDeleteContact from '@/providers/contacts/useDeleteContact';
 
 /**
  * The contact screen's ⋯ menu: add to a list, share the X profile (with an X handle), remove the

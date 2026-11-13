@@ -10,9 +10,9 @@ import Page from '@/components/Page';
 import Switch from '@/components/Switch';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
-import useCloud from '@/features/cloud/useCloud';
 import useCloseWhen from '@/hooks/useCloseWhen';
 import useHasFeature from '@/hooks/useHasFeature';
+import useCloud from '@/providers/cloud/useCloud';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 import updateFeatureAsync from '@/utils/cloud-api/updateFeatureAsync';
 

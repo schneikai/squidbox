@@ -3,8 +3,6 @@ import { memo, type ReactNode, useState } from 'react';
 import { type AccessibilityActionEvent, StyleSheet, View } from 'react-native';
 
 import ThreadFollowingPosts from './ThreadFollowingPosts';
-import type { PostListRow } from './postQuery';
-import type { PostDetailRow } from './readPost';
 import stackEdge from './stackEdge';
 
 import Button from '@/components/Button';
@@ -15,6 +13,8 @@ import MoreAction from '@/features/post-detail/actions/MoreAction';
 import PostView from '@/features/posts/PostView';
 import longPressAccessibility from '@/lib/longPressAccessibility';
 import { layout, space } from '@/styles/designTokens';
+import type { PostListRow } from '@/sync/queries/postQuery';
+import type { PostDetailRow } from '@/sync/queries/readPost';
 
 // One stack edge per following post, at most this many.
 const MAX_EDGES = 2;

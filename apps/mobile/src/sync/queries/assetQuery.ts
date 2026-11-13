@@ -1,7 +1,6 @@
 import { and, count, eq, getTableColumns, not, or, sql, type SQL } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
-import { matchingContactIds } from '@/features/contact-list/contactQuery';
 import isOneOf from '@/lib/isOneOf';
 import {
   a,
@@ -20,6 +19,7 @@ import type { AssetRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
+import { matchingContactIds } from '@/sync/queries/contactQuery';
 import type { PagedQuery } from '@/sync/usePagedQuery';
 import { MEDIA_TYPES } from '@/utils/assets/constants';
 

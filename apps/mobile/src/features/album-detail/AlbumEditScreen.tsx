@@ -2,8 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 
 import NameNotesEditSheet from '@/components/NameNotesEditSheet';
 import useAlbum from '@/features/album-detail/useAlbum';
-import useAlbums from '@/features/albums-context/useAlbums';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
+import useAlbums from '@/providers/albums/useAlbums';
 
 // Edit album, from the album's ⋯ menu, its name or its note: its name, note and star as a draft sheet,
 // with the cursor in the note when its note opened it (`focus=notes`).

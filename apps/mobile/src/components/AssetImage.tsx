@@ -2,10 +2,10 @@ import { type ReactNode, useEffect, useState, useRef } from 'react';
 import { View, Image, Animated, StyleSheet, type ImageResizeMode, type StyleProp, type ViewStyle } from 'react-native';
 
 import Icon from '@/components/Icon';
-import useAppSettings from '@/features/app-settings/useAppSettings';
-import useAssetThumbnailLoader from '@/features/asset-thumbnail-loader/useAssetThumbnailLoader';
-import useCloud from '@/features/cloud/useCloud';
 import useLibrary from '@/library/useLibrary';
+import useAppSettings from '@/providers/app-settings/useAppSettings';
+import useAssetThumbnailLoader from '@/providers/asset-thumbnail-loader/useAssetThumbnailLoader';
+import useCloud from '@/providers/cloud/useCloud';
 import { colors, motion, sizes } from '@/styles/designTokens';
 import { getAssetThumbnailUri } from '@/utils/assets/assetStorage';
 import assetFileUnavailableMessages from '@/utils/assets/files/assetFileUnavailableMessages';

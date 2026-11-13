@@ -1,8 +1,8 @@
-import { type AssetQueryDescriptor, isAssetFilter } from './assetQuery';
 import assetScopeFromParam from './assetScopeFromParam';
 
 import listParam from '@/lib/listParam';
 import { isAssetSort } from '@/sync/assetSql';
+import { type AssetQueryDescriptor, isAssetFilter } from '@/sync/queries/assetQuery';
 
 export type AssetParams = { scope?: string; sort?: string; filter?: string; search?: string };
 

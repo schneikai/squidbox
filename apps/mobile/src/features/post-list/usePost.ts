@@ -1,6 +1,5 @@
-import postQuery from './postQuery';
-import readPost from './readPost';
-
+import postQuery from '@/sync/queries/postQuery';
+import readPost from '@/sync/queries/readPost';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 /**

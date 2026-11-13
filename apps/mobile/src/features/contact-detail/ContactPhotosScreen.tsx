@@ -4,10 +4,10 @@ import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import AssetGrid from '@/features/asset-list/AssetGrid';
 import assetHref from '@/features/asset-list/assetHref';
-import assetQuery from '@/features/asset-list/assetQuery';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { schema } from '@/sync/db/client';
+import assetQuery from '@/sync/queries/assetQuery';
 import { useLiveRecord } from '@/sync/useLiveRecord';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 

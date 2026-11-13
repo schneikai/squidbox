@@ -4,10 +4,10 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import type { PostListRow } from '@/features/post-list/postQuery';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import PostRowCard from '@/features/posts/PostRowCard';
 import { press, space } from '@/styles/designTokens';
+import type { PostListRow } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
 export type RepostCardProps = {

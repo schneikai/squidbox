@@ -35,9 +35,7 @@ export async function saveInstruction(
   defaultText: string,
 ): Promise<void> {
   const value = text === null || text.trim() === defaultText ? null : text.trim();
-  const stored = await readInstructions(db, userId);
-  if (stored ? stored[kind] === value : value === null) return;
-  await saveUserRecord(db, 'instructions', t, userId, { [kind]: value }, EMPTY_INSTRUCTIONS);
+  await saveInstructions(db, userId, (stored) => ((stored?.[kind] ?? null) === value ? {} : { [kind]: value }));
 }
 
 /**
@@ -50,11 +48,25 @@ export async function clearInstructionsEqualTo(
   userId: string,
   defaultTexts: Instructions,
 ): Promise<boolean> {
-  const stored = await readInstructions(db, userId);
-  if (!stored) return false;
-  const kinds = INSTRUCTION_KINDS.filter((kind) => stored[kind]?.trim() === defaultTexts[kind]);
-  if (kinds.length === 0) return false;
-  const cleared = Object.fromEntries(kinds.map((kind) => [kind, null]));
-  await saveUserRecord(db, 'instructions', t, userId, cleared, EMPTY_INSTRUCTIONS);
-  return true;
+  let cleared = false;
+  await saveInstructions(db, userId, (stored) => {
+    const kinds = INSTRUCTION_KINDS.filter((kind) => stored?.[kind]?.trim() === defaultTexts[kind]);
+    cleared = kinds.length > 0;
+    return Object.fromEntries(kinds.map((kind) => [kind, null]));
+  });
+  return cleared;
+}
+
+/**
+ * Saves the changes `change` makes of the stored texts, inside the save's transaction, so a decision
+ * based on a stored text never acts on one saved or pulled in between.
+ */
+function saveInstructions(
+  db: SyncDb,
+  userId: string,
+  change: (
+    stored: Partial<Record<InstructionKind, string | null>> | null,
+  ) => Partial<Record<InstructionKind, string | null>>,
+): Promise<void> {
+  return saveUserRecord(db, 'instructions', t, userId, change, EMPTY_INSTRUCTIONS);
 }
