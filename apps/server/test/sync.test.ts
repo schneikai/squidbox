@@ -348,7 +348,7 @@ d('sync engine (Postgres)', () => {
     const sample: Record<CollectionName, () => Record<string, unknown>> = {
       assets: () => assetRecord({ tags: ['forest', 'morning fog'] }),
       albums: () => albumRecord(),
-      posts: () => postRecord(),
+      posts: () => postRecord({ extraChannelIds: ['x'] }),
       album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       personas: () => ({

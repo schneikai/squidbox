@@ -1,23 +1,33 @@
-import { channelById, channelName, type Channel } from '@squidbox/shared';
+import { channelById, type Channel } from '@squidbox/shared';
 import { type StyleProp, ScrollView, StyleSheet, type ViewStyle } from 'react-native';
 
-import ChannelLogo from './ChannelLogo';
+import ChannelLogos from './ChannelLogos';
+import NewVersionMenu from './NewVersionMenu';
+import VersionMenu from './VersionMenu';
+import isAllChannels from './isAllChannels';
+import orderChannelIds from './orderChannelIds';
+import versionLabel from './versionLabel';
 
 import Chip from '@/components/Chip';
-import MenuButton from '@/components/MenuButton';
-import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
 import useHaptics from '@/hooks/useHaptics';
-import { sizes, space } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 
-/** One channel of a post on the bar: the post's own, or another channel's copy. */
-export type ChannelBarPart = { key: string; channelId: string | null };
+/** One version of a post on the bar: the post's own, or another version; `channelIds` the channels it goes to. */
+export type ChannelBarPart = { key: string; channelIds: readonly string[] };
 
-/** What the editor adds to the bar: the user's `channels` to add or change to, and what each does. */
+/**
+ * What the editor adds to the bar: the user's `channels` to tick, and what a tick does: `onToggle`
+ * ticks a channel on the selected version or unticks it, `onKeep` (a long press) makes it the selected
+ * version's only channel, `onNewVersion` gives a channel a version of
+ * its own (a copy of the one that shows), `onRemove` removes the selected version (none for the post's
+ * only one).
+ */
 export type ChannelBarEditing = {
   channels: Channel[];
-  onAdd: (channelId: string) => void;
-  onChange: (channelId: string) => void;
+  onToggle: (channelId: string) => void;
+  onKeep: (channelId: string) => void;
+  onNewVersion: (channelId: string) => void;
   onRemove?: () => void;
 };
 
@@ -25,72 +35,65 @@ type ChannelBarProps = {
   parts: ChannelBarPart[];
   selectedKey: string;
   onSelect: (key: string) => void;
+  channelOrder: string[];
   editing?: ChannelBarEditing;
   style?: StyleProp<ViewStyle>;
 };
 
 /**
- * A post's channels as a row of chips (tabs), one per part of `parts` in bar order (the caller's
- * orderPostChannels): each its channel's logo and name, the selected one (`selectedKey`) white. A tap
- * on another calls `onSelect(key)`, with a selection tap.
+ * A post's versions as a row of chips (tabs), one per part of `parts` in bar order (the caller's
+ * orderPostChannels): each its channels' logos in the user's `channelOrder` (read "Bluesky and X":
+ * versionLabel), or All channels, without logos, when it goes to every one of the user's channels; the
+ * selected one (`selectedKey`) white. A tap on another calls `onSelect(key)`, with a selection tap.
  * With `editing` (the editor) every chip has a caret, so none changes width when another is
- * selected, and a tap on the selected one opens its menu: Change <Channel> to, the user's channels no
- * part is on, then Remove <Channel> with `onRemove` (no menu when it would be empty); and a dashed +
- * after the chips opens Add channel, the same channels (no + when there are none). The row scrolls
- * sideways under the edges of a parent padded by the screen's padding.
+ * selected, and a tap on the selected one opens its menu (VersionMenu, This version is for: every one
+ * of the user's channels to tick or untick, unticking the last removing the version); and a dashed +
+ * after the chips opens New version for (NewVersionMenu). The row scrolls sideways under the edges of
+ * a parent padded by the screen's padding.
  */
-export default function ChannelBar({ parts, selectedKey, onSelect, editing, style }: ChannelBarProps) {
+export default function ChannelBar({ parts, selectedKey, onSelect, channelOrder, editing, style }: ChannelBarProps) {
   const haptics = useHaptics();
 
-  const used = new Set(parts.flatMap((part) => (part.channelId ? [part.channelId] : [])));
-  const unused = editing?.channels.filter((channel) => !used.has(channel.id)) ?? [];
+  // Channels alone on a version: ticking one onto another version removes its own.
+  const aloneIds = new Set(parts.flatMap((part) => (part.channelIds.length === 1 ? part.channelIds : [])));
+  const selected = parts.find((part) => part.key === selectedKey);
 
   function handleSelect(key: string) {
     haptics.selection();
     onSelect(key);
   }
 
-  function channelOptions(onPick: (channelId: string) => void) {
-    return unused.map((channel) => (
-      <MenuOption
-        key={channel.id}
-        label={channel.name}
-        leading={<ChannelLogo channelId={channel.id} />}
-        onPress={() => onPick(channel.id)}
-      />
-    ));
-  }
-
   function renderChip(part: ChannelBarPart) {
-    const label = channelName(part.channelId);
-    const current = channelById(part.channelId);
+    // The version's channels in the user's order, once, for its label, logos and menu.
+    const channelIds = orderChannelIds(part.channelIds, channelOrder);
+    const known = channelIds.filter((id) => channelById(id));
     const isSelected = part.key === selectedKey;
+    // Its logos alone, the names in its menu and for VoiceOver; All channels (or no channel this build
+    // knows) as text.
+    const hasLogos = known.length > 0 && !isAllChannels(channelIds, channelOrder);
     const chipProps = {
-      label,
-      mark: current && <ChannelLogo channelId={current.id} size={sizes.menuIcon} />,
+      ...versionLabel(channelIds, channelOrder),
+      mark: hasLogos && <ChannelLogos channelIds={known} isDecorative />,
+      isIconOnly: hasLogos,
       isSelected,
       hasCaret: !!editing,
       accessibilityRole: 'tab',
     } as const;
-    // The selected tab opens its menu, unless it would be empty (a lone post on every channel).
-    if (isSelected && editing && (unused.length > 0 || editing.onRemove)) {
+    // The selected tab opens its menu when it offers something: a channel to tick or untick (its last
+    // one removing it). Not for the post's lone version on its only channel.
+    if (isSelected && editing && (editing.channels.length > 1 || editing.onRemove)) {
       return (
-        <MenuButton
+        <VersionMenu
           key={part.key}
-          title={unused.length > 0 ? `Change ${label} to` : undefined}
+          channelIds={channelIds}
+          channels={editing.channels}
+          aloneIds={aloneIds}
+          channelOrder={channelOrder}
+          onToggle={editing.onToggle}
+          onKeep={editing.onKeep}
+          onRemove={editing.onRemove}
           trigger={({ toggle, isOpen }) => <Chip {...chipProps} onPress={toggle} isExpanded={isOpen} />}
-        >
-          {channelOptions(editing.onChange)}
-          {editing.onRemove && (
-            <MenuOption
-              key="remove"
-              label={`Remove ${label}`}
-              icon="trash"
-              colorPalette="danger"
-              onPress={editing.onRemove}
-            />
-          )}
-        </MenuButton>
+        />
       );
     }
     return <Chip key={part.key} {...chipProps} onPress={isSelected ? undefined : () => handleSelect(part.key)} />;
@@ -106,15 +109,8 @@ export default function ChannelBar({ parts, selectedKey, onSelect, editing, styl
       contentContainerStyle={styles.content}
     >
       {parts.map(renderChip)}
-      {editing && unused.length > 0 && (
-        <MenuButton
-          title="Add channel"
-          trigger={({ toggle, isOpen }) => (
-            <Chip variant="add" label="Add channel" isIconOnly onPress={toggle} isExpanded={isOpen} />
-          )}
-        >
-          {channelOptions(editing.onAdd)}
-        </MenuButton>
+      {editing && selected && (
+        <NewVersionMenu selected={selected} aloneIds={aloneIds} channelOrder={channelOrder} editing={editing} />
       )}
     </ScrollView>
   );

@@ -7,8 +7,8 @@ import usePosts from '@/providers/posts/usePosts';
 import readPost from '@/sync/queries/readPost';
 import changedValues from '@/utils/changedValues';
 
-// Edits a post, its thread and its other channels (the post as read carries its `threadPosts` and
-// `channelPosts`), seeded once from what it is when the screen opens, showing the channel saved as
+// Edits a post, its thread and its other versions (the post as read carries its `threadPosts` and
+// `channelPosts`), seeded once from what it is when the screen opens, showing the version saved as
 // `channelPostId` when given (the one the post screen showed), and saves what the user changed from
 // that seed; a post deleted meanwhile (e.g. by a sync) closes the editor.
 export default function EditPostScreen() {

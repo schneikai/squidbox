@@ -23,6 +23,15 @@ async function openNewPost(page: Page) {
   return { newPost, editor: page.getByTestId('post-editor') };
 }
 
+// A new post goes to all his channels, Instagram too, which has no threads: unticked there, the post
+// keeps to Bluesky and X, and Add to thread shows.
+async function untickInstagram(page: Page, editor: Locator) {
+  await editor.getByRole('tab', { name: 'All channels', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Instagram', exact: true }).click();
+  await page.mouse.click(5, 5);
+  await expect(editor.getByRole('tab', { name: 'Bluesky and X', exact: true })).toBeVisible();
+}
+
 // The caption of the editor's `index`th post.
 function caption(editor: Locator, index = 0) {
   return editor.getByPlaceholder("What's new?").nth(index);
@@ -96,6 +105,7 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
   assistant,
 }) => {
   const { editor } = await openNewPost(page);
+  await untickInstagram(page, editor);
   await caption(editor).fill('Fog on the ridge this morning');
   await button(editor, 'Add to thread').click();
 
@@ -117,6 +127,7 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
 
 test("the first post's tray keeps its ideas while a thread post is written", async ({ page }) => {
   const { editor } = await openNewPost(page);
+  await untickInstagram(page, editor);
   await button(editor, 'Add photos').click();
   await pickFromSquidbox(page, 1);
   await button(editor, 'Use').first().click();

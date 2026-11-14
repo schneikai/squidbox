@@ -43,9 +43,10 @@ export type ChipProps = Pick<
  * chip would be wider than its row; `mark` takes the icon's place with a node of the icon's size (a
  * channel's logo). `hasCaret` ends it with a ⌄: it opens a menu (in a row of tabs, every tab that
  * opens one when selected has it, so none changes width), and `isExpanded` tells VoiceOver whether
- * that is open. `isIconOnly` is a round chip of its icon alone (the `add` + at the end of a
- * row of tabs); its label is then only what VoiceOver reads. `isSelected` tells VoiceOver it's on (as
- * checked when `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
+ * that is open. `isIconOnly` drops the label, which is then only what VoiceOver reads: an icon alone
+ * makes a round chip (the `add` + at the end of a row of tabs), a mark or a ⌄ keeps the chip's padding
+ * (a channel tab of logos). `isSelected` tells VoiceOver it's on (as checked when `accessibilityRole`
+ * is a checkbox). `disabled` dims it and takes no presses. Without
  * `onPress` it is a plain label, so it can sit inside a pressable (a tap goes to the parent).
  * `detail` follows the label in grey, after a ·: what tells it apart from a chip of the same label
  * (a city's state or country). `onRemove` ends it with a ×, as a row's × takes it off (a contact on a photo); `removeLabel` is
@@ -82,7 +83,8 @@ export default function Chip({
     styles.chip,
     VARIANT_STYLES[variant],
     variant === 'tag' && isSelected && styles.selected,
-    isIconOnly && styles.iconOnly,
+    // Round only for an icon alone.
+    isIconOnly && !mark && !hasCaret && styles.iconOnly,
     isLifted && styles.lifted,
     !!leading && styles.withLeading,
   ];

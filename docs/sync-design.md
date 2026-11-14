@@ -386,7 +386,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
   devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
   `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`; albums and contacts have `isFavorite`,
-  `favoritedAt` too.
+  `favoritedAt` too; posts have `channelId`, `extraChannelIds`.
 - **Whole-record pushes** (an app from before per-field merge, the dev client's library copy) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`
@@ -956,13 +956,31 @@ edges (`removePost`). Like the thread fields, an older build sees another channe
 post (it lists, counts and offers it for a repost, and its Delete leaves it) until it is updated.
 Server 0039, app 0039.
 
+A version (the post or another channel of it: one tab in the channel bar) can go to several
+channels: `extraChannelIds` (optional, null | the channels it also goes to besides `channelId`, in
+the order they were added; null unless it has two or more, never `[]`, so a one-channel save of an
+older row writes nothing). Its channels are `[channelId, ...extraChannelIds]`, written only through
+`versionChannelFields`; `channelId` and `extraChannelIds` are one field group (§7), and an older
+build's push of `channelId` alone keeps the stored extras. Reads give each version `channelIds`
+(readPost): a version keeps its `channelId`, and an extra is dropped when it is any version's
+`channelId` or an earlier version's extra (an older build's "Change X to" or "Add channel X" can give
+another version a channel the shared one lists). The editor's Save first writes every live
+version's channels as the read gives them where the stored fields differ (`repairVersionChannels`;
+the others write nothing), before it saves the versions, so an extra the read hid is written away
+and can't come back once the version holding it goes. A shared version's counter and limits are its
+channels' strictest, and a repost goes to the reposted version's channels. Known limits of an older
+build with a shared version: it shows the version under its first channel only, its "Remove <first
+channel>" removes the version for all of its channels, and its Delete covers the whole post, as
+today. Server 0040, app 0040.
+
 **channels** (Settings → Posts → Channels: the user's channels, in their order). Synced:
 `channelId` (the catalog id) and `position` (a fractional-index key, the order by `(position, id)`),
 plus the base columns. One record per catalog channel, under the catalog's fixed `recordId`, so two
 devices adding the same channel write one record, adding a deleted one again revives its tombstone
 at the end, and a library merge copies a device's channel only when the account has no record of it
-(live or deleted). Deleting one is a tombstone; posts keep their `channelId`. The mock account has
-Bluesky, X and Instagram; its posts are on Bluesky, and a few have an X or Instagram channel.
+(live or deleted). Deleting one is a tombstone; posts keep their `channelId` and `extraChannelIds`.
+The mock account has Bluesky, X and Instagram; its posts are on Bluesky, a few have an X or Instagram
+channel, and one is shared by Bluesky and X.
 Server 0039, app 0039.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base

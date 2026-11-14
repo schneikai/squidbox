@@ -5,14 +5,14 @@ import type { PostDraft, PostEditorPost } from './postDraftReducer';
 import type { PostCardContent } from '@/features/posts/PostCard';
 
 /**
- * The draft of a post as the editor opens it, showing the other channel saved as
+ * The draft of a post as the editor opens it, showing the other version saved as
  * `selectedChannelPostId` (the one the post screen showed), else the post's own.
  */
 export default function draftFromPost(post: PostEditorPost, selectedChannelPostId?: string): PostDraft {
-  const others = post.channelPosts.flatMap((copy, i) =>
-    copy.channelId ? [channelDraftOf(channelKey(i), copy.id, copy.channelId, contentsOf(copy))] : [],
+  const others = post.channelPosts.map((copy, i) =>
+    channelDraftOf(channelKey(i), copy.id, copy.channelIds, contentsOf(copy)),
   );
-  const main = channelDraftOf(MAIN_KEY, null, post.channelId ?? null, contentsOf(post));
+  const main = channelDraftOf(MAIN_KEY, null, post.channelIds, contentsOf(post));
   const selected = others.find((other) => other.id === selectedChannelPostId);
   return {
     main,

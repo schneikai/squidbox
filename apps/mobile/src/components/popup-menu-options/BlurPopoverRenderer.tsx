@@ -1,5 +1,6 @@
 import React from 'react';
-import { Animated, I18nManager, Keyboard, type LayoutRectangle } from 'react-native';
+import { Animated, Dimensions, I18nManager, Keyboard, type LayoutRectangle, ScrollView } from 'react-native';
+import { type EdgeInsets, initialWindowMetrics, SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import PopoverSurface, { type PopoverSurfaceProps } from './PopoverSurface';
 
@@ -10,6 +11,8 @@ import { layout, motion } from '@/styles/designTokens';
  *
  * Positions the menu below the trigger (flips above when there is insufficient
  * space above the keyboard, if it's up) with a small gap, on PopoverSurface.
+ * A menu taller than the room on its side (one row per channel) keeps that room
+ * and scrolls its rows, clear of the trigger, the status bar and the keyboard.
  * It opens by growing out of the trigger's corner with a soft spring and shrinks
  * back into it on close.
  *
@@ -50,7 +53,7 @@ function axisPosition(oDim: number, wDim: number, tPos: number, tDim: number) {
 }
 
 // Where the menu goes, and which side of the trigger it is anchored to.
-function computePlacement(layouts: MenuLayouts) {
+function computePlacement(layouts: MenuLayouts, insets = initialWindowMetrics?.insets) {
   const { windowLayout, triggerLayout, optionsLayout } = layouts;
   const { x: wX, y: wY, width: wWidth, height: wHeight } = windowLayout;
   const { x: tX, y: tY, height: tHeight, width: tWidth } = triggerLayout;
@@ -64,18 +67,28 @@ function computePlacement(layouts: MenuLayouts) {
   const left = isRightAligned ? rawLeft + HORIZONTAL_NUDGE : rawLeft;
 
   // Vertical — open below trigger, flip above when there is no room above the keyboard (the search bar's menu
-  // while you type)
+  // while you type). The room each side has ends at the safe area (status bar, home indicator) or the
+  // keyboard; a menu taller than both sides' room gets the larger one and scrolls (`maxHeight`), so it
+  // never covers its trigger. The library measured the options unconstrained, so `oHeight` is their
+  // full height. At least one row's height, so a trigger under the keyboard still opens a menu.
+  const safeTop = Math.max(0, (insets?.top ?? 0) - wY);
+  const screenBelowWindow = Dimensions.get('window').height - wY - wHeight;
+  const safeBottom = wHeight - Math.max(0, (insets?.bottom ?? 0) - screenBelowWindow);
   const keyboardTop = Keyboard.isVisible() ? Keyboard.metrics()?.screenY : undefined;
-  const roomBottom = keyboardTop === undefined ? wHeight : Math.min(wHeight, keyboardTop - wY);
+  const roomBottom = keyboardTop === undefined ? safeBottom : Math.min(safeBottom, keyboardTop - wY);
   const belowTop = tY - wY + tHeight + layout.popoverGap;
-  const aboveTop = tY - wY - oHeight - layout.popoverGap;
-  const opensBelow = belowTop + oHeight <= roomBottom;
+  const roomBelow = roomBottom - belowTop;
+  const roomAbove = tY - wY - layout.popoverGap - safeTop;
+  const maxHeight = Math.max(roomBelow, roomAbove, layout.menuRowHeight);
+  const height = Math.min(oHeight, maxHeight);
+  const aboveTop = tY - wY - height - layout.popoverGap;
+  const opensBelow = height <= roomBelow;
   const top = opensBelow ? belowTop : Math.max(0, aboveTop);
   // A menu above its trigger hangs from its bottom edge, so it stays put when it changes height (the
   // sort/filter menu's filter panel) instead of growing down for a frame until it is measured again.
   const bottom = !opensBelow && aboveTop >= 0 ? wHeight - (tY - wY) + layout.popoverGap : undefined;
 
-  return { top, bottom, left, isRightAligned, opensBelow };
+  return { top, bottom, left, isRightAligned, opensBelow, maxHeight };
 }
 
 function positionFor({ top, bottom, left }: Placement, isRTL: boolean) {
@@ -96,6 +109,8 @@ function transformOriginFor({ isRightAligned, opensBelow }: Placement, isRTL: bo
 
 export default class BlurPopoverRenderer extends React.Component<BlurPopoverRendererProps, { anim: Animated.Value }> {
   static computePosition = computePosition;
+  // The live safe-area insets (rotation, split view, a resized web window); null outside a provider.
+  static contextType = SafeAreaInsetsContext;
 
   constructor(props: BlurPopoverRendererProps) {
     super(props);
@@ -116,7 +131,8 @@ export default class BlurPopoverRenderer extends React.Component<BlurPopoverRend
     // Spread `...other` so the library's onLayout (used to measure the
     // options container for positioning) reaches the underlying View.
     const { children, layouts, style, ...other } = this.props;
-    const placement = computePlacement(layouts);
+    const insets = this.context as EdgeInsets | null; // contextType's value, which React types as unknown
+    const placement = computePlacement(layouts, insets ?? undefined);
     const position = positionFor(placement, I18nManager.isRTL);
     const origin = transformOriginFor(placement, I18nManager.isRTL);
 
@@ -124,7 +140,9 @@ export default class BlurPopoverRenderer extends React.Component<BlurPopoverRend
     // measures the same box that is drawn here.
     return (
       <PopoverSurface {...other} progress={this.state.anim} origin={origin} style={[style, position]}>
-        {children}
+        <ScrollView style={{ maxHeight: placement.maxHeight }} bounces={false} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
       </PopoverSurface>
     );
   }

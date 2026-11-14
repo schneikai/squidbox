@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `extra_channel_ids` text;

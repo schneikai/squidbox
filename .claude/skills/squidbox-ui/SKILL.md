@@ -65,6 +65,9 @@ All paths are under `apps/mobile/src/`.
     `hooks/useSheetSearchList` (the list's padding and keyboard props).
   - Forms and lists: `Field`, `TextInput` (`variant` inline or field, `multiline`), `SearchInput`, `Switch`, `settings-list/`,
     `ThumbnailRow`, `EmptyState`, `StatusScreen`, `ProgressRing`, `progress-overlay/`.
+  - Selection marks, in `colors.selection` (neutral): a check for pick-one (`MenuOption isSelected`, `Row isSelected`,
+    the calendar), the `SelectIndicator` circle for pick-several (`MenuOption selection="several"`, list rows,
+    photos); never violet, which is the assistant's.
 - `hooks/useHaptics` for haptics, `hooks/useReduceMotion` for reduced motion.
 - `features/<feature>/`: screens and their building blocks, grouped by feature; `app/` (Expo
   Router) holds the routes, thin files that render a feature's screen.

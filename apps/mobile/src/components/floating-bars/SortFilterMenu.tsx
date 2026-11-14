@@ -24,7 +24,8 @@ export type SortFilterMenuProps<Sort extends string, Filter extends string = str
 
 /**
  * The rows of the sort / filter / view-options menu, for a MenuButton. "Filter" drills down into a
- * filter panel inside the same menu; the menu reopens at the root.
+ * filter panel inside the same menu; the menu reopens at the root. A sort row is pick-one (a check),
+ * the filter panel's rows pick several (select circles, All included).
  *
  * Props:
  *   sortOrder       – string  the active option's key, e.g. "createdAt:desc"
@@ -68,6 +69,7 @@ export default function SortFilterMenu<Sort extends string, Filter extends strin
             label={option.label}
             icon={option.icon}
             isSelected={option.key === 'all' ? activeFilter.length === 0 : activeFilter.includes(option.key)}
+            selection="several"
           />
         ))}
       </>

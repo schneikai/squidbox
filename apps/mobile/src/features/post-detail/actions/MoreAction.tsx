@@ -12,14 +12,14 @@ import usePosts from '@/providers/posts/usePosts';
 import { readChannelOrder } from '@/sync/channelsRepository';
 import { getDb } from '@/sync/db/client';
 import type { PostListRow } from '@/sync/queries/postQuery';
-import readPost, { type PostWithThread } from '@/sync/queries/readPost';
+import readPost, { type ChannelPostRow } from '@/sync/queries/readPost';
 import useShareAssets from '@/utils/assets/useShareAssets';
 import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
 
 export type MoreActionProps = {
-  post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount' | 'channelId' | 'otherChannelIds'>;
-  channelPost?: PostWithThread;
+  post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount' | 'channelIds' | 'otherChannelIds'>;
+  channelPost?: ChannelPostRow;
   beforeDelete?: () => void;
   trigger?: MenuButtonProps['trigger'];
 };
@@ -52,7 +52,7 @@ export default function MoreAction({ post, channelPost, beforeDelete, trigger }:
     const confirmed = await confirmDeleteAsync(
       deletePostConfirm({
         threadCount: post.threadCount,
-        otherChannelCount: post.otherChannelIds.length,
+        hasOtherVersions: post.otherChannelIds.length > 0,
         channelNames,
       }),
     );

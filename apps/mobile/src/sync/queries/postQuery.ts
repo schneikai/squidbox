@@ -13,6 +13,7 @@ import { inJson } from '@/sync/inJson';
 import { matchingIds } from '@/sync/matchingIds';
 import { isListedPost, listedPostId, postsHoldingAssets, repostDate } from '@/sync/postsRepository';
 import type { PagedQuery } from '@/sync/usePagedQuery';
+import versionChannelIds from '@/sync/versionChannelIds';
 import type { PostAsset } from '@/utils/posts/buildPostAsset';
 
 const p = alias(schema.posts, 'p');
@@ -37,10 +38,10 @@ export type PostQueryDescriptor = { scope?: PostQueryScope; sort?: PostSort; sea
 export type PostWithAssets = PostRow & { postAssets: PostAsset<AssetRow>[] };
 
 /**
- * A row of a post list: the post with its assets, its live following posts' count and the channels of
- * its live other channels.
+ * A row of a post list: the post with its assets, its own channels (`channelIds`, versionChannelIds
+ * over the row alone), its live following posts' count and the channels of its live other versions.
  */
-export type PostListRow = PostWithAssets & { threadCount: number; otherChannelIds: string[] };
+export type PostListRow = PostWithAssets & { channelIds: string[]; threadCount: number; otherChannelIds: string[] };
 
 type ReadOptions = { limit?: number; firstAssetOnly?: boolean };
 
@@ -56,8 +57,8 @@ export type PostQuery = PagedQuery<PostListRow> & {
  * (no `limit` reads them all), `readRows(db, { limit })` → the rows alone,
  * each row a post with `postAssets: [{ id, asset }]` (its live edges in order, one per asset, a
  * deleted asset included; `firstAssetOnly` reads just the first, e.g. for a thumbnail) and
- * `threadCount` (its live following posts) and `otherChannelIds` (the channels of its live other
- * channels); `tables` → what a live read watches.
+ * `channelIds` (its own channels), `threadCount` (its live following posts) and `otherChannelIds`
+ * (the channels of its live other versions); `tables` → what a live read watches.
  * A thread is its first post, and a post's other channels are the post: lists, counts and searches
  * leave its following posts and other channels out (a search or a photo found in one finds the post),
  * but one whose first post or post is deleted is a post of its own.
@@ -121,15 +122,16 @@ export default function postQuery({
     return row?.count ?? 0;
   }
 
-  // The posts matching `ids` (all without a search), without their assets, in `tx`.
-  function postsMatching(tx: SyncDb, ids: string[] | null, limit: number | undefined) {
+  // The posts matching `ids` (all without a search), with their own channels, without their assets, in `tx`.
+  async function postsMatching(tx: SyncDb, ids: string[] | null, limit: number | undefined) {
     const select = tx
       .select({ ...getTableColumns(p), threadCount, otherChannelIds })
       .from(p)
       .where(where(ids))
       .orderBy(...order);
     // No `limit` reads them all (drizzle's `limit` takes a number).
-    return limit === undefined ? select : select.limit(limit);
+    const rows = await (limit === undefined ? select : select.limit(limit));
+    return rows.map((row) => ({ ...row, channelIds: versionChannelIds([row])[0]! }));
   }
 
   return {

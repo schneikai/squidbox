@@ -133,12 +133,26 @@ d('push: the merge rules (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
-  it("a post's thread fields are null while unset and survive a push without them", async () => {
+  it("a post's thread and channel fields are null while unset and survive a push without them", async () => {
     const pulled = async (id: string) =>
       (await pull(db, USER_A, { cursor: 0 })).changes.posts.records.find((record) => record.id === id);
     const first = postRecord();
     await push(db, USER_A, [{ collection: 'posts', record: first, fields: { text: 1000 } }]);
-    expect(await pulled(first.id)).toMatchObject({ threadRootId: null, threadIndex: null });
+    expect(await pulled(first.id)).toMatchObject({ threadRootId: null, threadIndex: null, extraChannelIds: null });
+
+    // A version shared by Bluesky and X; an older build changes its text and channel, then pushes it whole.
+    const shared = postRecord({ channelId: 'bluesky', extraChannelIds: ['x'] });
+    await push(db, USER_A, [
+      { collection: 'posts', record: shared, fields: { text: 1000, channelId: 1000, extraChannelIds: 1000 } },
+    ]);
+    const changed = { ...postRecord(), id: shared.id, text: 'changed', channelId: 'threads', updatedAt: 2000 };
+    expect(
+      (await push(db, USER_A, [{ collection: 'posts', record: changed, fields: { text: 2000, channelId: 2000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled(shared.id)).toMatchObject({ text: 'changed', channelId: 'threads', extraChannelIds: ['x'] });
+    const whole = { ...changed, text: 'whole', updatedAt: 3000 };
+    expect((await push(db, USER_A, [{ collection: 'posts', record: whole }]))[0]).toMatchObject({ status: 'applied' });
+    expect(await pulled(shared.id)).toMatchObject({ text: 'whole', channelId: 'threads', extraChannelIds: ['x'] });
 
     const following = postRecord({ threadRootId: first.id, threadIndex: 1 });
     await push(db, USER_A, [

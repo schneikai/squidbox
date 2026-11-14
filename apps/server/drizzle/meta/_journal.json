@@ -281,6 +281,13 @@
       "when": 1794565009474,
       "tag": "0039_post_channels",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794652213620,
+      "tag": "0040_shared_channel_versions",
+      "breakpoints": true
     }
   ]
 }

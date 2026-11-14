@@ -127,6 +127,8 @@ export const posts = sqliteTable(
     // The catalog id of the channel the post is on, and on another channel of a post: that post.
     channelId: text('channel_id'),
     channelRootId: text('channel_root_id'),
+    // The channels the post also goes to besides channelId (null: none).
+    extraChannelIds: text('extra_channel_ids', { mode: 'json' }).$type<string[]>(),
   },
   (t) => [
     index('posts_live_posted_idx')

@@ -4,9 +4,11 @@ import { createContext } from 'react';
 import type { ChannelPart } from '@/sync/postChannels';
 import type { AssetRef, ThreadPart } from '@/sync/postThreads';
 
-// A post as an editor writes it: its fields, its photos (`assetRefs`), its following posts
-// (`threadPosts`, postThreads) and its other channels (`channelPosts`, postChannels).
-export type PostFields = Partial<PostRecord> & {
+// A post as an editor writes it: its fields, its channels (`channelIds`, versionChannelFields: the only
+// way to set them), its photos (`assetRefs`), its following posts (`threadPosts`, postThreads) and its
+// other versions (`channelPosts`, postChannels).
+export type PostFields = Omit<Partial<PostRecord>, 'channelId' | 'extraChannelIds'> & {
+  channelIds?: string[];
   assetRefs?: AssetRef[];
   threadPosts?: ThreadPart[];
   channelPosts?: ChannelPart[];

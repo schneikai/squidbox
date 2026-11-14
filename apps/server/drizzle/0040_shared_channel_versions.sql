@@ -1,0 +1,1 @@
+ALTER TABLE "posts" ADD COLUMN "extra_channel_ids" jsonb;

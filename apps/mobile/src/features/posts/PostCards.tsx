@@ -1,4 +1,4 @@
-import { channelById, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
+import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -10,11 +10,14 @@ import nextCardKey from './draft/nextCardKey';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import WarningNote from '@/components/WarningNote';
+import versionLimits from '@/features/channels/versionLimits';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import { layout } from '@/styles/designTokens';
 import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
+import joinWords from '@/utils/joinWords';
+import pluralizeText from '@/utils/pluralizeText';
 
 type PostCardsProps = {
   draft: ChannelDraft;
@@ -29,13 +32,14 @@ type PostCardsProps = {
 };
 
 /**
- * One channel's cards in the post editor (`draft`: the post and its thread), its edits going to
+ * One version's cards in the post editor (`draft`: the post and its thread), its edits going to
  * `dispatch` (channelDraftReducer): one card per post, joined by a short line, the card being edited
  * with the assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own
  * only while `startsOnItsOwn`). The first card has the Posted time (and the cursor with
- * `autoFocusFirst`); every card follows the channel's limits; ⊕ Add to thread only where the channel
- * has threads (or there is none), and a note under the cards when one without threads holds a thread
- * anyway (its following posts stay, to edit or remove).
+ * `autoFocusFirst`); every card follows the version's limits, the strictest of its channels'
+ * (versionLimits); ⊕ Add to thread only where all its channels have threads (or it has none), and a
+ * note under the cards naming those without threads when it holds a thread anyway (its following
+ * posts stay, to edit or remove).
  */
 export default function PostCards({
   draft,
@@ -50,8 +54,9 @@ export default function PostCards({
 }: PostCardsProps) {
   const { cards } = draft;
   const [activeKey, setActiveKey] = useState(cards[0]!.key);
-  const channel = channelById(draft.channelId);
-  const hasThreads = !channel || channel.hasThreads;
+  const limits = useMemo(() => versionLimits(draft.channelIds), [draft.channelIds]);
+  const threadless = limits?.threadless ?? [];
+  const hasThreads = threadless.length === 0;
 
   const updateCard = useCallback(
     (key: string, changes: PostCardChange) => {
@@ -98,7 +103,7 @@ export default function PostCards({
             onActivate={setActiveKey}
             onRemove={index > 0 ? removeCard : undefined}
             onAddToThread={hasThreads && index === cards.length - 1 ? addToThread : undefined}
-            limits={channel}
+            limits={limits}
             tray={
               card.key === activeKey
                 ? (style) => (
@@ -115,8 +120,10 @@ export default function PostCards({
           />
         </View>
       ))}
-      {channel && !hasThreads && cards.length > 1 && (
-        <WarningNote style={styles.note}>{`${channel.name} has no threads.`}</WarningNote>
+      {!hasThreads && cards.length > 1 && (
+        <WarningNote style={styles.note}>
+          {`${joinWords(threadless)} ${pluralizeText('has', 'have', threadless.length)} no threads.`}
+        </WarningNote>
       )}
     </View>
   );

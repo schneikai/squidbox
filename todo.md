@@ -166,6 +166,16 @@ Bring back "Fill it in for me" as an agent chat session that drafts About you, T
 Rules from the user's posts. It was removed from the setup flow (`features/voice`); the server route
 was `POST /ai/persona/draft`.
 
+### [ ] Channels from the server, editable by admins
+
+Wanted by the owner. The channels a post can be on (name, limits, logo) are built into the app
+(`packages/shared/channels.ts`, the glyphs in `features/channels/channelGlyphs.ts`), so a new one
+(like JustFor.Fans) needs an App build, and installed builds show it by its id until they update.
+Serve the catalog from the server with the app's other admin-set facts (CLAUDE.md "Where data is
+saved": on the server, for every account), cached on the device, with an `ai_admin` screen to add a
+channel or correct its limits and logo, as the published instructions are. The built-in list stays
+as the fallback.
+
 ### [ ] Recreate thumbnails
 
 An action to regenerate an asset's thumbnail. The video thumbnail in album 197 is broken. The backup
