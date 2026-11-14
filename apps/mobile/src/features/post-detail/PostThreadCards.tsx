@@ -12,7 +12,7 @@ type PostThreadCardsProps = { post: ChannelPostRow };
 
 /**
  * A post's card (PostView) and its following posts' cards joined by the thread's line, as the post's
- * screen shows them (the post's own channel or another): a long press copies a text, and a picture
+ * screen shows them (the post's own channel or another): each text with a copy icon, and a picture
  * opens pushed, with the others of its own post.
  */
 export default function PostThreadCards({ post }: PostThreadCardsProps) {
@@ -22,12 +22,10 @@ export default function PostThreadCards({ post }: PostThreadCardsProps) {
 
   return (
     <>
-      <PostView post={post} onPressAsset={(asset) => openAsset(post.id, asset)} isTextSelectable />
+      <PostView post={post} onPressAsset={(asset) => openAsset(post.id, asset)} isCopyable />
       <ThreadParts
         parts={post.threadPosts}
-        renderPart={(part) => (
-          <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} isTextSelectable />
-        )}
+        renderPart={(part) => <ThreadPost post={part} onOpenAsset={(asset) => openAsset(part.id, asset)} isCopyable />}
       />
     </>
   );
