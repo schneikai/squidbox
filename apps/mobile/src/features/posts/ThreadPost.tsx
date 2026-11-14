@@ -27,7 +27,7 @@ type ThreadPostProps = {
  * list): its first picture as a tile ("+N" when it has more), its text beside it. With
  * `onOpenAsset(asset)` a tap on the tile opens the picture; without it (inside something pressable,
  * the posts list) the tile takes no touch. With `isCopyable` a copy icon
- * follows the text, at the card's bottom right (CopyTextButton).
+ * sits at the card's bottom right (CopyTextButton).
  * `entering` and `exiting` are Reanimated layout animations of the card, and `contentStyle` and
  * `contentExiting` an animated style and exiting animation of what's in it (an unfolding thread's);
  * `style` is for layout only.
@@ -62,7 +62,9 @@ export default function ThreadPost({
 }
 
 const styles = StyleSheet.create({
+  // At the card's bottom right, however tall the picture beside the text makes it.
   copy: {
     alignSelf: 'flex-end',
+    marginTop: 'auto',
   },
 });
