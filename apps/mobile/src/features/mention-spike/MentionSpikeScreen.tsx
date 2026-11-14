@@ -174,7 +174,8 @@ function plainText(html: string) {
 const styles = StyleSheet.create({
   input: {
     minHeight: scale(84),
-    ...textStyles.reading,
+    fontSize: textStyles.reading.fontSize,
+    lineHeight: textStyles.reading.lineHeight,
     color: colors.text.primary,
   },
   suggestions: {
