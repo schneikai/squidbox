@@ -6,8 +6,8 @@ import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 /**
  * A new version of the post for `channelId`, keyed by the draft's `nextChannel`, holding a copy of
- * `cards` (a channel added: the first card of the version that shows; a channel written separately:
- * all of its version's). Each card keeps its text and gets its media as fresh refs, with no saved id.
+ * `cards` (all the cards of the version that shows, its thread too). Each card keeps its text and gets
+ * its media as fresh refs, with no saved id.
  */
 export default function newChannelDraft(
   nextChannel: number,

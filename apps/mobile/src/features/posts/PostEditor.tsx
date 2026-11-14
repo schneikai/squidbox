@@ -1,4 +1,4 @@
-import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
+import { channelName, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
 import { memo, useCallback, useMemo, useReducer, useState } from 'react';
 import { Keyboard, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -7,11 +7,11 @@ import PostCards from './PostCards';
 import type { PostedAtPickerProps } from './PostedAtPicker';
 import type { ChannelDraft, ChannelDraftAction } from './draft/channelDraftReducer';
 import { MAIN_KEY } from './draft/channelKey';
-import draftChannel from './draft/draftChannel';
 import draftFromPost from './draft/draftFromPost';
 import hasCardContent from './draft/hasCardContent';
 import postData from './draft/postData';
 import postDraftReducer, { type EditedPost, type PostDraftAction, type PostEditorPost } from './draft/postDraftReducer';
+import versionOfChannel from './draft/versionOfChannel';
 import postedAtToSave from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
@@ -102,19 +102,37 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
     dispatch({ type: 'select', key });
   }
 
+  // Unticking a version's last channel removes the version, always asked: a tick is easy to miss.
   async function handleRemove() {
-    const selected = draftChannel(draft, draft.selectedKey);
-    if (selected.cards.some(hasCardContent)) {
-      if (!(await confirmRemoveAsync('this version'))) return;
-    }
+    if (!(await confirmRemoveAsync('this version'))) return;
     Keyboard.dismiss();
-    dispatch({ type: 'removeVersion', key: selected.key, channelOrder });
+    dispatch({ type: 'removeVersion', key: draft.selectedKey, channelOrder });
+  }
+
+  // A channel ticked here (on the shown version or a new one) leaves the version it was on, and a
+  // version that had only it goes: asked first when it has text, like Remove.
+  async function confirmTakeAsync(channelId: string) {
+    const version = versionOfChannel(draft, channelId);
+    const isRemoved = version && version.key !== draft.selectedKey && version.channelIds.length === 1;
+    if (!isRemoved || !version.cards.some(hasCardContent)) return true;
+    return confirmRemoveAsync(`this ${channelName(channelId)} version`);
+  }
+
+  async function handleToggle(channelId: string) {
+    if (!(await confirmTakeAsync(channelId))) return;
+    dispatch({ type: 'toggleChannel', key: draft.selectedKey, channelId, channelOrder });
+  }
+
+  async function handleKeep(channelId: string) {
+    if (!(await confirmTakeAsync(channelId))) return;
+    dispatch({ type: 'keepChannel', key: draft.selectedKey, channelId, channelOrder });
   }
 
   // The focused text would be the version's that is left.
-  function handleSplit(channelId: string) {
+  async function handleNewVersion(channelId: string) {
+    if (!(await confirmTakeAsync(channelId))) return;
     Keyboard.dismiss();
-    dispatch({ type: 'splitChannel', key: draft.selectedKey, channelId });
+    dispatch({ type: 'newVersion', channelId, channelOrder });
   }
 
   function renderBody() {
@@ -130,10 +148,9 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
             channelOrder={channelOrder}
             editing={{
               channels,
-              onAdd: (channelId) => dispatch({ type: 'addChannel', channelId }),
-              onToggle: (channelId) =>
-                dispatch({ type: 'channel', key: draft.selectedKey, action: { type: 'toggleChannel', channelId } }),
-              onSplit: handleSplit,
+              onNewVersion: handleNewVersion,
+              onToggle: handleToggle,
+              onKeep: handleKeep,
               onRemove: parts.length > 1 ? handleRemove : undefined,
             }}
             style={styles.bar}

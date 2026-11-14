@@ -244,42 +244,36 @@ export default function ComponentGalleryScreen() {
         <Specimen name="Channel tabs">
           <View accessibilityRole="tablist">
             <ChipRow>
+              <Chip label="All channels" isSelected hasCaret accessibilityRole="tab" onPress={noop} />
               <Chip
-                label="X"
-                mark={<ChannelLogo channelId="x" size={sizes.menuIcon} />}
+                label="Bluesky, X"
+                accessibilityLabel="Bluesky and X"
+                mark={<ChannelLogos channelIds={['bluesky', 'x']} isDecorative />}
+                isIconOnly
+                hasCaret
                 accessibilityRole="tab"
                 onPress={noop}
               />
               <Chip
-                label="Bluesky"
-                mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
-                isSelected
+                label="OnlyFans PPV"
+                mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
+                isIconOnly
+                hasCaret
                 accessibilityRole="tab"
+                onPress={noop}
               />
-              <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
-              <Chip variant="add" label="Add channel" isIconOnly onPress={noop} />
+              <Chip variant="add" label="New version" isIconOnly onPress={noop} />
             </ChipRow>
           </View>
           <ChipRow>
             <Chip
-              label="OnlyFans PPV"
-              mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
+              label="Bluesky"
+              mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
+              isIconOnly
               isSelected
-              hasCaret
               accessibilityRole="tab"
-              onPress={noop}
             />
-          </ChipRow>
-          <ChipRow>
-            <Chip
-              label="Bluesky, X"
-              accessibilityLabel="Bluesky and X"
-              mark={<ChannelLogos channelIds={['bluesky', 'x']} isDecorative />}
-              isSelected
-              hasCaret
-              accessibilityRole="tab"
-              onPress={noop}
-            />
+            <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
             <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
           </ChipRow>
         </Specimen>

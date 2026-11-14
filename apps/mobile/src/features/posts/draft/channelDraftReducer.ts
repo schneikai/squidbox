@@ -22,12 +22,13 @@ export type ChannelDraftAction =
   | { type: 'updateCard'; key: string; changes: PostCardChange }
   | { type: 'addCard' }
   | { type: 'removeCard'; key: string }
-  | { type: 'toggleChannel'; channelId: string };
+  | { type: 'toggleChannel'; channelId: string }
+  | { type: 'keepChannel'; channelId: string };
 
 /**
  * Edits one version (postDraftReducer runs it on the version keyed): its cards, and `toggleChannel`
- * appends a channel to its channels or takes it off. Taking off its last channel throws (the version
- * is removed instead).
+ * appends a channel to its channels or takes it off, `keepChannel` makes one its only channel. Taking
+ * off its last channel throws (the version is removed instead).
  */
 export default function channelDraftReducer<D extends ChannelDraft>(draft: D, action: ChannelDraftAction): D {
   switch (action.type) {
@@ -50,5 +51,7 @@ export default function channelDraftReducer<D extends ChannelDraft>(draft: D, ac
       if (channelIds.length === 0) throw new Error("A version's last channel can't be taken off");
       return { ...draft, channelIds };
     }
+    case 'keepChannel':
+      return { ...draft, channelIds: [action.channelId] };
   }
 }

@@ -4,7 +4,12 @@ import { makeAssetRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import draftFromPost from '../src/features/posts/draft/draftFromPost';
 import postData from '../src/features/posts/draft/postData';
-import postDraftReducer, { type PostDraft, type PostEditorPost } from '../src/features/posts/draft/postDraftReducer';
+import postDraftReducer, {
+  type PostDraft,
+  type PostDraftAction,
+  type PostEditorPost,
+} from '../src/features/posts/draft/postDraftReducer';
+import versionOfChannel from '../src/features/posts/draft/versionOfChannel';
 import * as assets from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import { readByIds } from '../src/sync/readByIds';
@@ -36,8 +41,14 @@ const post: PostEditorPost = {
 // The user's channels, in their order.
 const CHANNEL_ORDER = ['bluesky', 'x', 'onlyfans', 'instagram'];
 
-const keyOf = (draft: PostDraft, channelId: string) =>
-  [draft.main, ...draft.others].find((part) => part.channelIds.includes(channelId))!.key;
+const keyOf = (draft: PostDraft, channelId: string) => versionOfChannel(draft, channelId)!.key;
+
+const toggle = (key: string, channelId: string): PostDraftAction => ({
+  type: 'toggleChannel',
+  key,
+  channelId,
+  channelOrder: CHANNEL_ORDER,
+});
 
 describe('postDraftReducer', () => {
   it('saves an untouched draft as its seed, so Save stays off', () => {
@@ -47,18 +58,44 @@ describe('postDraftReducer', () => {
     expect(seed.channelPosts.map((copy) => copy.id)).toEqual(['c1', 'c2']);
   });
 
-  it("adds a channel as a copy of the selected channel's first card, with fresh refs and no thread, and selects it", () => {
+  it("gives a channel a version of its own, a copy of the shown version's cards with fresh refs, and selects it", () => {
     let draft = draftFromPost(post);
     draft = postDraftReducer(draft, { type: 'select', key: keyOf(draft, 'onlyfans') });
-    draft = postDraftReducer(draft, { type: 'addChannel', channelId: 'instagram' });
+    draft = postDraftReducer(draft, { type: 'newVersion', channelId: 'instagram', channelOrder: CHANNEL_ORDER });
     const added = draft.others.at(-1)!;
     expect(draft.selectedKey).toBe(added.key);
     expect(added).toMatchObject({ id: null, channelIds: ['instagram'] });
-    expect(added.cards).toHaveLength(1);
-    expect(added.cards[0]!.text).toBe('The whole run');
-    expect(added.cards[0]!.postAssets.map((postAsset) => postAsset.asset.id)).toEqual(['a1']);
+    expect(added.cards.map((card) => [card.id, card.text])).toEqual([
+      [null, 'The whole run'],
+      [null, 'Uncut'],
+    ]);
     expect(added.cards[0]!.postAssets[0]!.id).not.toBe('e3');
     expect(new Set([draft.main.key, ...draft.others.map((other) => other.key)]).size).toBe(4);
+  });
+
+  it('a new version takes its channel off the version it was on', () => {
+    let draft = draftFromPost(post);
+    draft = postDraftReducer(draft, toggle(keyOf(draft, 'onlyfans'), 'patreon'));
+    draft = postDraftReducer(draft, { type: 'newVersion', channelId: 'patreon', channelOrder: CHANNEL_ORDER });
+    expect(draft.others.find((other) => other.channelIds.includes('onlyfans'))!.channelIds).toEqual(['onlyfans']);
+    expect(draft.others.at(-1)!.channelIds).toEqual(['patreon']);
+  });
+
+  it('a new version replaces the version that had only its channel', () => {
+    let draft = draftFromPost(post, 'c1');
+    draft = postDraftReducer(draft, { type: 'newVersion', channelId: 'bluesky', channelOrder: CHANNEL_ORDER });
+    const saved = postData(draft, post.postedAt);
+    expect(saved.channelPosts.map(({ id, channelIds, text }) => [id, channelIds, text])).toEqual([
+      ['c1', ['onlyfans'], 'The whole run'],
+      [null, ['bluesky'], 'The whole run'],
+    ]);
+  });
+
+  it("a new version for the shown version's only channel throws", () => {
+    const draft = draftFromPost(post);
+    expect(() =>
+      postDraftReducer(draft, { type: 'newVersion', channelId: 'x', channelOrder: CHANNEL_ORDER }),
+    ).toThrow();
   });
 
   it('edits only the version it is given', () => {
@@ -85,36 +122,51 @@ describe('postDraftReducer', () => {
 
   it('ticking a channel appends it to the version, and unticking takes it off', () => {
     let draft = draftFromPost(post);
-    const tick = (channelId: string) =>
-      postDraftReducer(draft, { type: 'channel', key: 'main', action: { type: 'toggleChannel', channelId } });
-    draft = tick('instagram');
-    draft = tick('bluesky');
-    expect(postData(draft, post.postedAt).channelIds).toEqual(['x', 'instagram', 'bluesky']);
-    draft = tick('x');
-    expect(postData(draft, post.postedAt).channelIds).toEqual(['instagram', 'bluesky']);
+    draft = postDraftReducer(draft, toggle('main', 'instagram'));
+    draft = postDraftReducer(draft, toggle('main', 'patreon'));
+    expect(postData(draft, post.postedAt).channelIds).toEqual(['x', 'instagram', 'patreon']);
+    draft = postDraftReducer(draft, toggle('main', 'x'));
+    expect(postData(draft, post.postedAt).channelIds).toEqual(['instagram', 'patreon']);
+  });
+
+  it('ticking a channel of another version moves it here and keeps this version shown', () => {
+    let draft = draftFromPost(post);
+    const shared = keyOf(draft, 'onlyfans');
+    draft = postDraftReducer(draft, toggle(shared, 'patreon'));
+    draft = postDraftReducer(draft, toggle('main', 'patreon'));
+    expect(draft.selectedKey).toBe('main');
+    expect(postData(draft, post.postedAt).channelIds).toEqual(['x', 'patreon']);
+    expect(draft.others.find((other) => other.key === shared)!.channelIds).toEqual(['onlyfans']);
+  });
+
+  it('ticking a channel alone on another version removes that version', () => {
+    let draft = draftFromPost(post);
+    draft = postDraftReducer(draft, toggle('main', 'bluesky'));
+    const saved = postData(draft, post.postedAt);
+    expect(saved.channelIds).toEqual(['x', 'bluesky']);
+    expect(saved.channelPosts.map((copy) => copy.id)).toEqual(['c1']);
+  });
+
+  it("keeping a channel unticks the version's others, takes it off the version it was on, and keeps this version shown", () => {
+    let draft = draftFromPost(post);
+    const onlyFans = keyOf(draft, 'onlyfans');
+    draft = postDraftReducer(draft, toggle('main', 'instagram'));
+    draft = postDraftReducer(draft, toggle(onlyFans, 'patreon'));
+    draft = postDraftReducer(draft, {
+      type: 'keepChannel',
+      key: 'main',
+      channelId: 'patreon',
+      channelOrder: CHANNEL_ORDER,
+    });
+    expect(draft.selectedKey).toBe('main');
+    const saved = postData(draft, post.postedAt);
+    expect(saved.channelIds).toEqual(['patreon']);
+    expect(saved.channelPosts.map(({ channelIds }) => channelIds)).toEqual([['onlyfans'], ['bluesky']]);
   });
 
   it("unticking a version's last channel throws", () => {
     const draft = draftFromPost(post);
-    expect(() =>
-      postDraftReducer(draft, { type: 'channel', key: 'main', action: { type: 'toggleChannel', channelId: 'x' } }),
-    ).toThrow();
-  });
-
-  it('writing a channel separately copies the whole version, its thread too, with fresh refs, and selects it', () => {
-    let draft = draftFromPost(post, 'c1');
-    const key = keyOf(draft, 'onlyfans');
-    draft = postDraftReducer(draft, { type: 'channel', key, action: { type: 'toggleChannel', channelId: 'patreon' } });
-    draft = postDraftReducer(draft, { type: 'splitChannel', key, channelId: 'patreon' });
-    const split = draft.others.at(-1)!;
-    expect(draft.selectedKey).toBe(split.key);
-    expect(split).toMatchObject({ id: null, channelIds: ['patreon'] });
-    expect(split.cards.map((card) => [card.id, card.text])).toEqual([
-      [null, 'The whole run'],
-      [null, 'Uncut'],
-    ]);
-    expect(split.cards.flatMap((card) => card.postAssets.map((postAsset) => postAsset.id))).not.toContain('e4');
-    expect(draft.others.find((other) => other.key === key)!.channelIds).toEqual(['onlyfans']);
+    expect(() => postDraftReducer(draft, toggle('main', 'x'))).toThrow();
   });
 
   it("removes another version and selects the post's own, first in bar order", () => {

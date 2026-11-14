@@ -5,12 +5,14 @@ import { button, openTab, pickFromSquidbox, postCards, withDialog } from './help
 import { resetMockDataAsync } from '../../../scripts/localBackend.mjs';
 
 // A post's channels, end to end, through the channel bar: the mock account's channels (Bluesky, X,
-// Instagram) in Settings and one added, a post written for Bluesky and X in the editor (one version for
-// both with X's limits, X written separately, add, switch, remove), its channels' logos in the posts
-// list, its screen switching versions in place, Edit on the version shown, X ticked back onto Bluesky's
-// version, and Delete; a mock post's X version; removing a post's own version; the mock post shared by
-// Bluesky and X; and no bar without channels. The flows change the mock account, so the mock data is reset after them,
-// whatever happened (no cleanup through the UI a failed run would skip).
+// Instagram) in Settings and one added; a new post on all of them (All channels) kept to Bluesky by a
+// long press, then written for Bluesky and X in the editor (one version for both with X's limits, X
+// moved to a new version of its own by +, a version for two more, switch, untick to remove), its
+// channels' logos in the posts list, its screen switching versions in place, Edit on the version shown,
+// X ticked back onto Bluesky's version (removing its own, asked), and Delete; a mock post's X version;
+// removing a post's own version; the mock post shared by Bluesky and X; and no bar without channels.
+// The flows change the mock account, so the mock data is reset after them, whatever happened (no
+// cleanup through the UI a failed run would skip).
 test.afterAll(async () => {
   await resetMockDataAsync();
 });
@@ -51,7 +53,16 @@ async function openChannels(page: Page) {
   return page.getByTestId('channels-screen');
 }
 
-// Removes the version named `name` from the post, through its menu and the confirm.
+// Holds a press on `target` past the long press.
+async function longPress(page: Page, target: Locator) {
+  await target.hover();
+  await page.mouse.down();
+  await page.waitForTimeout(1000);
+  await page.mouse.up();
+}
+
+// Removes the version of one channel, `name`, from the post: unticking its channel in its menu, and the
+// confirm.
 async function removeShown(page: Page, editor: Locator, name: string) {
   await tab(editor, name).click();
   let message = '';
@@ -61,9 +72,10 @@ async function removeShown(page: Page, editor: Locator, name: string) {
       message = dialog.message();
       await dialog.accept();
     },
-    () => menuItem(page, 'Remove this version').click(),
+    () => channelRow(page, name).click(),
   );
   expect(message).toContain('Remove this version?');
+  await expect(channelRow(page, name)).toHaveCount(0);
 }
 
 // No element with `inner` role inside one with `outer`: a channel tab never nests a button.
@@ -71,7 +83,7 @@ async function expectNoNested(scope: Locator, outer: string, inner: string) {
   await expect(scope.locator(`[role=${outer}] [role=${inner}]`)).toHaveCount(0);
 }
 
-test('a post written for Bluesky and X shares a version, writes X separately, adds and removes versions', async ({
+test('a new post goes to all channels; Bluesky and X share a version, X gets its own by +, versions are added and removed', async ({
   page,
 }) => {
   const channels = await openChannels(page);
@@ -84,12 +96,25 @@ test('a post written for Bluesky and X shares a version, writes X separately, ad
   const settings = page.getByTestId('settings-screen');
   await expect(settings.getByRole('button', { name: /^Channels/ })).toContainText('4');
 
-  // The editor: one tab, the user's first channel, with its limits.
+  // The editor: one tab for all his channels, its menu all of them ticked.
   await openTab(page, 'Posts');
   await button(page.getByTestId('posts-screen'), 'Add').click();
   await button(page.getByTestId('new-post-sheet'), 'New post').click();
   const editor = page.getByTestId('post-editor');
   await expect(editor.getByRole('tab')).toHaveCount(1);
+  await expect(tab(editor, 'All channels')).toHaveAttribute('aria-selected', 'true');
+  await tab(editor, 'All channels').click();
+  await expect(page.getByRole('heading', { name: 'This version is for' })).toBeVisible();
+  for (const name of ['Bluesky', 'X', 'Instagram', 'OnlyFans'])
+    await expect(channelRow(page, name)).toHaveAttribute('aria-checked', 'true');
+  // A long press on Bluesky keeps only Bluesky, and the menu stays open; its only channel can't be
+  // unticked on the post's only version.
+  await longPress(page, channelRow(page, 'Bluesky'));
+  for (const name of ['X', 'Instagram', 'OnlyFans'])
+    await expect(channelRow(page, name)).toHaveAttribute('aria-checked', 'false');
+  await expect(channelRow(page, 'Bluesky')).toHaveAttribute('aria-checked', 'true');
+  await expect(channelRow(page, 'Bluesky')).toHaveAttribute('aria-disabled', 'true');
+  await page.mouse.click(5, 5);
   await expect(tab(editor, 'Bluesky')).toHaveAttribute('aria-selected', 'true');
   // The counter shows only near the limit.
   await expect(shown(editor).getByText('0 / 300')).toHaveCount(0);
@@ -111,13 +136,8 @@ test('a post written for Bluesky and X shares a version, writes X separately, ad
   await caption(editor).fill(TEXT);
   await expect(shown(editor).getByText(`${TEXT.length} / 300`)).toHaveCount(0);
 
-  // The version's menu: its only channel can't be unticked, and there is no Remove.
-  await tab(editor, 'Bluesky').click();
-  await expect(page.getByRole('heading', { name: 'This version is for' })).toBeVisible();
-  await expect(channelRow(page, 'Bluesky')).toHaveAttribute('aria-checked', 'true');
-  await expect(channelRow(page, 'Bluesky')).toHaveAttribute('aria-disabled', 'true');
-  await expect(menuItem(page, 'Remove this version')).toHaveCount(0);
   // Ticking X keeps the menu open; a tap outside closes it, and the one tab goes to both.
+  await tab(editor, 'Bluesky').click();
   await expect(channelRow(page, 'X')).toHaveAttribute('aria-checked', 'false');
   await channelRow(page, 'X').click();
   await expect(channelRow(page, 'X')).toHaveAttribute('aria-checked', 'true');
@@ -132,9 +152,15 @@ test('a post written for Bluesky and X shares a version, writes X separately, ad
   await expect(shown(editor).getByText('281 / 280 · X')).toBeVisible();
   await caption(editor).fill(TEXT);
 
-  // Write X separately: X gets a version of its own, a copy, and shows.
-  await tab(editor, 'Bluesky and X').click();
-  await menuItem(page, 'Write X separately').click();
+  // + lists his channels, none ticked: X ticked there gets a version of its own, a copy of the one
+  // that shows, taken off the shared one, and shows; the menu stays open on it.
+  await button(editor, 'New version').click();
+  await expect(page.getByRole('heading', { name: 'New version for' })).toBeVisible();
+  for (const name of ['Bluesky', 'X', 'Instagram', 'OnlyFans'])
+    await expect(channelRow(page, name)).toHaveAttribute('aria-checked', 'false');
+  await channelRow(page, 'X').click();
+  await expect(channelRow(page, 'X')).toHaveAttribute('aria-checked', 'true');
+  await page.mouse.click(5, 5);
   await expect(editor.getByRole('tab')).toHaveCount(2);
   await expect(tab(editor, 'Bluesky')).toBeVisible();
   await expect(tab(editor, 'X')).toHaveAttribute('aria-selected', 'true');
@@ -152,25 +178,22 @@ test('a post written for Bluesky and X shares a version, writes X separately, ad
   await expectNoNested(editor, 'button', 'button');
   await expectNoNested(editor, 'tab', 'button');
 
-  // + adds one of his channels the post isn't on, as a copy of the one that shows, and selects it.
-  await button(editor, 'Add channel').click();
-  await expect(page.getByRole('heading', { name: 'Add channel' })).toBeVisible();
-  for (const name of ['Instagram', 'OnlyFans']) await expect(menuItem(page, name)).toBeVisible();
-  for (const name of ['Bluesky', 'X']) await expect(menuItem(page, name)).toHaveCount(0);
-  await menuItem(page, 'Instagram').click();
-  await expect(tab(editor, 'Instagram')).toHaveAttribute('aria-selected', 'true');
+  // On the X version, + greys out X (its copy would be itself); the next ticks go to the new version.
+  await button(editor, 'New version').click();
+  await expect(channelRow(page, 'X')).toHaveAttribute('aria-disabled', 'true');
+  await channelRow(page, 'Instagram').click();
+  await channelRow(page, 'OnlyFans').click();
+  await page.mouse.click(5, 5);
+  await expect(tab(editor, 'Instagram and OnlyFans')).toHaveAttribute('aria-selected', 'true');
   await expect(caption(editor)).toHaveValue(X_TEXT);
 
-  // Every channel used: no +. Removing a version asks, then selects the first and brings + back.
-  await button(editor, 'Add channel').click();
-  await menuItem(page, 'OnlyFans').click();
-  await expect(button(editor, 'Add channel')).toHaveCount(0);
-  await removeShown(page, editor, 'OnlyFans');
-  await expect(tab(editor, 'OnlyFans')).toHaveCount(0);
-  await expect(tab(editor, 'Bluesky')).toHaveAttribute('aria-selected', 'true');
-  await expect(button(editor, 'Add channel')).toBeVisible();
-  await tab(editor, 'Instagram').click();
+  // Unticking a version's last channel asks, removes it and selects the first.
+  await tab(editor, 'Instagram and OnlyFans').click();
+  await channelRow(page, 'OnlyFans').click();
+  await page.mouse.click(5, 5);
   await removeShown(page, editor, 'Instagram');
+  await expect(tab(editor, 'Instagram')).toHaveCount(0);
+  await expect(tab(editor, 'Bluesky')).toHaveAttribute('aria-selected', 'true');
   await expect(editor.getByRole('tab')).toHaveCount(2);
 
   await button(editor, 'Add').click();
@@ -196,16 +219,25 @@ test('a post written for Bluesky and X shares a version, writes X separately, ad
   await expectNoNested(post, 'button', 'button');
   await expectNoNested(post, 'tab', 'button');
 
-  // Edit opens on the version shown. Remove the X version, tick X back onto Bluesky's, and save: one
-  // tab for both.
+  // Edit opens on the version shown. Tick X back onto Bluesky's version and save: one tab for both.
   await button(post, 'Post options').click();
   await menuItem(page, 'Edit').click();
   await expect(tab(editor, 'X')).toHaveAttribute('aria-selected', 'true');
   await expect(caption(editor)).toHaveValue(X_TEXT);
-  await removeShown(page, editor, 'X');
+  // X ticked on Bluesky's version removes X's own, which has text: asked first, the menu closed.
   await tab(editor, 'Bluesky').click();
-  await channelRow(page, 'X').click();
-  await page.mouse.click(5, 5);
+  await expect(tab(editor, 'Bluesky')).toHaveAttribute('aria-selected', 'true');
+  await tab(editor, 'Bluesky').click();
+  let replaced = '';
+  await withDialog(
+    page,
+    async (dialog) => {
+      replaced = dialog.message();
+      await dialog.accept();
+    },
+    () => channelRow(page, 'X').click(),
+  );
+  expect(replaced).toContain('Remove this X version?');
   await expect(channelRow(page, 'X')).toHaveCount(0);
   await button(editor, 'Save').click();
   await editor.waitFor({ state: 'detached' });
@@ -303,10 +335,7 @@ test('without channels a new post has no bar, and a post on channels still shows
   for (const name of ['Bluesky', 'X', 'Instagram', 'OnlyFans']) {
     const row = channels.getByText(name, { exact: true });
     if ((await row.count()) === 0) continue;
-    await row.hover();
-    await page.mouse.down();
-    await page.waitForTimeout(1000);
-    await page.mouse.up();
+    await longPress(page, row);
     await menuItem(page, 'Delete').click();
     await expect(row).toHaveCount(0);
   }

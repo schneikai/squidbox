@@ -19,8 +19,8 @@ import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, comma-separated, in that
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
-// without its thread or its other channels). It is on the reposted post's channel, else the user's
-// first channel, else none. Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
+// without its thread or its other channels). It goes to the reposted version's channels, else all the
+// user's channels, else none. Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
 // marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
 // would add the post again. Added from the New post sheet, the post closes that sheet too: the user
 // lands on the posts list with the new post, not back on what to post next.
@@ -55,9 +55,9 @@ async function readSeed(
   db: SyncDb,
   { rePostId, assetIds }: { rePostId: string | undefined; assetIds: string[] },
 ): Promise<PostEditorPost | null> {
-  // The first channel this build knows, as Settings → Channels lists them (useChannels).
-  const firstChannel = (await readChannels(db)).find((row) => channelById(row.channelId));
-  const channelIds = firstChannel ? [firstChannel.channelId] : [];
+  // A new post goes to all the user's channels this build knows, as Settings → Channels lists them
+  // (useChannels).
+  const channelIds = (await readChannels(db)).flatMap((row) => (channelById(row.channelId) ? [row.channelId] : []));
   const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
   if (rePostId) {
     const rePost = await readPost(db, rePostId, { withChannels: false });

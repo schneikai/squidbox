@@ -5,7 +5,7 @@ import { layout, space } from '@/styles/designTokens';
 
 type MenuTitleProps = { label: string };
 
-// A popup menu's title above its rows (Change X to, Add channel): read as a heading, never pressed.
+// A popup menu's title above its rows (This version is for, New version for): read as a heading, never pressed.
 // MenuButton draws it from its `title`.
 export default function MenuTitle({ label }: MenuTitleProps) {
   return (

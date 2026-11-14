@@ -1,6 +1,7 @@
 import channelDraftReducer, { type ChannelDraft, type ChannelDraftAction } from './channelDraftReducer';
 import draftChannel from './draftChannel';
 import newChannelDraft from './newChannelDraft';
+import versionOfChannel from './versionOfChannel';
 
 import orderPostChannels from '@/features/channels/orderPostChannels';
 import type { PickedPostedAt } from '@/features/posts/postedAtToSave';
@@ -41,16 +42,22 @@ export type PostDraft = {
 export type PostDraftAction =
   | { type: 'channel'; key: string; action: ChannelDraftAction }
   | { type: 'select'; key: string }
-  | { type: 'addChannel'; channelId: string }
-  | { type: 'splitChannel'; key: string; channelId: string }
+  | { type: 'newVersion'; channelId: string; channelOrder: string[] }
+  | { type: 'toggleChannel'; key: string; channelId: string; channelOrder: string[] }
+  | { type: 'keepChannel'; key: string; channelId: string; channelOrder: string[] }
   | { type: 'removeVersion'; key: string; channelOrder: string[] }
   | { type: 'pickPostedAt'; postedAt: PickedPostedAt };
 
 /**
  * The post editor's draft. `channel` edits the keyed version (channelDraftReducer: its cards and
- * channels), `select` shows another version, `addChannel` adds a version for one channel holding the
- * first card of the one that shows (newChannelDraft) and shows it, `splitChannel` takes a channel off
- * the keyed version into a new version of its own holding a copy of all its cards and shows it,
+ * channels), `select` shows another version. `toggleChannel` unticks a channel of the keyed version
+ * (its last one throws: the version is removed instead) or ticks one on it, taking it off the version
+ * it was on; `keepChannel` makes a channel the keyed version's only one, taking it off the version it
+ * was on the same way and unticking the others (they go to no version); both keep the keyed version
+ * shown. `newVersion` gives a channel a version of its own holding a copy of all the cards of the one
+ * that shows (newChannelDraft) and shows it, taking the channel off the version it was on the same
+ * way; the shown version's channel when it is its only one throws (the copy would be itself). A
+ * channel taken off a version that had only that channel removes the version, like `removeVersion`.
  * `removeVersion` drops one and shows the first left in bar order (orderPostChannels over
  * `channelOrder`): removing the post's own version makes the first other one the post. A key the
  * draft doesn't hold throws.
@@ -67,19 +74,26 @@ export default function postDraftReducer(draft: PostDraft, action: PostDraftActi
     }
     case 'select':
       return { ...draft, selectedKey: draftChannel(draft, action.key).key };
-    case 'addChannel': {
-      const { cards } = draftChannel(draft, draft.selectedKey);
-      const added = newChannelDraft(draft.nextChannel, action.channelId, cards.slice(0, 1));
-      return { ...draft, others: [...draft.others, added], selectedKey: added.key, nextChannel: draft.nextChannel + 1 };
-    }
-    case 'splitChannel': {
-      const source = draftChannel(draft, action.key);
-      const added = newChannelDraft(draft.nextChannel, action.channelId, source.cards);
-      const left = postDraftReducer(draft, {
+    case 'toggleChannel':
+    case 'keepChannel': {
+      const { key } = draftChannel(draft, action.key);
+      const isOn = versionOfChannel(draft, action.channelId)?.key === key;
+      const left = isOn ? draft : takeChannel(draft, action.channelId, action.channelOrder);
+      const changed = postDraftReducer(left, {
         type: 'channel',
-        key: source.key,
-        action: { type: 'toggleChannel', channelId: action.channelId },
+        key,
+        action: { type: action.type, channelId: action.channelId },
       });
+      return { ...changed, selectedKey: key };
+    }
+    case 'newVersion': {
+      const { key, cards } = draftChannel(draft, draft.selectedKey);
+      const holder = versionOfChannel(draft, action.channelId);
+      if (holder?.key === key && holder.channelIds.length === 1) {
+        throw new Error('The shown version is already this channel alone');
+      }
+      const left = takeChannel(draft, action.channelId, action.channelOrder);
+      const added = newChannelDraft(draft.nextChannel, action.channelId, cards);
       return { ...left, others: [...left.others, added], selectedKey: added.key, nextChannel: draft.nextChannel + 1 };
     }
     case 'removeVersion': {
@@ -93,6 +107,17 @@ export default function postDraftReducer(draft: PostDraft, action: PostDraftActi
     case 'pickPostedAt':
       return { ...draft, pickedPostedAt: action.postedAt };
   }
+}
+
+// The draft with `channelId` taken off the version it is on: a version that had only that channel is
+// removed (removeVersion).
+function takeChannel(draft: PostDraft, channelId: string, channelOrder: string[]): PostDraft {
+  const holder = versionOfChannel(draft, channelId);
+  if (!holder) return draft;
+  if (holder.channelIds.length === 1) {
+    return postDraftReducer(draft, { type: 'removeVersion', key: holder.key, channelOrder });
+  }
+  return postDraftReducer(draft, { type: 'channel', key: holder.key, action: { type: 'toggleChannel', channelId } });
 }
 
 // The post's own version removed: the first other version in bar order becomes the post. It keeps its

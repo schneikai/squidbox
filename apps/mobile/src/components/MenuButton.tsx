@@ -34,8 +34,8 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
  * by a wider band, as iOS groups it; a `<Divider variant="menu" />` among them breaks them into
  * groups in its place. A menu drawn by one component (SortFilterMenu) parts its own.
- * `title` heads the rows in small grey (MenuTitle): what the menu picks (This version is for, Add
- * channel).
+ * `title` heads the rows in small grey (MenuTitle): what the menu picks (This version is for, New
+ * version for).
  * A menu taller than the room beside its trigger scrolls (BlurPopoverRenderer).
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
