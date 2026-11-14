@@ -113,6 +113,16 @@ export const CHANNELS = [
     maxTextLength: 1000,
     hasThreads: false,
   },
+  // No published limits (its help desk, fanshelp.freshdesk.com, names only the 10 GB upload size); a
+  // post stands alone, with no thread.
+  {
+    id: 'justforfans',
+    recordId: 'a80141a1-3da9-433e-8e2d-430125fb330e',
+    name: 'JustFor.Fans',
+    maxMedia: null,
+    maxTextLength: null,
+    hasThreads: false,
+  },
 ] as const satisfies readonly Channel[];
 
 export type ChannelId = (typeof CHANNELS)[number]['id'];

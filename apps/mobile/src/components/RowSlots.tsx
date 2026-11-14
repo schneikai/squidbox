@@ -21,8 +21,9 @@ export type RowSlotsProps = {
  * (`children`, taking the room left) and the end: a `value` and then `trailing` (avatars, a button,
  * a selection circle). `hasChevron` ends a row that opens a screen with a chevron, but only while
  * nothing is at its end: `trailing` takes its place, a `value` keeps it beside it. `isSelected` makes
- * it a row of a pick-one list: the accent check in front when it is the current one, an empty slot as
- * wide as SelectIndicator's circle when not, so the text lines up as in a pick-several list.
+ * it a row of a pick-one list: the selection check (colors.selection) in front when it is the
+ * current one, an empty slot as wide as SelectIndicator's circle when not, so the text lines up
+ * as in a pick-several list.
  * `size="small"` is the tighter row of a long list. Layout only: the parent draws the press, the card
  * and the dividers.
  */
@@ -44,7 +45,7 @@ export default function RowSlots({
         <View style={styles.leading}>
           {isSelected !== undefined && (
             <View style={styles.pickSlot}>
-              {isSelected && <Icon name="check" size={sizes.icon} color={colors.accent.base} />}
+              {isSelected && <Icon name="check" size={sizes.icon} color={colors.selection.mark} />}
             </View>
           )}
           {leading}

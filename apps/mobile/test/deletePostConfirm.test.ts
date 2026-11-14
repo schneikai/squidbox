@@ -4,34 +4,41 @@ import deletePostConfirm from '../src/features/post-detail/actions/deletePostCon
 
 describe('deletePostConfirm', () => {
   it('asks plainly about a single post', () => {
-    expect(deletePostConfirm({ threadCount: 0, otherChannelCount: 0, channelNames: [] })).toEqual({
+    expect(deletePostConfirm({ threadCount: 0, hasOtherVersions: false, channelNames: [] })).toEqual({
       name: 'this post',
     });
   });
 
   it("counts a thread's posts", () => {
-    expect(deletePostConfirm({ threadCount: 2, otherChannelCount: 0, channelNames: ['X'] })).toEqual({
+    expect(deletePostConfirm({ threadCount: 2, hasOtherVersions: false, channelNames: ['X'] })).toEqual({
       name: 'this thread',
       also: 'All 3 of its posts go.',
     });
   });
 
   it('names every channel of a post on more than one', () => {
-    expect(deletePostConfirm({ threadCount: 2, otherChannelCount: 1, channelNames: ['X', 'OnlyFans'] }).also).toBe(
+    expect(deletePostConfirm({ threadCount: 2, hasOtherVersions: true, channelNames: ['X', 'OnlyFans'] }).also).toBe(
       'It goes on all its channels: X and OnlyFans.',
     );
     expect(
-      deletePostConfirm({ threadCount: 0, otherChannelCount: 2, channelNames: ['X', 'Bluesky', 'OnlyFans'] }).also,
+      deletePostConfirm({ threadCount: 0, hasOtherVersions: true, channelNames: ['X', 'Bluesky', 'OnlyFans'] }).also,
     ).toBe('It goes on all its channels: X, Bluesky and OnlyFans.');
+  });
+
+  it('names the channels of a single version shared by several', () => {
+    expect(deletePostConfirm({ threadCount: 0, hasOtherVersions: false, channelNames: ['Bluesky', 'X'] })).toEqual({
+      name: 'this post',
+      also: 'It goes on all its channels: Bluesky and X.',
+    });
   });
 
   it('says a post with other channels goes on all of them, also when they show as one channel', () => {
     // No channel of its own and one other; two other channels on OnlyFans.
-    expect(deletePostConfirm({ threadCount: 0, otherChannelCount: 1, channelNames: ['OnlyFans'] })).toEqual({
+    expect(deletePostConfirm({ threadCount: 0, hasOtherVersions: true, channelNames: ['OnlyFans'] })).toEqual({
       name: 'this post',
       also: 'It goes on all its channels.',
     });
-    expect(deletePostConfirm({ threadCount: 0, otherChannelCount: 2, channelNames: ['OnlyFans'] }).also).toBe(
+    expect(deletePostConfirm({ threadCount: 0, hasOtherVersions: true, channelNames: ['OnlyFans'] }).also).toBe(
       'It goes on all its channels.',
     );
   });

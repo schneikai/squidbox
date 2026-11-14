@@ -32,8 +32,11 @@ export type MenuButtonProps = Omit<ButtonProps, 'onPress'> & {
  *   </MenuButton>
  *
  * Rows given as MenuOptions are parted by hairlines, and a destructive one (`colorPalette="danger"`)
- * by a wider band, as iOS groups it; a menu drawn by one component (SortFilterMenu) parts its own.
- * `title` heads the rows in small grey (MenuTitle): what the menu picks (Change X to, Add channel).
+ * by a wider band, as iOS groups it; a `<Divider variant="menu" />` among them breaks them into
+ * groups in its place. A menu drawn by one component (SortFilterMenu) parts its own.
+ * `title` heads the rows in small grey (MenuTitle): what the menu picks (This version is for, Add
+ * channel).
+ * A menu taller than the room beside its trigger scrolls (BlurPopoverRenderer).
  *
  * style is for layout only, on the menu's outer view (so `marginLeft: 'auto'` and flex work in a row).
  */
@@ -82,23 +85,18 @@ export default function MenuButton({
   );
 }
 
-// The options with a line between each two: a hairline, or a band before a destructive one. Only
-// when every child is a MenuOption.
+// The options with a line between each two: a hairline, or a band before a destructive one; a
+// caller's Divider stays as the break between its groups. Only when every child is a MenuOption or a
+// Divider.
 function separated(children: ReactNode): ReactNode {
   const all = Children.toArray(children);
-  const options = all.filter(
-    (child): child is ReactElement<MenuOptionProps> => isValidElement(child) && child.type === MenuOption,
-  );
-  if (options.length !== all.length) return children;
-  return options.flatMap((option, i) =>
-    i === 0
-      ? [option]
-      : [
-          <Divider
-            key={`divider-${option.key}`}
-            variant={option.props.colorPalette === 'danger' ? 'menu' : 'menuRow'}
-          />,
-          option,
-        ],
-  );
+  const isOption = (child: ReactNode): child is ReactElement<MenuOptionProps> =>
+    isValidElement(child) && child.type === MenuOption;
+  if (!all.every((child) => isOption(child) || (isValidElement(child) && child.type === Divider))) return children;
+  return all.flatMap((child, i): ReactNode[] => {
+    const before = all[i - 1];
+    if (!isOption(child) || !isOption(before)) return [child];
+    const variant = child.props.colorPalette === 'danger' ? 'menu' : 'menuRow';
+    return [<Divider key={`divider-${child.key}`} variant={variant} />, child];
+  });
 }

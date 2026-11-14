@@ -1,16 +1,19 @@
 import channelDraftOf from './channelDraftOf';
+import type { ChannelDraft } from './channelDraftReducer';
 import channelKey from './channelKey';
-import draftChannel from './draftChannel';
-import type { OtherChannelDraft, PostDraft } from './postDraftReducer';
 
 import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 /**
- * A new other channel of the post on `channelId`, holding the selected channel's first card: its text,
- * and its media as fresh refs (not its thread).
+ * A new version of the post for `channelId`, keyed by the draft's `nextChannel`, holding a copy of
+ * `cards` (a channel added: the first card of the version that shows; a channel written separately:
+ * all of its version's). Each card keeps its text and gets its media as fresh refs, with no saved id.
  */
-export default function newChannelDraft(draft: PostDraft, channelId: string): OtherChannelDraft {
-  const first = draftChannel(draft, draft.selectedKey).cards[0]!;
-  const postAssets = freshPostAssets(first.postAssets);
-  return channelDraftOf(channelKey(draft.nextChannel), null, channelId, [{ id: null, text: first.text, postAssets }]);
+export default function newChannelDraft(
+  nextChannel: number,
+  channelId: string,
+  cards: ChannelDraft['cards'],
+): ChannelDraft {
+  const contents = cards.map((card) => ({ id: null, text: card.text, postAssets: freshPostAssets(card.postAssets) }));
+  return channelDraftOf(channelKey(nextChannel), null, [channelId], contents);
 }

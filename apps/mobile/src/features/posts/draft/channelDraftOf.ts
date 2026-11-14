@@ -3,13 +3,13 @@ import nextCardKey from './nextCardKey';
 
 import type { PostCardContent } from '@/features/posts/PostCard';
 
-/** A channel's draft from its posts' contents (the first post, then its thread), keyed from `key`. */
-export default function channelDraftOf<C extends string | null>(
+/** A version's draft from its posts' contents (the first post, then its thread), keyed from `key`. */
+export default function channelDraftOf(
   key: string,
   id: string | null,
-  channelId: C,
+  channelIds: string[],
   contents: PostCardContent[],
-): ChannelDraft & { channelId: C } {
+): ChannelDraft {
   const cards = contents.map((content, i) => ({ ...content, key: nextCardKey({ key, nextCard: i }) }));
-  return { key, id, channelId, cards, nextCard: cards.length };
+  return { key, id, channelIds, cards, nextCard: cards.length };
 }

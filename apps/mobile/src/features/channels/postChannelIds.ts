@@ -1,16 +1,17 @@
-import orderPostChannels from './orderPostChannels';
+import orderChannelIds from './orderChannelIds';
 
 import type { PostListRow } from '@/sync/queries/postQuery';
 
 /**
- * The channel labels a post's card shows in a list: its own channel first, then its other channels in
- * the user's channel order (orderPostChannels), each channel once. None for a post without a channel
- * and without other channels.
+ * The channel labels a post's card shows in a list, and Delete names: its first channel leading, then
+ * its other channels and its other versions' in the user's channel order (orderChannelIds), each
+ * channel once. None for a post without a channel and without other versions.
  */
 export default function postChannelIds(
-  post: Pick<PostListRow, 'channelId' | 'otherChannelIds'>,
+  post: Pick<PostListRow, 'channelIds' | 'otherChannelIds'>,
   channelOrder: string[],
 ): string[] {
-  const ordered = orderPostChannels([post.channelId, ...post.otherChannelIds], (id) => id, channelOrder);
-  return [...new Set(ordered.flatMap((id) => (id ? [id] : [])))];
+  const [own, ...extras] = post.channelIds;
+  const others = orderChannelIds([...extras, ...post.otherChannelIds], channelOrder);
+  return [...new Set([...(own ? [own] : []), ...others])];
 }

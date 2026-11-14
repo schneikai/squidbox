@@ -4,9 +4,10 @@ import { type ReactNode, useMemo } from 'react';
 import PostsContext, { type PostsContextValue } from './PostsContext';
 
 import { getDb } from '@/sync/db/client';
-import { removePost, saveChannelPosts, setPostPostedAt } from '@/sync/postChannels';
+import { removePost, repairVersionChannels, saveChannelPosts, setPostPostedAt } from '@/sync/postChannels';
 import { saveThreadPosts } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
+import versionChannelFields from '@/sync/versionChannelFields';
 import { requestSync } from '@/sync/worker';
 import newRecord from '@/utils/newRecord';
 
@@ -22,9 +23,10 @@ export default function PostsProvider({ children }: PostsProviderProps) {
   const value = useMemo<PostsContextValue>(() => {
     const db = getDb();
     return {
-      addPost: async ({ assetRefs: refs = [], threadPosts = [], channelPosts = [], ...fields }) => {
+      addPost: async ({ assetRefs: refs = [], threadPosts = [], channelPosts = [], channelIds, ...fields }) => {
         const post = await db.transaction(async (tx) => {
-          const created = await repo.create(tx, newRecord(postCollection, postDefaults, fields));
+          const record = { ...fields, ...(channelIds && versionChannelFields(channelIds)) };
+          const created = await repo.create(tx, newRecord(postCollection, postDefaults, record));
           await repo.postEdges.createFromRefs(tx, created.id, refs);
           await saveThreadPosts(tx, created.id, threadPosts, [], newPart);
           await saveChannelPosts(tx, created.id, channelPosts, [], newPart);
@@ -35,9 +37,13 @@ export default function PostsProvider({ children }: PostsProviderProps) {
       },
       // `seed`: the post an editor was seeded with, whose photo list, following posts and other channels
       // a changed `assetRefs` / `threadPosts` / `channelPosts` is saved over. A changed `postedAt`
-      // applies to the whole post: its thread, its other channels and theirs.
-      updatePost: async (id, { assetRefs, threadPosts, channelPosts, ...changes }, seed) => {
+      // applies to the whole post: its thread, its other channels and theirs. A save of its channels or
+      // versions (the editor's) first writes away an extra channel the read hides (repairVersionChannels),
+      // as the editor saw it: after a version is removed, an extra it hid would show again.
+      updatePost: async (id, { assetRefs, threadPosts, channelPosts, channelIds, ...fields }, seed) => {
+        const changes = { ...fields, ...(channelIds && versionChannelFields(channelIds)) };
         await db.transaction(async (tx) => {
+          if (channelIds !== undefined || channelPosts !== undefined) await repairVersionChannels(tx, id);
           if (assetRefs !== undefined) await repo.postEdges.setRefs(tx, id, assetRefs ?? [], seed?.assetRefs ?? []);
           await repo.update(tx, id, changes);
           if (changes.postedAt !== undefined) await setPostPostedAt(tx, id, changes.postedAt);

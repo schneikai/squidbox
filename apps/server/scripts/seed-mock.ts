@@ -4,7 +4,7 @@
  * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky (his channels: Bluesky, then X and
- * Instagram, where a few posts have their own text and photos), the people he shoots and
+ * Instagram, where a few posts have their own text and photos, and one goes to X as it is), the people he shoots and
  * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
@@ -123,15 +123,19 @@ const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | '
   { name: 'To post', media: [33, 34, 35, 36, 37, 38, 40, 4] },
 ];
 
-// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts.
+// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts, with their
+// own text (`channels`) or as on Bluesky (`alsoOn`).
 const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
 
 // Every post is on Bluesky. `thread`: the posts that follow this one in its thread, each with its own
-// text and photos. `channels`: the post on his other channels, each with its own text, photos and thread.
+// text and photos. `alsoOn`: his other channels the post goes to as it is (one version shared by
+// several channels, its `extraChannelIds`). `channels`: the post on his other channels, each with its
+// own text, photos and thread.
 type MockPostPart = { text: string; media: number[]; thread?: { text: string; media: number[] }[] };
 const POSTS: (MockPostPart & {
   postedDaysAgo: number | null;
   isFavorite?: boolean;
+  alsoOn?: Exclude<(typeof CHANNEL_IDS)[number], 'bluesky'>[];
   channels?: (MockPostPart & { channelId: (typeof CHANNEL_IDS)[number] })[];
 })[] = [
   {
@@ -147,7 +151,12 @@ const POSTS: (MockPostPart & {
       },
     ],
   },
-  { text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲', media: [14, 15, 17, 32], postedDaysAgo: 32 },
+  {
+    text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲',
+    media: [14, 15, 17, 32],
+    postedDaysAgo: 32,
+    alsoOn: ['x'],
+  },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
   {
     text: 'Summer recap, part 1, with @ridgeline.bsky.social',
@@ -382,6 +391,7 @@ const posts: PostRecord[] = POSTS.map((post, index) => {
   return postRecord(`post:${index}`, postedAt ?? now - index * DAY, {
     text: post.text,
     channelId: 'bluesky',
+    extraChannelIds: post.alsoOn?.length ? post.alsoOn : null, // null, never []
     isFavorite: post.isFavorite ?? false,
     postedAt,
     suggestRepostAt: postedAt === null ? 0 : postedAt + 90 * DAY,

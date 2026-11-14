@@ -332,6 +332,17 @@ describe('postQuery: channels', () => {
     expect(count).toBe(1);
   });
 
+  it("lists the other channels of a post's other versions too, none of a version without a channel", async () => {
+    await createPost('p1', { channelId: 'x', extraChannelIds: ['threads'] });
+    await copy('p2', 'p1', 'onlyfans', { extraChannelIds: ['patreon', 'justforfans'] });
+    await createPost('p3', { channelId: null, channelRootId: 'p1', extraChannelIds: ['tiktok'] });
+    const [row] = await postQuery({ scope: 'all' }).readRows(db, { limit: 10 });
+    expect([row!.extraChannelIds, row!.otherChannelIds.sort()]).toEqual([
+      ['threads'],
+      ['justforfans', 'onlyfans', 'patreon'],
+    ]);
+  });
+
   it('lists another channel whose post is deleted as a post of its own', async () => {
     await createPost('p1', { deletedAt: 5 });
     await copy('p2', 'p1', 'onlyfans');
