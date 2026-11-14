@@ -1,7 +1,7 @@
 import { CONTACT_HANDLES, type ContactHandleField } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { EnrichedTextInput, type EnrichedTextInputInstance } from 'react-native-enriched-html';
 
 import Card from '@/components/Card';
@@ -20,6 +20,10 @@ import useContactRows from '@/features/contact-list/useContactRows';
 import { colors, press, radii, scale, space, textStyles } from '@/styles/designTokens';
 
 const MAX_SUGGESTIONS = 4;
+const WEB_KEEP_FOCUS =
+  Platform.OS === 'web'
+    ? ({ onMouseDown: (event: { preventDefault: () => void }) => event.preventDefault() } as object)
+    : null;
 // <mention ... id="…" ...>@Name</mention>, as the editor writes a mention into its HTML.
 const MENTION = /<mention\b([^>]*)>(.*?)<\/mention>/g;
 const ID = /\bid="([^"]*)"/;
@@ -76,7 +80,13 @@ export default function MentionSpikeScreen() {
             placeholderTextColor={colors.text.tertiary}
             mentionIndicators={['@']}
             style={styles.input}
-            htmlStyle={{ mention: { color: colors.text.primary, backgroundColor: colors.background.muted } }}
+            htmlStyle={{
+              mention: {
+                color: colors.text.primary,
+                backgroundColor: colors.background.muted,
+                textDecorationLine: 'none',
+              },
+            }}
             onStartMention={() => setQuery('')}
             onChangeMention={({ text }) => setQuery(text)}
             onEndMention={() => setQuery(null)}
@@ -85,7 +95,8 @@ export default function MentionSpikeScreen() {
           {suggestions.length > 0 && (
             <View style={styles.suggestions}>
               {suggestions.map((contact, index) => (
-                <View key={contact.id}>
+                // On web a click would take the focus, and with it the mention being typed.
+                <View key={contact.id} {...WEB_KEEP_FOCUS}>
                   {index > 0 && <Divider />}
                   <Pressable
                     style={({ pressed }) => pressed && press.flat}
@@ -163,7 +174,7 @@ function plainText(html: string) {
 const styles = StyleSheet.create({
   input: {
     minHeight: scale(84),
-    fontSize: textStyles.reading.fontSize,
+    ...textStyles.reading,
     color: colors.text.primary,
   },
   suggestions: {
