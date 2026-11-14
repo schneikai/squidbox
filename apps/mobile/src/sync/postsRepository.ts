@@ -73,37 +73,21 @@ const MENTION_POSTS = 100;
 
 /**
  * The texts of the live posts whose assets share a live album with `assetIds` (through live edges),
- * newest post date first, at most MENTION_POSTS, with `fromAlbum: true`; without any (no album, or one never
- * posted from), the newest live posts, with `fromAlbum: false`. Where the chat finds the
- * handles the user mentions in posts like the one they write.
+ * newest post date first, at most MENTION_POSTS: where the chat finds the handles the user mentions in
+ * posts like the one they write. None without an album or one never posted from: the library's other
+ * posts are about other people.
  */
-export async function readMentionTexts(
-  db: SyncDb,
-  assetIds: string[],
-): Promise<{ texts: string[]; fromAlbum: boolean }> {
-  const p = schema.posts;
-  const newest = sql`${p.postedAt} desc, ${p.id} desc`;
-  const inAlbums = sql`${p.id} in (select pe.post_id from post_assets pe
-    where pe.deleted_at is null and pe.asset_id in ${albumAssetIdsOf(assetIds)})`;
-  const read = (where?: SQL) =>
-    db
-      .select({ text: p.text })
-      .from(p)
-      .where(where ? sql`${p.deletedAt} is null and ${where}` : isNull(p.deletedAt))
-      .orderBy(newest)
-      .limit(MENTION_POSTS);
-  const fromAlbum = assetIds.length > 0 ? await read(inAlbums) : [];
-  if (fromAlbum.length > 0) return { texts: fromAlbum.map((row) => row.text), fromAlbum: true };
-  return { texts: (await read()).map((row) => row.text), fromAlbum: false };
-}
-
-/** The texts of every live post with an @, newest post date first: the handles the user ever mentioned. */
-export async function readMentionedTexts(db: SyncDb): Promise<string[]> {
+export async function readMentionTexts(db: SyncDb, assetIds: string[]): Promise<string[]> {
+  if (assetIds.length === 0) return [];
   const p = schema.posts;
   const rows = await db
     .select({ text: p.text })
     .from(p)
-    .where(sql`${p.deletedAt} is null and instr(${p.text}, '@') > 0`)
-    .orderBy(sql`${p.postedAt} desc, ${p.id} desc`);
+    .where(
+      sql`${p.deletedAt} is null and ${p.id} in (select pe.post_id from post_assets pe
+        where pe.deleted_at is null and pe.asset_id in ${albumAssetIdsOf(assetIds)})`,
+    )
+    .orderBy(sql`${p.postedAt} desc, ${p.id} desc`)
+    .limit(MENTION_POSTS);
   return rows.map((row) => row.text);
 }

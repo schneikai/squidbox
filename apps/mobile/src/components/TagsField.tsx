@@ -1,5 +1,5 @@
 import { uniqueTags } from '@squidbox/shared';
-import { memo, useMemo, useState } from 'react';
+import { memo, type ReactNode, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import Card from '@/components/Card';
@@ -23,6 +23,7 @@ export type TagsFieldProps = {
   guardPress?: GuardPress;
   isFlush?: boolean;
   mixed?: MixedTags;
+  renderSuggestions?: (text: string, add: (tag: string) => void) => ReactNode;
 };
 
 /**
@@ -37,6 +38,8 @@ export type TagsFieldProps = {
  * `disabled` shows the tags without taking changes (a mixed chip's tap included).
  * `guardPress(onPress)` (optional) wraps the chips' presses, so a parent can drop a touch that
  * dragged something else (useDetailsPanelDrag's); a return or a blur in the input isn't a press.
+ * `renderSuggestions(text, add)` (optional) shows what the text being typed may mean under the
+ * field while Add is open; `add(tag)` adds one as a return would and clears the input.
  */
 function TagsField({
   tags,
@@ -49,6 +52,7 @@ function TagsField({
   guardPress = unguarded,
   isFlush = false,
   mixed,
+  renderSuggestions,
 }: TagsFieldProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [text, setText] = useState('');
@@ -57,16 +61,16 @@ function TagsField({
   // Not rebuilt on every keystroke in the input.
   const mixedKeys = useMemo(() => new Set(mixed?.tags.map(tagKey)), [mixed?.tags]);
 
-  function addTag() {
+  function addTag(value: string) {
     // Cleared first, so the blur after a submit finds nothing left to add.
     setText('');
-    const key = tagKey(text);
+    const key = tagKey(value);
     const match = mixed?.tags.find((tag) => tagKey(tag) === key);
     if (mixed && match) {
       mixed.onPress(match);
       return;
     }
-    const next = uniqueTags([...tags, text]);
+    const next = uniqueTags([...tags, value]);
     if (next.length === tags.length) return;
     onChange(next);
     // The last tag there's room for closes the input.
@@ -74,12 +78,13 @@ function TagsField({
   }
 
   function handleBlur() {
-    addTag();
+    addTag(text);
     setIsAdding(false);
   }
 
   const Surface = isFlush ? View : Card;
-  return (
+  const isOpen = isAdding && canAdd;
+  const field = (
     <Surface style={[styles.field, !isFlush && styles.card]}>
       {tags.map((tag) => {
         const isMixed = !!mixed && mixedKeys.has(tagKey(tag));
@@ -95,8 +100,14 @@ function TagsField({
           />
         );
       })}
-      {isAdding && canAdd ? (
-        <TagInput value={text} onChangeText={setText} onSubmit={addTag} onBlur={handleBlur} maxLength={maxTagLength} />
+      {isOpen ? (
+        <TagInput
+          value={text}
+          onChangeText={setText}
+          onSubmit={() => addTag(text)}
+          onBlur={handleBlur}
+          maxLength={maxTagLength}
+        />
       ) : (
         canAdd && (
           <Chip
@@ -110,6 +121,13 @@ function TagsField({
       )}
       {tags.length === 0 && !isAdding && !!placeholder && <Text style={styles.placeholder}>{placeholder}</Text>}
     </Surface>
+  );
+  if (!renderSuggestions) return field;
+  return (
+    <>
+      {field}
+      {isOpen && renderSuggestions(text, addTag)}
+    </>
   );
 }
 

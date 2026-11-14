@@ -1,8 +1,11 @@
-import { eq, inArray, isNull, max } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, max, sql } from 'drizzle-orm';
 
+import { albumAssetIdsOf } from './assetSql';
 import { nextUpdatedAt } from './clock';
 import * as schema from './db/schema';
+import type { ContactRow } from './db/schema';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 import { contactLinks, contactListMembers } from './membershipRepository';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
@@ -69,4 +72,30 @@ export async function restore(db: SyncDb, id: string): Promise<void> {
 /** Favorites or unfavorites a contact; favoritedAt is the time of the favoriting, null once unfavorited. */
 export function toggleFavorite(db: SyncDb, id: string): Promise<void> {
   return toggle(db, id, 'isFavorite', (row) => ({ favoritedAt: row.isFavorite ? row.updatedAt : null }));
+}
+
+/**
+ * The live contacts on these live, untrashed photos (`assetIds`) and on the other photos of the live
+ * albums holding them: who a post of these photos is about. Those on the photos themselves first,
+ * then by name.
+ */
+export async function readPhotoAndAlbumContacts(db: SyncDb, assetIds: string[]): Promise<ContactRow[]> {
+  if (assetIds.length === 0) return [];
+  const { contacts: c, contactLinks: l, assets: a } = schema;
+  const isOnPhotos = sql<number>`max(${inJson(l.targetId, assetIds)})`;
+  const rows = await db
+    .select({ contact: c, isOnPhotos })
+    .from(l)
+    .innerJoin(a, and(eq(a.id, l.targetId), isNull(a.deletedAt)))
+    .innerJoin(c, and(eq(c.id, l.contactId), isNull(c.deletedAt)))
+    .where(
+      and(
+        eq(l.targetType, 'asset'),
+        isNull(l.deletedAt),
+        sql`(${inJson(l.targetId, assetIds)} or ${l.targetId} in ${albumAssetIdsOf(assetIds)})`,
+      ),
+    )
+    .groupBy(c.id)
+    .orderBy(desc(isOnPhotos), asc(sql`${c.name} collate nocase`), asc(c.id));
+  return rows.map((row) => row.contact);
 }

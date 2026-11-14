@@ -26,10 +26,7 @@ export default function SeesLine({ chat }: SeesLineProps) {
   const tagging = useChatTags(assets);
   const found = useMentions(assetIds);
   const albums = useAssetAlbums({ assetIds }, { isLive: false });
-  const mentions = useMemo(
-    () => found && { handles: sentMentions(found, mentionEdits), fromAlbum: found.fromAlbum },
-    [found, mentionEdits],
-  );
+  const mentions = useMemo(() => found && { handles: sentMentions(found, mentionEdits) }, [found, mentionEdits]);
 
   return (
     <View style={styles.lines}>

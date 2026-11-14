@@ -1,17 +1,12 @@
-import { CONTACT_HANDLES, parseHandle } from '@squidbox/shared';
-
+import contactAtHandles, { type AtHandleField } from '@/lib/contactAtHandles';
 import { searchForms } from '@/sync/matchingIds';
 import type { ContactSummary } from '@/sync/queries/contactQuery';
-
-// The networks whose handles are written with @ in a post's text, in the order the app shows them.
-const MENTION_HANDLES = CONTACT_HANDLES.filter((handle) => handle.isAtHandle);
-type MentionHandleField = (typeof MENTION_HANDLES)[number]['field'];
 
 // The rows shown at most.
 const MAX_SUGGESTIONS = 4;
 
 export type MentionContact = Pick<ContactSummary, 'id' | 'name' | 'isFavorite' | 'avatarFilename'> &
-  Partial<Pick<ContactSummary, MentionHandleField>>;
+  Partial<Pick<ContactSummary, AtHandleField>>;
 
 // One handle of a contact to mention, with the networks it is theirs on ('X', 'Bluesky').
 export type MentionSuggestion = { key: string; contact: MentionContact; handle: string; networks: string[] };
@@ -72,21 +67,14 @@ export default function mentionSuggestions(
     .map(({ suggestion }) => suggestion);
 }
 
-// A contact's distinct @handles, each bare (parseHandle: a profile link's too) with the networks it is
-// on, in the app's order. A link that isn't a profile can't be written as an @handle.
+// A contact's @handles (contactAtHandles) as suggestions.
 function handlesOf(contact: MentionContact): MentionSuggestion[] {
-  const byKey = new Map<string, MentionSuggestion>();
-  for (const { field, label } of MENTION_HANDLES) {
-    const text = contact[field] ?? '';
-    // Its handle on this network (another network's link is none), keyed as handleKey keys it.
-    const { handle } = parseHandle(text, field);
-    if (!handle) continue;
-    const key = handle.toLowerCase();
-    const seen = byKey.get(key);
-    if (seen) seen.networks.push(label);
-    else byKey.set(key, { key: `${contact.id}:${key}`, contact, handle, networks: [label] });
-  }
-  return [...byKey.values()];
+  return contactAtHandles(contact).map(({ handle, networks }) => ({
+    key: `${contact.id}:${handle.toLowerCase()}`,
+    contact,
+    handle,
+    networks,
+  }));
 }
 
 // How well the query's forms (`needles`) match a handle's forms and its contact's name words (0

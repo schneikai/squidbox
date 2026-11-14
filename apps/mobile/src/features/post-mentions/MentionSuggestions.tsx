@@ -52,7 +52,7 @@ function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: Su
       onPress={() => onPick(handle)}
       accessibilityRole="button"
       accessibilityLabel={`${contact.name}, @${handle} on ${networks.join(' and ')}`}
-      accessibilityHint="Adds the handle to the text"
+      accessibilityHint="Adds the handle"
     >
       <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
         <Text variant="title" size="small" numberOfLines={1}>
