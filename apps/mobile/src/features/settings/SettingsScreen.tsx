@@ -198,6 +198,11 @@ export default function SettingsScreen() {
               <Row label="Tag photos from mentions" onPress={tagPhotosFromMentionsAsync} hasChevron />
               <Row label="Features" onPress={() => router.navigate('/settings/features')} hasChevron />
               <Row label="Components" onPress={() => router.navigate('/settings/components')} hasChevron />
+              <Row
+                label="Mention editor (spike)"
+                onPress={() => router.navigate('/settings/mention-spike')}
+                hasChevron
+              />
             </Section>
           </>
         )}
