@@ -54,9 +54,13 @@ const SERVER_LOG = `${tmpdir()}/squidbox-server.log`;
 // Expo's tunnel (on.expo.app, through the signed-in Expo account) can drop now and then; a later
 // attempt gets through. Expo ends every tunnel error with this hint.
 const TUNNEL_FAILED = /Check the Expo status page/;
-// What Metro prints once the tunnel is up: the dev client's link, with the tunnel's host.
-const TUNNEL_READY = /Waiting on exp\+[\w-]+:\/\/([\w.-]+)/;
+// What Metro prints once the tunnel is up, with the tunnel's host: the dev client's exp+ link, or
+// (newer Expo) the tunnel's https URL.
+const TUNNEL_READY = /Waiting on (?:exp\+[\w-]+|https):\/\/([\w.-]+)/;
 const TUNNEL_ATTEMPTS = 20;
+// How long a tunnel may take once the first bundle is built before the attempt is given up and
+// retried: Expo's tunnel either connects within seconds or hangs without an error.
+const TUNNEL_TIMEOUT_MS = 30_000;
 // What Metro's cache was built from, by the last start that got Metro up (see metroCacheArgs).
 const METRO_CACHE_KEY = `${ROOT}node_modules/.cache/squidbox-dev/metro-cache-key`;
 // This start's key, saved once Metro is up (saveMetroCacheKey).
@@ -349,7 +353,15 @@ async function startMetroWithTunnel(extraEnv) {
     const answered = waitForMetro(metro);
     const bundled = buildFirstBundle(metro, answered);
 
-    const url = await Promise.race([pollTunnelUrl(metro, () => output), exited.then(() => null)]);
+    const timedOut = bundled.then(() => sleep(TUNNEL_TIMEOUT_MS)).then(() => 'timeout');
+    const url = await Promise.race([pollTunnelUrl(metro, () => output), exited.then(() => null), timedOut]);
+    if (url === 'timeout') {
+      stop(metro);
+      await exited;
+      keepCache = true;
+      log(`No tunnel after ${TUNNEL_TIMEOUT_MS / 1000}s`);
+      continue;
+    }
     if (url) {
       metro.stdout.removeAllListeners('data').pipe(process.stdout);
       metro.stderr.removeAllListeners('data').pipe(process.stderr);
