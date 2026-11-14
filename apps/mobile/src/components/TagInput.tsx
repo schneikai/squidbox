@@ -6,7 +6,7 @@ import chipFrame from '@/styles/chipFrame';
 import { colors, typography } from '@/styles/designTokens';
 
 export type TagInputProps = Required<Pick<TextInputProps, 'value' | 'onChangeText'>> &
-  Pick<TextInputProps, 'maxLength'> & { onSubmit: () => void; onBlur: () => void };
+  Pick<TextInputProps, 'maxLength' | 'placeholder'> & { onSubmit: () => void; onBlur: () => void };
 
 // The input that stands in for a chip while a tag is typed: a Chip's frame with a thicker accent
 // border, so it reads as the field being typed in.
@@ -14,7 +14,15 @@ export type TagInputProps = Required<Pick<TextInputProps, 'value' | 'onChangeTex
 // placeholder lower than its caret when the field is taller than its line, so the input itself is
 // never stretched to the chip's height. A tap anywhere on the pill focuses it.
 // Return adds the tag and keeps it open for the next one; a tag is at most `maxLength` long.
-export default function TagInput({ value, onChangeText, onSubmit, onBlur, maxLength }: TagInputProps) {
+// `placeholder` names what is typed ("Tag" by default).
+export default function TagInput({
+  value,
+  onChangeText,
+  onSubmit,
+  onBlur,
+  maxLength,
+  placeholder = 'Tag',
+}: TagInputProps) {
   const inputRef = useRef<ComponentRef<typeof RNTextInput>>(null);
 
   return (
@@ -34,7 +42,7 @@ export default function TagInput({ value, onChangeText, onSubmit, onBlur, maxLen
         autoCorrect={false}
         spellCheck={false}
         maxLength={maxLength}
-        placeholder="Tag"
+        placeholder={placeholder}
         style={styles.input}
       />
     </Pressable>

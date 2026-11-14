@@ -37,17 +37,19 @@ export function mentionEntries(contacts: readonly MentionContact[]): MentionEntr
  * whichever way they match. Then a handle starting with the query, then one whose contact has a name
  * word starting with it, then one where either holds it anywhere, blind to case and accents as a
  * contact search is (searchForms); among those, favorites first, then by name. An empty query (just
- * the @) takes every handle.
+ * the @) takes every handle. A handle in `taken` (lowercased, without the @) is left out.
  */
 export default function mentionSuggestions(
   entries: readonly MentionEntry[],
   onPhotoIds: ReadonlySet<string>,
   query: string,
+  taken: ReadonlySet<string> = new Set(),
 ): MentionSuggestion[] {
   const needles = searchForms(query);
   const ranked: { suggestion: MentionSuggestion; rank: number }[] = [];
   for (const { contact, nameWords, handles } of entries) {
     for (const { suggestion, forms } of handles) {
+      if (taken.has(suggestion.handle.toLowerCase())) continue;
       const rank = matchRank(forms, nameWords, needles);
       // Past every rank of a contact that isn't on the photos.
       if (rank != null) ranked.push({ suggestion, rank: rank + (onPhotoIds.has(contact.id) ? 0 : 3) });

@@ -31,7 +31,7 @@ export type TagsFieldProps = {
  * (the secondary info under a photo, which has no cards). The dashed Add turns into an input that
  * adds a tag on return (and stays open for the next) and closes on blur, adding what it holds. A
  * tag that is already there (in any case) isn't added twice; there is room for `maxTags` (optional) of
- * `maxTagLength`. `itemName` names one for VoiceOver ("tag" by default).
+ * `maxTagLength`. `itemName` names one for VoiceOver and the input's placeholder ("tag" by default).
  * `mixed` (optional) marks the tags on only some of the items: their chips are dashed (Chip's
  * `mixed`), and a tap on one, or typing it again in Add, calls `mixed.onPress` with it. Add is then
  * solid, so dashed means only "on some".
@@ -107,6 +107,7 @@ function TagsField({
           onSubmit={() => addTag(text)}
           onBlur={handleBlur}
           maxLength={maxTagLength}
+          placeholder={itemName.charAt(0).toUpperCase() + itemName.slice(1)}
         />
       ) : (
         canAdd && (

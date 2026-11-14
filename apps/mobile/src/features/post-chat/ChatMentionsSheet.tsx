@@ -22,7 +22,7 @@ type ChatMentionsSheetProps = {
 /**
  * The handles the chat may mention, in a sheet (`handles`), edited in place like its tags: a tap
  * takes one off, and Add types one in, suggesting the contacts' handles it may mean as the post
- * editor does (MentionSuggestions, those on the photos `assetIds` first), a tap adding one. Each
+ * editor does (MentionSuggestions, those on the photos `assetIds` first, none already there), a tap adding one. Each
  * change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
  */
 export default function ChatMentionsSheet({
@@ -47,6 +47,7 @@ export default function ChatMentionsSheet({
             <MentionSuggestions
               query={text.trim().replace(/^@/, '')}
               assetIds={assetIds}
+              taken={handles}
               onPick={(handle) => add(`@${handle}`)}
             />
           )}
