@@ -27,8 +27,8 @@ type PostProps = {
 };
 
 /**
- * A post and its thread: the channel bar (ChannelBar) when the post has a channel or other channels,
- * then the card of the channel it shows (`channelPost`, else the post's own; PostView, a long press
+ * A post and its thread: the channel bar (ChannelBar, one tab per version) when the post has a channel
+ * or other versions, then the card of the version it shows (`channelPost`, else the post's own; PostView, a long press
  * copies a post's text) and each following post's card joined by a short line (PostThreadCards); a tap
  * on another channel's bubble calls `onSelectChannel` with its copy's id (null for the post's own).
  * Then, for the whole post (every channel) when it has pictures, the contacts on them, their albums,
@@ -50,13 +50,13 @@ export default function Post({
     () =>
       orderPostChannels(
         [
-          { key: post.id, channelId: post.channelId },
-          ...post.channelPosts.map((copy) => ({ key: copy.id, channelId: copy.channelId })),
+          { key: post.id, channelIds: post.channelIds },
+          ...post.channelPosts.map((copy) => ({ key: copy.id, channelIds: copy.channelIds })),
         ],
-        (part) => part.channelId,
+        (part) => part.channelIds,
         channelOrder,
       ),
-    [post.id, post.channelId, post.channelPosts, channelOrder],
+    [post.id, post.channelIds, post.channelPosts, channelOrder],
   );
   const selectedKey = channelPost?.id ?? post.id;
   const slide = useChannelSlide(
@@ -69,7 +69,7 @@ export default function Post({
     return [...new Set(all.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))];
   }, [post]);
   // Once the user's channels are read, so the bubbles never reorder after they show.
-  const hasBar = !!channels && (!!post.channelId || post.channelPosts.length > 0);
+  const hasBar = !!channels && (post.channelIds.length > 0 || post.channelPosts.length > 0);
 
   return (
     <ScrollView
@@ -80,6 +80,7 @@ export default function Post({
           parts={parts}
           selectedKey={selectedKey}
           onSelect={(key) => onSelectChannel(key === post.id ? null : key)}
+          channelOrder={channelOrder}
           style={styles.bar}
         />
       )}

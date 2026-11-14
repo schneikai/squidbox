@@ -385,6 +385,10 @@ describe('plan guard', () => {
     expect(unindexedScans(post)).toEqual([]);
     expect(post.plans).toContain('SEARCH posts USING INDEX posts_thread_idx (thread_root_id=?)');
     expect(post.plans).toContain('SEARCH posts USING INDEX posts_channel_root_idx (channel_root_id=?)');
+    const repostSeed = await measure(() => readPost(db, 'post-1', { withChannels: false }));
+    expect(unindexedScans(repostSeed)).toEqual([]);
+    // Without channels of its own past its first, a repost seed has no other version to read past.
+    expect(repostSeed.plans).not.toContain('SEARCH posts USING INDEX posts_channel_root_idx (channel_root_id=?)');
     const contactsOfPost = await measure(() =>
       contactQuery({ scope: { photosOf: { postId: 'post-1' } } }).read(db, { limit: 100 }),
     );

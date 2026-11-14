@@ -57,7 +57,7 @@ async function readSeed(
 ): Promise<PostEditorPost | null> {
   // The first channel this build knows, as Settings → Channels lists them (useChannels).
   const firstChannel = (await readChannels(db)).find((row) => channelById(row.channelId));
-  const channelId = firstChannel?.channelId ?? null;
+  const channelIds = firstChannel ? [firstChannel.channelId] : [];
   const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
   if (rePostId) {
     const rePost = await readPost(db, rePostId, { withChannels: false });
@@ -66,9 +66,10 @@ async function readSeed(
       ...fresh,
       text: rePost.text,
       postAssets: freshPostAssets(rePost.postAssets),
-      channelId: rePost.channelId ?? channelId,
+      // A repost goes to the reposted version's channels.
+      channelIds: rePost.channelIds.length > 0 ? rePost.channelIds : channelIds,
     };
   }
   const assets = assetIds.length ? await readByIds(db, schema.assets, assetIds) : [];
-  return { ...fresh, text: '', postAssets: buildPostAssets(assets), channelId };
+  return { ...fresh, text: '', postAssets: buildPostAssets(assets), channelIds };
 }

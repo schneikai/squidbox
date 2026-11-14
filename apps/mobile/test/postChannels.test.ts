@@ -9,12 +9,15 @@ import type { SyncDb } from '../src/sync/db/types';
 import {
   readChannelPosts,
   removePost,
+  repairVersionChannels,
   saveChannelPosts,
   setPostPostedAt,
   type ChannelPart,
 } from '../src/sync/postChannels';
 import { readThreadPosts } from '../src/sync/postThreads';
+import readPost from '../src/sync/queries/readPost';
 import { makeRepository } from '../src/sync/repository';
+import versionChannelFields from '../src/sync/versionChannelFields';
 
 const posts = makeRepository('posts', schema.posts);
 
@@ -34,6 +37,11 @@ const liveEdges = async (postId: string) =>
   (await db.select().from(schema.postAssets).where(eq(schema.postAssets.postId, postId)))
     .filter((edge) => edge.deletedAt === null)
     .map((edge) => edge.assetId);
+const outboxCount = async () => (await db.select().from(schema.outbox)).length;
+const channelIdsOf = async (postId = 'p1') => {
+  const post = (await readPost(db, postId))!;
+  return [post.channelIds, ...post.channelPosts.map((copy) => copy.channelIds)];
+};
 const edgeIdOf = async (postId: string) =>
   (await db.select().from(schema.postAssets).where(eq(schema.postAssets.postId, postId)))[0]!.id;
 
@@ -49,7 +57,7 @@ async function seedPost(): Promise<ChannelPart[]> {
   return [
     {
       id: 'c1',
-      channelId: 'onlyfans',
+      channelIds: ['onlyfans'],
       text: 'full video',
       assetRefs: [{ id: await edgeIdOf('c1'), assetId: 'a1' }],
       threadPosts: [{ id: 'c1-1', text: 'more', assetRefs: [{ id: await edgeIdOf('c1-1'), assetId: 'a3' }] }],
@@ -64,7 +72,7 @@ describe('postChannels', () => {
       [
         {
           id: null,
-          channelId: 'onlyfans',
+          channelIds: ['onlyfans'],
           text: 'on OnlyFans',
           assetRefs: [{ id: 'e1', assetId: 'a1' }],
           threadPosts: [{ id: null, text: 'and more', assetRefs: [] }],
@@ -86,7 +94,7 @@ describe('postChannels', () => {
   it('writes only the channel that was edited', async () => {
     const seed = await seedPost();
     await createPost(db, { id: 'c2', channelId: 'bluesky', channelRootId: 'p1', text: 'sky' }, [], newId);
-    const c2: ChannelPart = { id: 'c2', channelId: 'bluesky', text: 'sky', assetRefs: [], threadPosts: [] };
+    const c2: ChannelPart = { id: 'c2', channelIds: ['bluesky'], text: 'sky', assetRefs: [], threadPosts: [] };
     const before = await row('c1');
     await save([seed[0]!, { ...c2, text: 'sky, edited' }], [...seed, c2]);
     expect(await row('c1')).toEqual(before);
@@ -114,5 +122,77 @@ describe('postChannels', () => {
     await seedPost();
     await db.transaction((tx) => setPostPostedAt(tx, 'p1', 90));
     for (const id of ['c1', 'c1-1']) expect((await row(id)).postedAt, id).toBe(90);
+  });
+
+  it('stores a version of several channels as its first channel and the others, and reads them back as one list', async () => {
+    await posts.create(db, makePostRecord({ id: 'p1', channelId: 'onlyfans' }));
+    await save([{ id: null, channelIds: ['bluesky', 'x'], text: 'sky', assetRefs: [], threadPosts: [] }], []);
+    const [copy] = await readChannelPosts(db, ['p1']);
+    expect([copy!.channelId, copy!.extraChannelIds]).toEqual(['bluesky', ['x']]);
+    expect(await channelIdsOf()).toEqual([['onlyfans'], ['bluesky', 'x']]);
+  });
+
+  it('stores a one-channel version with no extras, and a version without a channel with neither', () => {
+    expect(versionChannelFields(['x'])).toEqual({ channelId: 'x', extraChannelIds: null });
+    expect(versionChannelFields([])).toEqual({ channelId: null, extraChannelIds: null });
+  });
+
+  it('saving a one-channel version over a row without others writes nothing', async () => {
+    const seed = await seedPost();
+    const before = await outboxCount();
+    await save(seed, seed);
+    expect(await outboxCount()).toBe(before);
+    expect((await row('c1')).extraChannelIds).toBeNull();
+  });
+
+  it("reads past another version's channel, which stays on that version", async () => {
+    await createPost(db, { id: 'p1', channelId: 'bluesky', extraChannelIds: ['x', 'threads'] });
+    await createPost(db, { id: 'c1', channelId: 'x', channelRootId: 'p1' });
+    expect(await channelIdsOf()).toEqual([['bluesky', 'threads'], ['x']]);
+  });
+
+  it('reads a channel two versions list among their others on the first only', async () => {
+    await createPost(db, { id: 'p1', channelId: 'bluesky', extraChannelIds: ['x'] });
+    await createPost(db, { id: 'c1', channelId: 'onlyfans', channelRootId: 'p1', extraChannelIds: ['x', 'patreon'] });
+    expect(await channelIdsOf()).toEqual([
+      ['bluesky', 'x'],
+      ['onlyfans', 'patreon'],
+    ]);
+  });
+
+  it("reads a version's own channel among its others once", async () => {
+    await createPost(db, { id: 'p1', channelId: 'bluesky', extraChannelIds: ['bluesky', 'x', 'x'] });
+    expect(await channelIdsOf()).toEqual([['bluesky', 'x']]);
+  });
+
+  it("writes away another channel the read hid, so it doesn't come back once the version holding it goes", async () => {
+    // An installed build added an X version while the shared one still stores X among its others.
+    await createPost(db, { id: 'p1', channelId: 'onlyfans' });
+    await createPost(db, { id: 'c1', channelId: 'bluesky', channelRootId: 'p1', text: 'sky', extraChannelIds: ['x'] });
+    await createPost(db, { id: 'c2', channelId: 'x', channelRootId: 'p1', text: 'x' });
+    const seed = (await readPost(db, 'p1'))!.channelPosts.map(({ id, channelIds, text }): ChannelPart => ({
+      id,
+      channelIds,
+      text,
+      assetRefs: [],
+      threadPosts: [],
+    }));
+    expect(seed.map((part) => part.channelIds)).toEqual([['bluesky'], ['x']]);
+    // The X version removed, saved as updatePost saves: the repair first, then the versions.
+    await db.transaction((tx) => repairVersionChannels(tx, 'p1'));
+    expect((await row('c1')).extraChannelIds).toBeNull();
+    await save([seed[0]!], seed);
+    expect(await channelIdsOf()).toEqual([['onlyfans'], ['bluesky']]);
+  });
+
+  it('leaves out of a repost a channel another version holds', async () => {
+    await createPost(db, { id: 'p1', channelId: 'bluesky', extraChannelIds: ['x'] });
+    await createPost(db, { id: 'c1', channelId: 'x', channelRootId: 'p1' });
+    const post = await readPost(db, 'p1', { withChannels: false });
+    expect([post!.channelIds, post!.channelPosts]).toEqual([['bluesky'], []]);
+  });
+
+  it('refuses a version that lists a channel twice', () => {
+    expect(() => versionChannelFields(['x', 'bluesky', 'x'])).toThrow();
   });
 });

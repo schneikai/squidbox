@@ -1,4 +1,4 @@
-import { channelName, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
+import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { memo, useCallback, useMemo, useReducer, useState } from 'react';
 import { Keyboard, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -37,9 +37,9 @@ type PostEditorProps = {
   onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
 };
 
-// Edits a post, its thread and its other channels, seeded once from `post` ({ text, postAssets,
-// postedAt, threadPosts, channelId, channelPosts }) into its draft (postDraftReducer), as a draft
-// sheet: the channel bar (ChannelBar) on top, then the cards (PostCards) of the channel it selects,
+// Edits a post, its thread and its other versions, seeded once from `post` ({ text, postAssets,
+// postedAt, threadPosts, channelIds, channelPosts }) into its draft (postDraftReducer), as a draft
+// sheet: the channel bar (ChannelBar) on top, then the cards (PostCards) of the version it selects,
 // first the one saved as `selectedChannelPostId` (Edit from the post screen) else the post's own. Every
 // channel's cards stay mounted, the others hidden, so a switch loses nothing (each keeps its assistant
 // chat). Add (a new post, `kind` 'draft') or Save (an edit) hands `onSave` the post the posts store
@@ -49,7 +49,7 @@ type PostEditorProps = {
 // text, keyboard up. × or a swipe down with changes asks first. `kind` is also what the assistant's
 // chat about the post's own cards is about ('draft' a new post, 'edit' a saved one), and `ideas` which
 // ideas their first card's tray offers, started on their own for a new post. The bar shows while the
-// user has channels, or the post has a channel or other channels.
+// user has channels, or the post has a channel or other versions.
 export default function PostEditor({ kind, ideas, post, selectedChannelPostId, onSave }: PostEditorProps) {
   const [draft, dispatch] = useReducer(postDraftReducer, post, (seedPost) =>
     draftFromPost(seedPost, selectedChannelPostId),
@@ -67,7 +67,7 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
   const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
   const data = postData(draft, postedAt);
   const parts = [draft.main, ...draft.others];
-  const orderedParts = orderPostChannels(parts, (part) => part.channelId, channelOrder);
+  const orderedParts = orderPostChannels(parts, (part) => part.channelIds, channelOrder);
   const slide = useChannelSlide(
     draft.selectedKey,
     orderedParts.map((part) => part.key),
@@ -105,15 +105,21 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
   async function handleRemove() {
     const selected = draftChannel(draft, draft.selectedKey);
     if (selected.cards.some(hasCardContent)) {
-      if (!(await confirmRemoveAsync(`${channelName(selected.channelId)} from this post`))) return;
+      if (!(await confirmRemoveAsync('this version'))) return;
     }
     Keyboard.dismiss();
-    dispatch({ type: 'removeChannel', key: selected.key, channelOrder });
+    dispatch({ type: 'removeVersion', key: selected.key, channelOrder });
+  }
+
+  // The focused text would be the version's that is left.
+  function handleSplit(channelId: string) {
+    Keyboard.dismiss();
+    dispatch({ type: 'splitChannel', key: draft.selectedKey, channelId });
   }
 
   function renderBody() {
     if (!channels) return null;
-    const hasBar = channels.length > 0 || !!draft.main.channelId || draft.others.length > 0;
+    const hasBar = channels.length > 0 || draft.main.channelIds.length > 0 || draft.others.length > 0;
     return (
       <View>
         {hasBar && (
@@ -121,11 +127,13 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
             parts={orderedParts}
             selectedKey={draft.selectedKey}
             onSelect={handleSelect}
+            channelOrder={channelOrder}
             editing={{
               channels,
               onAdd: (channelId) => dispatch({ type: 'addChannel', channelId }),
-              onChange: (channelId) =>
-                dispatch({ type: 'channel', key: draft.selectedKey, action: { type: 'setChannel', channelId } }),
+              onToggle: (channelId) =>
+                dispatch({ type: 'channel', key: draft.selectedKey, action: { type: 'toggleChannel', channelId } }),
+              onSplit: handleSplit,
               onRemove: parts.length > 1 ? handleRemove : undefined,
             }}
             style={styles.bar}
@@ -172,7 +180,7 @@ type ChannelPanelProps = {
   onChangePostedAt: PostedAtPickerProps['onChange'];
 };
 
-// One channel's cards, mounted while the channel is in the draft and hidden (from the eye and from
+// One version's cards, mounted while the version is in the draft and hidden (from the eye and from
 // VoiceOver) while another shows. Memoized, with its own dispatch, so a keystroke draws only the
 // channel being edited. What its chat is about is fixed as it mounts: the post's own channel as the
 // sheet opened is the post (`kind`, its `ideas`, started on their own for a new post), another is

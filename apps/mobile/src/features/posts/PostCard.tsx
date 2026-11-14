@@ -1,4 +1,4 @@
-import type { AssetRecord, Channel } from '@squidbox/shared';
+import type { AssetRecord } from '@squidbox/shared';
 import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -9,6 +9,7 @@ import Card from '@/components/Card';
 import Text from '@/components/Text';
 import TextInput from '@/components/TextInput';
 import textLimit from '@/features/channels/textLimit';
+import type { VersionLimits } from '@/features/channels/versionLimits';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
@@ -38,8 +39,8 @@ type PostCardProps = {
   // The assistant's tray under the toolbar (the card being edited has it), placed by `style`: on the
   // card's layout only when it shows, so a card without one has no room left under its toolbar.
   tray?: (style: StyleProp<ViewStyle>) => ReactNode;
-  // The limits of the post's channel.
-  limits?: Pick<Channel, 'maxTextLength' | 'maxMedia'>;
+  // The limits of the post's version (versionLimits: the strictest of its channels').
+  limits?: Pick<VersionLimits, 'maxTextLength' | 'maxMedia' | 'textLimitOf' | 'mediaLimitOf'>;
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
@@ -49,8 +50,8 @@ type PostCardProps = {
  * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
  * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
  * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
- * being edited (its tray shows), without the keyboard. With `limits` (its channel's) the text's
- * counter ("45 / 280") follows the text, at its right, while its text is typed in, or while the text is over; the
+ * being edited (its tray shows), without the keyboard. With `limits` (its version's) the text's
+ * counter ("45 / 280", "281 / 280 · X" on a version of several channels) follows the text, at its right, while its text is typed in, or while the text is over; the
  * counter and the media line turn red over a limit.
  */
 export default function PostCard({

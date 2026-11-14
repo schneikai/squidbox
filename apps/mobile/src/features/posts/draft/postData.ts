@@ -14,16 +14,16 @@ export default function postData(
   return {
     ...partsOf(draft.main),
     postedAt,
-    channelId: draft.main.channelId,
+    channelIds: draft.main.channelIds,
     channelPosts: draft.others.map((other): ChannelPart => ({
       id: other.id,
-      channelId: other.channelId,
+      channelIds: other.channelIds,
       ...partsOf(other),
     })),
   };
 }
 
-// One channel's cards as the posts store takes its posts: the first, and its thread.
+// One version's cards as the posts store takes its posts: the first, and its thread.
 function partsOf({ cards: [first, ...following] }: ChannelDraft) {
   return {
     text: first!.text,

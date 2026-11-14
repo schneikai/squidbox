@@ -1,4 +1,3 @@
-import type { Channel } from '@squidbox/shared';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-flatlist';
 
@@ -6,6 +5,7 @@ import PostAsset, { type EditorPostAsset } from './PostAsset';
 
 import Text from '@/components/Text';
 import isMediaOver from '@/features/channels/isMediaOver';
+import type { VersionLimits } from '@/features/channels/versionLimits';
 import useHaptics from '@/hooks/useHaptics';
 import { scale, space } from '@/styles/designTokens';
 import assetCountText from '@/utils/assets/assetCountText';
@@ -15,19 +15,20 @@ import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 export type PostAssetsEditorProps = {
   postAssets: EditorPostAsset[];
   onChange: (postAssets: EditorPostAsset[]) => void;
-  limits?: Pick<Channel, 'maxMedia'>;
+  limits?: Pick<VersionLimits, 'maxMedia' | 'mediaLimitOf'>;
   style: StyleProp<ViewStyle>;
 };
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list. With `limits` (its channel's)
-// the caption counts against its media limit ("2 of 4 Assets"), red over it. style is for layout only.
+// hold one to reorder, × to take it out. `onChange` gets the new list. With `limits` (its version's)
+// the caption counts against its media limit ("2 of 4 Assets"), naming the channel whose limit it is
+// on a shared version ("5 of 4 Assets · X"), red over it. style is for layout only.
 export default function PostAssetsEditor({ postAssets, onChange, limits, style }: PostAssetsEditorProps) {
   const haptics = useHaptics();
 
   const countInfo =
     limits?.maxMedia != null
-      ? `${postAssets.length} of ${assetCountText(limits.maxMedia)}`
+      ? `${postAssets.length} of ${assetCountText(limits.maxMedia)}${limits.mediaLimitOf ? ` · ${limits.mediaLimitOf}` : ''}`
       : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
 

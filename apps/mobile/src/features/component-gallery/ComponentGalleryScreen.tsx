@@ -271,6 +271,15 @@ export default function ComponentGalleryScreen() {
             />
           </ChipRow>
           <ChipRow>
+            <Chip
+              label="Bluesky, X"
+              accessibilityLabel="Bluesky and X"
+              mark={<ChannelLogos channelIds={['bluesky', 'x']} isDecorative />}
+              isSelected
+              hasCaret
+              accessibilityRole="tab"
+              onPress={noop}
+            />
             <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
           </ChipRow>
         </Specimen>
