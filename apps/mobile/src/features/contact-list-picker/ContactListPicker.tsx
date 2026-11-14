@@ -21,7 +21,7 @@ import toggleItem from '@/utils/toggleItem';
  * A sheet's body of contact lists to choose from, A to Z under a search field pinned under the header
  * (SheetSearchField), and "New list" at the end (a new list is chosen too). `selectedIds` are the chosen
  * lists' ids; `onChange` gets the new ones. `isSingle` chooses one: a tap gives `[thatId]`, the chosen
- * one has the accent check in front, where the selection circles are otherwise. `builtIns` are built-in
+ * one has the selection check in front, where the selection circles are otherwise. `builtIns` are built-in
  * lists to offer among them, searched and ordered by name with them (Favorites, on the pin), as the
  * Lists screen does.
  */

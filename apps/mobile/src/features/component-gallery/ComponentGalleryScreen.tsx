@@ -147,6 +147,28 @@ export default function ComponentGalleryScreen() {
             </View>
             <Divider variant="menu" />
             <View style={popupMenuStyles.row}>
+              <MenuItemContent
+                label="Bluesky"
+                leading={<ChannelLogo channelId="bluesky" />}
+                selection="several"
+                isSelected
+              />
+            </View>
+            <Divider variant="menuRow" />
+            <View style={popupMenuStyles.row}>
+              <MenuItemContent label="X" leading={<ChannelLogo channelId="x" />} selection="several" />
+            </View>
+            <Divider variant="menuRow" />
+            <View style={[popupMenuStyles.row, popupMenuStyles.disabledRow]}>
+              <MenuItemContent
+                label="Instagram"
+                leading={<ChannelLogo channelId="instagram" />}
+                selection="several"
+                isSelected
+              />
+            </View>
+            <Divider variant="menu" />
+            <View style={popupMenuStyles.row}>
               <MenuItemContent label="Delete" icon="trash" colorPalette="danger" />
             </View>
           </PopoverSurface>
@@ -414,6 +436,9 @@ export default function ComponentGalleryScreen() {
           <SelectIndicator isSelected={false} />
           <View style={styles.media}>
             <SelectIndicator isSelected={false} isOnMedia />
+          </View>
+          <View style={styles.media}>
+            <SelectIndicator isSelected isOnMedia />
           </View>
         </Specimen>
         <Specimen name="ThumbnailBadge">

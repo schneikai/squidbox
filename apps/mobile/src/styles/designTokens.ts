@@ -66,6 +66,12 @@ export const colors = {
     tertiary: palette.gray400, // placeholders and disabled text only, too faint for copy
     inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
   },
+  // The mark of what the user picked (a pick-one check, a pick-several select circle's fill) and the
+  // check on that fill. Neutral, never the accent: violet marks the assistant only (CLAUDE.md).
+  selection: {
+    mark: palette.gray900,
+    onMark: palette.white,
+  },
   accent: {
     base: palette.violet600,
     light: alpha(palette.violet600, 0.12),

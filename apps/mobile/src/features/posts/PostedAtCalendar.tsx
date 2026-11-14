@@ -1,6 +1,7 @@
 // The Posted sheet's picker: the system's inline calendar with the time under it (SwiftUI on iOS,
 // Jetpack Compose on Android, through @expo/ui's DateTimePicker), as wide as the sheet. Each change
-// applies at once. Web: `PostedAtCalendar.web.tsx`.
+// applies at once. The picked day has the selection mark's color (colors.selection). Web:
+// `PostedAtCalendar.web.tsx`.
 import DateTimePicker, { type DateTimePickerChangeEvent } from '@expo/ui/community/datetime-picker';
 import { Platform, StyleSheet } from 'react-native';
 
@@ -24,7 +25,7 @@ export default function PostedAtCalendar({ timestamp, onChange }: PostedAtCalend
       display="inline"
       value={new Date(timestamp ?? Date.now())}
       onValueChange={handleChange}
-      accentColor={colors.accent.base}
+      accentColor={colors.selection.mark}
       style={styles.picker}
     />
   );
