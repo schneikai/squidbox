@@ -1,6 +1,8 @@
 import { requireNativeView } from 'expo';
-import { useCallback, useState, type Ref } from 'react';
-import { StyleSheet, type NativeSyntheticEvent, type ViewProps } from 'react-native';
+import { useCallback, useRef, useState, type Ref } from 'react';
+import { StyleSheet, type HostInstance, type NativeSyntheticEvent, type ViewProps } from 'react-native';
+// Not in the public API: how TextInput tells React Native which field has the keyboard.
+import TextInputState from 'react-native/Libraries/Components/TextInput/TextInputState';
 
 import type { FieldContent } from './fieldContent';
 import { mentionChipStyle, type MentionChipStyle } from './mentionChipStyle';
@@ -50,6 +52,8 @@ type NativeProps = ViewProps & {
 // The native view's functions take the content as two arguments.
 type NativeHandle = Omit<MentionInputHandle, 'setContent'> & {
   setContent: (text: string, mentions: FieldContent['mentions']) => Promise<void>;
+  /** The host view under Expo's wrapper (requireNativeViewManager's getNativeRef). */
+  getNativeRef: () => HostInstance | null;
 };
 
 // Looked up at the first render, not at import: only an iOS build with the module has it.
@@ -71,12 +75,24 @@ export default function MentionInput({
   onMentionPress,
 }: MentionInputProps) {
   const [height, setHeight] = useState(0);
+  // The host view as React Native's TextInputState knows it.
+  const hostRef = useRef<HostInstance | null>(null);
   NativeMentionInput ??= requireNativeView<NativeProps>('MentionInput');
 
   // The ref hands features one content object; the native function takes its two halves. One
-  // callback while `ref` is the same, so React attaches it once, not on every render.
+  // callback while `ref` is the same, so React attaches it once, not on every render. The host is
+  // registered with TextInputState as TextInput registers itself, so a tap outside the field
+  // (a ScrollView's keyboardShouldPersistTaps) and Keyboard.dismiss() hide its keyboard: they blur it
+  // with the view's `blur` command, which resigns the text view (MentionInputView.resignFirstResponder).
   const setNativeRef = useCallback(
     (native: NativeHandle | null) => {
+      const host = native?.getNativeRef() ?? null;
+      if (hostRef.current && hostRef.current !== host) {
+        TextInputState.blurInput(hostRef.current);
+        TextInputState.unregisterInput(hostRef.current);
+      }
+      if (host) TextInputState.registerInput(host);
+      hostRef.current = host;
       const handle: MentionInputHandle | null = native && {
         setContent: (content) => native.setContent(content.text, content.mentions),
         insertMention: (...args) => native.insertMention(...args),
@@ -102,7 +118,11 @@ export default function MentionInput({
         onChangeContent({ text, mentions }, { start, end })
       }
       onSelectionChange={({ nativeEvent: { start, end } }) => onSelectionChange({ start, end })}
-      onFocusChange={(event) => onFocusChange?.(event.nativeEvent.isFocused)}
+      onFocusChange={({ nativeEvent: { isFocused } }) => {
+        if (isFocused) TextInputState.focusInput(hostRef.current);
+        else TextInputState.blurInput(hostRef.current);
+        onFocusChange?.(isFocused);
+      }}
       onContentHeight={(event) => setHeight(event.nativeEvent.height)}
       onMentionPress={(event) => onMentionPress?.(event.nativeEvent.id)}
       style={[styles.input, { height: Math.max(height, minHeight) }]}

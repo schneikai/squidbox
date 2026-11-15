@@ -5,5 +5,6 @@
   // scripts the flows import (JavaScript: allowJs is on here; tsconfig.json turns it off for the app).
   "extends": "./tsconfig.json",
   "compilerOptions": { "allowJs": true },
-  "include": ["test/**/*.ts", "e2e/**/*.ts"]
+  // src/types: the app's declarations for modules without types, for the src files the tests reach.
+  "include": ["test/**/*.ts", "e2e/**/*.ts", "src/types/*.d.ts"]
 }

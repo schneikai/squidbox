@@ -182,6 +182,16 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     textView.becomeFirstResponder()
   }
 
+  // React Native blurs a field through its host view (the view's `blur` command: Keyboard.dismiss(),
+  // a tap outside it in a ScrollView): the text view holds the keyboard, so it resigns too.
+  @discardableResult
+  public override func resignFirstResponder() -> Bool {
+    if textView.isFirstResponder {
+      textView.resignFirstResponder()
+    }
+    return super.resignFirstResponder()
+  }
+
   // The text and its chips, as the app holds them: each chip one U+FFFC at its location. The cursor
   // goes to the end. Not reported back: the app knows what it set.
   func setContent(text: String, mentions: [MentionRecord]) {
