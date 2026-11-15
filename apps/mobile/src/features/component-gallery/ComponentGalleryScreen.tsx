@@ -44,6 +44,7 @@ import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
 import MentionChip from '@/features/post-mentions/MentionChip';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
@@ -63,7 +64,7 @@ type Category = (typeof CATEGORIES)[number];
 
 const noop = () => {};
 // The ideas' chips mention no live contact: each draws its stored name.
-const NO_CONTACTS = new Map();
+const NO_CONTACTS: ReadonlyMap<string, MentionContact> = new Map();
 
 // Tags a viewer can take off one by one; Add brings them back.
 const GALLERY_TAGS = ['Hiking', 'Sunrise', 'Coast'];
