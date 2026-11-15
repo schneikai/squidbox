@@ -873,22 +873,22 @@ camel case (`ideaSettings`), and so are the repository and its hook (`ideaSettin
 
 1. Shared: add the descriptor in `packages/shared/collections/`, export it from
    `packages/shared/index.ts`, and add it to `collections` in `registry.ts`. `CollectionName` is
-   inferred from that list, so every step below marked *typed* fails `npm run typecheck` until it
+   inferred from that list, so every step below marked _typed_ fails `npm run typecheck` until it
    is done.
 2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()` (which brings
    `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index, and
-   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (*typed*). Generate the
+   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (_typed_). Generate the
    migration from `apps/server`: `npm run db:generate -- --name <collection>`. `migrate.ts` attaches
    the `server_seq` trigger.
 3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables` in
-   `clientCollections.ts` (*typed*), and generate the migration from `apps/mobile`:
+   `clientCollections.ts` (_typed_), and generate the migration from `apps/mobile`:
    `npx drizzle-kit generate --name <collection>` (it also regenerates `migrations.js`). A pull
    skips a collection without a client table on purpose, so an older build survives a newer
    server; only the typecheck catches a new build that forgot it.
 4. Name a failed push of it in words in `TITLES` in `apps/mobile/src/sync/readPushFailures.ts`
-   (*typed*).
+   (_typed_).
 5. Add a sample record to the "collection registry guard" in `apps/server/test/sync.test.ts`
-   (*typed*), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
+   (_typed_), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
    should have some.
 6. Describe its fields in §10.
 7. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
@@ -967,8 +967,7 @@ names. Markers exist only on the wire: the chat is never saved, and a request wi
 `@handle` in a saved text stays text: the chat's Mentions come from the sheet, the photos' contacts
 and the posts' chips, never from typed handles.
 
-Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and
-0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
+Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and 0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
 channel of a post was a post of its own, linked by `channelRootId`, and `channelId` with
 `extraChannelIds` (one field group, §7) named the channels a version went to. The app no longer
 reads or writes them (app 0041 drops their columns); they stay optional in the contract, in the
@@ -995,10 +994,25 @@ purged asset is left out by the read (as a post leaves it out), a library merge 
 an edge and drops one the account won't have, and a photo only a copy holds does not count as in the
 post (a photo's posts, an album's posts). Deleting a post tombstones its copies (removeThreads); a post
 deleted on an installed build leaves its copies live, orphans that every read skips, since copies are
-read by their `postId`. A repost starts with
-the same copies, unsent, as its own records. An installed build syncs none of it (it has no table)
-and shows no copies. The mock account has a Bluesky copy (sent) and an Instagram copy of one post.
-Server 0041, app 0041.
+read by their `postId`.
+
+Send to channels shows a card for each of the user's channels (`readChannelCopies`); a record exists
+only once a card was edited (its composer's Save), sent (Send now, Send all) or removed. An untouched
+card is not stored: it is read from the post, so it follows the post's edits, and a write on it
+stores it first, as it shows. Its record's id is fixed per post and channel (`copyIdOf`, an RFC 4122
+uuid v5 of both), so two devices storing the same card offline write one record, and the card keeps
+its id (its routes) once stored; copies made before keep their random ids, since every read goes by
+`postId` and `channelId`. A tombstone is a removed channel: the post gets no untouched card for a
+channel it has any record of, live or deleted, and only Send to channels' + (`addCopyFromPost`)
+revives it, filled from the post as it is then. A channel taken out of the user's channels loses its
+untouched cards; its stored copies stay. A repost starts with the copies that differ from the
+reposted post, unsent, as its own records; its other channels get untouched cards that follow the
+repost. An installed build syncs none of it (it has no table) and shows no copies. The mock account's
+forest post has its own Bluesky copy (sent) and Instagram copy and follows the post on X; a reset of
+the mock data moves the app's copies of a mock post off it (`postId` set to the record's own id, an
+id no post has), and a copy written later under that fixed id takes the record over. The client's
+`post_copies_post_idx` covers every row (app 0042), so the read of a post's removed channels is an
+index search like that of its live copies. Server 0041, app 0041.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
 columns. One record per album and asset.

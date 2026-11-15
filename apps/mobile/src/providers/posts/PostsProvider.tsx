@@ -4,7 +4,7 @@ import { type ReactNode, useMemo } from 'react';
 import PostsContext, { type PostsContextValue } from './PostsContext';
 
 import { getDb } from '@/sync/db/client';
-import { createCopy, removeCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
+import { addCopyFromPost, createCopy, removeCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
 import { removeThreads, saveThreadPosts, setThreadsPostedAt } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
 import { requestSync } from '@/sync/worker';
@@ -28,7 +28,8 @@ export default function PostsProvider({ children }: PostsProviderProps) {
           const created = await repo.create(tx, newRecord(postCollection, postDefaults, fields));
           await repo.postEdges.createFromRefs(tx, created.id, refs);
           await saveThreadPosts(tx, created.id, threadPosts, [], newPart);
-          // A repost's copies keep the reposted post's order: one millisecond apart.
+          // A repost's copies of channels no longer in the user's channels keep the reposted post's
+          // order: one millisecond apart.
           for (const [index, copy] of copies.entries())
             await createCopy(tx, { postId: created.id, ...copy, createdAt: created.createdAt + index });
           return created;
@@ -52,20 +53,21 @@ export default function PostsProvider({ children }: PostsProviderProps) {
         await db.transaction((tx) => removeThreads(tx, [id]));
         requestSync();
       },
-      addPostCopy: async (postId, copy) => {
-        await db.transaction((tx) => createCopy(tx, { postId, ...copy }));
+      // Send to channels' cards, an untouched one stored first as it shows (postCopiesRepository).
+      addPostCopy: async (postId, channelId) => {
+        await db.transaction((tx) => addCopyFromPost(tx, postId, channelId));
         requestSync();
       },
-      updatePostCopy: async (id, posts) => {
-        await db.transaction((tx) => updateCopyPosts(tx, id, posts));
+      savePostCopy: async (copy, posts) => {
+        await db.transaction((tx) => updateCopyPosts(tx, copy, posts));
         requestSync();
       },
-      removePostCopy: async (id) => {
-        await db.transaction((tx) => removeCopies(tx, [id]));
+      removePostCopy: async (copy) => {
+        await db.transaction((tx) => removeCopies(tx, [copy]));
         requestSync();
       },
-      setPostCopiesSent: async (ids, sentAt) => {
-        await db.transaction((tx) => setCopiesSent(tx, ids, sentAt));
+      setPostCopiesSent: async (copies, sentAt) => {
+        await db.transaction((tx) => setCopiesSent(tx, copies, sentAt));
         requestSync();
       },
     };

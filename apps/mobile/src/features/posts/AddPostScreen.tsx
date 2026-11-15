@@ -17,11 +17,13 @@ import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 import freshPostAssets from '@/utils/posts/freshPostAssets';
+import isCopyOfPost from '@/utils/posts/isCopyOfPost';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, comma-separated, in that
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
-// without its thread, and its channel copies, held here beside the editor and added with the post,
-// unsent: the new post's own from then on). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
+// without its thread, and its channel copies that differ from it, held here beside the editor and
+// added with the post, unsent: the new post's own from then on; its other channels get cards that
+// follow the new post). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
 // marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
 // would add the post again. Added from the New post sheet, the post closes that sheet too: the user
 // lands on the posts list with the new post, not back on what to post next.
@@ -68,10 +70,14 @@ async function readSeed(
     });
     if (!read) return null;
     const { post: rePost } = read;
-    const copies = read.copies.map(({ channelId, posts }) => ({
-      channelId,
-      posts: posts.map(({ text, mentions, assetIds }) => ({ text, mentions, assetIds })),
-    }));
+    // A copy that says what the post says is only a card stored by Send now or Send all: left out, the
+    // repost's card for that channel follows the repost.
+    const copies = read.copies
+      .filter((copy) => !isCopyOfPost(copy, rePost))
+      .map(({ channelId, posts }) => ({
+        channelId,
+        posts: posts.map(({ text, mentions, assetIds }) => ({ text, mentions, assetIds })),
+      }));
     return {
       post: { ...fresh, text: rePost.text, mentions: rePost.mentions, postAssets: freshPostAssets(rePost.postAssets) },
       copies,

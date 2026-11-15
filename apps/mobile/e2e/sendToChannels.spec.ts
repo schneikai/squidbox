@@ -1,19 +1,10 @@
 import type { BrowserContext, Locator, Page } from 'playwright/test';
 
 import { expect, test } from './fixtures';
-import {
-  allowClipboard,
-  button,
-  clipboard,
-  expectPostText,
-  openPost,
-  postCards,
-  postText,
-  withDialog,
-} from './helpers';
+import { allowClipboard, button, clipboard, openPost, postCards, postText, withDialog } from './helpers';
 
-// The mock post that mentions Sam Ridge by chip, with a sent Bluesky copy and an unsent Instagram one
-// (Sam has no Instagram handle).
+// The mock post that mentions Sam Ridge by chip, with a sent Bluesky copy of its own, an unsent
+// Instagram one that says what the post says (Sam has no Instagram handle) and an untouched X card.
 const CHIP_POST = 'Lost in the forest for a day with';
 
 test.beforeEach(async ({ context }: { context: BrowserContext }) => {
@@ -27,6 +18,9 @@ async function fromPostMenu(page: Page, text: string, item: string) {
   await page.getByRole('menuitem', { name: item, exact: true }).click();
   return post;
 }
+
+// His channels, in his order: every post has a card for each.
+const CHANNELS = ['Bluesky', 'X', 'Instagram'];
 
 const sendSheet = (page: Page) => page.getByTestId('send-to-channels-sheet');
 const copyCard = (sheet: Locator, channel: string) => sheet.getByLabel(`${channel} copy`, { exact: true });
@@ -56,32 +50,61 @@ test('a tap on a copy opens it as it goes out, and its copy icon copies for its 
     .toBe('A whole day under the trees with @ridgeline.bsky.social. Best shots below 🌲');
 });
 
-test('a channel added with + gets a copy filled from the post, and Send all marks every unsent copy sent', async ({
+test('the sheet opens with a card per channel filled from the post, and Send all marks them all sent', async ({
   page,
 }) => {
   await fromPostMenu(page, 'Coffee and a view', 'Send to channels');
   const sheet = sendSheet(page);
-  await expect(sheet.getByText('Send this post to your channels')).toBeVisible();
-
-  for (const channel of ['Bluesky', 'X']) {
-    await button(sheet, 'Add channel').click();
-    await page.getByRole('menuitem', { name: channel, exact: true }).click();
-    const editor = page.getByTestId('channel-copy-editor');
-    await expectPostText(postText(editor), 'Coffee and a view. That is all.');
-    await button(editor, 'Add').click();
-    await expect(copyCard(sheet, channel)).toBeVisible();
-  }
+  for (const channel of CHANNELS)
+    await expect(copyCard(sheet, channel).getByText('Coffee and a view. That is all.')).toBeVisible();
+  await expect(button(sheet, 'Add channel')).toBeHidden();
 
   await button(sheet, 'Send all').click();
-  for (const channel of ['Bluesky', 'X']) await expect(copyCard(sheet, channel).getByText(/^Sent /)).toBeVisible();
+  for (const channel of CHANNELS) await expect(copyCard(sheet, channel).getByText(/^Sent /)).toBeVisible();
   await expect(button(sheet, 'Send all')).toBeHidden();
+});
+
+test("Remove takes a channel's card away for good, and Add channel brings it back", async ({ page }) => {
+  const post = await fromPostMenu(page, 'First light over the hills', 'Send to channels');
+  const sheet = sendSheet(page);
+  await button(copyCard(sheet, 'X'), 'X copy options').click();
+  await withDialog(
+    page,
+    (dialog) => dialog.accept(),
+    () => page.getByRole('menuitem', { name: 'Remove' }).click(),
+  );
+  await expect(copyCard(sheet, 'X')).toBeHidden();
+  await button(sheet, 'Close').click();
+  await expect(sheet).toBeHidden();
+
+  await button(post, 'Post options').click();
+  await page.getByRole('menuitem', { name: 'Send to channels', exact: true }).click();
+  await expect(copyCard(sheet, 'Bluesky')).toBeVisible();
+  await expect(copyCard(sheet, 'X')).toBeHidden();
+  await button(sheet, 'Add channel').click();
+  await page.getByRole('menuitem', { name: 'X', exact: true }).click();
+
+  await expect(button(copyCard(sheet, 'X'), 'Send now')).toBeVisible();
+  await expect(button(sheet, 'Add channel')).toBeHidden();
+});
+
+test("Edit on an untouched card saves it as the channel's own copy", async ({ page }) => {
+  await fromPostMenu(page, 'First light over the hills', 'Send to channels');
+  const card = copyCard(sendSheet(page), 'Bluesky');
+  await button(card, 'Edit').click();
+  const editor = page.getByTestId('channel-copy-editor');
+  await expect(button(editor, 'Save')).toBeDisabled();
+  await postText(editor).fill('First light, just for Bluesky');
+  await button(editor, 'Save').click();
+
+  await expect(editor).toBeHidden();
+  await expect(card.getByText('First light, just for Bluesky')).toBeVisible();
 });
 
 test("Use on an idea in a copy's composer puts in the chip of a name the idea marks", async ({ page, assistant }) => {
   assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with @[Sam Ridge]'] });
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
-  await button(sendSheet(page), 'Add channel').click();
-  await page.getByRole('menuitem', { name: 'X', exact: true }).click();
+  await button(copyCard(sendSheet(page), 'X'), 'Edit').click();
   const editor = page.getByTestId('channel-copy-editor');
   await button(editor, 'Post ideas').click();
   await button(editor, 'Use').click();
@@ -101,10 +124,9 @@ test("an idea in a copy's composer reads its chip as the contact's handle on tha
   assistant,
 }) => {
   assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with @[Sam Ridge]'] });
-  // A post with Sam's chip and no Bluesky copy yet: Sam has a handle only there.
+  // A post with Sam's chip and an untouched Bluesky card: Sam has a handle only there.
   await fromPostMenu(page, 'Summer recap, part 1, with', 'Send to channels');
-  await button(sendSheet(page), 'Add channel').click();
-  await page.getByRole('menuitem', { name: 'Bluesky', exact: true }).click();
+  await button(copyCard(sendSheet(page), 'Bluesky'), 'Edit').click();
   const editor = page.getByTestId('channel-copy-editor');
   await button(editor, 'Post ideas').click();
 
@@ -142,7 +164,7 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await expect(button(card, 'Send now')).toBeVisible();
 });
 
-test("a repost starts with the post's copies, unsent", async ({ page }) => {
+test("a repost starts with the post's changed copies, unsent, and a card for every other channel", async ({ page }) => {
   const cards = postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST });
   const post = await fromPostMenu(page, CHIP_POST, 'Repost');
   const shown = await cards.count();
@@ -155,8 +177,8 @@ test("a repost starts with the post's copies, unsent", async ({ page }) => {
   await expect(cards).toHaveCount(shown + 1);
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   const sheet = sendSheet(page);
-  for (const channel of ['Bluesky', 'Instagram']) {
-    await expect(button(copyCard(sheet, channel), 'Send now')).toBeVisible();
-  }
+  for (const channel of CHANNELS) await expect(button(copyCard(sheet, channel), 'Send now')).toBeVisible();
+  // The Bluesky copy has its own text; the Instagram one said what the post says, so it follows the repost.
+  await expect(copyCard(sheet, 'Bluesky').getByText('A whole day under the trees', { exact: false })).toBeVisible();
   await expect(button(sheet, 'Send all')).toBeVisible();
 });

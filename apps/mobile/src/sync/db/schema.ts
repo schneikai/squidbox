@@ -225,10 +225,9 @@ export const postCopies = sqliteTable(
     posts: text('posts', { mode: 'json' }).$type<PostCopyPost[]>().notNull(),
   },
   (t) => [
-    // A post's copies (readPostCopies, removeCopiesOf).
-    index('post_copies_post_idx')
-      .on(t.postId, t.createdAt, t.id)
-      .where(sql`${t.deletedAt} is null`),
+    // A post's copies, live and removed (readPostCopies, readRemovedChannelIds, removeCopiesOf): over
+    // every row, since a removed copy is a removed channel the sheet reads too.
+    index('post_copies_post_idx').on(t.postId, t.createdAt, t.id),
   ],
 );
 export type PostCopyRow = typeof postCopies.$inferSelect;

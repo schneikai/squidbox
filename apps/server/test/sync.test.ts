@@ -289,6 +289,26 @@ d('sync engine (Postgres)', () => {
     );
   });
 
+  it('a whole-record push with a newer updatedAt changes postId on a tombstoned post_copies row', async () => {
+    const copy = {
+      id: randomUUID(),
+      createdAt: 1000,
+      updatedAt: 1000,
+      deletedAt: 1000,
+      postId: randomUUID(),
+      channelId: 'x',
+      sentAt: null,
+      posts: [{ text: 'Ridge at dawn', mentions: null, assetIds: [] }],
+    };
+    await push(db, USER_A, [mut(copy, 'post_copies')]);
+    // The mock data's reset (seed-mock's mockCopyResets) moves a removed copy off its post.
+    const moved = { ...copy, postId: copy.id, updatedAt: 2000 };
+    expect((await push(db, USER_A, [mut(moved, 'post_copies')]))[0]!.status).toBe('applied');
+
+    const page = await pull(db, USER_A, { cursor: 0 });
+    expect(page.changes.post_copies.records).toEqual([expect.objectContaining({ postId: copy.id, deletedAt: 1000 })]);
+  });
+
   it('pagination: hasMore loops until drained', async () => {
     const records = Array.from({ length: 5 }, () => assetRecord());
     await push(

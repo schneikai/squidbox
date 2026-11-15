@@ -16,10 +16,10 @@ import PostRowCard from '@/features/posts/PostRowCard';
 import threadLabel from '@/lib/threadLabel';
 import { layout, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
-import type { PostCopyWithAssets } from '@/sync/queries/readPostCopies';
+import type { ChannelCopy } from '@/sync/queries/readChannelCopies';
 
 type ChannelCopyCardProps = {
-  copy: PostCopyWithAssets;
+  copy: ChannelCopy;
   channel: Pick<Channel, 'id' | 'name' | 'handleField'>;
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention: (contactId: string) => void;
@@ -31,7 +31,7 @@ type ChannelCopyCardProps = {
 };
 
 /**
- * A post's copy for one channel, as a row card: its first post's first picture, the channel's logo
+ * A post's card for one channel (its stored copy, or an untouched card that shows the post), as a row card: its first post's first picture, the channel's logo
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
  * names go out as plain text, with Add handle: MissingHandleNote) and has Send now and Edit, and Remove in its ⋯; sent, it

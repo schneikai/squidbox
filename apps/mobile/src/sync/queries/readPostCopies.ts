@@ -19,21 +19,17 @@ export type PostCopyWithAssets = Omit<PostCopyRow, 'posts'> & { posts: PostCopyP
 export const postCopiesTables = [schema.postCopies, schema.assets];
 
 /**
- * A post's live copies in the order they were added (`(createdAt, id)`), or with `copyId` that one
- * alone, each post with its assets in order, read in one asset statement. An asset a post would
+ * A post's live copies in the order they were added (`(createdAt, id)`), each post with its assets in
+ * order, read in one asset statement. An asset a post would
  * leave out (assetQuery's post scope: a purged one; a trashed one still shows, it can come back), or an
  * id that no longer resolves, is left out.
  */
-export default async function readPostCopies(
-  db: SyncDb,
-  postId: string,
-  { copyId }: { copyId?: string } = {},
-): Promise<PostCopyWithAssets[]> {
+export default async function readPostCopies(db: SyncDb, postId: string): Promise<PostCopyWithAssets[]> {
   const t = schema.postCopies;
   const copies = await db
     .select()
     .from(t)
-    .where(and(eq(t.postId, postId), isNull(t.deletedAt), copyId === undefined ? undefined : eq(t.id, copyId)))
+    .where(and(eq(t.postId, postId), isNull(t.deletedAt)))
     .orderBy(asc(t.createdAt), asc(t.id));
   const ids = [...new Set(copies.flatMap((copy) => copy.posts.flatMap((post) => post.assetIds)))];
   // What a post keeps of its assets is assetQuery's post scope (assetDeletionWhere): a copy keeps the same.
