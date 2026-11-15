@@ -6,7 +6,8 @@ import { makeTestDb } from './helpers/testDb';
 import * as assets from '../src/sync/assetsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
-import { createCopy, removeCopiesOf, setCopiesSent, updateCopyPosts } from '../src/sync/postCopiesRepository';
+import { createCopy, setCopiesSent, updateCopyPosts } from '../src/sync/postCopiesRepository';
+import { removeThreads } from '../src/sync/postThreads';
 import readPostCopies from '../src/sync/queries/readPostCopies';
 import { makeRepository } from '../src/sync/repository';
 
@@ -44,7 +45,7 @@ describe('postCopiesRepository', () => {
 
   it("removes a post's copies with it", async () => {
     const { db } = await setup();
-    await db.transaction((tx) => removeCopiesOf(tx, P1));
+    await db.transaction((tx) => removeThreads(tx, [P1]));
     expect(await read(db)).toEqual([]);
   });
 

@@ -1,8 +1,9 @@
 import { postCopyCollection, type PostCopyPost, type PostCopyRecord } from '@squidbox/shared';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
+import { inJson } from './inJson';
 import { readByIds } from './readByIds';
 import { makeRepository } from './repository';
 
@@ -36,13 +37,13 @@ export function removeCopies(tx: SyncDb, ids: string[]): Promise<void> {
   return repository.remove(tx, ids);
 }
 
-/** Tombstone every live copy of a post (its Delete). */
-export async function removeCopiesOf(tx: SyncDb, postId: string): Promise<void> {
+/** Tombstone every live copy of these posts (removeThreads: a post's Delete). */
+export async function removeCopiesOf(tx: SyncDb, postIds: string[]): Promise<void> {
   const t = schema.postCopies;
   const live = await tx
     .select({ id: t.id })
     .from(t)
-    .where(and(eq(t.postId, postId), isNull(t.deletedAt)));
+    .where(and(inJson(t.postId, postIds), isNull(t.deletedAt)));
   if (live.length > 0)
     await repository.remove(
       tx,

@@ -4,6 +4,7 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
+import { removeCopiesOf } from './postCopiesRepository';
 import * as posts from './postsRepository';
 
 // A post's thread (sync-design §10): its following posts are posts of their own, linked to the first
@@ -100,11 +101,12 @@ export async function setThreadsPostedAt(tx: SyncDb, rootIds: string[], postedAt
   if (ids.length > 0) await posts.updateAll(tx, ids, { postedAt });
 }
 
-/** Delete posts with their threads: tombstones the posts, their live following posts and all their edges. */
+/** Delete posts with their threads: tombstones the posts, their live following posts, all their edges and the posts' channel copies. */
 export async function removeThreads(tx: SyncDb, rootIds: string[]): Promise<void> {
   if (rootIds.length === 0) return;
   const following = (await readThreadPosts(tx, rootIds)).map((post) => post.id);
   await removePosts(tx, [...rootIds, ...following]);
+  await removeCopiesOf(tx, rootIds);
 }
 
 async function removePosts(tx: SyncDb, ids: string[]): Promise<void> {

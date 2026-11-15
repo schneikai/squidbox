@@ -977,7 +977,9 @@ saved whole by its composer, so `posts` merges as one value: two devices editing
 later save; a sent copy is locked until it is marked as not sent. Asset ids are a list, not edges: a
 purged asset is left out by the read (as a post leaves it out), a library merge re-points them like
 an edge and drops one the account won't have, and a photo only a copy holds does not count as in the
-post (a photo's posts, an album's posts). Deleting a post tombstones its copies; a repost starts with
+post (a photo's posts, an album's posts). Deleting a post tombstones its copies (removeThreads); a post
+deleted on an installed build leaves its copies live, orphans that every read skips, since copies are
+read by their `postId`. A repost starts with
 the same copies, unsent, as its own records. An installed build syncs none of it (it has no table)
 and shows no copies. The mock account has a Bluesky copy (sent) and an Instagram copy of one post.
 Server 0041, app 0041.

@@ -4,7 +4,7 @@ import { type ReactNode, useMemo } from 'react';
 import PostsContext, { type PostsContextValue } from './PostsContext';
 
 import { getDb } from '@/sync/db/client';
-import { createCopy, removeCopies, removeCopiesOf, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
+import { createCopy, removeCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
 import { removeThreads, saveThreadPosts, setThreadsPostedAt } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
 import { requestSync } from '@/sync/worker';
@@ -47,10 +47,7 @@ export default function PostsProvider({ children }: PostsProviderProps) {
       },
       // The post, its thread and its channel copies.
       deletePost: async (id) => {
-        await db.transaction(async (tx) => {
-          await removeThreads(tx, [id]);
-          await removeCopiesOf(tx, id);
-        });
+        await db.transaction((tx) => removeThreads(tx, [id]));
         requestSync();
       },
       addPostCopy: async (postId, copy) => {
