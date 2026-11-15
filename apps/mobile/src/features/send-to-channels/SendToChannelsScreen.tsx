@@ -63,7 +63,10 @@ export default function SendToChannelsScreen() {
   }
 
   function editCopy(copy: PostCopyWithAssets) {
-    router.navigate({ pathname: '/send-to-channels/[postId]/copies/[copyId]/edit', params: { postId, copyId: copy.id } });
+    router.navigate({
+      pathname: '/send-to-channels/[postId]/copies/[copyId]/edit',
+      params: { postId, copyId: copy.id },
+    });
   }
 
   function openCopy(copy: PostCopyWithAssets) {
