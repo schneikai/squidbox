@@ -13,6 +13,7 @@ import MoreAction from '@/features/post-detail/actions/MoreAction';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostView from '@/features/posts/PostView';
 import longPressAccessibility from '@/lib/longPressAccessibility';
+import threadLabel from '@/lib/threadLabel';
 import { layout, space } from '@/styles/designTokens';
 import type { PostListRow } from '@/sync/queries/postQuery';
 import type { PostDetailRow } from '@/sync/queries/readPost';
@@ -95,7 +96,7 @@ function PostListItem({
           meta={
             isThread && (
               <Button
-                label={`Thread · ${1 + post.threadCount}`}
+                label={threadLabel(1 + post.threadCount)}
                 size="caption"
                 colorPalette="muted"
                 onPress={toggleThread}

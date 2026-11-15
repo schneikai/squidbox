@@ -48,12 +48,14 @@ function CopyComposer({ postId, seed }: CopyComposerProps) {
   const { channel, copyId } = seed;
   const isNew = copyId === null;
   const seedPosts = useMemo(() => JSON.stringify(copyPosts(draftFromPost(seed.post))), [seed.post]);
-  const posts = copyPosts(draft);
+  // Worked out once per change of the cards, not on every render.
+  const posts = useMemo(() => copyPosts(draft), [draft]);
+  const isDirty = useMemo(() => JSON.stringify(posts) !== seedPosts, [posts, seedPosts]);
 
   const { sheetProps } = useEditSheet({
     isNew,
     isValid: draft.cards.every(hasCardContent),
-    isDirty: JSON.stringify(posts) !== seedPosts,
+    isDirty,
     save: () => (isNew ? addPostCopy(postId, { channelId: channel.id, posts }) : updatePostCopy(copyId, posts)),
     syncsItself: true,
   });

@@ -84,7 +84,10 @@ export default function PostCard({
   // The first card leaves room to write until photos come in under the text.
   const isRoomy = isFirst && postAssets.length === 0;
 
-  const sentText = channel ? textForChannel({ text, mentions }, contactsById, channel).text : text;
+  const sentText = useMemo(
+    () => (channel ? textForChannel({ text, mentions }, contactsById, channel).text : text),
+    [channel, contactsById, mentions, text],
+  );
   const { counter, isOver } = textLimit(channel, sentText);
   // The date's look beside it (Text `status`: regular, grey), so the toolbar has one grey.
   const counterNode = counter && (isTyping || isOver) && (

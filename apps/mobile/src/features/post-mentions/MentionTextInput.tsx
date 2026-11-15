@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import MentionInput, { type FieldSelection, type MentionInputHandle } from './MentionInput';
 import MentionSuggestions from './MentionSuggestions';
+import contactLabel from './contactLabel';
 import { fromFieldContent, toFieldContent, type FieldContent } from './fieldContent';
 import type { MentionContact } from './mentionHandle';
 import mentionLabel from './mentionLabel';
@@ -93,9 +94,8 @@ export default function MentionTextInput({
 
   function pick(contact: MentionContact) {
     if (!mention) return;
-    const label = mentionLabel({ contactId: contact.id, location: 0, name: contact.name }, contactsById, channel);
     inputRef.current
-      ?.insertMention(contact.id, label, avatarUriOf(contact), mention.start, mention.end)
+      ?.insertMention(contact.id, contactLabel(contact, channel), avatarUriOf(contact), mention.start, mention.end)
       .catch(console.error);
   }
 

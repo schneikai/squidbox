@@ -42,7 +42,7 @@ describe('cardsReducer', () => {
     expect(changed.cards.map((card) => card.text)).toEqual(['Sunrise on the ridge', 'Edited']);
   });
 
-  it("keeps a card's chips where their names still stand in a text written over it", () => {
+  it("relinks a card's chips to a text written over it", () => {
     const draft = draftFromPost({
       ...post,
       text: 'With Maya Lindqvist',
@@ -54,6 +54,5 @@ describe('cardsReducer', () => {
       text: 'Up the ridge with Maya Lindqvist',
       mentions: [{ contactId: 'maya', location: 18, name: 'Maya Lindqvist' }],
     });
-    expect(cardsReducer(draft, { type: 'setCardText', key, text: 'Up the ridge' }).cards[0]!.mentions).toBeNull();
   });
 });

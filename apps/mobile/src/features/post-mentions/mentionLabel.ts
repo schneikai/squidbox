@@ -1,10 +1,11 @@
 import type { Channel, PostMention } from '@squidbox/shared';
 
-import mentionHandle, { type MentionContact } from './mentionHandle';
+import contactLabel from './contactLabel';
+import type { MentionContact } from './mentionHandle';
 
 /**
- * How a mention reads: its live contact's name, or on `channel` the contact's `@handle` there
- * (mentionHandle) and its name without one; the stored name once the contact is deleted.
+ * How a mention reads: as its live contact's chip does (contactLabel), the stored name once the
+ * contact is deleted.
  */
 export default function mentionLabel(
   mention: PostMention,
@@ -12,7 +13,5 @@ export default function mentionLabel(
   channel?: Pick<Channel, 'handleField'>,
 ): string {
   const contact = contactsById.get(mention.contactId);
-  if (!contact) return mention.name;
-  const handle = channel && mentionHandle(contact, channel.handleField);
-  return handle ? `@${handle}` : contact.name;
+  return contact ? contactLabel(contact, channel) : mention.name;
 }

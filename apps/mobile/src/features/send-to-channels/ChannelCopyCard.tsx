@@ -14,6 +14,7 @@ import ChannelLogo from '@/features/channels/ChannelLogo';
 import MentionText from '@/features/post-mentions/MentionText';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostRowCard from '@/features/posts/PostRowCard';
+import threadLabel from '@/lib/threadLabel';
 import { layout, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import type { PostCopyWithAssets } from '@/sync/queries/readPostCopies';
@@ -72,7 +73,7 @@ export default function ChannelCopyCard({
         {first && (
           <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
         )}
-        {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>Thread · {copy.posts.length}</RNText>}
+        {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
         {!isSent && missing.length > 0 && (
           <WarningNote>
             {missing.length === 1
