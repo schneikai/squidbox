@@ -12,24 +12,32 @@ const CLOSE = ']';
 // What a marker's name never holds: a `[` or `]`, or a line break.
 const NOT_IN_NAME = /[[\]\r\n]/;
 const NO_NAMES: ReadonlyMap<string, string> = new Map();
+// What a marker never follows: it starts a word ("frames@[3]" is no marker).
+const IN_WORD = /[\p{L}\p{N}_@]/u;
 
-/** What a name is compared by: trimmed, its spaces collapsed, without case. Two names are the same name when their keys are equal. */
+/**
+ * What a name is compared by: trimmed, without one leading `@` (a handle's habit), its spaces
+ * collapsed, without case. Two names are the same name when their keys are equal.
+ */
 function key(name: string): string {
-  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+  return name.trim().replace(/^@/, '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 /**
- * `text` with its markers read against `names` (the names the turn was told, by their `key`). At
- * each `@[`: when a `]` follows with no `[` or line break before it, at most CONTACT_LIMITS.name on,
- * and its key is one of `names`, that name as given stands there with a mark; with no such name the
- * inner text, trimmed, stays as plain text; anything else (broken, or no marker at all) loses only
- * its `@[`. Marks are at their places in the returned text.
+ * `text` with its markers read against `names` (the names the turn was told, by their `key`). A
+ * marker is a `@[` that starts a word, or a `@@[` that does (an @ the model added out of habit). At
+ * each: when a `]` follows with no `[` or line break before it, at most CONTACT_LIMITS.name on, and
+ * its key is one of `names`, that name as given stands there with a mark (an added @ goes with it);
+ * with no such name the inner text, trimmed, stays as plain text; a broken one loses only its `@[`.
+ * Any other `@[` stays as written. Marks are at their places in the returned text.
  */
 function read(text: string, names: ReadonlyMap<string, string>): { text: string; marks: MentionMark[] } {
   let result = '';
   const marks: MentionMark[] = [];
   let at = 0;
-  for (let open = text.indexOf(OPEN); open >= 0; open = text.indexOf(OPEN, at)) {
+  for (let open = text.indexOf(OPEN); open >= 0; open = text.indexOf(OPEN, Math.max(at, open + 1))) {
+    const hasAddedAt = text[open - 1] === '@' && !IN_WORD.test(text[open - 2] ?? '');
+    if (!hasAddedAt && IN_WORD.test(text[open - 1] ?? '')) continue;
     result += text.slice(at, open);
     const start = open + OPEN.length;
     const close = closeOf(text, start);
@@ -40,6 +48,7 @@ function read(text: string, names: ReadonlyMap<string, string>): { text: string;
     const inner = text.slice(start, close);
     const name = names.get(key(inner));
     if (name) {
+      if (hasAddedAt) result = result.slice(0, -1);
       marks.push({ location: result.length, name });
       result += name;
     } else {

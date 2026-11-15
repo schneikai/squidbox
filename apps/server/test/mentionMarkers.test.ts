@@ -42,6 +42,20 @@ describe('mentionMarkers', () => {
     });
   });
 
+  it('takes an @ written before a marker or inside it as part of it', () => {
+    const chip = { text: 'With Sam Ridge', marks: [{ location: 5, name: 'Sam Ridge' }] };
+    expect(mentionMarkers.read('With @@[Sam Ridge]', NAMES)).toEqual(chip);
+    expect(mentionMarkers.read('With @[@Sam Ridge]', NAMES)).toEqual(chip);
+  });
+
+  it('leaves an @[ inside a word as written, also when stripping', () => {
+    expect(mentionMarkers.read('frames@[3] and a@@[Maya]', NAMES)).toEqual({
+      text: 'frames@[3] and a@@[Maya]',
+      marks: [],
+    });
+    expect(mentionMarkers.strip('frames@[3]')).toBe('frames@[3]');
+  });
+
   it('marks a name, and leaves one holding ] as it is', () => {
     expect([mentionMarkers.mark('Maya'), mentionMarkers.mark('Sam]')]).toEqual(['@[Maya]', 'Sam]']);
   });
