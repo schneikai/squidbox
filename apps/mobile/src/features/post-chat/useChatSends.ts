@@ -4,9 +4,9 @@ import { useMemo } from 'react';
 import chatContextReader from './chatContextReader';
 import chatSessions, { type UserTurn } from './chatSessions';
 import chatTags from './chatTags';
-import useLatestRef from './useLatestRef';
 
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
+import useLatestRef from '@/hooks/useLatestRef';
 import useVisionImageDeps from '@/hooks/useVisionImageDeps';
 import chatAsync from '@/utils/cloud-api/ai/chatAsync';
 
