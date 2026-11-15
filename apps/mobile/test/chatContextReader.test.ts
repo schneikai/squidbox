@@ -10,10 +10,14 @@ import chatTags from '../src/features/post-chat/chatTags';
 const readLiveAssets = vi.hoisted(() => vi.fn(async (): Promise<{ id?: string; tags: string[] | null }[]> => []));
 vi.mock('../src/sync/aiStateRepository', () => ({ readLiveAssets }));
 // The posts the handles come from: none unless a test says so.
+type MentionRow = { text: string; mentions: { contactId: string; location: number; name: string }[] | null };
 const readMentionTexts = vi.hoisted(() =>
-  vi.fn(async (): Promise<{ texts: string[]; fromAlbum: boolean }> => ({ texts: [], fromAlbum: false })),
+  vi.fn(async (): Promise<{ posts: MentionRow[]; fromAlbum: boolean }> => ({ posts: [], fromAlbum: false })),
 );
 vi.mock('../src/sync/postsRepository', () => ({ readMentionTexts }));
+// The contacts of the posts' chips: none unless a test says so.
+const readByIds = vi.hoisted(() => vi.fn(async (): Promise<Record<string, unknown>[]> => []));
+vi.mock('../src/sync/readByIds', () => ({ readByIds }));
 vi.mock('../src/sync/db/client', () => ({ getDb: () => null }));
 vi.mock('../src/utils/assets/readVisionImageAsync', () => ({ default: vi.fn() }));
 vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }));
@@ -67,13 +71,25 @@ describe('chatContextReader', () => {
 
   it("reads the handles of the photos as they are when the turn goes, with the Mentions sheet's edits", () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {
-      readMentionTexts.mockResolvedValueOnce({ texts: ['With @trailmike'], fromAlbum: true });
+      readMentionTexts.mockResolvedValueOnce({ posts: [{ text: 'With @trailmike', mentions: null }], fromAlbum: true });
       session.editMentions({ add: ['@corntwee'] });
       expect((await read(chatContextReader(session, () => ({ tagging: noTagging })))).mentions).toEqual([
         '@corntwee',
         '@trailmike',
       ]);
       expect(readMentionTexts).toHaveBeenLastCalledWith(null, ['ridge']);
+    }));
+
+  it("lists the handles of a chip's contact among the handles of the photos' posts", () =>
+    withChat([post('p1', '', ['ridge'])], async (session) => {
+      const maya = { contactId: 'c1', location: 5, name: 'Maya Lindqvist' };
+      readMentionTexts.mockResolvedValueOnce({
+        posts: [{ text: 'With Maya Lindqvist', mentions: [maya] }],
+        fromAlbum: true,
+      });
+      readByIds.mockResolvedValueOnce([{ id: 'c1', name: 'Maya Lindqvist', xHandle: '@mayal', deletedAt: null }]);
+      const context = await read(chatContextReader(session, () => ({ tagging: noTagging })));
+      expect(context.mentions).toEqual(['@mayal']);
     }));
 
   it("takes the tags as saved, not the last render's", () =>

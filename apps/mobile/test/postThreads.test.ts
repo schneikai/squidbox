@@ -44,8 +44,8 @@ async function seedThread() {
   const edgeIdOf = async (postId: string) =>
     (await db.select().from(schema.postAssets).where(eq(schema.postAssets.postId, postId)))[0]!.id;
   return [
-    { id: 't1-1', text: 'one', assetRefs: [{ id: await edgeIdOf('t1-1'), assetId: 'a1' }] },
-    { id: 't1-2', text: 'two', assetRefs: [{ id: await edgeIdOf('t1-2'), assetId: 'a2' }] },
+    { id: 't1-1', text: 'one', mentions: null, assetRefs: [{ id: await edgeIdOf('t1-1'), assetId: 'a1' }] },
+    { id: 't1-2', text: 'two', mentions: null, assetRefs: [{ id: await edgeIdOf('t1-2'), assetId: 'a2' }] },
   ];
 }
 
@@ -54,8 +54,8 @@ describe('postThreads', () => {
     await posts.create(db, makePostRecord({ id: 't1', postedAt: 50 }));
     await save(
       [
-        { id: null, text: 'one', assetRefs: [{ id: 'e1', assetId: 'a1' }] },
-        { id: null, text: 'two', assetRefs: [] },
+        { id: null, text: 'one', mentions: null, assetRefs: [{ id: 'e1', assetId: 'a1' }] },
+        { id: null, text: 'two', mentions: null, assetRefs: [] },
       ],
       [],
     );
@@ -86,9 +86,17 @@ describe('postThreads', () => {
     ]);
   });
 
+  it('saves changed mentions of a following post with its text', async () => {
+    const seed = await seedThread();
+    const mention = { contactId: 'c1', location: 0, name: 'one' };
+    await save([{ ...seed[0]!, mentions: [mention] }, seed[1]!], seed);
+    expect((await row('t1-1')).mentions).toEqual([mention]);
+    expect((await row('t1-2')).mentions).toBeNull();
+  });
+
   it("creates a new following post after the thread's last", async () => {
     const seed = await seedThread();
-    await save([seed[1]!, { id: null, text: 'three', assetRefs: [] }], [seed[1]!]);
+    await save([seed[1]!, { id: null, text: 'three', mentions: null, assetRefs: [] }], [seed[1]!]);
     expect((await live()).at(-1)).toEqual(['id-3', 3, 'three']);
   });
 

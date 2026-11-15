@@ -941,6 +941,16 @@ a thread as its first post (lists, counts, searches, a photo's or an album's pos
 suggestions, the assistant's example posts) and a following post whose first post is deleted as a
 post of its own. Deleting a thread tombstones every post of it and their edges, in one transaction.
 
+A post's text can mention contacts: `mentions` (optional, null | `[{ contactId, location, name }]`,
+never `[]`) lists them, each with where its name starts in `text` (a UTF-16 offset) and that name.
+The text keeps the name, so every reader of the text alone (search, the assistant's example posts,
+the chat) reads it unchanged; a mention counts only while `text.startsWith(name, location)`, so an
+edit that moved or removed the words drops it instead of drawing it over others. `text` and
+`mentions` are one field group (§7), so an older build's push of `text` alone keeps the stored
+mentions, and two devices never mix one's text with the other's mentions. An installed build without
+the field shows a mention as its name, and a text it edits may lose its chips (the names stay as
+plain text). Server 0041, app 0041.
+
 Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and
 0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
 channel of a post was a post of its own, linked by `channelRootId`, and `channelId` with
@@ -958,6 +968,19 @@ devices adding the same channel write one record, adding a deleted one again rev
 at the end, and a library merge copies a device's channel only when the account has no record of it
 (live or deleted). Deleting one is a tombstone. The mock account has Bluesky, X and Instagram.
 Server 0039, app 0039.
+
+**post_copies** (Send to channels: a post as it goes to one channel). Synced: `postId`, `channelId`
+(the catalog id, free text), `sentAt` (null | when it was sent; Send now and Send all set it, Mark as
+not sent clears it) and `posts` (the copy's posts in thread order, 1 to 100, each `{ text, mentions,
+assetIds }` with mentions as on a post and its assets in order), plus the base columns. A copy is
+saved whole by its composer, so `posts` merges as one value: two devices editing one copy keep the
+later save; a sent copy is locked until it is marked as not sent. Asset ids are a list, not edges: a
+purged asset is left out by the read (as a post leaves it out), a library merge re-points them like
+an edge and drops one the account won't have, and a photo only a copy holds does not count as in the
+post (a photo's posts, an album's posts). Deleting a post tombstones its copies; a repost starts with
+the same copies, unsent, as its own records. An installed build syncs none of it (it has no table)
+and shows no copies. The mock account has a Bluesky copy (sent) and an Instagram copy of one post.
+Server 0041, app 0041.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
 columns. One record per album and asset.

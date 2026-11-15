@@ -133,7 +133,7 @@ d('push: the merge rules (Postgres)', () => {
     await pool.query('DELETE FROM personas WHERE user_id = $1 AND id = $2', [USER_A, id]);
   });
 
-  it("a post's thread and channel fields are null while unset and survive a push without them", async () => {
+  it("a post's thread, channel and mention fields are null while unset and survive a push without them", async () => {
     const pulled = async (id: string) =>
       (await pull(db, USER_A, { cursor: 0 })).changes.posts.records.find((record) => record.id === id);
     const first = postRecord();
@@ -163,6 +163,17 @@ d('push: the merge rules (Postgres)', () => {
       (await push(db, USER_A, [{ collection: 'posts', record: edited, fields: { text: 2000 } }]))[0],
     ).toMatchObject({ status: 'applied' });
     expect(await pulled(following.id)).toMatchObject({ text: 'edited', threadRootId: first.id, threadIndex: 1 });
+
+    // A post with a mention; an older build, without the field, edits its text and pushes it.
+    const mention = { contactId: randomUUID(), location: 10, name: 'Maya Lindqvist' };
+    const mentioned = postRecord({ text: 'Ridge run Maya Lindqvist', mentions: [mention] });
+    await push(db, USER_A, [{ collection: 'posts', record: mentioned, fields: { text: 1000, mentions: 1000 } }]);
+    expect(await pulled(first.id)).toMatchObject({ mentions: null });
+    const retyped = { ...postRecord(), id: mentioned.id, text: 'Ridge run with Maya Lindqvist', updatedAt: 2000 };
+    expect(
+      (await push(db, USER_A, [{ collection: 'posts', record: retyped, fields: { text: 2000 } }]))[0],
+    ).toMatchObject({ status: 'applied' });
+    expect(await pulled(mentioned.id)).toMatchObject({ text: 'Ridge run with Maya Lindqvist', mentions: [mention] });
   });
 
   it("instructions without the model check's judge are applied, and keep a judge set elsewhere", async () => {

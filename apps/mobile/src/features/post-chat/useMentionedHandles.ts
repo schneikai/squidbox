@@ -1,13 +1,18 @@
-import { useMemo } from 'react';
-
 import { MIN_REREAD_INTERVAL } from '@/constants';
-import extractHandles from '@/lib/extractHandles';
+import readPostHandles from '@/features/post-mentions/readPostHandles';
 import { schema } from '@/sync/db/client';
 import { readMentionedTexts } from '@/sync/postsRepository';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
-/** Every @handle the user ever mentioned in a post, those used most first; undefined while reading. */
+/**
+ * Every @handle the user ever mentioned in a post, those used most first, a chip's contact's handles
+ * too (postHandles); undefined while reading.
+ */
 export default function useMentionedHandles() {
-  const texts = useLiveQuery(readMentionedTexts, [schema.posts], [], { minInterval: MIN_REREAD_INTERVAL });
-  return useMemo(() => texts && extractHandles(texts), [texts]);
+  return useLiveQuery(
+    async (db) => readPostHandles(db, await readMentionedTexts(db)),
+    [schema.posts, schema.contacts],
+    [],
+    { minInterval: MIN_REREAD_INTERVAL },
+  );
 }

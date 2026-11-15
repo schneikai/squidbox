@@ -348,7 +348,12 @@ d('sync engine (Postgres)', () => {
     const sample: Record<CollectionName, () => Record<string, unknown>> = {
       assets: () => assetRecord({ tags: ['forest', 'morning fog'] }),
       albums: () => albumRecord(),
-      posts: () => postRecord({ extraChannelIds: ['x'] }),
+      posts: () =>
+        postRecord({
+          text: 'Ridge run with Maya Lindqvist',
+          mentions: [{ contactId: randomUUID(), location: 15, name: 'Maya Lindqvist' }],
+          extraChannelIds: ['x'],
+        }),
       album_assets: () => ({ ...base(), albumId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       post_assets: () => ({ ...base(), postId: randomUUID(), assetId: randomUUID(), position: 'a0' }),
       personas: () => ({
@@ -411,6 +416,16 @@ d('sync engine (Postgres)', () => {
         repostIdeasPrompt: null,
       }),
       channels: () => ({ ...base(), channelId: 'bluesky', position: 'a0' }),
+      post_copies: () => ({
+        ...base(),
+        postId: randomUUID(),
+        channelId: 'bluesky',
+        sentAt: null,
+        posts: [
+          { text: 'Ridge run with Maya Lindqvist', mentions: null, assetIds: [randomUUID()] },
+          { text: 'More from the trail', mentions: null, assetIds: [] },
+        ],
+      }),
     };
 
     for (const name of collectionNames) {

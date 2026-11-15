@@ -1,4 +1,4 @@
-import type { ContactPlace, FieldClocks } from '@squidbox/shared';
+import type { ContactPlace, FieldClocks, PostCopyPost, PostMention } from '@squidbox/shared';
 import { isNotNull, or, sql, type SQL } from 'drizzle-orm';
 import {
   sqliteTable,
@@ -124,11 +124,8 @@ export const posts = sqliteTable(
     // A thread's following post: its first post and its place after it (null on a first post).
     threadRootId: text('thread_root_id'),
     threadIndex: integer('thread_index'),
-    // Retired (sync-design §10): the channel versions' fields, dropped by migration 0041.
-    channelId: text('channel_id'),
-    channelRootId: text('channel_root_id'),
-    // The channels the post also goes to besides channelId (null: none).
-    extraChannelIds: text('extra_channel_ids', { mode: 'json' }).$type<string[]>(),
+    // The contacts the text mentions (null: none); merges with `text` as one.
+    mentions: text('mentions', { mode: 'json' }).$type<PostMention[]>(),
   },
   (t) => [
     index('posts_live_posted_idx')
@@ -138,10 +135,6 @@ export const posts = sqliteTable(
     index('posts_thread_idx')
       .on(t.threadRootId, t.threadIndex, t.id)
       .where(sql`${t.deletedAt} is null and ${t.threadRootId} is not null`),
-    // Retired with the channel versions' fields.
-    index('posts_channel_root_idx')
-      .on(t.channelRootId, t.id)
-      .where(sql`${t.deletedAt} is null and ${t.channelRootId} is not null`),
   ],
 );
 export type PostRow = typeof posts.$inferSelect;
@@ -216,6 +209,29 @@ export const channels = sqliteTable('channels', {
   position: text('position').notNull(),
 });
 export type ChannelRow = typeof channels.$inferSelect;
+
+// A post as it goes to one channel (mirror @squidbox/shared post_copies): its posts in thread order,
+// JSON text (`{ text, mentions, assetIds }`s) that merges as one value, and when it was sent.
+export const postCopies = sqliteTable(
+  'post_copies',
+  {
+    id: text('id').primaryKey(),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    deletedAt: integer('deleted_at'),
+    postId: text('post_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    sentAt: integer('sent_at'),
+    posts: text('posts', { mode: 'json' }).$type<PostCopyPost[]>().notNull(),
+  },
+  (t) => [
+    // A post's copies (readPostCopies, removeCopiesOf).
+    index('post_copies_post_idx')
+      .on(t.postId, t.createdAt, t.id)
+      .where(sql`${t.deletedAt} is null`),
+  ],
+);
+export type PostCopyRow = typeof postCopies.$inferSelect;
 
 export const promptButtons = sqliteTable('prompt_buttons', {
   id: text('id').primaryKey(),

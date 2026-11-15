@@ -27,6 +27,7 @@ export * from './collections/contactList';
 export * from './collections/contactListMember';
 export * from './collections/contactLink';
 export * from './collections/channel';
+export * from './collections/postCopy';
 export * from './collections/defaultPromptButtons';
 export * from './collections/registry';
 export * from './collections/widenToGroups';

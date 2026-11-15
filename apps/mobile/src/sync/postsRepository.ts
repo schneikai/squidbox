@@ -60,10 +60,14 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
 const MENTION_POSTS = 100;
 
 // The mention reads take every live post, a thread's following posts too: a handle the user wrote in
-// one is still a handle they mentioned.
+// one is still a handle they mentioned. Each gives a post's text and its mentions (its chips), whose
+// contacts' handles count too (postHandles).
+
+/** A post's text and mentions, as the mention reads give them. */
+export type MentionTextRow = { text: string; mentions: schema.PostRow['mentions'] };
 
 /**
- * The texts of the live posts whose assets share a live album with `assetIds` (through live edges),
+ * The texts and mentions of the live posts whose assets share a live album with `assetIds` (through live edges),
  * newest post date first, at most MENTION_POSTS, with `fromAlbum: true`; without any (no album, or one never
  * posted from), the newest live posts, with `fromAlbum: false`. Where the chat finds the
  * handles the user mentions in posts like the one they write.
@@ -71,30 +75,32 @@ const MENTION_POSTS = 100;
 export async function readMentionTexts(
   db: SyncDb,
   assetIds: string[],
-): Promise<{ texts: string[]; fromAlbum: boolean }> {
+): Promise<{ posts: MentionTextRow[]; fromAlbum: boolean }> {
   const p = schema.posts;
   const newest = sql`${p.postedAt} desc, ${p.id} desc`;
   const inAlbums = sql`${p.id} in (select pe.post_id from post_assets pe
     where pe.deleted_at is null and pe.asset_id in ${albumAssetIdsOf(assetIds)})`;
   const read = (where?: SQL) =>
     db
-      .select({ text: p.text })
+      .select({ text: p.text, mentions: p.mentions })
       .from(p)
       .where(where ? sql`${p.deletedAt} is null and ${where}` : isNull(p.deletedAt))
       .orderBy(newest)
       .limit(MENTION_POSTS);
   const fromAlbum = assetIds.length > 0 ? await read(inAlbums) : [];
-  if (fromAlbum.length > 0) return { texts: fromAlbum.map((row) => row.text), fromAlbum: true };
-  return { texts: (await read()).map((row) => row.text), fromAlbum: false };
+  if (fromAlbum.length > 0) return { posts: fromAlbum, fromAlbum: true };
+  return { posts: await read(), fromAlbum: false };
 }
 
-/** The texts of every live post with an @, newest post date first: the handles the user ever mentioned. */
-export async function readMentionedTexts(db: SyncDb): Promise<string[]> {
+/**
+ * The texts and mentions of every live post with an @ or a mention, newest post date first: the
+ * handles the user ever mentioned.
+ */
+export function readMentionedTexts(db: SyncDb): Promise<MentionTextRow[]> {
   const p = schema.posts;
-  const rows = await db
-    .select({ text: p.text })
+  return db
+    .select({ text: p.text, mentions: p.mentions })
     .from(p)
-    .where(sql`${p.deletedAt} is null and instr(${p.text}, '@') > 0`)
+    .where(sql`${p.deletedAt} is null and (instr(${p.text}, '@') > 0 or ${p.mentions} is not null)`)
     .orderBy(sql`${p.postedAt} desc, ${p.id} desc`);
-  return rows.map((row) => row.text);
 }

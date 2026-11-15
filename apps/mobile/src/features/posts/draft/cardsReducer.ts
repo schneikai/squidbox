@@ -27,7 +27,7 @@ export default function cardsReducer(draft: CardsDraft, action: CardsAction): Ca
     case 'addCard':
       return {
         ...draft,
-        cards: [...draft.cards, { key: nextCardKey(draft), id: null, text: '', postAssets: [] }],
+        cards: [...draft.cards, { key: nextCardKey(draft), id: null, text: '', mentions: null, postAssets: [] }],
         nextCard: draft.nextCard + 1,
       };
     case 'removeCard':

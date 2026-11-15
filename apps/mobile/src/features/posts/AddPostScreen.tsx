@@ -60,9 +60,10 @@ async function readSeed(
     return {
       ...fresh,
       text: rePost.text,
+      mentions: rePost.mentions,
       postAssets: freshPostAssets(rePost.postAssets),
     };
   }
   const assets = assetIds.length ? await readByIds(db, schema.assets, assetIds) : [];
-  return { ...fresh, text: '', postAssets: buildPostAssets(assets) };
+  return { ...fresh, text: '', mentions: null, postAssets: buildPostAssets(assets) };
 }

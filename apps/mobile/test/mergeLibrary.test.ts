@@ -4,7 +4,7 @@ import { tick } from '@squidbox/shared/testing/tick';
 import { isNull } from 'drizzle-orm';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord, makePostRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import { libraryPaths } from '../src/library/libraryPaths';
 import { writesTarget, applyMerge, mergeWaits, moveMergedFiles, planMerge } from '../src/library/mergeLibrary';
@@ -17,6 +17,7 @@ import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
 import { retryMissingFiles, setOutboxError } from '../src/sync/outbox';
+import { createCopy } from '../src/sync/postCopiesRepository';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
@@ -55,6 +56,7 @@ vi.mock('../src/sync/db/client', () => ({
 }));
 
 const albums = makeRepository('albums', schema.albums);
+const posts = makeRepository('posts', schema.posts);
 const SRC = libraryPaths('src');
 const TGT = libraryPaths('tgt');
 const albumEdges = makeEdgeRepository('album_assets', schema.albumAssets, 'albumId');
@@ -844,6 +846,25 @@ describe('channels', () => {
     expect(plan.channels.map((row) => row.channelId)).toEqual(['x']);
     expect((await readChannels(target)).map((row) => row.channelId)).toEqual(['bluesky', 'x']);
     expect((await outbox(target)).filter((row) => row.collection === 'channels')).toHaveLength(3);
+    expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false);
+  });
+});
+
+describe('post copies', () => {
+  it("follow their post, their photos re-pointed at the account's, one it won't have dropped", async () => {
+    const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
+    const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'mine.jpg' });
+    const post = await posts.create(source, makePostRecord({ text: 'Ridge' }));
+    const gone = await posts.create(source, makePostRecord({ text: 'Gone', deletedAt: 5 }));
+    const missing = '00000000-0000-4000-8000-000000000001';
+    const copy = { text: 'Ridge', mentions: null, assetIds: [mine.id, missing] };
+    await source.transaction((tx) => createCopy(tx, { postId: post.id, channelId: 'bluesky', posts: [copy] }));
+    await source.transaction((tx) => createCopy(tx, { postId: gone.id, channelId: 'x', posts: [copy] }));
+
+    const plan = await commitPass();
+
+    expect(plan.postCopies.map((row) => [row.postId, row.posts[0]!.assetIds])).toEqual([[post.id, [theirs.id]]]);
+    expect(await target.select().from(schema.postCopies)).toHaveLength(1);
     expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false);
   });
 });

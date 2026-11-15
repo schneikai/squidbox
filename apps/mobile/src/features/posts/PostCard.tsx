@@ -20,12 +20,12 @@ import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 // What a card holds: one post of the thread, with its assets as the editor's strip holds them.
-export type PostCardContent = Pick<ThreadPart, 'id' | 'text'> & { postAssets: EditorPostAsset[] };
+export type PostCardContent = Pick<ThreadPart, 'id' | 'text' | 'mentions'> & { postAssets: EditorPostAsset[] };
 
 export type PostCardData = PostCardContent & { key: string };
 
 // What a card reports changed to the editor.
-export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'postAssets'>>;
+export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'mentions' | 'postAssets'>>;
 
 type PostCardProps = {
   card: PostCardData;

@@ -1,4 +1,4 @@
-import type { PostAssetRecord, PostRecord } from '@squidbox/shared';
+import type { PostAssetRecord, PostMention, PostRecord } from '@squidbox/shared';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
@@ -12,9 +12,14 @@ import * as posts from './postsRepository';
 
 // A post's photo as the editor holds it: the post-asset edge's id and its asset.
 export type AssetRef = Pick<PostAssetRecord, 'id' | 'assetId'>;
-/** One following post as the editor emits it: `id` null for a new one. */
-export type ThreadPart = { id: string | null; text: string; assetRefs: AssetRef[] };
-type NewPart = Pick<PostRecord, 'text' | 'postedAt'> & { threadRootId: string; threadIndex: number };
+/** One following post as the editor emits it: `id` null for a new one; `mentions` null for none. */
+export type ThreadPart = {
+  id: string | null;
+  text: string;
+  mentions: PostMention[] | null;
+  assetRefs: AssetRef[];
+};
+type NewPart = Pick<PostRecord, 'text' | 'mentions' | 'postedAt'> & { threadRootId: string; threadIndex: number };
 
 /** The live following posts of `rootIds`, each thread's in `(threadIndex, id)` order. */
 export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
@@ -29,7 +34,7 @@ export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
 /**
  * Save an editor's following posts (`parts`) over the ones it was seeded with (`seedParts`; `[]` for
  * a new thread): a seed part the list no longer has is removed with its edges, a listed one gets its
- * changed text and photos, a new one (no id) is created by `newPart` after the thread's last, with
+ * changed text and mentions (one group) and photos, a new one (no id) is created by `newPart` after the thread's last, with
  * the first post's `postedAt` as it stands in `tx` (it may have changed since the editor opened). A
  * seed part deleted meanwhile (another device) is left as it is.
  */
@@ -49,11 +54,14 @@ export async function saveThreadPosts(
   let threadIndex = Math.max(0, ...live.map((post) => post.threadIndex ?? 0));
   for (const part of added) {
     threadIndex += 1;
-    const created = await posts.create(tx, newPart({ text: part.text, postedAt, threadRootId: rootId, threadIndex }));
+    const fields = { text: part.text, mentions: part.mentions, postedAt, threadRootId: rootId, threadIndex };
+    const created = await posts.create(tx, newPart(fields));
     await posts.postEdges.createFromRefs(tx, created.id, part.assetRefs);
   }
   for (const { id, part, seed } of kept) {
-    if (part.text !== seed.text) await posts.update(tx, id, { text: part.text });
+    if (part.text !== seed.text || !sameMentions(part.mentions, seed.mentions)) {
+      await posts.update(tx, id, { text: part.text, mentions: part.mentions });
+    }
     await posts.postEdges.setRefs(tx, id, part.assetRefs, seed.assetRefs); // writes only what changed
   }
 }
@@ -103,4 +111,9 @@ async function removePosts(tx: SyncDb, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   await posts.remove(tx, ids);
   await posts.postEdges.tombstoneParents(tx, ids);
+}
+
+/** Whether two mention lists are the same, in order (null and [] alike: none). */
+function sameMentions(a: PostMention[] | null | undefined, b: PostMention[] | null | undefined): boolean {
+  return JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
 }

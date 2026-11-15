@@ -6,17 +6,19 @@ import postData from '../src/features/posts/draft/postData';
 
 const post = {
   text: 'Sunrise on the ridge',
+  mentions: null,
   postAssets: [],
-  threadPosts: [{ id: 't1', text: 'More from the trail', postAssets: [] }],
+  threadPosts: [{ id: 't1', text: 'More from the trail', mentions: null, postAssets: [] }],
 };
 
 describe('cardsReducer', () => {
   it('saves an untouched draft as its seed, so Save stays off', () => {
     expect(postData(draftFromPost(post), 50)).toEqual({
       text: 'Sunrise on the ridge',
+      mentions: null,
       assetRefs: [],
       postedAt: 50,
-      threadPosts: [{ id: 't1', text: 'More from the trail', assetRefs: [] }],
+      threadPosts: [{ id: 't1', text: 'More from the trail', mentions: null, assetRefs: [] }],
     });
   });
 

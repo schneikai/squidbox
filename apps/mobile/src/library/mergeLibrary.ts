@@ -47,6 +47,7 @@ export interface MergePlan {
   posts: schema.PostRow[];
   albumAssets: schema.AlbumAssetRow[];
   postAssets: schema.PostAssetRow[];
+  postCopies: schema.PostCopyRow[];
   contacts: schema.ContactRow[];
   contactLists: schema.ContactListRow[];
   contactListMembers: schema.ContactListMemberRow[];
@@ -394,6 +395,21 @@ export async function planMerge(
     (edge) => `${edge.postId}:${edge.assetId}`,
   );
 
+  // The channel copies of the posts that come over, their assets re-pointed like edges: one the
+  // target won't have (not copied, not matched) is dropped.
+  const postCopies = (
+    await freshRecords('post_copies', schema.postCopies, await source.select().from(schema.postCopies))
+  )
+    .filter((copy) => livePosts.has(copy.postId))
+    .map((copy) => ({
+      ...copy,
+      posts: copy.posts.map((post) => ({
+        ...post,
+        assetIds: post.assetIds.flatMap((id) => assetIdMap.get(id) ?? []),
+      })),
+    }));
+  for (const copy of postCopies) mark('post_copies', copy, { as: 'copy' });
+
   // Contacts and their lists, by their ids (no file to match them on). A copied contact's photo the
   // source holds moves with it (the file fields, below), and the sync uploads it before it pushes the
   // contact; one the source doesn't hold (only in another account's storage) is dropped, as the
@@ -479,6 +495,7 @@ export async function planMerge(
     posts,
     albumAssets,
     postAssets,
+    postCopies,
     contacts,
     contactLists,
     contactListMembers,
@@ -593,6 +610,7 @@ export function writesTarget(plan: MergePlan): boolean {
     plan.posts,
     plan.albumAssets,
     plan.postAssets,
+    plan.postCopies,
     plan.contacts,
     plan.contactLists,
     plan.contactListMembers,
@@ -629,6 +647,7 @@ export async function applyMerge(target: SyncDb, plan: MergePlan): Promise<Merge
     await saveRecords(tx, 'posts', schema.posts, plan.posts, { isNew: true });
     await saveRecords(tx, 'album_assets', schema.albumAssets, plan.albumAssets, { isNew: true });
     await saveRecords(tx, 'post_assets', schema.postAssets, plan.postAssets, { isNew: true });
+    await saveRecords(tx, 'post_copies', schema.postCopies, plan.postCopies, { isNew: true });
     await saveRecords(tx, 'contacts', schema.contacts, plan.contacts, { isNew: true });
     await saveRecords(tx, 'contact_lists', schema.contactLists, plan.contactLists, { isNew: true });
     await saveRecords(tx, 'contact_list_members', schema.contactListMembers, plan.contactListMembers, { isNew: true });
