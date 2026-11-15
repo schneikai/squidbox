@@ -91,7 +91,7 @@ import {
   CONTACT_FIELDS_FORMAT,
   FORMAT_HEADING,
   MENTION_AS_GIVEN_FORMAT,
-  MENTION_FORMAT,
+  mentionFormat,
   TAGS_FORMAT,
 } from '../src/ai/prompts.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
@@ -928,8 +928,8 @@ describe('POST /api/v1/ai/chat', () => {
     await call('POST', '/ai/chat', chatRequest);
     await call('POST', '/ai/chat', { ...chatRequest, readsMentionMarkers: true });
     const [unflagged, flagged] = chatBodies().map((body) => body.messages[0].content as string);
-    expect(unflagged).not.toContain(MENTION_FORMAT);
-    expect(flagged!.endsWith(`\n\n${MENTION_FORMAT}`)).toBe(true);
+    expect(unflagged).not.toContain('@[');
+    expect(flagged!.endsWith(`\n\n${mentionFormat(['Sam Ridge'])}`)).toBe(true);
   });
 
   it('502 ai_unavailable when nothing is left of the reply without its markers, for every build', async () => {

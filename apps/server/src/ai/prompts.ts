@@ -3,6 +3,7 @@ import {
   chatReplyFieldsSchema,
   CONTACT_HANDLES,
   contactReadSchema,
+  mentionMarkers,
   WRITING_TWEET_COUNT,
   type ChatContext,
   type ChatReply,
@@ -57,8 +58,16 @@ export const CONTACT_FIELDS_FORMAT = [
 // How the chat's writing model writes a mention, after CHAT_FORMAT while the post has people to
 // mention: for a build that makes each marker a chip (`readsMentionMarkers`, mentionMarkers), the
 // protocol the app reads; for an installed build without it, the line every build had before.
-export const MENTION_FORMAT =
-  'When a post or your reply names one of the people listed above, write the name exactly as listed, wrapped like this: @[name as listed]. Keep every @[…] already in their post or the thread as it is. Use @[…] for nobody else, and never write a handle or an @ of your own.';
+// Tried against the writing models: with the people listed as markers, named in the rule and shown
+// in an example, a listed name was never written without its marker; told only to wrap "the name as
+// listed", about a fifth were.
+export function mentionFormat(mentions: string[]): string {
+  const marked = mentions.map(mentionMarkers.mark);
+  return [
+    `Mentions: whenever a post or your reply names one of the people they may mention, write them exactly as listed, brackets included: ${marked.join(', ')}. Never write such a name without its @[ ]. Keep every @[…] already in their post or the thread as it is. Use @[…] for nobody else, and never write a handle or an @ of your own.`,
+    `For example: "Out all day with ${marked[0]}."`,
+  ].join('\n');
+}
 export const MENTION_AS_GIVEN_FORMAT = 'Write handles exactly as given.';
 
 // The line above the format blocks, which sets them off from the data the text ends with (the reply to
@@ -136,8 +145,9 @@ function userTurnText(turn: UserTurn, instructions: Instructions): string {
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
  * persona, their posts and the post) as the whole system message, then the transcript, a past reply in
  * the JSON the model replies in and a user turn as userTurnText has it. The briefing ends with
- * CHAT_FORMAT, then, while the post has people to mention, MENTION_FORMAT for a build that reads
- * mention markers (`readsMentionMarkers`) or MENTION_AS_GIVEN_FORMAT for one that doesn't.
+ * CHAT_FORMAT, then, while the post has people to mention, mentionFormat for a build that reads
+ * mention markers (`readsMentionMarkers`), which also gets them listed as markers, or
+ * MENTION_AS_GIVEN_FORMAT for one that doesn't.
  */
 export function chatMessages({
   context,
@@ -158,9 +168,11 @@ export function chatMessages({
     {
       role: 'system',
       content: withFormat(
-        writingBriefingText(instructions.writing, { persona, posts, context }),
+        writingBriefingText(instructions.writing, { persona, posts, context, readsMentionMarkers }),
         CHAT_FORMAT,
-        ...(context.mentions.length === 0 ? [] : [readsMentionMarkers ? MENTION_FORMAT : MENTION_AS_GIVEN_FORMAT]),
+        ...(context.mentions.length === 0
+          ? []
+          : [readsMentionMarkers ? mentionFormat(context.mentions) : MENTION_AS_GIVEN_FORMAT]),
       ),
     },
     ...transcript.map((turn): ChatMessage =>
@@ -297,13 +309,14 @@ function threadText(thread: ChatContext['thread']): string {
   return [`Post ${thread.index + 1} of a thread of ${thread.posts.length}. The other posts:`, ...others].join('\n');
 }
 
-// The post's values: none without one (`context` null), so its lines and heading are left out.
-function postValues(context: ChatContext | null): Record<string, string> {
+// The post's values: none without one (`context` null), so its lines and heading are left out. The
+// people they may mention as markers (`asMarkers`) for a model that is to write them so.
+function postValues(context: ChatContext | null, asMarkers = false): Record<string, string> {
   if (!context) return { media: '', tags: '', mentions: '', caption: '', thread: '' };
   return {
     media: mediaText(context.media),
     tags: context.tags.join(', '),
-    mentions: context.mentions.join(', '),
+    mentions: (asMarkers ? context.mentions.map(mentionMarkers.mark) : context.mentions).join(', '),
     caption: quotedText(context.text),
     thread: threadText(context.thread),
   };
@@ -317,12 +330,17 @@ function postValues(context: ChatContext | null): Record<string, string> {
  * is left out, with its heading (fillLines). A text without `{thread}` (one published or tried
  * before it had one) gets the thread at its end when there is one, so a thread post is never
  * written without it; one without `{mentions}` gets the people they may mention there too, when there
- * are any, so the mention block (chatMessages) never points at a list that isn't there. Without the
- * answer's format: chatMessages adds it.
+ * are any, so the mention block (chatMessages) never points at a list that isn't there; as markers
+ * for `readsMentionMarkers`. Without the answer's format: chatMessages adds it.
  */
 export function writingBriefingText(
   template: string,
-  { persona, posts, context }: { persona: Persona; posts: string[]; context: ChatContext | null },
+  {
+    persona,
+    posts,
+    context,
+    readsMentionMarkers = false,
+  }: { persona: Persona; posts: string[]; context: ChatContext | null; readsMentionMarkers?: boolean },
 ): string {
   const withThread = withPlaceholder(template, 'thread', Boolean(context?.thread));
   const hasMentions = Boolean(context?.mentions.length) && !withThread.includes('{mentions}');
@@ -330,7 +348,7 @@ export function writingBriefingText(
   return fillLines(full, {
     ...personaValues(persona),
     ...postsValues(posts),
-    ...postValues(context),
+    ...postValues(context, readsMentionMarkers),
     count: String(WRITING_TWEET_COUNT),
   });
 }

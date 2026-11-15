@@ -954,8 +954,9 @@ plain text). Server 0041, app 0041.
 The assistant works with contacts too: the chat's Mentions are contacts, and a turn sends their
 names (`context.mentions`, still `string[]`, so older builds keep sending handles). The assistant
 marks each contact it mentions with the name it was given, `@[Sam Ridge]` (`mentionMarkers` in
-`packages/shared`; the server tells it how in a fixed line after the Writing text, `MENTION_FORMAT`,
-while the post has people to mention, for a request with `readsMentionMarkers`; one without it gets
+`packages/shared`; the server tells it how in fixed lines after the Writing text, `mentionFormat`,
+which name the people as markers and show one in an example, and lists them as markers in
+`{mentions}`, while the post has people to mention, for a request with `readsMentionMarkers`; one without it gets
 "Write handles exactly as given." there), and the app makes each marker a chip when the reply lands (`markedText`): the
 chat keeps each answer and idea as a text with its mentions, the shape a post stores, so Use and Copy
 take it as it is and every channel gets the contact's own handle; nothing searches a text for names.
