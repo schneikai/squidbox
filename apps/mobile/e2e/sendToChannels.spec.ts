@@ -110,11 +110,6 @@ test("an idea in a copy's composer reads its chip as the contact's handle on tha
 
   // The post's chip and the idea's.
   await expect(editor.getByText('@ridgeline.bsky.social', { exact: true })).toHaveCount(2);
-  await withDialog(
-    page,
-    (dialog) => dialog.accept(),
-    () => button(editor, 'Back').click(),
-  );
 });
 
 test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent", async ({
