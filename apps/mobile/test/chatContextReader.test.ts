@@ -5,6 +5,7 @@ import { makeAssetRecord } from './helpers/factory';
 import chatContextReader from '../src/features/post-chat/chatContextReader';
 import chatSessions, { type ChatDraftPost } from '../src/features/post-chat/chatSessions';
 import chatTags from '../src/features/post-chat/chatTags';
+import type { MentionContact } from '../src/features/post-mentions/mentionHandle';
 
 // The photos' rows as saved: none unless a test says so.
 const readLiveAssets = vi.hoisted(() => vi.fn(async (): Promise<{ id?: string; tags: string[] | null }[]> => []));
@@ -16,8 +17,8 @@ const readMentionTexts = vi.hoisted(() =>
 );
 vi.mock('../src/sync/postsRepository', () => ({ readMentionTexts }));
 // The contacts of the posts' chips: none unless a test says so.
-const readByIds = vi.hoisted(() => vi.fn(async (): Promise<Record<string, unknown>[]> => []));
-vi.mock('../src/sync/readByIds', () => ({ readByIds }));
+const readMentionContacts = vi.hoisted(() => vi.fn(async () => new Map<string, MentionContact>()));
+vi.mock('../src/features/post-mentions/readMentionContacts', () => ({ default: readMentionContacts }));
 vi.mock('../src/sync/db/client', () => ({ getDb: () => null }));
 vi.mock('../src/utils/assets/readVisionImageAsync', () => ({ default: vi.fn() }));
 vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }));
@@ -87,7 +88,9 @@ describe('chatContextReader', () => {
         posts: [{ text: 'With Maya Lindqvist', mentions: [maya] }],
         fromAlbum: true,
       });
-      readByIds.mockResolvedValueOnce([{ id: 'c1', name: 'Maya Lindqvist', xHandle: '@mayal', deletedAt: null }]);
+      readMentionContacts.mockResolvedValueOnce(
+        new Map([['c1', { id: 'c1', name: 'Maya Lindqvist', xHandle: '@mayal' }]]),
+      );
       const context = await read(chatContextReader(session, () => ({ tagging: noTagging })));
       expect(context.mentions).toEqual(['@mayal']);
     }));

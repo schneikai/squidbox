@@ -17,8 +17,8 @@ import { SectionFooter } from '@/components/settings-list/SettingsList';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import useChannels from '@/features/channels/useChannels';
 import usePost from '@/features/post-list/usePost';
-import useMentionContacts from '@/features/post-mentions/useMentionContacts';
 import useMentionSheet from '@/features/post-mentions/useMentionSheet';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import usePosts from '@/providers/posts/usePosts';
@@ -41,7 +41,7 @@ export default function SendToChannelsScreen() {
   const post = usePost(postId);
   const copies = useLiveQuery((db) => readPostCopies(db, postId), postCopiesTables, [postId]);
   const channels = useChannels();
-  const contactsById = useMentionContacts();
+  const contactsById = useMentionedContacts(copies?.flatMap((copy) => copy.posts));
   const { onPressMention, sheet } = useMentionSheet(contactsById);
   const { sendNow, sendAll } = useSendCopies(contactsById);
   const { removePostCopy, setPostCopiesSent } = usePosts();

@@ -124,7 +124,6 @@ function PostListItem({
               isUnfoldAnimated={isUnfoldAnimated}
               unfoldedPosts={unfoldedPosts}
               roomStyle={room}
-              contactsById={contactsById}
             />
           ) : (
             <View style={room} />

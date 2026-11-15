@@ -4,7 +4,7 @@ import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
 import PostListItem, { type PostListItemProps } from './PostListItem';
 
-import useMentionContacts from '@/features/post-mentions/useMentionContacts';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import type { ScrollableList } from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import { reflow } from '@/styles/designTokens';
@@ -45,8 +45,8 @@ export default function PostList({
   hasMenu = true,
 }: PostListProps) {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
-  // The contacts the posts' mention chips show, read once for the list.
-  const contactsById = useMentionContacts();
+  // The contacts the loaded posts' chips show, read once for the list.
+  const contactsById = useMentionedContacts(rows);
 
   // More is asked for only once the first page landed: a load-more asked before would read a second
   // page at once.

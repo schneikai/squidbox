@@ -16,7 +16,7 @@ import usePost from './usePost';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import ThreadParts from '@/components/ThreadParts';
-import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import ThreadPost from '@/features/posts/ThreadPost';
 import { motion } from '@/styles/designTokens';
 import type { PostDetailRow } from '@/sync/queries/readPost';
@@ -37,7 +37,6 @@ type ThreadFollowingPostsProps = {
   isUnfoldAnimated: boolean;
   unfoldedPosts: Map<string, PostDetailRow>;
   roomStyle: StyleProp<ViewStyle>;
-  contactsById: ReadonlyMap<string, MentionContact>;
 };
 
 /**
@@ -59,13 +58,14 @@ export default function ThreadFollowingPosts({
   isUnfoldAnimated,
   unfoldedPosts,
   roomStyle,
-  contactsById,
 }: ThreadFollowingPostsProps) {
   const livePost = usePost(postId);
   const [unfoldPartIds, setUnfoldPartIds] = useState<Set<string> | null>(null);
   const contentOpacity = useSharedValue(isUnfoldAnimated ? 0 : 1);
 
   const post = livePost ?? unfoldedPosts.get(postId);
+  // The list reads the contacts of its loaded posts; a thread's following posts read their own.
+  const contactsById = useMentionedContacts(post?.threadPosts);
   const isRead = Boolean(post);
   // The posts that come out of the stack: those of the first read.
   if (post && !unfoldPartIds) setUnfoldPartIds(new Set(post.threadPosts.map((part) => part.id)));

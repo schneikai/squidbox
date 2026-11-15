@@ -6,8 +6,8 @@ import AssetAlbums from '@/features/album-list/AssetAlbums';
 import ContactChipsSection from '@/features/contact-links/ContactChipsSection';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
 import PostRows from '@/features/post-list/PostRows';
-import useMentionContacts from '@/features/post-mentions/useMentionContacts';
 import useMentionSheet from '@/features/post-mentions/useMentionSheet';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import { layout } from '@/styles/designTokens';
 import type { PostDetailRow } from '@/sync/queries/readPost';
 
@@ -28,11 +28,12 @@ type PostProps = {
  */
 export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }: PostProps) {
   // The pictures of the whole thread.
-  const assetIds = useMemo(() => {
-    const all = [post, ...post.threadPosts];
-    return [...new Set(all.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))];
-  }, [post]);
-  const contactsById = useMentionContacts();
+  const thread = useMemo(() => [post, ...post.threadPosts], [post]);
+  const assetIds = useMemo(
+    () => [...new Set(thread.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))],
+    [thread],
+  );
+  const contactsById = useMentionedContacts(thread);
   const { onPressMention, sheet } = useMentionSheet(contactsById);
 
   return (
