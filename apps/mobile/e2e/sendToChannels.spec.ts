@@ -44,9 +44,12 @@ test('a tap on a copy opens it as it goes out, and its copy icon copies for its 
   await copyCard(sendSheet(page), 'Bluesky').getByText('Bluesky', { exact: true }).click();
   const copy = page.getByTestId('channel-copy-screen');
   await expect(copy.getByText('@ridgeline.bsky.social')).toBeVisible();
-  await button(copy, 'Copy text').click();
+  // The copy's first post's icon.
+  await button(copy, 'Copy text').first().click();
 
-  await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');
+  await expect
+    .poll(() => clipboard(page))
+    .toBe('A whole day under the trees with @ridgeline.bsky.social. Best shots below 🌲');
 });
 
 test('a channel added with + gets a copy filled from the post, and Send all marks every unsent copy sent', async ({
@@ -85,7 +88,7 @@ test("Use on an idea in a copy's composer puts in the chip of a name the idea wr
   await withDialog(
     page,
     (dialog) => dialog.accept(),
-    () => button(editor, 'Close').click(),
+    () => button(editor, 'Back').click(),
   );
 });
 
@@ -100,7 +103,7 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await expect(editor.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
   // The note's own Add handle, as on the card.
   await expect(button(editor, 'Add handle')).toBeVisible();
-  await button(editor, 'Close').click();
+  await button(editor, 'Back').click();
 
   await withDialog(
     page,
