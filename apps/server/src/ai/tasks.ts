@@ -5,6 +5,7 @@ import {
   assetTagSchema,
   CHAT_LIMITS,
   CONTACT_HANDLE_FIELDS,
+  mentionMarkers,
   parseHandle,
   uniqueTags,
   type ContactRead,
@@ -102,6 +103,18 @@ export const chatTask: AiTask<ChatReply> = {
   schema: chatReplyJsonSpec,
   check: checkChatReply,
   onUnreadable: readChatReplyLeniently,
+};
+
+/** A chat reply for a reader that knows no mention markers: each marked name as plain text. */
+export function withoutMarkers({ reply, postOptions }: ChatReply): ChatReply {
+  return { reply: mentionMarkers.strip(reply), postOptions: postOptions.map((option) => mentionMarkers.strip(option)) };
+}
+
+// A chat reply for a build that doesn't read mention markers (no `readsMentionMarkers`): without
+// them, then checked, so a reply the strip left empty is a useless reply.
+export const plainChatTask: AiTask<ChatReply> = {
+  ...chatTask,
+  check: (reply) => checkChatReply(withoutMarkers(reply)),
 };
 
 // A compare's tags: as many as the prompt asked for.

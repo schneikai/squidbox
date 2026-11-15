@@ -890,6 +890,25 @@ describe('POST /api/v1/ai/chat', () => {
     expect(res.json()).toMatchObject({ reply: 'Sounds like a good trip.', postOptions: [] });
   });
 
+  it('takes the mention markers off for a build that does not read them, and keeps them for one that does', async () => {
+    const marked = { reply: 'With @[Sam Ridge].', postOptions: ['Out with @[Sam Ridge]'] };
+    veniceAnswers({ chatReply: marked });
+    expect((await call('POST', '/ai/chat', chatRequest)).json()).toMatchObject({
+      reply: 'With Sam Ridge.',
+      postOptions: ['Out with Sam Ridge'],
+    });
+    expect((await call('POST', '/ai/chat', { ...chatRequest, readsMentionMarkers: true })).json()).toMatchObject(
+      marked,
+    );
+  });
+
+  it('502 ai_unavailable when nothing is left of the reply without its markers', async () => {
+    veniceAnswers({ chatReply: { reply: '@[]', postOptions: [] } });
+    const res = await call('POST', '/ai/chat', chatRequest);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Returned neither a reply nor posts' } });
+  });
+
   it("runs the chat on each model's own defaults: no reasoning or effort settings", async () => {
     veniceAnswers();
     for (const id of ['deepseek-v4-1-flash-uncensored', 'qwen-3-6-plus', 'venice-uncensored-1-2']) {

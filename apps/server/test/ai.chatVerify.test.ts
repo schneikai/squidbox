@@ -201,6 +201,34 @@ describe('verifyChatModel', () => {
     expect(result.unreadable).toBe(0);
   });
 
+  it('sends the model its replies with their mention markers, and the judge and the stored turns get none', async () => {
+    venice({
+      model: (last) =>
+        last.startsWith('Just got back')
+          ? { reply: 'Sounds like a trip with @[Sam Ridge]. Want posts?', postOptions: [] }
+          : { reply: 'Here you go.', postOptions: ['Out with @[Sam Ridge]', ...POSTS.slice(1)] },
+    });
+    const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk'] });
+    const [, , second, secondJudge] = bodies();
+    expect(second!.messages).toContainEqual({
+      role: 'assistant',
+      content: JSON.stringify({ reply: 'Sounds like a trip with @[Sam Ridge]. Want posts?', postOptions: [] }),
+    });
+    expect(secondJudge!.messages[0].content).toContain('Assistant: Sounds like a trip with Sam Ridge. Want posts?');
+    expect(secondJudge!.messages[0].content).toContain('1. Out with Sam Ridge');
+    expect(secondJudge!.messages[0].content).not.toContain('@[');
+    expect(JSON.stringify(result.sections[0]!.turns)).not.toContain('@[');
+  });
+
+  it("misses a turn whose reply is nothing without its markers, and skips the scenario's later turns", async () => {
+    venice({
+      model: (last) => (last.startsWith('nice, create') ? { reply: '@[]', postOptions: [] } : modelReply(last)),
+    });
+    const turns = (await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk'] })).sections[0]!.turns;
+    expect(turns[1]).toMatchObject({ error: 'Returned neither a reply nor posts', reply: null });
+    expect(turns[2]!.error).toContain('Skipped');
+  });
+
   it('misses a turn the model was too slow for, with its seconds, and goes on', async () => {
     venice({
       model: (last) =>
