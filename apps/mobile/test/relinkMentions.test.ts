@@ -62,6 +62,17 @@ describe('relinkMentions', () => {
     });
   });
 
+  it('leaves a name inside a handle, an email address or a hashtag as text, with its @', () => {
+    const ana = { id: 'ana', name: 'Ana' };
+    const maya = { id: 'maya', name: 'Maya' };
+    expect(relinkMentions(plain(''), 'With @Ana_trails today', [ana])).toEqual(plain('With @Ana_trails today'));
+    expect(relinkMentions(plain(''), 'Mail hello@Maya.com', [maya])).toEqual(plain('Mail hello@Maya.com'));
+    expect(relinkMentions(plain(''), 'Out with @Maya.bsky.social', [maya])).toEqual(
+      plain('Out with @Maya.bsky.social'),
+    );
+    expect(relinkMentions(plain(''), 'Hiking #Maya', [maya])).toEqual(plain('Hiking #Maya'));
+  });
+
   it("places the card's own chips first: a Mentions name takes only what they left", () => {
     const value = { text: 'Sam Ridge', mentions: [{ contactId: 'other', location: 0, name: 'Sam Ridge' }] };
     expect(relinkMentions(value, 'Sam Ridge and Sam Ridge', [SAM]).mentions).toEqual([

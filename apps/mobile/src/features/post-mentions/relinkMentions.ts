@@ -7,8 +7,11 @@ import replaceWithMentions from './replaceWithMentions';
 /** A contact whose name in a text may become a mention: its id and name. */
 export type MentionCandidate = Pick<MentionContact, 'id' | 'name'>;
 
-// A letter or digit: a name that runs into one is part of a longer word ("Mark" in "Marking").
-const WORD_CHARACTER = /[\p{L}\p{N}]/u;
+// A letter, digit or _: a name that runs into one is part of a longer word ("Mark" in "Marking") or
+// of a handle ("Ana" in "@Ana_trails").
+const WORD_CHARACTER = /[\p{L}\p{N}_]/u;
+// After a name right after an @: the handle goes on ("@Maya.com", "@sam-lee").
+const HANDLE_GOES_ON = /^[._-][\p{L}\p{N}_]/u;
 
 /**
  * `text` (a text written over `value`: the assistant's Use, or an idea's Copy over no value) with its
@@ -16,8 +19,9 @@ const WORD_CHARACTER = /[\p{L}\p{N}]/u;
  * word that no earlier chip took, the one nearest where the chip stood (a chip whose name is gone is
  * dropped, its words, if any, plain text); then each contact of `mentioned` (the chat's Mentions of
  * the turn that wrote it), the longest name first, on every free place its full name stands as a
- * whole word, in its exact case (of two contacts with one name, the first in `mentioned`). An @ right
- * before a mention is dropped from the text ("@Sam Ridge" is Sam Ridge), and there are at most
+ * whole word, in its exact case (of two contacts with one name, the first in `mentioned`). A name in a
+ * handle, an address or a hashtag stays text ("@Ana_trails", "hello@Maya.com", "#Maya"); an @ that
+ * starts a word and the whole linked name is dropped ("@Sam Ridge" is Sam Ridge), and there are at most
  * POST_LIMITS.mentions. A first name alone, or a handle, stays plain text. The mentions are null when
  * none is left.
  */
@@ -65,10 +69,19 @@ function freePlaces(text: string, name: string, taken: readonly [number, number]
   const places: number[] = [];
   for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + 1)) {
     const end = at + name.length;
-    const isWord = !WORD_CHARACTER.test(text[at - 1] ?? '') && !WORD_CHARACTER.test(text[end] ?? '');
-    if (isWord && !isTaken(taken, at, end)) places.push(at);
+    if (isWholeName(text, at, end) && !isTaken(taken, at, end)) places.push(at);
   }
   return places;
+}
+
+// Whether text[at, end) is a whole name: no word character on either side, no # before it, and an @
+// before it only one that starts a word, with the name ending the handle.
+function isWholeName(text: string, at: number, end: number): boolean {
+  const before = text[at - 1] ?? '';
+  if (WORD_CHARACTER.test(before) || WORD_CHARACTER.test(text[end] ?? '') || before === '#') return false;
+  if (before !== '@') return true;
+  const beforeAt = text[at - 2] ?? '';
+  return !WORD_CHARACTER.test(beforeAt) && beforeAt !== '@' && !HANDLE_GOES_ON.test(text.slice(end, end + 2));
 }
 
 function isTaken(taken: readonly [number, number][], start: number, end: number): boolean {
