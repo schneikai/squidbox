@@ -384,7 +384,7 @@ describe('edgesRepository (album_assets)', () => {
         a = (a * 1103515245 + 12345) % 2147483648;
         return Math.floor((a / 2147483648) * k);
       };
-      db = makeTestDb();
+      await db.delete(schema.postAssets);
       const liveRows = async () =>
         (await db.select().from(schema.postAssets).where(isNull(schema.postAssets.deletedAt))).sort((x, y) =>
           x.position < y.position || (x.position === y.position && x.id < y.id) ? -1 : 1,

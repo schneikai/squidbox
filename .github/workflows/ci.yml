@@ -66,10 +66,17 @@ jobs:
   # The Playwright flows in apps/mobile/e2e on the web build. MinIO can't be a service container (it
   # needs a command, and its buckets a one-shot), so scripts/dev.mjs --web brings up the compose stack
   # itself (Postgres + MinIO), then the API server and Metro; the mock photos and videos are committed.
-  ui-flows:
+  # The flows share one account one after another, so they split across runners, not workers: each
+  # shard brings up its own stack and mock account and runs a third of the spec files in order.
+  ui-flows-shard:
+    name: ui-flows (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     # Cold Docker pulls and the first web bundle come before the first test.
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -105,13 +112,21 @@ jobs:
             node_modules/.cache/squidbox-dev
           key: metro-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/mobile/babel.config.js', 'apps/mobile/metro.config.js') }}
 
-      - run: npm run test:ui --workspace apps/mobile
+      - run: npm run test:ui --workspace apps/mobile -- --shard=${{ matrix.shard }}/3
 
       - if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: ui-flows-test-results
+          name: ui-flows-test-results-${{ matrix.shard }}
           # The traces, and the API server's log (scripts/dev.mjs writes it to the temp folder).
           path: |
             apps/mobile/test-results
             /tmp/squidbox-server.log
+
+  # The one ui-flows check, whatever the shards are called: it passes only when every shard did.
+  ui-flows:
+    needs: ui-flows-shard
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.ui-flows-shard.result }}" = success

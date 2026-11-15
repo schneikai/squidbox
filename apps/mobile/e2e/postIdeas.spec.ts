@@ -202,6 +202,12 @@ test.describe('Post ideas settings', () => {
     await button(page, 'Post ideas').click();
   }
 
+  // Leaves Post ideas by Back: the screen saves the prompt as you type but syncs it only as it goes
+  // away (useSaveAsYouType), so a test that stayed would wait for the sync interval.
+  async function leavePostIdeas(page: Page) {
+    await button(page.getByTestId('ideas-settings-screen'), 'Back').click();
+  }
+
   // Runs `action`, a change to the idea settings, and waits for the server to have it: each test
   // starts on a fresh browser that pulls the account, so a change still on this one would be lost.
   async function savedAsync(page: Page, action: () => Promise<void>) {
@@ -250,7 +256,7 @@ test.describe('Post ideas settings', () => {
     const original = await prompt.inputValue();
     await savedAsync(page, async () => {
       await prompt.fill(mine);
-      await prompt.blur();
+      await leavePostIdeas(page);
     });
     await loadAppAsync(page);
 
@@ -269,19 +275,19 @@ test.describe('Post ideas settings', () => {
       () => button(page, 'Reset changes').click(),
     );
     await expect(ideasPrompt(page)).toHaveValue(mine);
-    await savedAsync(page, () =>
-      withDialog(
-        page,
-        (dialog) => dialog.accept(),
-        () => button(page, 'Reset changes').click(),
-      ),
+    await withDialog(
+      page,
+      (dialog) => dialog.accept(),
+      () => button(page, 'Reset changes').click(),
     );
     await expect(ideasPrompt(page)).toHaveValue(DEFAULT_IDEA_PROMPTS.post);
+    await savedAsync(page, () => leavePostIdeas(page));
 
     // The mock account's own prompt back, for the flows after this one.
+    await button(page, 'Post ideas').click();
     await savedAsync(page, async () => {
       await ideasPrompt(page).fill(original);
-      await ideasPrompt(page).blur();
+      await leavePostIdeas(page);
     });
   });
 });
