@@ -36,7 +36,7 @@ test("a post card's copy icon asks like Copy text, and names a contact without a
   await openTab(page, 'Posts');
   await postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST }).first().click();
   await button(page.getByTestId('post-screen'), 'Copy text').click();
-  await expect(page.getByText('No handle').first()).toBeVisible();
+  await expect(page.getByText('No handle. Using name.').first()).toBeVisible();
   await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
 
   await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');

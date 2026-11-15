@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import Badge from '@/components/Badge';
 import BottomSheet from '@/components/BottomSheet';
 import Text from '@/components/Text';
-import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
+import { Row, Section } from '@/components/settings-list/SettingsList';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import { space } from '@/styles/designTokens';
 
@@ -19,7 +19,7 @@ type CopyTextSheetProps = {
 
 /**
  * Copy text's one question, in a sheet: "Copy text for" each channel, its logo and the post's
- * mentions as they are copied for it (a contact without a handle there by name, under a No handle badge); a tap copies that channel's text.
+ * mentions as they are copied for it (a contact without a handle there by name, under a badge that says so); a tap copies that channel's text.
  */
 export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextSheetProps) {
   return (
@@ -33,13 +33,12 @@ export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextShee
             onPress={() => onPick(choice)}
           >
             <View style={styles.copied}>
-              {choice.hasNoHandle && <Badge label="No handle" tone="warning" />}
+              {choice.hasNoHandle && <Badge label="No handle. Using name." tone="warning" />}
               <Text variant="status">{choice.mentions}</Text>
             </View>
           </Row>
         ))}
       </Section>
-      <SectionFooter>No handle: the name is copied instead.</SectionFooter>
     </BottomSheet>
   );
 }
