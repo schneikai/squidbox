@@ -11,7 +11,7 @@ final class MentionAttachment: NSTextAttachment {
 // one character: the cursor steps over it and backspace deletes it whole. The view reports its text
 // with the mentions' places (onChangeContent), the @… being typed (onMentionQuery), the height its
 // text needs (onContentHeight; the JS side sets it) and a tap on a chip (onMentionPress).
-public final class MentionInputView: ExpoView, UITextViewDelegate {
+public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureRecognizerDelegate {
   let onChangeContent = EventDispatcher()
   let onMentionQuery = EventDispatcher()
   let onContentHeight = EventDispatcher()
@@ -46,6 +46,8 @@ public final class MentionInputView: ExpoView, UITextViewDelegate {
 
     let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
     tap.cancelsTouchesInView = false
+    // Beside the text view's own taps (focus, placing the cursor), never in their place.
+    tap.delegate = self
     textView.addGestureRecognizer(tap)
 
     applyTypingAttributes()
@@ -126,6 +128,15 @@ public final class MentionInputView: ExpoView, UITextViewDelegate {
 
   public func textViewDidChangeSelection(_ textView: UITextView) {
     updateQuery()
+  }
+
+  // MARK: - UIGestureRecognizerDelegate
+
+  public func gestureRecognizer(
+    _ gestureRecognizer: UIGestureRecognizer,
+    shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+  ) -> Bool {
+    return true
   }
 
   // MARK: - Private
