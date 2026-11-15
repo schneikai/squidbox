@@ -81,7 +81,8 @@ export default function PostCard({
   const [isTyping, setIsTyping] = useState(false);
   const assetIds = useMemo(() => postAssets.map((postAsset) => postAsset.asset.id), [postAssets]);
 
-  // The first card leaves room to write until photos come in under the text.
+  // The first card leaves room to write until photos come in under the text, or an @ brings up the
+  // contacts it may mean (they follow the line being typed).
   const isRoomy = isFirst && postAssets.length === 0;
 
   const sentText = useMemo(
@@ -135,6 +136,7 @@ export default function PostCard({
           contactsById={contactsById}
           placeholder="What's new?"
           minHeight={isRoomy ? scale(84) : scale(48)}
+          mentionMinHeight={scale(48)}
           autoFocus={autoFocus}
           isActive={isActive}
           assetIds={assetIds}

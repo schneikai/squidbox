@@ -21,6 +21,8 @@ type MentionTextInputProps = {
   contactsById: ReadonlyMap<string, MentionContact>;
   placeholder?: string;
   minHeight: number;
+  /** The field's height while the suggestions show, so they follow the line being typed (minHeight without it). */
+  mentionMinHeight?: number;
   autoFocus?: boolean;
   /** Whether the contacts an @ may mean show (the card being edited). */
   isActive: boolean;
@@ -46,6 +48,7 @@ export default function MentionTextInput({
   contactsById,
   placeholder,
   minHeight,
+  mentionMinHeight = minHeight,
   autoFocus = false,
   isActive,
   assetIds,
@@ -104,7 +107,7 @@ export default function MentionTextInput({
       <MentionInput
         ref={inputRef}
         placeholder={placeholder}
-        minHeight={minHeight}
+        minHeight={mention ? mentionMinHeight : minHeight}
         onChangeContent={handleChangeContent}
         onSelectionChange={autocomplete.onSelection}
         onFocusChange={(isFocused) => (isFocused ? onFocus?.() : onBlur?.())}
