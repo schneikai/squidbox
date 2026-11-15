@@ -13,6 +13,32 @@ export type MentionInputHandle = {
   focus: () => Promise<void>;
 };
 
+/**
+ * The chip's measures, in points; the native side has a default for each one left out. `height` 0 is
+ * the font's line, `offsetY` moves it up from centered on the text, `labelSize` 0 is the text's
+ * size, a `radius` under 0 a pill.
+ */
+type MentionChipStyle = {
+  height?: number;
+  avatarInset?: number;
+  labelGap?: number;
+  trailing?: number;
+  offsetY?: number;
+  labelSize?: number;
+  radius?: number;
+};
+
+// Change these to tune the chip's look without a build.
+const CHIP_STYLE: MentionChipStyle = {
+  height: 0,
+  avatarInset: 2,
+  labelGap: 5,
+  trailing: 9,
+  offsetY: 0,
+  labelSize: 0,
+  radius: -1,
+};
+
 type NativeProps = ViewProps & {
   ref?: Ref<MentionInputHandle>;
   placeholder?: string;
@@ -21,6 +47,7 @@ type NativeProps = ViewProps & {
   textColor?: string;
   placeholderColor?: string;
   chipColor?: string;
+  chipStyle?: MentionChipStyle;
   onChangeContent?: (event: NativeSyntheticEvent<MentionInputContent>) => void;
   onMentionQuery?: (event: NativeSyntheticEvent<{ isActive: boolean; query: string }>) => void;
   onContentHeight?: (event: NativeSyntheticEvent<{ height: number }>) => void;
@@ -63,6 +90,7 @@ export default function MentionInput({
       textColor={colors.text.primary}
       placeholderColor={colors.text.tertiary}
       chipColor={colors.background.muted}
+      chipStyle={CHIP_STYLE}
       onChangeContent={(event) => onChangeContent(event.nativeEvent)}
       onMentionQuery={({ nativeEvent }) => onMentionQuery(nativeEvent.isActive ? nativeEvent.query : null)}
       onContentHeight={(event) => setHeight(event.nativeEvent.height)}

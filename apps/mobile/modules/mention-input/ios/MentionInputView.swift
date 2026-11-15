@@ -5,6 +5,7 @@ import UIKit
 final class MentionAttachment: NSTextAttachment {
   var mentionId: String = ""
   var mentionLabel: String = ""
+  var avatar: UIImage?
 }
 
 // SPIKE: a UITextView whose mentions are chips inside the text. A chip is an attachment, so it is
@@ -25,6 +26,10 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   private var lineHeight: CGFloat = 0
   private var textColor = UIColor.label
   private var chipColor = UIColor.secondarySystemFill
+  // The chip's measures, set by the app so its look changes without a build: height (0: the
+  // font's line), avatarInset (around the avatar), labelGap (avatar to label), trailing (after the label),
+  // offsetY (up from centered), labelSize (0: the text's), radius (under 0: a pill).
+  private var chipStyle: [String: Double] = [:]
   private var reportedHeight: CGFloat = -1
   // The "@…" before the cursor, when one is being typed.
   private var queryRange: NSRange?
@@ -86,7 +91,50 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     textView.font = font
     placeholderLabel.font = font
     applyTypingAttributes()
+    redrawChips()
     setNeedsLayout()
+  }
+
+  func setChipStyle(_ style: [String: Double]) {
+    chipStyle = style
+    redrawChips()
+  }
+
+  private func chipValue(_ key: String, _ fallback: CGFloat) -> CGFloat {
+    if let value = chipStyle[key] {
+      return CGFloat(value)
+    }
+    return fallback
+  }
+
+  private func draw(_ attachment: MentionAttachment) {
+    let image = chipImage(label: attachment.mentionLabel, avatar: attachment.avatar)
+    attachment.image = image
+    // Its middle on the middle of the capitals, so it sits centered on the text beside it.
+    attachment.bounds = CGRect(x: 0, y: chipOffset(image.size.height), width: image.size.width, height: image.size.height)
+  }
+
+  // Every chip again, after its look changed.
+  private func redrawChips() {
+    let storage = textView.textStorage
+    let whole = NSRange(location: 0, length: storage.length)
+    guard whole.length > 0 else {
+      return
+    }
+    var ranges: [NSRange] = []
+    storage.enumerateAttribute(NSAttributedString.Key.attachment, in: whole, options: []) { value, range, _ in
+      if let attachment = value as? MentionAttachment {
+        self.draw(attachment)
+        ranges.append(range)
+      }
+    }
+    // Tells the text its chips changed, so it lays them out and draws them again.
+    storage.beginEditing()
+    for range in ranges {
+      storage.edited(NSTextStorage.EditActions.editedAttributes, range: range, changeInLength: 0)
+    }
+    storage.endEditing()
+    reportHeight()
   }
 
   private func textSizeFactor() -> CGFloat {
@@ -115,6 +163,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     textColor = color
     textView.textColor = color
     applyTypingAttributes()
+    redrawChips()
   }
 
   func setPlaceholderColor(_ color: UIColor) {
@@ -123,6 +172,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
   func setChipColor(_ color: UIColor) {
     chipColor = color
+    redrawChips()
   }
 
   // MARK: - Functions
@@ -141,10 +191,8 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     let attachment = MentionAttachment()
     attachment.mentionId = id
     attachment.mentionLabel = label
-    let image = chipImage(label: label, avatar: loadAvatar(avatarUri))
-    attachment.image = image
-    // Its middle on the middle of the capitals, so it sits centered on the text beside it.
-    attachment.bounds = CGRect(x: 0, y: chipOffset(image.size.height), width: image.size.width, height: image.size.height)
+    attachment.avatar = loadAvatar(avatarUri)
+    draw(attachment)
 
     let attributes = typingAttributes()
     let inserted = NSMutableAttributedString(attachment: attachment)
@@ -194,7 +242,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
   // How far under the baseline the chip starts.
   private func chipOffset(_ height: CGFloat) -> CGFloat {
-    return (font.capHeight - height) / 2
+    return (font.capHeight - height) / 2 + chipValue("offsetY", 0)
   }
 
   // Text typed after a chip must not take the attachment's attributes.
@@ -290,13 +338,18 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   // The chip as a picture: a pill as tall as a line, the round avatar (a plain disc without a
   // photo), then the label.
   private func chipImage(label: String, avatar: UIImage?) -> UIImage {
-    let height = ceil(font.lineHeight)
-    let inset: CGFloat = 2
-    let avatarSize = height - inset * 2
-    let gap: CGFloat = 5
-    let trailing: CGFloat = 9
+    let setHeight = chipValue("height", 0)
+    let height = setHeight > 0 ? setHeight : ceil(font.lineHeight)
+    let inset = chipValue("avatarInset", 2)
+    let avatarSize = max(height - inset * 2, 0)
+    let gap = chipValue("labelGap", 5)
+    let trailing = chipValue("trailing", 9)
+    let setLabelSize = chipValue("labelSize", 0)
+    let labelFont = setLabelSize > 0 ? UIFont.systemFont(ofSize: setLabelSize * textSizeFactor()) : font
+    let setRadius = chipValue("radius", -1)
+    let radius = setRadius >= 0 ? setRadius : height / 2
     let labelAttributes: [NSAttributedString.Key: Any] = [
-      NSAttributedString.Key.font: font,
+      NSAttributedString.Key.font: labelFont,
       NSAttributedString.Key.foregroundColor: textColor
     ]
     let labelSize = (label as NSString).size(withAttributes: labelAttributes)
@@ -307,7 +360,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     let renderer = UIGraphicsImageRenderer(size: size)
     return renderer.image { context in
       fill.setFill()
-      UIBezierPath(roundedRect: CGRect(origin: CGPoint.zero, size: size), cornerRadius: height / 2).fill()
+      UIBezierPath(roundedRect: CGRect(origin: CGPoint.zero, size: size), cornerRadius: radius).fill()
 
       let avatarRect = CGRect(x: inset, y: inset, width: avatarSize, height: avatarSize)
       context.cgContext.saveGState()
@@ -330,7 +383,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
       (label as NSString).draw(
         // On the baseline of the text beside the chip.
-        at: CGPoint(x: avatarRect.maxX + gap, y: height + chipOffset(height) - font.ascender),
+        at: CGPoint(x: avatarRect.maxX + gap, y: height + chipOffset(height) - labelFont.ascender),
         withAttributes: labelAttributes
       )
     }

@@ -33,6 +33,10 @@ public final class MentionInputModule: Module {
         view.setChipColor(color ?? UIColor.secondarySystemFill)
       }
 
+      Prop("chipStyle") { (view, style: [String: Double]?) in
+        view.setChipStyle(style ?? [:])
+      }
+
       // Puts the contact's chip where the @… being typed is (else at the cursor).
       AsyncFunction("insertMention") { (view: MentionInputView, id: String, label: String, avatarUri: String?) in
         view.insertMention(id: id, label: label, avatarUri: avatarUri)
