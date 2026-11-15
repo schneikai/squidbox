@@ -1,5 +1,5 @@
 import { requireNativeView } from 'expo';
-import { useState, type Ref } from 'react';
+import { useCallback, useState, type Ref } from 'react';
 import { StyleSheet, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 
 import type { FieldContent } from './fieldContent';
@@ -73,16 +73,20 @@ export default function MentionInput({
   const [height, setHeight] = useState(0);
   NativeMentionInput ??= requireNativeView<NativeProps>('MentionInput');
 
-  // The ref hands features one content object; the native function takes its two halves.
-  function setNativeRef(native: NativeHandle | null) {
-    const handle: MentionInputHandle | null = native && {
-      setContent: (content) => native.setContent(content.text, content.mentions),
-      insertMention: (...args) => native.insertMention(...args),
-      focus: () => native.focus(),
-    };
-    if (typeof ref === 'function') ref(handle);
-    else if (ref) ref.current = handle;
-  }
+  // The ref hands features one content object; the native function takes its two halves. One
+  // callback while `ref` is the same, so React attaches it once, not on every render.
+  const setNativeRef = useCallback(
+    (native: NativeHandle | null) => {
+      const handle: MentionInputHandle | null = native && {
+        setContent: (content) => native.setContent(content.text, content.mentions),
+        insertMention: (...args) => native.insertMention(...args),
+        focus: () => native.focus(),
+      };
+      if (typeof ref === 'function') ref(handle);
+      else if (ref) ref.current = handle;
+    },
+    [ref],
+  );
 
   return (
     <NativeMentionInput

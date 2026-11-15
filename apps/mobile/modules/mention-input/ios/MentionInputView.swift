@@ -33,6 +33,8 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   // offsetY (up from centered), labelSize (0: the text's), radius (under 0: a pill).
   private var chipStyle: [String: Double] = [:]
   private var reportedHeight: CGFloat = -1
+  // Set while the user's edit is being applied: its selection goes out with the text (onChangeContent).
+  private var isChangingText = false
 
   public required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -227,13 +229,21 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
   // MARK: - UITextViewDelegate
 
+  public func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+    isChangingText = true
+    // An edit UIKit then drops reports no change: clear it after this turn either way.
+    DispatchQueue.main.async { [weak self] in self?.isChangingText = false }
+    return true
+  }
+
   public func textViewDidChange(_ textView: UITextView) {
+    isChangingText = false
     contentChanged()
   }
 
   public func textViewDidChangeSelection(_ textView: UITextView) {
-    // Not while dictation, autocorrect or an input method is composing.
-    guard textView.markedTextRange == nil else {
+    // Not while dictation, autocorrect or an input method is composing, nor for an edit's own move.
+    guard textView.markedTextRange == nil, !isChangingText else {
       return
     }
     onSelectionChange(selection())

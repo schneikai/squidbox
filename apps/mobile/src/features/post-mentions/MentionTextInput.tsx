@@ -1,5 +1,5 @@
 import { POST_LIMITS, type Channel, type PostMention } from '@squidbox/shared';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import MentionInput, { type FieldSelection, type MentionInputHandle } from './MentionInput';
@@ -53,35 +53,40 @@ export default function MentionTextInput({
   onBlur,
 }: MentionTextInputProps) {
   const inputRef = useRef<MentionInputHandle>(null);
-  // The field's content as it holds it, by contentKey: set to it, or derived from its report.
-  const heldRef = useRef<string | null>(null);
+  // What the field holds: the stored value it was set to or last reported, the chipOf it was drawn
+  // with, and its content (worked out only when a new value has to be compared with it).
+  const heldRef = useRef<Held | null>(null);
   const avatarUriOf = useChipAvatarUri();
   const autocomplete = useMentionAutocomplete();
   const { onSetContent } = autocomplete;
+  const { text, mentions } = value;
 
-  const chipOf = (mention: PostMention) => ({
-    label: mentionLabel(mention, contactsById, channel),
-    avatarUri: avatarUriOf(contactsById.get(mention.contactId)),
-  });
-  const content = toFieldContent(value, chipOf);
-  const key = contentKey(content);
-  const mention = isActive && (value.mentions?.length ?? 0) < POST_LIMITS.mentions ? autocomplete.mention : null;
+  const chipOf = useCallback(
+    (mention: PostMention) => ({
+      label: mentionLabel(mention, contactsById, channel),
+      avatarUri: avatarUriOf(contactsById.get(mention.contactId)),
+    }),
+    [avatarUriOf, channel, contactsById],
+  );
+  const mention = isActive && (mentions?.length ?? 0) < POST_LIMITS.mentions ? autocomplete.mention : null;
 
+  // A keystroke's value comes back as the same text and mentions the field reported: nothing to do.
   useEffect(() => {
-    if (key === heldRef.current) return;
-    const isFirst = heldRef.current === null;
-    heldRef.current = key;
+    const held = heldRef.current;
+    if (held && held.value.text === text && held.value.mentions === mentions && held.chipOf === chipOf) return;
+    const content = toFieldContent({ text, mentions }, chipOf);
+    heldRef.current = { value: { text, mentions }, chipOf, content };
+    if (held && isSameContent((held.content ??= toFieldContent(held.value, held.chipOf)), content)) return;
     onSetContent(content.text);
     inputRef.current
       ?.setContent(content)
-      .then(() => (isFirst && autoFocus ? inputRef.current?.focus() : undefined))
+      .then(() => (!held && autoFocus ? inputRef.current?.focus() : undefined))
       .catch(console.error);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the content is the key's: set again only when it changes
-  }, [key]);
+  }, [autoFocus, chipOf, mentions, onSetContent, text]);
 
   function handleChangeContent(next: FieldContent, selection: FieldSelection) {
     const stored = fromFieldContent(next, (chip) => contactsById.get(chip.id)?.name ?? chip.label);
-    heldRef.current = contentKey(toFieldContent(stored, chipOf));
+    heldRef.current = { value: stored, chipOf };
     autocomplete.onContent(next.text, selection);
     onChange(stored);
   }
@@ -112,12 +117,27 @@ export default function MentionTextInput({
   );
 }
 
-// The content as one string, to tell whether the field holds it.
-function contentKey({ text, mentions }: FieldContent): string {
-  return JSON.stringify([
-    text,
-    mentions.map(({ id, label, location, avatarUri }) => [id, label, location, avatarUri ?? null]),
-  ]);
+type Held = {
+  value: MentionTextValue;
+  chipOf: (mention: PostMention) => Pick<FieldContent['mentions'][number], 'label' | 'avatarUri'>;
+  content?: FieldContent;
+};
+
+// Whether the field holding `a` already shows `b`: the same text, and the same chips in the same places.
+function isSameContent(a: FieldContent, b: FieldContent): boolean {
+  return (
+    a.text === b.text &&
+    a.mentions.length === b.mentions.length &&
+    a.mentions.every((chip, i) => {
+      const other = b.mentions[i]!;
+      return (
+        chip.id === other.id &&
+        chip.label === other.label &&
+        chip.location === other.location &&
+        (chip.avatarUri ?? null) === (other.avatarUri ?? null)
+      );
+    })
+  );
 }
 
 const styles = StyleSheet.create({

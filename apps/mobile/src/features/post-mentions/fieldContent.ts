@@ -40,17 +40,16 @@ export function fromFieldContent(content: FieldContent, nameOf: (mention: FieldM
   const byLocation = new Map(content.mentions.map((mention) => [mention.location, mention]));
   let text = '';
   const mentions: PostMention[] = [];
-  for (let i = 0; i < content.text.length; i++) {
-    const character = content.text[i]!;
-    if (character !== MENTION_CHIP) {
-      text += character;
-      continue;
-    }
-    const chip = byLocation.get(i);
+  let from = 0;
+  for (let at = content.text.indexOf(MENTION_CHIP); at !== -1; at = content.text.indexOf(MENTION_CHIP, from)) {
+    text += content.text.slice(from, at);
+    from = at + 1;
+    const chip = byLocation.get(at);
     if (!chip) continue;
     const name = nameOf(chip);
     mentions.push({ contactId: chip.id, location: text.length, name });
     text += name;
   }
+  text += content.text.slice(from);
   return { text, mentions: mentions.length > 0 ? mentions : null };
 }

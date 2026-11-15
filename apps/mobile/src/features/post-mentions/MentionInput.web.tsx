@@ -3,7 +3,16 @@
 // draw (React renders the div, never its children): text nodes, chips and line breaks, read back by
 // walking them, each chip one MENTION_CHIP. Enter and paste put plain text in, so the browser adds
 // no blocks of its own.
-import { useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from 'react';
 
 // Type-only, so Babel erases it and Metro never follows it into the native view on web.
 import type { MentionInputProps } from './MentionInput';
@@ -28,35 +37,58 @@ export default function MentionInput({
   // The last selection reported, so moving the cursor reports once per change.
   const reportedRef = useRef('');
   const [isEmpty, setIsEmpty] = useState(true);
+  // The latest onChangeContent, so the handle and `changed` stay the same across renders.
+  const onChangeRef = useRef(onChangeContent);
+  useLayoutEffect(() => {
+    onChangeRef.current = onChangeContent;
+  });
 
-  useImperativeHandle(ref, () => ({
-    setContent: async (content) => {
-      const root = rootRef.current;
-      if (!root) return;
-      draw(root, content);
-      setIsEmpty(content.text.length === 0);
-    },
-    insertMention: async (id, label, avatarUri, start, end) => {
-      const root = rootRef.current;
-      if (!root) return;
-      const { text, mentions } = read(root);
-      if (start < 0 || start > end || end > text.length) return;
-      const shift = 2 - (end - start); // the chip and its space, in place of start…end
-      const next: FieldContent = {
-        text: `${text.slice(0, start)}${MENTION_CHIP} ${text.slice(end)}`,
-        mentions: [
-          ...mentions.map((mention) =>
-            mention.location >= end ? { ...mention, location: mention.location + shift } : mention,
-          ),
-          { id, label, location: start, avatarUri },
-        ].sort((a, b) => a.location - b.location),
-      };
-      draw(root, next);
-      placeCaret(root, start + 2);
-      changed(root);
-    },
-    focus: async () => rootRef.current?.focus(),
-  }));
+  const changed = useCallback((root: HTMLDivElement) => {
+    // A browser that put in a block or styled text of its own is drawn again as plain text and chips.
+    if (!isClean(root)) {
+      const at = selectionIn(root);
+      draw(root, read(root));
+      if (at) placeCaret(root, at.end);
+    }
+    const content = read(root);
+    setIsEmpty(content.text.length === 0);
+    const selection = selectionIn(root) ?? { start: 0, end: 0 };
+    reportedRef.current = `${selection.start}:${selection.end}`;
+    onChangeRef.current(content, selection);
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      setContent: async (content) => {
+        const root = rootRef.current;
+        if (!root) return;
+        draw(root, content);
+        setIsEmpty(content.text.length === 0);
+      },
+      insertMention: async (id, label, avatarUri, start, end) => {
+        const root = rootRef.current;
+        if (!root) return;
+        const { text, mentions } = read(root);
+        if (start < 0 || start > end || end > text.length) return;
+        const shift = 2 - (end - start); // the chip and its space, in place of start…end
+        const next: FieldContent = {
+          text: `${text.slice(0, start)}${MENTION_CHIP} ${text.slice(end)}`,
+          mentions: [
+            ...mentions.map((mention) =>
+              mention.location >= end ? { ...mention, location: mention.location + shift } : mention,
+            ),
+            { id, label, location: start, avatarUri },
+          ].sort((a, b) => a.location - b.location),
+        };
+        draw(root, next);
+        placeCaret(root, start + 2);
+        changed(root);
+      },
+      focus: async () => rootRef.current?.focus(),
+    }),
+    [changed],
+  );
 
   // Selection changes are the document's, not the field's.
   useEffect(() => {
@@ -72,20 +104,6 @@ export default function MentionInput({
     document.addEventListener('selectionchange', onDocumentSelection);
     return () => document.removeEventListener('selectionchange', onDocumentSelection);
   }, [onSelectionChange]);
-
-  function changed(root: HTMLDivElement) {
-    // A browser that put in a block or styled text of its own is drawn again as plain text and chips.
-    if (!isClean(root)) {
-      const at = selectionIn(root);
-      draw(root, read(root));
-      if (at) placeCaret(root, at.end);
-    }
-    const content = read(root);
-    setIsEmpty(content.text.length === 0);
-    const selection = selectionIn(root) ?? { start: 0, end: 0 };
-    reportedRef.current = `${selection.start}:${selection.end}`;
-    onChangeContent(content, selection);
-  }
 
   function insertText(text: string) {
     const root = rootRef.current;

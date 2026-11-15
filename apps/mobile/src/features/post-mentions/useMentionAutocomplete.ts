@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import type { FieldSelection } from './MentionInput';
 import mentionAt, { type TypedMention } from './mentionAt';
@@ -11,7 +11,8 @@ type FieldState = { text: string; selection: FieldSelection | null; isTyped: boo
  * @mention autocomplete over a mention field's text and selection: `mention`, the @ being typed
  * (mentionAt), null while there is none or the field's text was last set from elsewhere (a saved
  * post opening, Write with AI's Use) and the user has not changed it since. The field reports
- * through `onContent` and `onSelection`; `onSetContent` notes a text set from elsewhere.
+ * through `onContent` and `onSelection`; `onSetContent` notes a text set from elsewhere. The three stay
+ * the same across renders.
  */
 export default function useMentionAutocomplete() {
   const [field, setField] = useState<FieldState>({ text: '', selection: null, isTyped: false });
@@ -22,11 +23,21 @@ export default function useMentionAutocomplete() {
       ? mentionAt(text, Math.min(selection.end, text.length))
       : null;
 
-  return {
-    mention,
-    onContent: (next: string, nextSelection: FieldSelection) =>
-      setField({ text: next, selection: nextSelection, isTyped: true }),
-    onSelection: (nextSelection: FieldSelection) => setField((state) => ({ ...state, selection: nextSelection })),
-    onSetContent: (next: string) => setField({ text: next, selection: null, isTyped: false }),
-  };
+  const onContent = useCallback(
+    (next: string, nextSelection: FieldSelection) => setField({ text: next, selection: nextSelection, isTyped: true }),
+    [],
+  );
+  // A selection the state already has (the one a text change carried) renders nothing.
+  const onSelection = useCallback(
+    (next: FieldSelection) =>
+      setField((state) =>
+        state.selection?.start === next.start && state.selection.end === next.end
+          ? state
+          : { ...state, selection: next },
+      ),
+    [],
+  );
+  const onSetContent = useCallback((next: string) => setField({ text: next, selection: null, isTyped: false }), []);
+
+  return { mention, onContent, onSelection, onSetContent };
 }
