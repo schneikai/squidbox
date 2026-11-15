@@ -10,9 +10,9 @@ import BottomSheet from '@/components/BottomSheet';
 import IntroText from '@/components/IntroText';
 import TagsField from '@/components/TagsField';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
-import useContactRows from '@/features/contact-list/useContactRows';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import useMentionContacts from '@/features/post-mentions/useMentionContacts';
 import { space } from '@/styles/designTokens';
 import tagsDifference from '@/utils/tagsDifference';
 
@@ -41,6 +41,7 @@ export default function ChatMentionsSheet({
 }: ChatMentionsSheetProps) {
   const ids = useMemo(() => mentions.map((contact) => contact.id), [mentions]);
   const byId = useMemo(() => new Map(mentions.map((contact) => [contact.id, contact])), [mentions]);
+  const taken = useMemo(() => new Set(ids), [ids]);
 
   function chipOf(id: string) {
     const contact = byId.get(id);
@@ -64,7 +65,7 @@ export default function ChatMentionsSheet({
             <ContactSuggestions
               query={text.trim().replace(/^@/, '')}
               assetIds={assetIds}
-              taken={byId}
+              taken={taken}
               onPick={(contact) => add(contact.id)}
             />
           )}
@@ -77,22 +78,17 @@ export default function ChatMentionsSheet({
 type ContactSuggestionsProps = {
   query: string;
   assetIds: string[];
-  taken: ReadonlyMap<string, MentionContact>;
+  taken: ReadonlySet<string>;
   onPick: (contact: MentionContact) => void;
 };
 
 // The contacts Add may add (MentionSuggestions), read only while Add is open: every contact that can
 // be a chat mention and isn't one yet (`taken`).
 function ContactSuggestions({ query, assetIds, taken, onPick }: ContactSuggestionsProps) {
-  const contacts = useContactRows({});
+  const contacts = useMentionContacts();
 
   const contactsById = useMemo(
-    () =>
-      new Map(
-        (contacts ?? [])
-          .filter((contact) => !taken.has(contact.id) && canBeChatMention(contact))
-          .map((contact) => [contact.id, contact]),
-      ),
+    () => new Map([...contacts].filter(([id, contact]) => !taken.has(id) && canBeChatMention(contact))),
     [contacts, taken],
   );
 

@@ -20,7 +20,7 @@ type PostProps = {
 };
 
 /**
- * A post and its thread: the post's card (PostView, a long press copies a post's text) and each
+ * A post and its thread: the post's card (PostView, its copy icon copying its text for a channel) and each
  * following post's card joined by a short line (PostThreadCards), a tapped mention chip showing its
  * contact (useMentionSheet). Then, when it has pictures, the
  * contacts on them, their albums, and the other posts from those albums. `post` is a postQuery row

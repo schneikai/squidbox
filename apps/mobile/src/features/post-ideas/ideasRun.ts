@@ -5,11 +5,12 @@ import { type AssistantChatMessage, type ChatMessage, isReply } from '@/features
  * reply's text alone (the assistant answered without options); `isUsed` once Use put it in the post;
  * `mentioned`, the reply's (whose names its Copy links).
  */
-export type IdeaItem = Pick<AssistantChatMessage, 'mentioned'> & {
+export type IdeaItem = {
   replyId: string;
   index: number | null;
   text: string;
   isUsed: boolean;
+  mentioned: AssistantChatMessage['mentioned'];
 };
 
 /**

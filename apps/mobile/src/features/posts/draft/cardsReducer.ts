@@ -14,7 +14,7 @@ export type CardsDraft = {
 
 export type CardsAction =
   | { type: 'updateCard'; key: string; changes: PostCardChange }
-  | { type: 'setCardText'; key: string; text: string; mentioned?: readonly MentionCandidate[] }
+  | { type: 'setCardText'; key: string; text: string; mentioned: readonly MentionCandidate[] }
   | { type: 'addCard' }
   | { type: 'removeCard'; key: string };
 

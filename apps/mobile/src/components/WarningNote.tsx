@@ -15,20 +15,16 @@ export type WarningNoteProps = Pick<ViewProps, 'children' | 'style'> & { action?
 export default function WarningNote({ children, action, style }: WarningNoteProps) {
   return (
     <Note tone="warning" icon="alert" accessibilityRole="alert" style={style}>
-      {action ? (
-        <View style={styles.withAction}>
-          <Text size="small">{children}</Text>
-          <View style={styles.action}>{action}</View>
-        </View>
-      ) : (
+      <View style={styles.body}>
         <Text size="small">{children}</Text>
-      )}
+        {action && <View style={styles.action}>{action}</View>}
+      </View>
     </Note>
   );
 }
 
 const styles = StyleSheet.create({
-  withAction: {
+  body: {
     gap: space.sm,
   },
   // The button keeps its own width, at the start of the line.
