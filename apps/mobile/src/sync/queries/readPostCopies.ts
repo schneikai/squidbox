@@ -4,7 +4,7 @@ import { and, asc, count, eq, isNull } from 'drizzle-orm';
 import * as schema from '@/sync/db/schema';
 import type { AssetRow, PostCopyRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
-import { readByIdMap } from '@/sync/readByIds';
+import assetQuery from '@/sync/queries/assetQuery';
 
 /**
  * One post of a copy as it shows and sends: its text and mentions, its assets in order and their ids
@@ -20,9 +20,9 @@ export const postCopiesTables = [schema.postCopies, schema.assets];
 
 /**
  * A post's live copies in the order they were added (`(createdAt, id)`), or with `copyId` that one
- * alone, each post with its assets in order, read in one asset statement. An id that no longer
- * resolves, or a purged asset, is left out (assetDeletionWhere's post rule: a trashed one still
- * shows, it can come back).
+ * alone, each post with its assets in order, read in one asset statement. An asset a post would
+ * leave out (assetQuery's post scope: a purged one; a trashed one still shows, it can come back), or an
+ * id that no longer resolves, is left out.
  */
 export default async function readPostCopies(
   db: SyncDb,
@@ -35,14 +35,16 @@ export default async function readPostCopies(
     .from(t)
     .where(and(eq(t.postId, postId), isNull(t.deletedAt), copyId === undefined ? undefined : eq(t.id, copyId)))
     .orderBy(asc(t.createdAt), asc(t.id));
-  const ids = copies.flatMap((copy) => copy.posts.flatMap((post) => post.assetIds));
-  const assets = await readByIdMap(db, schema.assets, ids);
+  const ids = [...new Set(copies.flatMap((copy) => copy.posts.flatMap((post) => post.assetIds)))];
+  // What a post keeps of its assets is assetQuery's post scope (assetDeletionWhere): a copy keeps the same.
+  const rows = ids.length > 0 ? await assetQuery({ scope: { postId } }).rowsByIds(db, ids) : [];
+  const assets = new Map(rows.map((asset) => [asset.id, asset]));
   return copies.map((copy) => ({
     ...copy,
     posts: copy.posts.map(({ text, mentions, assetIds }) => {
       const shown = assetIds.flatMap((id) => {
         const asset = assets.get(id);
-        return asset && asset.purgedAt === null ? [asset] : [];
+        return asset ? [asset] : [];
       });
       return { text, mentions, assetIds: shown.map((asset) => asset.id), assets: shown };
     }),
