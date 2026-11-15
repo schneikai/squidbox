@@ -9,6 +9,12 @@ describe('extractHandles', () => {
     ).toEqual(['@ridgeline.bsky.social', '@trail-mix']);
   });
 
+  it('finds none inside a URL, nor a handle cut short by a letter no handle has', () => {
+    expect(extractHandles(['See https://tiktok.com/@sam and x.com?u=@lee', 'Hola @josé, and (@maya)'])).toEqual([
+      '@maya',
+    ]);
+  });
+
   it('leaves a trailing period or hyphen out of the handle', () => {
     expect(extractHandles(['Thanks @ridgeline.', 'With @sam- and @lee.bsky.social, again'])).toEqual([
       '@ridgeline',
