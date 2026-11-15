@@ -9,6 +9,7 @@ import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
+import keepFocusOnPress from '@/lib/keepFocusOnPress';
 import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -37,7 +38,7 @@ export default function MentionSuggestions({ query, contactsById, assetIds, onPi
   if (suggestions.length === 0) return null;
 
   return (
-    <View style={styles.list} testID="mention-suggestions">
+    <View style={styles.list} testID="mention-suggestions" {...keepFocusOnPress}>
       {suggestions.map((suggestion, index) => (
         <View key={suggestion.contact.id}>
           {index > 0 && <Divider style={styles.divider} />}

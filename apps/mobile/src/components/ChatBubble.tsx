@@ -1,19 +1,26 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import CopyTextButton from '@/components/CopyTextButton';
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
 import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 
-export type ChatBubbleProps = { side: 'user' | 'assistant'; label?: string | null; text: string; children?: ReactNode };
+export type ChatBubbleProps = {
+  side: 'user' | 'assistant';
+  label?: string | null;
+  text: string;
+  isCopyable?: boolean;
+  children?: ReactNode;
+};
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
  * button's name, `label`, over the `text`), the assistant's on the left on the glass surface (`side`
- * 'assistant'); line breaks kept, the text selectable, and a ⋯ under it holding `children` (its
- * MenuOptions) when there are any.
+ * 'assistant'); line breaks kept. Under it, a copy icon with `isCopyable` (CopyTextButton; without
+ * it a long press selects the text) and a ⋯ holding `children` (its MenuOptions) when there are any.
  */
-export default function ChatBubble({ side, label, text, children }: ChatBubbleProps) {
+export default function ChatBubble({ side, label, text, isCopyable = false, children }: ChatBubbleProps) {
   const isUser = side === 'user';
   const Fill = isUser ? GradientFill : View;
 
@@ -21,14 +28,19 @@ export default function ChatBubble({ side, label, text, children }: ChatBubblePr
     <View style={isUser ? styles.userRow : styles.assistantRow}>
       <Fill style={isUser ? [styles.bubble, styles.userCorner] : [glass, styles.bubble, styles.assistantCorner]}>
         {!!label && <Text style={styles.label}>{label}</Text>}
-        <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]} selectable>
+        <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]} selectable={!isCopyable}>
           {text}
         </Text>
       </Fill>
-      {children && (
-        <MenuButton size="small" accessibilityLabel="More for this message" style={styles.menu}>
-          {children}
-        </MenuButton>
+      {(isCopyable || children) && (
+        <View style={styles.actions}>
+          {isCopyable && <CopyTextButton text={text} />}
+          {children && (
+            <MenuButton size="small" accessibilityLabel="More for this message">
+              {children}
+            </MenuButton>
+          )}
+        </View>
       )}
     </View>
   );
@@ -74,8 +86,11 @@ const styles = StyleSheet.create({
   assistantText: {
     color: colors.text.primary,
   },
-  // Close under the bubble, its ⋯ in line with the bubble's text.
-  menu: {
+  // Close under the bubble, its icons in line with the bubble's text.
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
     marginTop: space.hair,
     marginBottom: -space.hair,
     marginHorizontal: BUBBLE_PADDING_X,

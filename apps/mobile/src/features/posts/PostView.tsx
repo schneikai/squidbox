@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
+import CopyTextButton from '@/components/CopyTextButton';
 import MentionText from '@/features/post-mentions/MentionText';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostPostedAt from '@/features/posts/PostPostedAt';
@@ -16,24 +17,25 @@ type PostViewProps = {
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention?: (contactId: string) => void;
   onPressAsset?: PostImageProps['onPressAsset'];
-  isTextSelectable?: boolean;
+  isCopyable?: boolean;
   meta?: ReactNode;
   children?: ReactNode;
 };
 
 /**
  * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text with its
- * mentions as chips (MentionText: of `contactsById`, a tap on one to `onPressMention`; copied on a
- * long press with `isTextSelectable`, when it has none), then a row with when it was posted and `meta` (what else the
- * place shows about it: a thread's size), and `children` under that row (buttons for this post).
- * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
+ * mentions as chips (MentionText: of `contactsById`, a tap on one to `onPressMention`), then a row
+ * with when it was posted and `meta` (what else the place shows about it: a thread's size), with
+ * `isCopyable` a copy icon at its right end (CopyTextButton) when there is text, and `children`
+ * under that row (buttons for this post). `post` is a postQuery row: it carries its `postAssets`
+ * ([{ id, asset }]).
  */
 export default function PostView({
   post,
   contactsById,
   onPressMention,
   onPressAsset,
-  isTextSelectable = false,
+  isCopyable = false,
   meta,
   children,
 }: PostViewProps) {
@@ -46,16 +48,12 @@ export default function PostView({
       )}
       <View style={[styles.body, !isPresent(postAssets) && styles.bodyTextOnly]}>
         {isPresent(text) && (
-          <MentionText
-            value={{ text, mentions }}
-            contactsById={contactsById}
-            onPressMention={onPressMention}
-            isSelectable={isTextSelectable}
-          />
+          <MentionText value={{ text, mentions }} contactsById={contactsById} onPressMention={onPressMention} />
         )}
         <View style={styles.meta}>
           <PostPostedAt postedAt={postedAt} />
           {meta}
+          {isCopyable && isPresent(text) && <CopyTextButton text={text} style={styles.copy} />}
         </View>
         {children}
       </View>
@@ -82,5 +80,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.cardGap,
     minHeight: scale(20),
+  },
+  // At the row's right end, the card's bottom right.
+  copy: {
+    marginLeft: 'auto',
   },
 });

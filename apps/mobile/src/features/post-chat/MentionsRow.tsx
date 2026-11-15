@@ -10,6 +10,8 @@ const SHOWN = 5;
 
 type MentionsRowProps = {
   mentions: Mentions;
+  // The post's photos, whose contacts the sheet suggests first.
+  assetIds: string[];
   from: string;
   onEditMentions: LiveChat['editMentions'];
   // The assistant's violet, inside its tray (EditableLine's).
@@ -20,7 +22,7 @@ type MentionsRowProps = {
  * The handles the chat may mention (`mentions`, usePostChat's), as a grey line on its card, "from"
  * where they come (`from`); a tap opens ChatMentionsSheet to edit them (`onEditMentions`).
  */
-export default function MentionsRow({ mentions, from, onEditMentions, tone }: MentionsRowProps) {
+export default function MentionsRow({ mentions, assetIds, from, onEditMentions, tone }: MentionsRowProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   const { handles } = mentions;
@@ -34,6 +36,7 @@ export default function MentionsRow({ mentions, from, onEditMentions, tone }: Me
         isVisible={isEditing}
         onClose={() => setIsEditing(false)}
         handles={handles}
+        assetIds={assetIds}
         onEditMentions={onEditMentions}
       />
     </>

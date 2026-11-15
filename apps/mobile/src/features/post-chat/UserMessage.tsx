@@ -14,7 +14,7 @@ type UserMessageProps = Pick<UserChatMessage, 'label' | 'content'> & { userId: s
 
 /**
  * One of the user's turns in the chat: a violet bubble with the prompt button's name (`label`) over
- * what was sent (`content`), and a ⋯ under it to add the text to the Rules.
+ * what was sent (`content`), and under it a copy icon and a ⋯ to add the text to the Rules.
  */
 export default function UserMessage({ label, content, userId }: UserMessageProps) {
   const haptics = useHaptics();
@@ -40,7 +40,7 @@ export default function UserMessage({ label, content, userId }: UserMessageProps
   }
 
   return (
-    <ChatBubble side="user" label={label} text={content}>
+    <ChatBubble side="user" label={label} text={content} isCopyable>
       <MenuOption label="Add to rules" icon="list-checks" onPress={handleAddToRules} />
     </ChatBubble>
   );

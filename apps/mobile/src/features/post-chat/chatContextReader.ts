@@ -19,8 +19,8 @@ type ContextSources = {
  * posts are when it goes: it tags the photos never tagged and waits for them and any tagging under
  * way (`getSources()`'s tagging, as of the latest render), then takes the target post's text, and
  * over every post of the thread the media, the tags (their tags as saved, or the chat's own for a
- * photo never tagged: chatTags; with the card's edits: postTags) and the handles found in their
- * albums' posts (readMentions, as the chat card shows them, with the Mentions sheet's edits:
+ * photo never tagged: chatTags; with the card's edits: postTags) and the handles of their contacts
+ * and their albums' posts (readMentions, as the chat card shows them, with the Mentions sheet's edits:
  * sentMentions); and in a thread, the posts' texts
  * (threadWindow). A target no longer in the thread fails the turn.
  */

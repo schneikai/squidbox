@@ -2,12 +2,12 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
+import CopyTextButton from '@/components/CopyTextButton';
 import Icon from '@/components/Icon';
 import MenuButton from '@/components/MenuButton';
 import OptionCard, { type OptionCardProps } from '@/components/OptionCard';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import useCopyText from '@/hooks/useCopyText';
 import { colors, layout, sizes } from '@/styles/designTokens';
 
 // Memoized: a new reply renders only its own options.
@@ -22,9 +22,9 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
 };
 
 /**
- * The option `index` of the reply `replyId`: its text with ⋯ → More like this
+ * The option `index` of the reply `replyId`: its text with a copy icon, ⋯ → More like this
  * (`onMoreLikeThis(text)`, when given: the chat's, not the tray's), and Use (`onUse(replyId,
- * index)`, when given) or else Copy; once `isUsed` (the tray's), "✓ Used" in place of Use, and the
+ * index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and the
  * card outlined. style is for layout only.
  */
 function ChatOptionCard({
@@ -37,10 +37,9 @@ function ChatOptionCard({
   style,
   textSize,
 }: ChatOptionCardProps) {
-  const copy = useCopyText();
-
   return (
     <OptionCard text={text} textSize={textSize} isUsed={isUsed} style={style}>
+      <CopyTextButton text={text} />
       {onMoreLikeThis && (
         <MenuButton accessibilityLabel="More for this idea">
           <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
@@ -52,10 +51,8 @@ function ChatOptionCard({
             <Icon name="check" size={sizes.menuIcon} color={colors.accent.base} />
             <Text variant="assistant">Used</Text>
           </View>
-        ) : onUse ? (
-          <Button label="Use" size="small" onPress={() => onUse(replyId, index)} />
         ) : (
-          <Button label="Copy" icon="copy" size="small" onPress={() => copy(text)} />
+          onUse && <Button label="Use" size="small" onPress={() => onUse(replyId, index)} />
         )}
       </View>
     </OptionCard>

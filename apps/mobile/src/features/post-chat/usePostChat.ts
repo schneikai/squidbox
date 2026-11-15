@@ -26,7 +26,7 @@ export default function usePostChat(sessionId: string | null, { tagsOnOpen = fal
   const mentionEdits = chat?.mentionEdits;
   // The handles the chat may mention and sends: sentMentions'.
   const mentions = useMemo(
-    () => found && mentionEdits && { handles: sentMentions(found, mentionEdits), fromAlbum: found.fromAlbum },
+    () => found && mentionEdits && { handles: sentMentions(found, mentionEdits) },
     [found, mentionEdits],
   );
   const { send, moreLikeThis, retry } = useChatSends(sessionId);

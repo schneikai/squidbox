@@ -12,13 +12,14 @@ const readLiveAssets = vi.hoisted(() => vi.fn(async (): Promise<{ id?: string; t
 vi.mock('../src/sync/aiStateRepository', () => ({ readLiveAssets }));
 // The posts the handles come from: none unless a test says so.
 type MentionRow = { text: string; mentions: { contactId: string; location: number; name: string }[] | null };
-const readMentionTexts = vi.hoisted(() =>
-  vi.fn(async (): Promise<{ posts: MentionRow[]; fromAlbum: boolean }> => ({ posts: [], fromAlbum: false })),
-);
+const readMentionTexts = vi.hoisted(() => vi.fn(async (): Promise<MentionRow[]> => []));
 vi.mock('../src/sync/postsRepository', () => ({ readMentionTexts }));
 // The contacts of the posts' chips: none unless a test says so.
 const readMentionContacts = vi.hoisted(() => vi.fn(async () => new Map<string, MentionContact>()));
 vi.mock('../src/features/post-mentions/readMentionContacts', () => ({ default: readMentionContacts }));
+// The contacts on the photos: none unless a test says so.
+const readPhotoAndAlbumContacts = vi.hoisted(() => vi.fn(async (): Promise<{ xHandle: string }[]> => []));
+vi.mock('../src/sync/contactsRepository', () => ({ readPhotoAndAlbumContacts }));
 vi.mock('../src/sync/db/client', () => ({ getDb: () => null }));
 vi.mock('../src/utils/assets/readVisionImageAsync', () => ({ default: vi.fn() }));
 vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }));
@@ -72,7 +73,7 @@ describe('chatContextReader', () => {
 
   it("reads the handles of the photos as they are when the turn goes, with the Mentions sheet's edits", () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {
-      readMentionTexts.mockResolvedValueOnce({ posts: [{ text: 'With @trailmike', mentions: null }], fromAlbum: true });
+      readMentionTexts.mockResolvedValueOnce([{ text: 'With @trailmike', mentions: null }]);
       session.editMentions({ add: ['@corntwee'] });
       expect((await read(chatContextReader(session, () => ({ tagging: noTagging })))).mentions).toEqual([
         '@corntwee',
@@ -84,10 +85,7 @@ describe('chatContextReader', () => {
   it("lists the handles of a chip's contact among the handles of the photos' posts", () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {
       const maya = { contactId: 'c1', location: 5, name: 'Maya Lindqvist' };
-      readMentionTexts.mockResolvedValueOnce({
-        posts: [{ text: 'With Maya Lindqvist', mentions: [maya] }],
-        fromAlbum: true,
-      });
+      readMentionTexts.mockResolvedValueOnce([{ text: 'With Maya Lindqvist', mentions: [maya] }]);
       readMentionContacts.mockResolvedValueOnce(
         new Map([['c1', { id: 'c1', name: 'Maya Lindqvist', xHandle: '@mayal' }]]),
       );

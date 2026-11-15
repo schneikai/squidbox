@@ -17,8 +17,8 @@ type PostThreadCardsProps = {
 
 /**
  * A post's card (PostView) and its following posts' cards joined by the thread's line, as the post's
- * screen shows them: a long press copies a text without chips, a chip shows its contact
- * (`onPressMention`), and a picture
+ * screen shows them: a chip shows its contact (`onPressMention`), each text with a copy icon, and a
+ * picture
  * opens pushed, with the others of its own post.
  */
 export default function PostThreadCards({ post, contactsById, onPressMention }: PostThreadCardsProps) {
@@ -33,7 +33,7 @@ export default function PostThreadCards({ post, contactsById, onPressMention }: 
         contactsById={contactsById}
         onPressMention={onPressMention}
         onPressAsset={(asset) => openAsset(post.id, asset)}
-        isTextSelectable
+        isCopyable
       />
       <ThreadParts
         parts={post.threadPosts}
@@ -43,7 +43,7 @@ export default function PostThreadCards({ post, contactsById, onPressMention }: 
             contactsById={contactsById}
             onPressMention={onPressMention}
             onOpenAsset={(asset) => openAsset(part.id, asset)}
-            isTextSelectable
+            isCopyable
           />
         )}
       />

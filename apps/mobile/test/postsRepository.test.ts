@@ -10,7 +10,7 @@ import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
-import { readMentionedTexts, readMentionTexts, readNewestRepostDate } from '../src/sync/postsRepository';
+import { readMentionTexts, readNewestRepostDate } from '../src/sync/postsRepository';
 import { makeRepository } from '../src/sync/repository';
 
 const posts = makeRepository('posts', schema.posts);
@@ -42,10 +42,8 @@ describe('postsRepository', () => {
   });
 
   describe('readMentionTexts', () => {
-    const texts = async (db: SyncDb, assetIds: string[]) => {
-      const { posts: rows, fromAlbum } = await readMentionTexts(db, assetIds);
-      return { texts: rows.map((row) => row.text), fromAlbum };
-    };
+    const texts = async (db: SyncDb, assetIds: string[]) =>
+      (await readMentionTexts(db, assetIds)).map((row) => row.text);
 
     // Album "walks" holds a1 (the draft's photo) and a2; a3 is in no album.
     async function library() {
@@ -67,7 +65,7 @@ describe('postsRepository', () => {
       await createPost(db, { id: 'p3', text: 'not in the album', postedAt: 30 }, ['a3']);
       await createPost(db, { id: 'p4', text: 'deleted', postedAt: 40, deletedAt: 41 }, ['a2']);
       await createPost(db, { id: 'p5', text: 'only in a deleted album', postedAt: 50 }, ['a4']);
-      expect(await texts(db, ['a1'])).toEqual({ texts: ['newer', 'older, with @ridge'], fromAlbum: true });
+      expect(await texts(db, ['a1'])).toEqual(['newer', 'older, with @ridge']);
     });
 
     it('skips a post whose edge to the album asset was removed, and an asset taken out of the album', async () => {
@@ -76,38 +74,27 @@ describe('postsRepository', () => {
       await db.update(schema.postAssets).set({ deletedAt: 5 });
       await createPost(db, { id: 'p2', text: 'asset left the album', postedAt: 20 }, ['a1']);
       await db.update(schema.albumAssets).set({ deletedAt: 5 });
-      await createPost(db, { id: 'p3', text: 'newest elsewhere', postedAt: 30 }, ['a3']);
-      expect(await texts(db, ['a1'])).toEqual({
-        texts: ['newest elsewhere', 'asset left the album', 'edge removed'],
-        fromAlbum: false,
-      });
+      expect(await texts(db, ['a1'])).toEqual([]);
     });
 
-    it('falls back to the newest live posts without an album or its posts', async () => {
+    it("reads no posts without an album posted from: the library's others are about other people", async () => {
       const db = await library();
-      await createPost(db, { id: 'p1', text: 'one', postedAt: 10 }, ['a3']);
-      await createPost(db, { id: 'p2', text: 'two', postedAt: 20 });
-      await createPost(db, { id: 'p3', text: 'deleted', postedAt: 30, deletedAt: 31 });
-      expect(await texts(db, ['a3'])).toEqual({ texts: ['two', 'one'], fromAlbum: false });
-      expect(await texts(db, [])).toEqual({ texts: ['two', 'one'], fromAlbum: false });
+      await createPost(db, { id: 'p1', text: 'with @other', postedAt: 10 }, ['a3']);
+      await createPost(db, { id: 'p2', text: 'with @someone', postedAt: 20 });
+      expect(await texts(db, ['a3'])).toEqual([]);
+      expect(await texts(db, ['a1'])).toEqual([]);
+      expect(await texts(db, [])).toEqual([]);
     });
   });
 
-  it('reads every live post with an @ for the handles ever mentioned, newest first', async () => {
-    const db = makeTestDb();
-    await createPost(db, { id: 'p1', text: 'older, @ridge', postedAt: 10 });
-    await createPost(db, { id: 'p2', text: 'newer, @trailmike', postedAt: 20 });
-    await createPost(db, { id: 'p3', text: 'no handle', postedAt: 30 });
-    await createPost(db, { id: 'p4', text: 'deleted @gone', postedAt: 40, deletedAt: 41 });
-    expect((await readMentionedTexts(db)).map((row) => row.text)).toEqual(['newer, @trailmike', 'older, @ridge']);
-  });
-
-  it("lists a chip's contact's handles among the handles ever mentioned", async () => {
+  it("lists a chip's contact's handles among the handles the posts mention", async () => {
     const db = makeTestDb();
     await contacts.create(db, makeContactRecord({ id: 'c1', name: 'Maya Lindqvist', xHandle: 'x.com/mayal' }));
     const mention = { contactId: 'c1', location: 5, name: 'Maya Lindqvist' };
-    await createPost(db, { id: 'p1', text: 'With Maya Lindqvist', mentions: [mention], postedAt: 10 });
-    await createPost(db, { id: 'p2', text: 'and @ridge', postedAt: 20 });
-    expect(await readPostHandles(db, await readMentionedTexts(db))).toEqual(['@ridge', '@mayal']);
+    const posts = [
+      { text: 'and @ridge', mentions: null },
+      { text: 'With Maya Lindqvist', mentions: [mention] },
+    ];
+    expect(await readPostHandles(db, posts)).toEqual(['@ridge', '@mayal']);
   });
 });
