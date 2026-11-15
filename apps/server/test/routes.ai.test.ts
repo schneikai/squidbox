@@ -86,7 +86,14 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { publishInstruction, readAppInstructions, readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
-import { CHAT_FORMAT, CONTACT_FIELDS_FORMAT, MENTION_FORMAT, TAGS_FORMAT } from '../src/ai/prompts.js';
+import {
+  CHAT_FORMAT,
+  CONTACT_FIELDS_FORMAT,
+  FORMAT_HEADING,
+  MENTION_AS_GIVEN_FORMAT,
+  MENTION_FORMAT,
+  TAGS_FORMAT,
+} from '../src/ai/prompts.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
@@ -477,7 +484,7 @@ describe('POST /api/v1/ai/compare/writing', () => {
 });
 
 // The vision compare's format, after the prompt box.
-const VISION_FORMAT = `${TAGS_FORMAT}\n\nOnly the tags of this one photo.`;
+const VISION_FORMAT = `${FORMAT_HEADING}\n${TAGS_FORMAT}\n\nOnly the tags of this one photo.`;
 
 describe('POST /api/v1/ai/compare/vision', () => {
   it('sends the prompt and the photo as a data URL and returns the tags per model', async () => {
@@ -557,20 +564,24 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
     const [body] = chatBodies();
     expect(body.messages[0]).toEqual({
       role: 'system',
-      content: `${DEFAULT_INSTRUCTIONS.contactScreenshot}\n\n${CONTACT_FIELDS_FORMAT}`,
+      content: `${DEFAULT_INSTRUCTIONS.contactScreenshot}\n\n${FORMAT_HEADING}\n${CONTACT_FIELDS_FORMAT}`,
     });
     // The fields follow the contact's own: every handle is asked for.
     for (const { field } of CONTACT_HANDLES) expect(CONTACT_FIELDS_FORMAT).toContain(`"${field}"`);
   });
 
-  it('still reads with a text that holds {fields}: its line left out, the fields at the end', async () => {
-    veniceAnswers();
-    vi.mocked(readInstructions).mockResolvedValueOnce({
-      ...DEFAULT_INSTRUCTIONS,
-      contactScreenshot: 'Read the profile.\n\n{fields}\n\nEvery handle.',
-    });
-    expect((await call('POST', '/ai/contact-from-screenshot', tagRequest)).statusCode).toBe(200);
-    expect(chatBodies()[0].messages[0].content).toBe(`Read the profile.\n\nEvery handle.\n\n${CONTACT_FIELDS_FORMAT}`);
+  it('still reads with a text that holds {fields}: only the placeholder taken out, the fields at the end', async () => {
+    const texts = {
+      'Read the profile.\n\n{fields}\n\nEvery handle.': 'Read the profile.\n\nEvery handle.',
+      'Read the profile and return {fields}': 'Read the profile and return',
+      'Every handle. Answer like this:\n{fields}': 'Every handle. Answer like this:',
+    };
+    for (const [contactScreenshot, kept] of Object.entries(texts)) {
+      veniceAnswers();
+      vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, contactScreenshot });
+      expect((await call('POST', '/ai/contact-from-screenshot', tagRequest)).statusCode).toBe(200);
+      expect(chatBodies().at(-1).messages[0].content).toBe(`${kept}\n\n${FORMAT_HEADING}\n${CONTACT_FIELDS_FORMAT}`);
+    }
   });
 
   it('502 ai_unavailable when the answer is not JSON', async () => {
@@ -618,9 +629,21 @@ describe('POST /api/v1/ai/contact-from-link', () => {
             'Location: Squamish, BC',
             'Website: https://onlyfans.com/mayal/c17',
           ].join('\n'),
-        )}\n\n${CONTACT_FIELDS_FORMAT}`,
+        )}\n\n${FORMAT_HEADING}\n${CONTACT_FIELDS_FORMAT}`,
       },
     ]);
+  });
+
+  it('still reads with a From link text that holds {fields} before the profile, that line taken out', async () => {
+    veniceAnswers();
+    vi.mocked(readInstructions).mockResolvedValueOnce({
+      ...DEFAULT_INSTRUCTIONS,
+      contactXProfile: 'Read this profile.\n\n{fields}\n\n# The profile\n{profile}',
+    });
+    expect((await call('POST', '/ai/contact-from-link', { handle: 'MayaL' })).statusCode).toBe(200);
+    expect(chatBodies()[0].messages[0].content).toMatch(
+      /^Read this profile\.\n\n# The profile\nHandle: @MayaL\n[^]*\n\n# Answer format\nReturn only a JSON object/,
+    );
   });
 
   it("keeps the link's X handle, and only the handles the profile's text names", async () => {
@@ -723,7 +746,7 @@ describe('POST /api/v1/ai/tags', () => {
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
     expect(body.model).toBe('gemma-4-uncensored');
-    expect(body.messages[0]).toEqual({ role: 'system', content: `${mine}\n\n${TAGS_FORMAT}` });
+    expect(body.messages[0]).toEqual({ role: 'system', content: `${mine}\n\n${FORMAT_HEADING}\n${TAGS_FORMAT}` });
     expect(body.messages[1].content).toEqual([
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
@@ -946,7 +969,9 @@ describe('POST /api/v1/ai/chat', () => {
     });
     expect((await call('POST', '/ai/chat', chatRequest)).statusCode).toBe(200);
     const [body] = chatBodies();
-    expect(body.messages[0].content).toBe(`Post: "Fog on the trail"\nTags: forest, morning fog\n\n${CHAT_FORMAT}`);
+    expect(body.messages[0].content).toBe(
+      `Post: "Fog on the trail"\nTags: forest, morning fog\n\nPeople they may mention: Sam Ridge\n\n${FORMAT_HEADING}\n${CHAT_FORMAT}\n\n${MENTION_AS_GIVEN_FORMAT}`,
+    );
   });
 
   it('502 ai_unavailable when the chosen model is gone, before any chat', async () => {

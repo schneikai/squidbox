@@ -27,7 +27,13 @@ import {
   writingTask,
 } from '../src/ai/tasks.js';
 import { VeniceError, VeniceUnavailableError } from '../src/ai/venice.js';
-import { compareVisionMessages, TAGS_FORMAT, visionMessages, writingMessages } from '../src/ai/prompts.js';
+import {
+  compareVisionMessages,
+  FORMAT_HEADING,
+  TAGS_FORMAT,
+  visionMessages,
+  writingMessages,
+} from '../src/ai/prompts.js';
 import type { CatalogEntry } from '../src/ai/catalog.js';
 
 const entries = fixture.data as CatalogEntry[];
@@ -103,7 +109,10 @@ describe('visionMessages', () => {
       imageDataUrl: 'data:image/jpeg;base64,AAAA',
       contentTags: ['moss', 'fog'],
     });
-    expect(system).toEqual({ role: 'system', content: `Think of moss, fog and {other}.\n\n${TAGS_FORMAT}` });
+    expect(system).toEqual({
+      role: 'system',
+      content: `Think of moss, fog and {other}.\n\n${FORMAT_HEADING}\n${TAGS_FORMAT}`,
+    });
   });
 
   it('ends the briefing with the tags to answer with', () => {
@@ -112,7 +121,7 @@ describe('visionMessages', () => {
       imageDataUrl: 'data:,',
       contentTags: ['moss'],
     });
-    expect((system!.content as string).endsWith(`fit the image.\n\n${TAGS_FORMAT}`)).toBe(true);
+    expect((system!.content as string).endsWith(`fit the image.\n\n${FORMAT_HEADING}\n${TAGS_FORMAT}`)).toBe(true);
   });
 });
 
@@ -347,7 +356,7 @@ describe('compareModels: vision', () => {
     const sent = JSON.parse(fetchMock.mock.calls[0]![1].body);
     expect(sent.messages[0]).toEqual({
       role: 'system',
-      content: `Tag it\n\n${TAGS_FORMAT}\n\nOnly the tags of this one photo.`,
+      content: `Tag it\n\n${FORMAT_HEADING}\n${TAGS_FORMAT}\n\nOnly the tags of this one photo.`,
     });
     expect(sent.messages[1].content[0]).toEqual({
       type: 'image_url',
