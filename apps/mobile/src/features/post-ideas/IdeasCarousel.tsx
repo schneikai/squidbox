@@ -1,3 +1,4 @@
+import type { Channel } from '@squidbox/shared';
 import { type ComponentRef, memo, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { interpolate, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
@@ -27,6 +28,8 @@ type IdeasCarouselProps = {
   run: IdeasRun;
   // The contacts the ideas' chips may mention, by id: their names and avatars.
   contactsById: ReadonlyMap<string, MentionContact>;
+  // The channel a copy's composer writes for (ChatOptionCard's).
+  channel?: Pick<Channel, 'handleField'>;
   onUse: ((replyId: string, index: number) => void) | null;
   onMore: () => void;
   onRetry: () => void;
@@ -43,7 +46,7 @@ type IdeasCarouselProps = {
  * (marked Used) as it is used, in the tray or the chat. Each idea's mentions are chips, of
  * `contactsById` (the editor's).
  */
-function IdeasCarousel({ run, contactsById, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
+function IdeasCarousel({ run, contactsById, channel, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const inset = useTrayInset();
   const breath = useBreath();
@@ -85,7 +88,7 @@ function IdeasCarousel({ run, contactsById, onUse, onMore, onRetry, isBusy }: Id
         item.index === null ? (
           <OptionCard
             key={`${item.replyId}:text`}
-            text={<MentionRuns value={item.value} contactsById={contactsById} />}
+            text={<MentionRuns value={item.value} contactsById={contactsById} channel={channel} />}
             textSize="small"
             style={styles.card}
           />
@@ -94,6 +97,7 @@ function IdeasCarousel({ run, contactsById, onUse, onMore, onRetry, isBusy }: Id
             key={`${item.replyId}:${item.index}`}
             value={item.value}
             contactsById={contactsById}
+            channel={channel}
             replyId={item.replyId}
             index={item.index}
             onMoreLikeThis={null}

@@ -124,6 +124,7 @@ export default function PostCards({
                       ideas={index === 0 ? ideas : null}
                       settings={settings}
                       contactsById={contactsById}
+                      channel={channel}
                       style={style}
                     />
                   )

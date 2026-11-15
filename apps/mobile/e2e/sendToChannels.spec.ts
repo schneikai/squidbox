@@ -96,6 +96,26 @@ test("Use on an idea in a copy's composer puts in the chip of a name the idea ma
   );
 });
 
+test("an idea in a copy's composer reads its chip as the contact's handle on that channel", async ({
+  page,
+  assistant,
+}) => {
+  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with @[Sam Ridge]'] });
+  await fromPostMenu(page, CHIP_POST, 'Send to channels');
+  await button(sendSheet(page), 'Add channel').click();
+  await page.getByRole('menuitem', { name: 'Bluesky', exact: true }).click();
+  const editor = page.getByTestId('channel-copy-editor');
+  await button(editor, 'Post ideas').click();
+
+  // The post's chip and the idea's.
+  await expect(editor.getByText('@ridgeline.bsky.social', { exact: true })).toHaveCount(2);
+  await withDialog(
+    page,
+    (dialog) => dialog.accept(),
+    () => button(editor, 'Back').click(),
+  );
+});
+
 test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent", async ({
   page,
 }) => {

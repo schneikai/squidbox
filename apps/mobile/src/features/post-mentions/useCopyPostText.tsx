@@ -12,7 +12,7 @@ import validMentions from './validMentions';
 import useCopyText from '@/hooks/useCopyText';
 import { getDb } from '@/sync/db/client';
 
-type CopyChannel = Pick<Channel, 'id' | 'handleField'>;
+type CopyChannel = Pick<Channel, 'handleField'>;
 
 // The sheet's question and what answers the copy that asked it.
 type Question = { choices: ChannelChoice[]; answer: (isCopied: boolean) => void };

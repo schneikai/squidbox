@@ -1,3 +1,4 @@
+import type { Channel } from '@squidbox/shared';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -20,6 +21,8 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
   value: MentionTextValue;
   // The contacts its chips mention, by id (useMentionedContacts): their names and avatars.
   contactsById: ReadonlyMap<string, MentionContact>;
+  // The channel a copy's composer writes for: its chips read as the contacts' handles there, and Copy copies for it.
+  channel?: Pick<Channel, 'handleField'>;
   replyId: string;
   index: number;
   onMoreLikeThis: ((value: MentionTextValue) => void) | null;
@@ -36,6 +39,7 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
 function ChatOptionCard({
   value,
   contactsById,
+  channel,
   replyId,
   index,
   onMoreLikeThis,
@@ -46,12 +50,12 @@ function ChatOptionCard({
 }: ChatOptionCardProps) {
   return (
     <OptionCard
-      text={<MentionRuns value={value} contactsById={contactsById} />}
+      text={<MentionRuns value={value} contactsById={contactsById} channel={channel} />}
       textSize={textSize}
       isUsed={isUsed}
       style={style}
     >
-      <CopyPostTextButton post={value} />
+      <CopyPostTextButton post={value} channel={channel} />
       {onMoreLikeThis && (
         <MenuButton accessibilityLabel="More for this idea">
           <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(value)} />

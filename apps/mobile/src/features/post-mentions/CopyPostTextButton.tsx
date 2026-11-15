@@ -9,7 +9,7 @@ import CopyButton from '@/components/CopyButton';
 type CopyPostTextButtonProps = {
   post: MentionTextValue;
   /** The channel a copy is for: its text is copied as that channel gets it, without asking. */
-  channel?: Pick<Channel, 'id' | 'handleField'>;
+  channel?: Pick<Channel, 'handleField'>;
   style?: StyleProp<ViewStyle>;
 };
 
