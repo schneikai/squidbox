@@ -55,7 +55,7 @@ export default function ChannelCopyCard({
   const { missing } = channelPayload(channel, copy.posts, contactsById);
 
   return (
-    <PostRowCard asset={asset} moreCount={more.length} onPress={onOpen}>
+    <PostRowCard asset={asset} moreCount={more.length} onPress={onOpen} openLabel={`Open the ${channel.name} copy`}>
       <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
         <View style={styles.head}>
           <View style={styles.channel}>

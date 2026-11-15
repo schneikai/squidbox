@@ -27,7 +27,7 @@ export default function RepostCard({ post, onOpen, onRepost, onLater, onIgnore }
   const first = post.postAssets[0]?.asset;
 
   return (
-    <PostRowCard asset={first} onPress={onOpen}>
+    <PostRowCard asset={first} onPress={onOpen} openLabel="Open the post">
       {isPresent(post.text) && <Text numberOfLines={2}>{post.text}</Text>}
       <PostPostedAt postedAt={post.postedAt} />
       <View style={styles.actions}>
