@@ -13,7 +13,7 @@ import newRecord from '@/utils/newRecord';
 type PostsProviderProps = { children: ReactNode };
 
 // The post writes. Asset references live in the post_assets edge collection (`assetRefs` in, as the
-// editor emits them); a thread's following posts are `threadPosts` (`[{ id, text, assetRefs }]`,
+// editor emits them); a thread's following posts are `threadPosts` (`[{ id, text, mentions, assetRefs }]`,
 // postThreads); its channel copies are post_copies records (postCopiesRepository), created with it
 // for a repost (`copies`). Screens read posts through their own live queries (postQuery).
 

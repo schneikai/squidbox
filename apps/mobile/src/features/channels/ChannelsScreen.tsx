@@ -26,8 +26,8 @@ import { requestSync } from '@/sync/worker';
 const ADD_CHANNEL = '/add-channel';
 
 /**
- * Settings → Posts → Channels: the places the user posts to, in their order (the first is what a new
- * post starts as). Drag a row by its handle to move it; hold it for Delete. Saves as it goes.
+ * Settings → Posts → Channels: the places the user posts to, in their order (the order Send to
+ * channels' + lists them). Drag a row by its handle to move it; hold it for Delete. Saves as it goes.
  */
 export default function ChannelsScreen() {
   const navigation = useNavigation();

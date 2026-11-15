@@ -114,7 +114,7 @@ export default function SendToChannelsScreen() {
             title="Send this post to your channels"
             subtitle={
               hasNoChannels
-                ? 'Add your channels in Settings → Channels first.'
+                ? 'Add your channels in Settings → Posts → Channels first.'
                 : 'Add a channel with + to get a copy of the post for it. Change it if you like, then send.'
             }
           />

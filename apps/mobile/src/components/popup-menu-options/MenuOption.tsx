@@ -21,12 +21,11 @@ export type MenuOptionProps = MenuItemContentProps & { onPress?: () => unknown }
 // one that deletes, `isSelected` for the current choice, with `selection` the mark it shows
 // (MenuItemContent): a check in a pick-one menu (a `menuitem`, selected), a select circle in a
 // pick-several one (a checkbox, checked; react-native has no `menuitemcheckbox` role). `isHeader` for the row that leads back out of a panel
-// (Filter), `leading` a mark before the label.
+// (Filter).
 export default function MenuOption({
   onPress,
   label,
   icon,
-  leading,
   trailing,
   colorPalette,
   isSelected = false,
@@ -45,7 +44,6 @@ export default function MenuOption({
       <MenuItemContent
         label={label}
         icon={icon}
-        leading={leading}
         trailing={trailing}
         colorPalette={colorPalette}
         isSelected={isSelected}

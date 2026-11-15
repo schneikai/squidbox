@@ -97,8 +97,7 @@ export function channelById(id: string | null | undefined): Channel | undefined 
   return id ? byId.get(id) : undefined;
 }
 
-/** A channel's name as the app shows it: the catalog's, the id of one this build doesn't know, or No channel. */
-export function channelName(channelId: string | null): string {
-  if (!channelId) return 'No channel';
+/** A channel's name as the app shows it: the catalog's, or the id of one this build doesn't know. */
+export function channelName(channelId: string): string {
   return channelById(channelId)?.name ?? channelId;
 }

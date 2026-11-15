@@ -147,25 +147,15 @@ export default function ComponentGalleryScreen() {
             </View>
             <Divider variant="menu" />
             <View style={popupMenuStyles.row}>
-              <MenuItemContent
-                label="Bluesky"
-                leading={<ChannelLogo channelId="bluesky" />}
-                selection="several"
-                isSelected
-              />
+              <MenuItemContent label="Bluesky" selection="several" isSelected />
             </View>
             <Divider variant="menuRow" />
             <View style={popupMenuStyles.row}>
-              <MenuItemContent label="X" leading={<ChannelLogo channelId="x" />} selection="several" />
+              <MenuItemContent label="X" selection="several" />
             </View>
             <Divider variant="menuRow" />
             <View style={popupMenuStyles.row}>
-              <MenuItemContent
-                label="Instagram"
-                leading={<ChannelLogo channelId="instagram" />}
-                selection="several"
-                isSelected
-              />
+              <MenuItemContent label="Instagram" trailing={<ChannelLogo channelId="instagram" />} />
             </View>
             <Divider variant="menu" />
             <View style={popupMenuStyles.row}>
