@@ -13,8 +13,6 @@ import WarningNote from '@/components/WarningNote';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
-import MissingHandleNote from '@/features/post-mentions/MissingHandleNote';
-import textForChannel from '@/features/post-mentions/textForChannel';
 import useMentionContacts from '@/features/post-mentions/useMentionContacts';
 import useMentionSheet from '@/features/post-mentions/useMentionSheet';
 import { layout } from '@/styles/designTokens';
@@ -40,8 +38,7 @@ type PostCardsProps = {
  * assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own only
  * while `startsOnItsOwn`). The first card has the Posted time when `onChangePostedAt` is given (and
  * the cursor with `autoFocusFirst`). With `channel` (a copy for it) every card follows its limits; ⊕
- * Add to thread only where it has threads, a warning under the cards about the contacts mentioned
- * without a handle there (MissingHandleNote), and a note under the cards saying it has none when the
+ * Add to thread only where it has threads, and a note under the cards saying it has none when the
  * copy holds a thread anyway (its following posts stay, to edit or remove).
  */
 export default function PostCards({
@@ -80,12 +77,6 @@ export default function PostCards({
   // The cards as the chat takes them.
   const posts = useMemo(() => cards.map((card) => toChatDraftPost(card.key, card)), [cards]);
   const { sessionId, settings } = useEditorIdeas({ kind, ideas, posts, activeKey, setText, startsOnItsOwn });
-
-  // The contacts a copy's cards mention without a handle on its channel, once each.
-  const missing = useMemo(
-    () => (channel ? [...new Set(cards.flatMap((card) => textForChannel(card, contactsById, channel).missing))] : []),
-    [cards, channel, contactsById],
-  );
 
   function addToThread() {
     const key = nextCardKey(draft);
@@ -139,7 +130,6 @@ export default function PostCards({
           />
         </View>
       ))}
-      {channel && <MissingHandleNote contacts={missing} channel={channel} style={styles.note} />}
       {!hasThreads && cards.length > 1 && (
         <WarningNote style={styles.note}>{`${channel?.name} has no threads.`}</WarningNote>
       )}

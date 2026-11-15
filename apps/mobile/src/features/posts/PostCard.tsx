@@ -11,6 +11,7 @@ import textLimit from '@/features/channels/textLimit';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import MentionTextInput from '@/features/post-mentions/MentionTextInput';
+import MissingHandleNote from '@/features/post-mentions/MissingHandleNote';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import textForChannel from '@/features/post-mentions/textForChannel';
 import type { Point } from '@/lib/Point';
@@ -39,7 +40,7 @@ type PostCardProps = {
   // card's layout only when it shows, so a card without one has no room left under its toolbar.
   tray?: (style: StyleProp<ViewStyle>) => ReactNode;
   // The channel a copy is for, whose limits the card follows and whose handles its chips show.
-  channel?: Pick<Channel, 'maxTextLength' | 'maxMedia' | 'handleField'>;
+  channel?: Pick<Channel, 'name' | 'maxTextLength' | 'maxMedia' | 'handleField'>;
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention?: (contactId: string) => void;
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
@@ -54,7 +55,8 @@ type PostCardProps = {
  * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
  * being edited (its tray shows), without the keyboard. With `channel` (a copy's) the text's counter
  * ("260 / 280", the text as the channel gets it: textForChannel) follows the text, at its right, while its text is typed in, or while the text is
- * over; the counter and the media line turn red over a limit.
+ * over; the counter and the media line turn red over a limit; under the text, a warning about the
+ * contacts it mentions without a handle there (MissingHandleNote).
  */
 export default function PostCard({
   card,
@@ -85,11 +87,11 @@ export default function PostCard({
   // contacts it may mean (they follow the line being typed).
   const isRoomy = isFirst && postAssets.length === 0;
 
-  const sentText = useMemo(
-    () => (channel ? textForChannel({ text, mentions }, contactsById, channel).text : text),
+  const sent = useMemo(
+    () => (channel ? textForChannel({ text, mentions }, contactsById, channel) : { text, missing: [] }),
     [channel, contactsById, mentions, text],
   );
-  const { counter, isOver } = textLimit(channel, sentText);
+  const { counter, isOver } = textLimit(channel, sent.text);
   // The date's look beside it (Text `status`: regular, grey), so the toolbar has one grey.
   const counterNode = counter && (isTyping || isOver) && (
     <Text variant="status" tone={isOver ? 'danger' : undefined} style={styles.counter}>
@@ -155,6 +157,7 @@ export default function PostCard({
         )}
       </View>
       {counterNode}
+      {channel && <MissingHandleNote contacts={sent.missing} channel={channel} style={styles.note} />}
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
@@ -191,6 +194,10 @@ const styles = StyleSheet.create({
   tray: {
     marginTop: layout.cardGap - layout.controlRowSlack,
     marginBottom: layout.cardInset - layout.controlRowSlack,
+  },
+  // Under the text it is about, at the card's gap.
+  note: {
+    marginTop: layout.cardGap,
   },
   // Right under the text's end, where the eye is while typing.
   counter: {
