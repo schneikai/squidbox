@@ -7,10 +7,10 @@ import channelPayload from './channelPayload';
 import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
-import WarningNote from '@/components/WarningNote';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import MentionText from '@/features/post-mentions/MentionText';
+import MissingHandleNote from '@/features/post-mentions/MissingHandleNote';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostRowCard from '@/features/posts/PostRowCard';
 import threadLabel from '@/lib/threadLabel';
@@ -18,7 +18,6 @@ import { layout, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import type { PostCopyWithAssets } from '@/sync/queries/readPostCopies';
 import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
-import joinWords from '@/utils/joinWords';
 
 type ChannelCopyCardProps = {
   copy: PostCopyWithAssets;
@@ -55,7 +54,6 @@ export default function ChannelCopyCard({
   const [asset, ...more] = first?.assets ?? [];
   const isSent = copy.sentAt !== null;
   const { missing } = channelPayload(channel, copy.posts, contactsById);
-  const names = joinWords(missing.map((contact) => contact.name));
 
   return (
     <Pressable onPress={onOpen}>
@@ -78,13 +76,7 @@ export default function ChannelCopyCard({
             <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
           )}
           {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
-          {!isSent && missing.length > 0 && (
-            <WarningNote>
-              {missing.length === 1
-                ? `${names} has no ${channel.name} handle, so the name goes out as plain text.`
-                : `${names} have no ${channel.name} handle, so their names go out as plain text.`}
-            </WarningNote>
-          )}
+          {!isSent && <MissingHandleNote contacts={missing} channel={channel} />}
           {isSent ? (
             <Text variant="hint">Sent {dateToTimeAgo(copy.sentAt)}</Text>
           ) : (

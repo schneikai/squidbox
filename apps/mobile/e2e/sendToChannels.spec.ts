@@ -81,6 +81,10 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   const card = copyCard(sendSheet(page), 'Instagram');
   await expect(card.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
+  await button(card, 'Edit').click();
+  const editor = page.getByTestId('channel-copy-editor');
+  await expect(editor.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
+  await button(editor, 'Close').click();
 
   await withDialog(
     page,
