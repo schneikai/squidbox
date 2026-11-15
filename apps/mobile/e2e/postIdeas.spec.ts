@@ -2,7 +2,17 @@ import { DEFAULT_IDEA_PROMPTS } from '@squidbox/shared';
 import type { Page } from 'playwright/test';
 
 import { expect, STUB_TAGS, test } from './fixtures';
-import { assetCells, button, expectPostText, openTab, pickFromSquidbox, postText, withDialog } from './helpers';
+import {
+  allowClipboard,
+  assetCells,
+  button,
+  clipboard,
+  expectPostText,
+  openTab,
+  pickFromSquidbox,
+  postText,
+  withDialog,
+} from './helpers';
 import { loadAppAsync } from '../scripts/webPreview.mjs';
 
 // The assistant's ideas in the post editor, on the stubbed assistant (fixtures): a new post's start
@@ -157,7 +167,7 @@ test("an idea's names of the chat's Mentions are contacts: Copy writes each chan
   context,
   assistant,
 }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await allowClipboard(context);
   const idea = 'Out on the ridge with Sam Ridge';
   assistant.chatAnswer = () => ({ reply: '', postOptions: [idea] });
   // A post of a Weekend walks photo: Sam Ridge is on one of its photos, so he is one of its Mentions.
@@ -172,9 +182,7 @@ test("an idea's names of the chat's Mentions are contacts: Copy writes each chan
 
   await button(editor, 'Copy text').click();
   await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
-  await expect
-    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe('Out on the ridge with @ridgeline.bsky.social');
+  await expect.poll(() => clipboard(page)).toBe('Out on the ridge with @ridgeline.bsky.social');
 
   await button(editor, 'Use').click();
   await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();

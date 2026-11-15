@@ -1,21 +1,28 @@
 import type { BrowserContext, Locator, Page } from 'playwright/test';
 
 import { expect, test } from './fixtures';
-import { button, expectPostText, openTab, postCards, postText, withDialog } from './helpers';
+import {
+  allowClipboard,
+  button,
+  clipboard,
+  expectPostText,
+  openPost,
+  postCards,
+  postText,
+  withDialog,
+} from './helpers';
 
 // The mock post that mentions Sam Ridge by chip, with a sent Bluesky copy and an unsent Instagram one
 // (Sam has no Instagram handle).
 const CHIP_POST = 'Lost in the forest for a day with';
 
 test.beforeEach(async ({ context }: { context: BrowserContext }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await allowClipboard(context);
 });
 
 // Opens the post with `text` from the posts list (the newest of them), then its ⋯ menu's `item`.
 async function fromPostMenu(page: Page, text: string, item: string) {
-  await openTab(page, 'Posts');
-  await postCards(page.getByTestId('posts-screen')).filter({ hasText: text }).first().click();
-  const post = page.getByTestId('post-screen');
+  const post = await openPost(page, text);
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: item, exact: true }).click();
   return post;
@@ -23,14 +30,11 @@ async function fromPostMenu(page: Page, text: string, item: string) {
 
 const sendSheet = (page: Page) => page.getByTestId('send-to-channels-sheet');
 const copyCard = (sheet: Locator, channel: string) => sheet.getByLabel(`${channel} copy`, { exact: true });
-const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
 
 test("a post card's copy icon asks for which channel, names a contact without a handle there, and copies the chip as the contact's handle", async ({
   page,
 }) => {
-  await openTab(page, 'Posts');
-  await postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST }).first().click();
-  await button(page.getByTestId('post-screen'), 'Copy text').click();
+  await button(await openPost(page, CHIP_POST), 'Copy text').click();
   await expect(page.getByText('No handle', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
 
