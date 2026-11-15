@@ -28,7 +28,7 @@ export default function OptionCard({ text, textSize = 'regular', isUsed = false,
 
   return (
     <Card padded hasControlRow={hasActions} style={[isUsed && styles.used, style]}>
-      <Text selectable={!hasActions} size={textSize}>
+      <Text selectable={!hasActions} size={textSize} hasInlineViews={typeof text !== 'string'}>
         {text}
       </Text>
       {hasActions && <View style={styles.actions}>{children}</View>}

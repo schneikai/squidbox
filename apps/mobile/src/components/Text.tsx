@@ -17,6 +17,8 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
   variant?: TextVariant;
   size?: 'regular' | 'small';
   tone?: TextTone;
+  /** Views stand in its line (a mention chip): they read its size and line height (TextMetricsContext). */
+  hasInlineViews?: boolean;
   children?: ReactNode;
   style?: StyleProp<TextStyle>;
 };
@@ -40,12 +42,14 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
  * across the assistant's title at work).
  * `selectable` lets it be copied, `numberOfLines` cuts a long one short. style is for layout only.
  * A nested Text takes its own role and tone inside the line (a bold `label` part of a `hint`).
- * What stands inline in it reads its size and line height from TextMetricsContext.
+ * With `hasInlineViews`, what stands inline in it reads its size and line height from
+ * TextMetricsContext (only there, so other texts mount nothing more).
  */
 export default function Text({
   variant = 'reading',
   size = 'regular',
   tone,
+  hasInlineViews = false,
   children,
   selectable,
   numberOfLines,
@@ -59,7 +63,11 @@ export default function Text({
       numberOfLines={numberOfLines}
       accessibilityLabel={accessibilityLabel}
     >
-      <TextMetricsContext.Provider value={textMetrics(variant, size)}>{children}</TextMetricsContext.Provider>
+      {hasInlineViews ? (
+        <TextMetricsContext.Provider value={textMetrics(variant, size)}>{children}</TextMetricsContext.Provider>
+      ) : (
+        children
+      )}
     </RNText>
   );
 }

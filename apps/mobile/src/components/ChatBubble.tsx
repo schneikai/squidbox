@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
+import TextMetricsContext from '@/components/TextMetricsContext';
 import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 
 export type ChatBubbleProps = {
@@ -30,7 +31,11 @@ export default function ChatBubble({ side, label, text, copy, children }: ChatBu
       <Fill style={isUser ? [styles.bubble, styles.userCorner] : [glass, styles.bubble, styles.assistantCorner]}>
         {!!label && <Text style={styles.label}>{label}</Text>}
         <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]} selectable={!copy}>
-          {text}
+          {typeof text === 'string' ? (
+            text
+          ) : (
+            <TextMetricsContext.Provider value={textStyles.reading}>{text}</TextMetricsContext.Provider>
+          )}
         </Text>
       </Fill>
       {(copy || children) && (

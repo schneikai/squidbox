@@ -22,7 +22,7 @@ type MentionTextProps = {
  */
 export default function MentionText({ value, contactsById, channel, onPressMention }: MentionTextProps) {
   return (
-    <Text>
+    <Text hasInlineViews>
       <MentionRuns value={value} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
     </Text>
   );
