@@ -256,7 +256,7 @@ function singularByParam(param: string): Exclude<SingularOptions, boolean> {
   };
 }
 
-// One editor per post: editing the post again goes back to its editor. A group route gets only the
+// One editor, and one Send to channels sheet, per post: opening it again goes back to it. A group route gets only the
 // URL's path params, so a new post's editor (`?assetIds`, `?rePostId`) is always a new one.
 const editorId = singularByParam('postId');
 
@@ -286,6 +286,7 @@ function RootStack() {
       <Stack.Screen name="(new-contact)" options={SHEET_OPTIONS} />
       <Stack.Screen name="(compare)" options={SHEET_OPTIONS} dangerouslySingular={modelKind} />
       <Stack.Screen name="(editor)" options={SHEET_OPTIONS} dangerouslySingular={editorId} />
+      <Stack.Screen name="(send)" options={SHEET_OPTIONS} dangerouslySingular={editorId} />
     </Stack>
   );
 }

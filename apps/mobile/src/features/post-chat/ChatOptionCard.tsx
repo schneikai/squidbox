@@ -1,14 +1,13 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import useCopyText from './useCopyText';
-
 import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import MenuButton from '@/components/MenuButton';
 import OptionCard, { type OptionCardProps } from '@/components/OptionCard';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import useCopyText from '@/hooks/useCopyText';
 import { colors, layout, sizes } from '@/styles/designTokens';
 
 // Memoized: a new reply renders only its own options.

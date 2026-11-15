@@ -9,8 +9,13 @@ export type PostEditorPost = Pick<PostWithAssets, 'text' | 'mentions' | 'postAss
   threadPosts: Pick<PostWithAssets, 'id' | 'text' | 'mentions' | 'postAssets'>[];
 };
 
+/** A post and its thread as cards open on them; a following post not saved as one (a copy's) has a null id. */
+export type CardsSeed = Pick<PostEditorPost, 'text' | 'mentions' | 'postAssets'> & {
+  threadPosts: (Omit<PostEditorPost['threadPosts'][number], 'id'> & { id: string | null })[];
+};
+
 /** A post's cards as the editor opens them: its own, then one per following post. */
-export default function draftFromPost(post: Omit<PostEditorPost, 'postedAt'>): CardsDraft {
+export default function draftFromPost(post: CardsSeed): CardsDraft {
   const contents: PostCardContent[] = [
     { id: null, text: post.text, mentions: post.mentions, postAssets: post.postAssets },
     ...post.threadPosts.map(({ id, text, mentions, postAssets }) => ({ id, text, mentions, postAssets })),

@@ -12,6 +12,8 @@ async function editFirstPost(page: Page) {
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   const editor = page.getByTestId('post-editor');
   const field = postText(editor);
+  // The field gets the post's text once it is laid out.
+  await expect(field).not.toHaveText('');
   const original = await field.innerText();
   const changed = uniqueName('Changed my mind about the ridge');
   await field.fill(changed);

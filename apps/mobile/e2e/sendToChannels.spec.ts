@@ -1,0 +1,94 @@
+import type { BrowserContext, Locator, Page } from 'playwright/test';
+
+import { expect, test } from './fixtures';
+import { button, expectPostText, openTab, postCards, postText, withDialog } from './helpers';
+
+// The mock post that mentions Sam Ridge by chip, with a sent Bluesky copy and an unsent Instagram one
+// (Sam has no Instagram handle).
+const CHIP_POST = 'Lost in the forest for a day with';
+
+test.beforeEach(async ({ context }: { context: BrowserContext }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+});
+
+// Opens the post with `text` from the posts list (the newest of them), then its ⋯ menu's `item`.
+async function fromPostMenu(page: Page, text: string, item: string) {
+  await openTab(page, 'Posts');
+  await postCards(page.getByTestId('posts-screen')).filter({ hasText: text }).first().click();
+  const post = page.getByTestId('post-screen');
+  await button(post, 'Post options').click();
+  await page.getByRole('menuitem', { name: item, exact: true }).click();
+  return post;
+}
+
+const sendSheet = (page: Page) => page.getByTestId('send-to-channels-sheet');
+const copyCard = (sheet: Locator, channel: string) => sheet.getByLabel(`${channel} copy`, { exact: true });
+const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
+
+test("Copy text asks for which channel, and copies the chip as the contact's handle there", async ({ page }) => {
+  await fromPostMenu(page, CHIP_POST, 'Copy text');
+  await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
+
+  await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');
+});
+
+test('a channel added with + gets a copy filled from the post, and Send all marks every unsent copy sent', async ({
+  page,
+}) => {
+  await fromPostMenu(page, 'Coffee and a view', 'Send to channels');
+  const sheet = sendSheet(page);
+  await expect(sheet.getByText('Send this post to your channels')).toBeVisible();
+
+  for (const channel of ['Bluesky', 'X']) {
+    await button(sheet, 'Add channel').click();
+    await page.getByRole('menuitem', { name: channel, exact: true }).click();
+    const editor = page.getByTestId('channel-copy-editor');
+    await expectPostText(postText(editor), 'Coffee and a view. That is all.');
+    await button(editor, 'Add').click();
+    await expect(copyCard(sheet, channel)).toBeVisible();
+  }
+
+  await button(sheet, 'Send all').click();
+  for (const channel of ['Bluesky', 'X'])
+    await expect(copyCard(sheet, channel).getByText('Sent', { exact: true })).toBeVisible();
+  await expect(button(sheet, 'Send all')).toBeHidden();
+});
+
+test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent", async ({
+  page,
+}) => {
+  await fromPostMenu(page, CHIP_POST, 'Send to channels');
+  const card = copyCard(sendSheet(page), 'Instagram');
+  await expect(card.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
+
+  await withDialog(
+    page,
+    (dialog) => dialog.accept('samridge.pics'),
+    () => button(card, 'Add handle').click(),
+  );
+  await expect(card.getByText('Sam Ridge has no Instagram handle')).toBeHidden();
+
+  await button(card, 'Send now').click();
+  await expect(card.getByText('Sent', { exact: true })).toBeVisible();
+  await expect(button(card, 'Edit')).toBeHidden();
+  await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @samridge.pics 🌲');
+
+  await button(card, 'Instagram copy options').click();
+  await page.getByRole('menuitem', { name: 'Mark as not sent' }).click();
+  await expect(button(card, 'Send now')).toBeVisible();
+});
+
+test("a repost starts with the post's copies, unsent", async ({ page }) => {
+  const post = await fromPostMenu(page, CHIP_POST, 'Repost');
+  const editor = page.getByTestId('post-editor');
+  await button(editor, 'Add').click();
+  await expect(editor).toBeHidden();
+  await button(post, 'Back').click();
+
+  await fromPostMenu(page, CHIP_POST, 'Send to channels');
+  const sheet = sendSheet(page);
+  for (const channel of ['Bluesky', 'Instagram']) {
+    await expect(button(copyCard(sheet, channel), 'Send now')).toBeVisible();
+  }
+  await expect(button(sheet, 'Send all')).toBeVisible();
+});

@@ -43,6 +43,7 @@ import ChannelLogo from '@/features/channels/ChannelLogo';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
+import MentionChip from '@/features/post-mentions/MentionChip';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
@@ -239,6 +240,12 @@ export default function ComponentGalleryScreen() {
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>
+        </Specimen>
+        <Specimen name="MentionChip">
+          <Text style={styles.fill}>
+            Up the ridge with <MentionChip label="Maya Lindqvist" avatarUri={null} onPress={noop} /> and{' '}
+            <MentionChip label="@samridge" avatarUri={null} /> at dawn.
+          </Text>
         </Specimen>
       </>
     );
