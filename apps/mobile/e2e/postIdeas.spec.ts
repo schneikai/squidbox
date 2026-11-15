@@ -284,7 +284,8 @@ test.describe('Post ideas settings', () => {
     await savedAsync(page, () => leavePostIdeas(page));
 
     // The mock account's own prompt back, for the flows after this one.
-    await button(page, 'Post ideas').click();
+    await loadAppAsync(page);
+    await openPostIdeas(page);
     await savedAsync(page, async () => {
       await ideasPrompt(page).fill(original);
       await leavePostIdeas(page);
