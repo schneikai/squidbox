@@ -1,9 +1,9 @@
 import type { ComponentProps } from 'react';
 import { StyleSheet } from 'react-native';
 
-import CopyTextButton from './CopyTextButton';
 import PostRowCard from './PostRowCard';
 
+import CopyTextButton from '@/components/CopyTextButton';
 import Text from '@/components/Text';
 import type { AssetRow } from '@/sync/db/schema';
 import type { PostWithAssets } from '@/sync/queries/postQuery';

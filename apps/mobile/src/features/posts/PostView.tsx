@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import CopyTextButton from './CopyTextButton';
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
+import CopyTextButton from '@/components/CopyTextButton';
 import Text from '@/components/Text';
 import ChannelLogos from '@/features/channels/ChannelLogos';
 import PostPostedAt from '@/features/posts/PostPostedAt';
