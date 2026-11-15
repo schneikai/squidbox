@@ -56,6 +56,11 @@ export default function MoreAction({ post, beforeDelete, trigger }: MoreActionPr
     router.navigate({ pathname: '/post-editor', params: { rePostId: post.id } });
   }
 
+  async function handleCopyText() {
+    const read = await readPost(getDb(), post.id);
+    if (read) await copyPostText([read, ...read.threadPosts]);
+  }
+
   async function handleShare() {
     const threadPosts = post.threadCount ? ((await readPost(getDb(), post.id))?.threadPosts ?? []) : [];
     await shareAssetsAsync(
@@ -67,7 +72,7 @@ export default function MoreAction({ post, beforeDelete, trigger }: MoreActionPr
     <>
       <MenuButton accessibilityLabel="Post options" trigger={trigger}>
         {canShareFiles && hasAssets && <MenuOption label="Share" icon="share" onPress={handleShare} />}
-        <MenuOption label="Copy text" icon="copy" onPress={() => copyPostText(post.id)} />
+        <MenuOption label="Copy text" icon="copy" onPress={handleCopyText} />
         {!isInSheet && <MenuOption label="Send to channels" icon="send" onPress={handleSendToChannels} />}
         <MenuOption label="Edit" icon="edit" onPress={handleEditPost} />
         <MenuOption label="Repost" icon="repeat" onPress={handleRepost} />

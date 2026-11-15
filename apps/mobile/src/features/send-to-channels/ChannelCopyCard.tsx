@@ -1,5 +1,5 @@
 import type { Channel } from '@squidbox/shared';
-import { Text as RNText, StyleSheet, View } from 'react-native';
+import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
 import AddHandleButton from './AddHandleButton';
 import channelPayload from './channelPayload';
@@ -25,6 +25,7 @@ type ChannelCopyCardProps = {
   channel: Pick<Channel, 'id' | 'name' | 'handleField'>;
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention: (contactId: string) => void;
+  onOpen: () => void;
   onSendNow: () => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -36,13 +37,15 @@ type ChannelCopyCardProps = {
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
  * names go out as plain text) and has Send now, Edit and Add handle, and Remove in its ⋯; sent, it
- * is locked: when it was sent, and Mark as not sent in its ⋯.
+ * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
+ * (`onOpen`: all of its posts and pictures).
  */
 export default function ChannelCopyCard({
   copy,
   channel,
   contactsById,
   onPressMention,
+  onOpen,
   onSendNow,
   onEdit,
   onRemove,
@@ -55,43 +58,45 @@ export default function ChannelCopyCard({
   const names = joinWords(missing.map((contact) => contact.name));
 
   return (
-    <PostRowCard asset={asset} moreCount={more.length}>
-      <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
-        <View style={styles.head}>
-          <View style={styles.channel}>
-            <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
-            <Text variant="label">{channel.name}</Text>
+    <Pressable onPress={onOpen}>
+      <PostRowCard asset={asset} moreCount={more.length}>
+        <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
+          <View style={styles.head}>
+            <View style={styles.channel}>
+              <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
+              <Text variant="label">{channel.name}</Text>
+            </View>
+            <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
+              {isSent ? (
+                <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
+              ) : (
+                <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
+              )}
+            </MenuButton>
           </View>
-          <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
-            {isSent ? (
-              <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
-            ) : (
-              <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
-            )}
-          </MenuButton>
+          {first && (
+            <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
+          )}
+          {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
+          {!isSent && missing.length > 0 && (
+            <WarningNote>
+              {missing.length === 1
+                ? `${names} has no ${channel.name} handle, so the name goes out as plain text.`
+                : `${names} have no ${channel.name} handle, so their names go out as plain text.`}
+            </WarningNote>
+          )}
+          {isSent ? (
+            <Text variant="hint">Sent {dateToTimeAgo(copy.sentAt)}</Text>
+          ) : (
+            <View style={styles.actions}>
+              <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />
+              <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
+              {missing.length > 0 && <AddHandleButton contacts={missing} channel={channel} />}
+            </View>
+          )}
         </View>
-        {first && (
-          <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
-        )}
-        {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
-        {!isSent && missing.length > 0 && (
-          <WarningNote>
-            {missing.length === 1
-              ? `${names} has no ${channel.name} handle, so the name goes out as plain text.`
-              : `${names} have no ${channel.name} handle, so their names go out as plain text.`}
-          </WarningNote>
-        )}
-        {isSent ? (
-          <Text variant="hint">Sent {dateToTimeAgo(copy.sentAt)}</Text>
-        ) : (
-          <View style={styles.actions}>
-            <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />
-            <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
-            {missing.length > 0 && <AddHandleButton contacts={missing} channel={channel} />}
-          </View>
-        )}
-      </View>
-    </PostRowCard>
+      </PostRowCard>
+    </Pressable>
   );
 }
 

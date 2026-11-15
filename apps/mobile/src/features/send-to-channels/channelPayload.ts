@@ -14,7 +14,7 @@ export type ChannelPayload = { channelId: string; posts: { caption: string; asse
 export type PayloadPost = MentionTextValue & { assetIds: readonly string[] };
 
 /**
- * The payload of `posts` (a copy's, or a post and its thread for Copy text) for `channel`: each
+ * The payload of `posts` (a copy's, or the posts whose text is copied, useCopyPostText) for `channel`: each
  * caption is textForChannel's, and `missing` the contacts mentioned without a handle there (whose
  * names go out as plain text), once each, in the order they come.
  */

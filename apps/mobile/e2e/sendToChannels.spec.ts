@@ -32,6 +32,28 @@ test("Copy text asks for which channel, and copies the chip as the contact's han
   await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');
 });
 
+test("a post card's copy icon asks like Copy text, and names a contact without a handle there", async ({ page }) => {
+  await openTab(page, 'Posts');
+  await postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST }).first().click();
+  await button(page.getByTestId('post-screen'), 'Copy text').click();
+  await expect(page.getByText('Sam Ridge (no handle)').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
+
+  await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');
+});
+
+test('a tap on a copy opens it as it goes out, and its copy icon copies for its channel without asking', async ({
+  page,
+}) => {
+  await fromPostMenu(page, CHIP_POST, 'Send to channels');
+  await copyCard(sendSheet(page), 'Bluesky').getByText('Bluesky', { exact: true }).click();
+  const copy = page.getByTestId('channel-copy-screen');
+  await expect(copy.getByText('@ridgeline.bsky.social')).toBeVisible();
+  await button(copy, 'Copy text').click();
+
+  await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');
+});
+
 test('a channel added with + gets a copy filled from the post, and Send all marks every unsent copy sent', async ({
   page,
 }) => {

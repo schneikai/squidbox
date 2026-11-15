@@ -1,13 +1,14 @@
+import type { Channel } from '@squidbox/shared';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
-import CopyTextButton from '@/components/CopyTextButton';
 import MentionText from '@/features/post-mentions/MentionText';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostPostedAt from '@/features/posts/PostPostedAt';
+import CopyPostTextButton from '@/features/send-to-channels/CopyPostTextButton';
 import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
@@ -15,6 +16,8 @@ import isPresent from '@/utils/isPresent';
 type PostViewProps = {
   post: Pick<PostWithAssets, 'text' | 'mentions' | 'postAssets' | 'postedAt'>;
   contactsById: ReadonlyMap<string, MentionContact>;
+  /** The channel a copy is for: its chips read, and its text is copied, as the contacts' handles there. */
+  channel?: Pick<Channel, 'id' | 'handleField'>;
   onPressMention?: (contactId: string) => void;
   onPressAsset?: PostImageProps['onPressAsset'];
   isCopyable?: boolean;
@@ -26,13 +29,14 @@ type PostViewProps = {
  * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text with its
  * mentions as chips (MentionText: of `contactsById`, a tap on one to `onPressMention`), then a row
  * with when it was posted and `meta` (what else the place shows about it: a thread's size), with
- * `isCopyable` a copy icon at its right end (CopyTextButton) when there is text, and `children`
+ * `isCopyable` a copy icon at its right end (CopyPostTextButton) when there is text, and `children`
  * under that row (buttons for this post). `post` is a postQuery row: it carries its `postAssets`
  * ([{ id, asset }]).
  */
 export default function PostView({
   post,
   contactsById,
+  channel,
   onPressMention,
   onPressAsset,
   isCopyable = false,
@@ -48,12 +52,19 @@ export default function PostView({
       )}
       <View style={[styles.body, !isPresent(postAssets) && styles.bodyTextOnly]}>
         {isPresent(text) && (
-          <MentionText value={{ text, mentions }} contactsById={contactsById} onPressMention={onPressMention} />
+          <MentionText
+            value={{ text, mentions }}
+            contactsById={contactsById}
+            channel={channel}
+            onPressMention={onPressMention}
+          />
         )}
         <View style={styles.meta}>
           <PostPostedAt postedAt={postedAt} />
           {meta}
-          {isCopyable && isPresent(text) && <CopyTextButton text={text} style={styles.copy} />}
+          {isCopyable && isPresent(text) && (
+            <CopyPostTextButton post={{ text, mentions }} channel={channel} style={styles.copy} />
+          )}
         </View>
         {children}
       </View>

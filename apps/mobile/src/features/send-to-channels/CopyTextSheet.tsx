@@ -15,7 +15,7 @@ type CopyTextSheetProps = {
 
 /**
  * Copy text's one question, in a sheet: "Copy text for" each channel, its logo and the post's
- * mentions as they go out there; a tap copies that channel's text.
+ * mentions as they are copied for it (a contact without a handle there by name, said so); a tap copies that channel's text.
  */
 export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextSheetProps) {
   return (
@@ -31,7 +31,7 @@ export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextShee
           />
         ))}
       </Section>
-      <SectionFooter>Each mention is copied as the contact&apos;s handle there, or the name without one.</SectionFooter>
+      <SectionFooter>A contact without a handle there is copied by name.</SectionFooter>
     </BottomSheet>
   );
 }

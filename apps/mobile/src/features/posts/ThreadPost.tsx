@@ -1,11 +1,12 @@
+import type { Channel } from '@squidbox/shared';
 import type { ComponentProps } from 'react';
 import { StyleSheet } from 'react-native';
 
 import PostRowCard from './PostRowCard';
 
-import CopyTextButton from '@/components/CopyTextButton';
 import MentionText from '@/features/post-mentions/MentionText';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import CopyPostTextButton from '@/features/send-to-channels/CopyPostTextButton';
 import type { AssetRow } from '@/sync/db/schema';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
@@ -15,6 +16,8 @@ type PostRowCardProps = ComponentProps<typeof PostRowCard>;
 type ThreadPostProps = {
   post: Pick<PostWithAssets, 'text' | 'mentions' | 'postAssets'>;
   contactsById: ReadonlyMap<string, MentionContact>;
+  /** The channel a copy is for: its chips read, and its text is copied, as the contacts' handles there. */
+  channel?: Pick<Channel, 'id' | 'handleField'>;
   onPressMention?: (contactId: string) => void;
   onOpenAsset?: (asset: AssetRow) => void;
   isCopyable?: boolean;
@@ -30,7 +33,7 @@ type ThreadPostProps = {
  * list): its first picture as a tile ("+N" when it has more), its text beside it, its mentions as chips (MentionText; a tap on one to `onPressMention`, left out inside something pressable). With
  * `onOpenAsset(asset)` a tap on the tile opens the picture; without it (inside something pressable,
  * the posts list) the tile takes no touch. With `isCopyable` a copy icon
- * sits at the card's bottom right (CopyTextButton).
+ * sits at the card's bottom right (CopyPostTextButton).
  * `entering` and `exiting` are Reanimated layout animations of the card, and `contentStyle` and
  * `contentExiting` an animated style and exiting animation of what's in it (an unfolding thread's);
  * `style` is for layout only.
@@ -38,6 +41,7 @@ type ThreadPostProps = {
 export default function ThreadPost({
   post,
   contactsById,
+  channel,
   onPressMention,
   onOpenAsset,
   isCopyable = false,
@@ -60,8 +64,10 @@ export default function ThreadPost({
       contentStyle={contentStyle}
       contentExiting={contentExiting}
     >
-      {isPresent(post.text) && <MentionText value={post} contactsById={contactsById} onPressMention={onPressMention} />}
-      {isCopyable && isPresent(post.text) && <CopyTextButton text={post.text} style={styles.copy} />}
+      {isPresent(post.text) && (
+        <MentionText value={post} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
+      )}
+      {isCopyable && isPresent(post.text) && <CopyPostTextButton post={post} channel={channel} style={styles.copy} />}
     </PostRowCard>
   );
 }

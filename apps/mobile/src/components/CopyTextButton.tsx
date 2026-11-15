@@ -8,7 +8,8 @@ import useCopyText from '@/hooks/useCopyText';
 const COPIED_MS = 1500;
 
 type CopyTextButtonProps = {
-  text: string;
+  /** The text to copy, or a copy of the caller's own (a post's, which asks for a channel): whether it copied. */
+  text: string | (() => Promise<boolean>);
   style?: StyleProp<ViewStyle>;
 };
 
@@ -27,7 +28,7 @@ export default function CopyTextButton({ text, style }: CopyTextButtonProps) {
   }, [isCopied]);
 
   async function handlePress() {
-    if (await copy(text)) setIsCopied(true);
+    if (await (typeof text === 'string' ? copy(text) : text())) setIsCopied(true);
   }
 
   return (

@@ -29,7 +29,8 @@ import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 /**
  * Send to channels, a sheet over a post: one card per channel copy (ChannelCopyCard, in the order
  * they were added; a copy of a channel this build doesn't know is left out), each composed like a
- * post on its own screen pushed in the sheet (ChannelCopyScreen). + adds a copy for one of the
+ * post on its own screen pushed in the sheet (ChannelCopyScreen), a tap on a card opening the copy as
+ * it goes out (ChannelCopyViewScreen). + adds a copy for one of the
  * user's channels without one (off without channels, or once each has one). At the bottom, Send all
  * with two or more unsent copies (it only marks them sent), Send to <channel> with one (its Send
  * now), nothing with none. A post deleted meanwhile closes the sheet.
@@ -63,6 +64,10 @@ export default function SendToChannelsScreen() {
 
   function editCopy(copy: PostCopyWithAssets) {
     router.navigate({ pathname: '/send-to-channels/[postId]/copy', params: { postId, copyId: copy.id } });
+  }
+
+  function openCopy(copy: PostCopyWithAssets) {
+    router.navigate({ pathname: '/send-to-channels/[postId]/copies/[copyId]', params: { postId, copyId: copy.id } });
   }
 
   async function removeCopy(copy: PostCopyWithAssets, channel: Channel) {
@@ -134,6 +139,7 @@ export default function SendToChannelsScreen() {
               channel={channel}
               contactsById={contactsById}
               onPressMention={onPressMention}
+              onOpen={() => openCopy(copy)}
               onSendNow={() => sendNow(copy, channel)}
               onEdit={() => editCopy(copy)}
               onRemove={() => removeCopy(copy, channel)}
