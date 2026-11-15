@@ -1,6 +1,5 @@
-import { CONTACT_HANDLE_FIELDS, handleKey } from '@squidbox/shared';
-
-import type { MentionContact } from './mentionHandle';
+import { CONTACT_HANDLE_FIELDS, type ContactHandleField } from '../collections/contact';
+import { handleKey } from './handleKey';
 
 // The suffix a Bluesky handle may be mentioned without (`@maya` for `maya.bsky.social`).
 const BLUESKY_SUFFIX = '.bsky.social';
@@ -10,11 +9,11 @@ const BLUESKY_SUFFIX = '.bsky.social';
  * (CONTACT_HANDLE_FIELDS) under any spelling handleKey reads as the same (a profile link's handle
  * too, without case), a Bluesky handle also without `.bsky.social`. None for a handle no contact has.
  */
-export default function contactsByHandle(
-  contacts: readonly MentionContact[],
-): (handle: string) => readonly MentionContact[] {
-  const byKey = new Map<string, MentionContact[]>();
-  const add = (key: string, contact: MentionContact) => {
+export function contactsByHandle<C extends Partial<Record<ContactHandleField, string | null>>>(
+  contacts: readonly C[],
+): (handle: string) => readonly C[] {
+  const byKey = new Map<string, C[]>();
+  const add = (key: string, contact: C) => {
     const listed = byKey.get(key) ?? [];
     if (!listed.includes(contact)) byKey.set(key, [...listed, contact]);
   };

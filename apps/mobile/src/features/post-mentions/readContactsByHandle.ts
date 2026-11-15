@@ -1,4 +1,5 @@
-import contactsByHandle from './contactsByHandle';
+import { contactsByHandle } from '@squidbox/shared';
+
 import type { MentionContact } from './mentionHandle';
 
 import type { SyncDb } from '@/sync/db/types';
@@ -10,7 +11,7 @@ import contactQuery from '@/sync/queries/contactQuery';
  */
 export default async function readContactsByHandle(db: SyncDb): Promise<{
   contactsById: ReadonlyMap<string, MentionContact>;
-  ofHandle: ReturnType<typeof contactsByHandle>;
+  ofHandle: (handle: string) => readonly MentionContact[];
 }> {
   const contacts = await contactQuery({}).summaries(db);
   return {
