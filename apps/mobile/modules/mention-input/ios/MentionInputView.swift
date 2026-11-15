@@ -28,10 +28,12 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   private var lineHeight: CGFloat = 0
   private var textColor = UIColor.label
   private var chipColor = UIColor.secondarySystemFill
-  // The chip's measures, set by the app so its look changes without a build: height (0: the
-  // font's line), avatarInset (around the avatar), labelGap (avatar to label), trailing (after the label),
-  // offsetY (up from centered), labelSize (0: the text's), radius (under 0: a pill).
+  // The chip's measures, set by the app so its look changes without a build: avatarInset (around the
+  // avatar), labelGap (avatar to label), trailing (after the label). The app's are the only copy: until
+  // they arrive, chips are drawn empty (setChipStyle draws them again).
   private var chipStyle: [String: Double] = [:]
+  // A content report waits for the end of this run-loop turn, so a burst of changes reports once.
+  private var isContentReportDue = false
   private var reportedHeight: CGFloat = -1
   // Set while the user's edit is being applied: its selection goes out with the text (onChangeContent).
   private var isChangingText = false
@@ -60,6 +62,13 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     textView.addGestureRecognizer(tap)
 
     applyTypingAttributes()
+  }
+
+  public override func willMove(toWindow newWindow: UIWindow?) {
+    if newWindow == nil {
+      flushContentReport()
+    }
+    super.willMove(toWindow: newWindow)
   }
 
   public override func layoutSubviews() {
@@ -101,15 +110,20 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     redrawChips()
   }
 
-  private func chipValue(_ key: String, _ fallback: CGFloat) -> CGFloat {
-    if let value = chipStyle[key] {
-      return CGFloat(value)
+  private func chipMeasures() -> (inset: CGFloat, gap: CGFloat, trailing: CGFloat)? {
+    guard let inset = chipStyle["avatarInset"], let gap = chipStyle["labelGap"], let trailing = chipStyle["trailing"] else {
+      return nil
     }
-    return fallback
+    return (CGFloat(inset), CGFloat(gap), CGFloat(trailing))
   }
 
   private func draw(_ attachment: MentionAttachment) {
-    let image = chipImage(label: attachment.mentionLabel, avatar: attachment.avatar)
+    guard let measures = chipMeasures() else {
+      attachment.image = UIImage()
+      attachment.bounds = CGRect.zero
+      return
+    }
+    let image = chipImage(label: attachment.mentionLabel, avatar: attachment.avatar, measures: measures)
     attachment.image = image
     // Its middle on the middle of the capitals, so it sits centered on the text beside it.
     attachment.bounds = CGRect(x: 0, y: chipOffset(image.size.height), width: image.size.width, height: image.size.height)
@@ -195,6 +209,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   // The text and its chips, as the app holds them: each chip one U+FFFC at its location. The cursor
   // goes to the end. Not reported back: the app knows what it set.
   func setContent(text: String, mentions: [MentionRecord]) {
+    flushContentReport()
     let attributes = typingAttributes()
     let content = NSMutableAttributedString(string: text, attributes: attributes)
     let characters = content.string as NSString
@@ -219,6 +234,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   }
 
   func insertMention(id: String, label: String, avatarUri: String?, start: Int, end: Int) {
+    flushContentReport()
     let storage = textView.textStorage
     guard start >= 0, start <= end, end <= storage.length else {
       return
@@ -256,6 +272,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     guard textView.markedTextRange == nil, !isChangingText else {
       return
     }
+    flushContentReport()
     onSelectionChange(selection())
   }
 
@@ -264,6 +281,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   }
 
   public func textViewDidEndEditing(_ textView: UITextView) {
+    flushContentReport()
     onFocusChange(["isFocused": false])
   }
 
@@ -308,7 +326,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
   // How far under the baseline the chip starts.
   private func chipOffset(_ height: CGFloat) -> CGFloat {
-    return (font.capHeight - height) / 2 + chipValue("offsetY", 0)
+    return (font.capHeight - height) / 2
   }
 
   // Text typed after a chip must not take the attachment's attributes.
@@ -322,8 +340,28 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     if textView.markedTextRange == nil {
       applyTypingAttributes()
     }
-    reportContent()
+    reportContentSoon()
     reportHeight()
+  }
+
+  private func reportContentSoon() {
+    guard !isContentReportDue else {
+      return
+    }
+    isContentReportDue = true
+    DispatchQueue.main.async { [weak self] in
+      self?.flushContentReport()
+    }
+  }
+
+  // The content report still due, now: before anything else goes out (a selection, a focus change,
+  // content set from the app, the view leaving), so JS gets the last state, in order.
+  private func flushContentReport() {
+    guard isContentReportDue else {
+      return
+    }
+    isContentReportDue = false
+    reportContent()
   }
 
   private func reportContent() {
@@ -368,17 +406,18 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
   // The chip as a picture: a pill as tall as a line, the round avatar (a plain disc without a
   // photo), then the label.
-  private func chipImage(label: String, avatar: UIImage?) -> UIImage {
-    let setHeight = chipValue("height", 0)
-    let height = setHeight > 0 ? setHeight : ceil(font.lineHeight)
-    let inset = chipValue("avatarInset", 2)
+  private func chipImage(
+    label: String,
+    avatar: UIImage?,
+    measures: (inset: CGFloat, gap: CGFloat, trailing: CGFloat)
+  ) -> UIImage {
+    let height = ceil(font.lineHeight)
+    let inset = measures.inset
     let avatarSize = max(height - inset * 2, 0)
-    let gap = chipValue("labelGap", 5)
-    let trailing = chipValue("trailing", 9)
-    let setLabelSize = chipValue("labelSize", 0)
-    let labelFont = setLabelSize > 0 ? UIFont.systemFont(ofSize: setLabelSize * textSizeFactor()) : font
-    let setRadius = chipValue("radius", -1)
-    let radius = setRadius >= 0 ? setRadius : height / 2
+    let gap = measures.gap
+    let trailing = measures.trailing
+    let labelFont = font
+    let radius = height / 2
     let labelAttributes: [NSAttributedString.Key: Any] = [
       NSAttributedString.Key.font: labelFont,
       NSAttributedString.Key.foregroundColor: textColor
