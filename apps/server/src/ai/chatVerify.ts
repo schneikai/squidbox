@@ -5,7 +5,7 @@
 // posts, each real reply appended to the transcript as the app keeps it. Each turn gets the
 // checks that can be made in code, then one judge question to VERIFY_JUDGE_MODEL_ID: did the reply
 // answer the request and hold the conversation. The model is sent its replies as it wrote them, mention
-// markers included (as the app sends them back), and the mentions check reads the cards so;
+// markers included (as the app sends them back), and the mentions check reads the reply so;
 // everything else (the other checks, the judge, the stored turn) reads them without markers
 // (withoutMarkers), as Verify's screen shows them.
 import {
@@ -20,6 +20,7 @@ import {
   type VerifySection,
   type VerifyTurn,
 } from '@squidbox/shared';
+import { escapeRegExp } from '../escapeRegExp.js';
 import { findModel } from './catalog.js';
 import { MOCK_PERSONA, MOCK_POSTS } from './mockPersona.js';
 import { chatMessages, judgeMessages } from './prompts.js';
@@ -200,15 +201,18 @@ export function check(expectation: string, reply: ChatReply, before: string[] | 
 }
 
 /**
- * The checks every set of cards gets (`written`, as the model wrote them): the persona's rules and none
- * of his posts copied (on the cards without markers), and the post's mentions, only those, each
- * marked (mentionProblem).
+ * The checks every reply gets: the persona's rules and none of his posts copied, on its cards
+ * (`plain`, without markers; none without cards), and the post's mentions, only those, each marked,
+ * in its text and its cards as the model wrote them (`written`, mentionProblem).
  */
-export function cardChecks(written: string[], post: VerifyPost, isBare: boolean): Check[] {
-  if (written.length === 0) return [];
-  const cards = withoutMarkers({ reply: '', postOptions: written }).postOptions;
+export function replyChecks(
+  { written, plain }: { written: ChatReply; plain: ChatReply },
+  post: VerifyPost,
+  isBare: boolean,
+): Check[] {
+  const cards = plain.postOptions;
   const checks: Check[] = [];
-  if (!isBare) {
+  if (!isBare && cards.length > 0) {
     checks.push(
       checked(
         'rules: no hashtags',
@@ -233,22 +237,34 @@ export function cardChecks(written: string[], post: VerifyPost, isBare: boolean)
     );
   }
   const names = new Map(post.mentions.map((name) => [mentionMarkers.key(name), name]));
-  const problem = written.map((card) => mentionProblem(card, names)).find((each) => each !== null) ?? null;
+  const problem =
+    [written.reply, ...written.postOptions].map((text) => mentionProblem(text, names)).find((each) => each !== null) ??
+    null;
   checks.push(checked("mentions: only the post's, marked", problem === null, problem ?? ''));
   return checks;
 }
 
-// What is wrong with a card's mentions of the post's `names` (by key), or null: a marker of a name
-// not given, an @handle of the model's own, or a given name standing outside a marker.
-function mentionProblem(card: string, names: ReadonlyMap<string, string>): string | null {
-  const { text, marks, unmatched } = mentionMarkers.read(card, names);
+// A given name as a whole word, its case and spaces as the codec's key ignores them (one leading @
+// left out, as mentionMarkers.key does).
+function wholeName(name: string): RegExp {
+  const words = name.trim().replace(/^@/, '').split(/\s+/).map(escapeRegExp).join('\\s+');
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${words}(?![\\p{L}\\p{N}_])`, 'iu');
+}
+
+// What is wrong with a text's mentions of the post's `names` (by key), or null: a marker of a name
+// not given, an @handle of the model's own, or a given name standing outside a marker. The marked
+// names are blanked first, so a marked handle name is no @handle of its own.
+function mentionProblem(written: string, names: ReadonlyMap<string, string>): string | null {
+  const { text, marks, unmatched } = mentionMarkers.read(written, names);
   if (unmatched.length > 0) return 'a marker of a name not given';
-  if (AT_HANDLE.test(text)) return 'an @handle';
-  const marked = new Set(marks.map(({ location }) => location));
-  for (const name of names.values()) {
-    for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + 1)) {
-      if (!marked.has(at)) return 'a given name standing outside a marker';
-    }
+  const outside = marks.reduce(
+    (rest, { location, name }) =>
+      rest.slice(0, location) + ' '.repeat(name.length) + rest.slice(location + name.length),
+    text,
+  );
+  if (AT_HANDLE.test(outside)) return 'an @handle';
+  if ([...names.values()].some((name) => wholeName(name).test(outside))) {
+    return 'a given name standing outside a marker';
   }
   return null;
 }
@@ -258,7 +274,7 @@ export function changeNote(change: Partial<VerifyPost>): string {
   const parts = [
     change.caption !== undefined && `the caption to “${change.caption}”`,
     change.tags && `the tags to ${change.tags.join(', ')}`,
-    change.mentions && `the people they may mention to ${change.mentions.join(', ')}`,
+    change.mentions && `the mentions to ${change.mentions.join(', ')}`,
   ].filter((part) => typeof part === 'string');
   return `The editor changed ${parts.join(' and ')}.`;
 }
@@ -361,7 +377,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
         });
         const checks = [
           ...step.expect.map((name) => check(name, reply, before)),
-          ...cardChecks(written.postOptions, post, isBare),
+          ...replyChecks({ written, plain: reply }, post, isBare),
           'error' in verdict
             ? { name: 'judge', ok: false, reason: `the judge failed: ${verdict.error}` }
             : { name: 'judge', ok: verdict.value.pass, reason: verdict.value.reason || null },

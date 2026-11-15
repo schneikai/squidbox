@@ -16,8 +16,9 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { DEFAULT_INSTRUCTIONS, VERIFY_JUDGE_MODEL_ID, type ChatReply } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
-import { cardChecks, changeNote, CHAT_PLAN, check, verifyChatModel } from '../src/ai/chatVerify.js';
+import { changeNote, CHAT_PLAN, check, replyChecks, verifyChatModel } from '../src/ai/chatVerify.js';
 import { VerifyStopped } from '../src/ai/verifyTurns.js';
+import { withoutMarkers } from '../src/ai/tasks.js';
 
 const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'kimi-k3')!;
@@ -120,15 +121,16 @@ describe('check', () => {
   });
 });
 
-describe('cardChecks', () => {
+describe('replyChecks', () => {
   const post = { photos: 1, videos: 0, tags: [], mentions: ['Sam Ridge'], caption: '' };
-  const mentionReason = (card: string) => cardChecks([card], post, true)[0]!.reason;
+  const checksOf = (written: ChatReply, isBare: boolean, of = post) =>
+    replyChecks({ written, plain: withoutMarkers(written) }, of, isBare);
+  const mentionReason = (card: string, of = post) => checksOf({ reply: '', postOptions: [card] }, true, of)[0]!.reason;
 
   it("holds cards to the persona's rules and the post's mentions, a failed one with its reason", () => {
-    expect(cardChecks([], post, false)).toEqual([]);
-    const fine = cardChecks(['Quiet coast with @[Sam Ridge].'], post, false);
+    const fine = checksOf({ reply: '', postOptions: ['Quiet coast with @[Sam Ridge].'] }, false);
     expect(fine.every(({ ok, reason }) => ok && reason === null)).toBe(true);
-    const failed = cardChecks(['Wow! #coast with @[Jo Vale]'], post, false).filter(({ ok }) => !ok);
+    const failed = checksOf({ reply: '', postOptions: ['Wow! #coast with @[Jo Vale]'] }, false).filter(({ ok }) => !ok);
     expect(failed.map(({ reason }) => reason)).toEqual([
       'a hashtag',
       'an exclamation mark',
@@ -137,8 +139,14 @@ describe('cardChecks', () => {
   });
 
   it('checks only the mentions without the persona', () => {
-    expect(cardChecks(['Wow! #coast'], post, true)).toEqual([
+    expect(checksOf({ reply: '', postOptions: ['Wow! #coast'] }, true)).toEqual([
       { name: "mentions: only the post's, marked", ok: true, reason: null },
+    ]);
+  });
+
+  it('checks the mentions of a reply without cards, in its text', () => {
+    expect(checksOf({ reply: 'Ask Sam Ridge.', postOptions: [] }, false)).toEqual([
+      { name: "mentions: only the post's, marked", ok: false, reason: 'a given name standing outside a marker' },
     ]);
   });
 
@@ -146,8 +154,20 @@ describe('cardChecks', () => {
     expect(mentionReason('Out with @samridge.bsky.social')).toBe('an @handle');
   });
 
-  it('fails a given name written without its marker', () => {
-    expect(mentionReason('@[Sam Ridge] and Sam Ridge again')).toBe('a given name standing outside a marker');
+  it('passes a marked handle name, which is no @handle of its own', () => {
+    expect(mentionReason('Out with @[@ridgeline.bsky.social]', { ...post, mentions: ['@ridgeline.bsky.social'] })).toBe(
+      null,
+    );
+  });
+
+  it('fails a given name written without its marker, in any case or spacing', () => {
+    for (const card of ['@[Sam Ridge] and Sam Ridge again', 'out with sam ridge', 'With SAM  RIDGE']) {
+      expect(mentionReason(card)).toBe('a given name standing outside a marker');
+    }
+  });
+
+  it('passes a longer word that starts with a given name', () => {
+    expect(mentionReason('Out with Sam Ridgeway')).toBe(null);
   });
 });
 
@@ -157,6 +177,7 @@ describe('changeNote', () => {
     expect(changeNote({ caption: 'Moss.', tags: ['moss', 'creek'] })).toBe(
       'The editor changed the caption to “Moss.” and the tags to moss, creek.',
     );
+    expect(changeNote({ mentions: ['Sam Ridge'] })).toBe('The editor changed the mentions to Sam Ridge.');
   });
 });
 
