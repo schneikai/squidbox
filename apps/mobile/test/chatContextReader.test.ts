@@ -117,6 +117,10 @@ describe('chatContextReader', () => {
         post('p2', 'Then Sam Ridge', [], [{ contactId: 'sam', location: 5, name: 'Sam Ridge' }]),
       ],
       async (session) => {
+        summaries.mockResolvedValueOnce([
+          { id: 'maya', name: 'Maya' },
+          { id: 'sam', name: 'Sam Ridge' },
+        ]);
         const { context, mentioned } = await chatContextReader(session, () => ({ tagging: noTagging }))(
           new AbortController().signal,
           () => {},
@@ -136,6 +140,7 @@ describe('chatContextReader', () => {
     withChat(
       [post('p1', 'With Sam Ridge', ['ridge'], [{ contactId: 'chip', location: 5, name: 'Sam Ridge' }])],
       async (session) => {
+        summaries.mockResolvedValueOnce([{ id: 'chip', name: 'Sam Ridge' }]);
         readPhotoAndAlbumContacts.mockResolvedValueOnce([
           { id: 'other', name: 'sam ridge' },
           { id: 'maya', name: 'Maya' },
@@ -149,6 +154,20 @@ describe('chatContextReader', () => {
           { id: 'chip', name: 'Sam Ridge' },
           { id: 'maya', name: 'Maya' },
         ]);
+      },
+    ));
+
+  it("names for a name a deleted contact's chip carries the Mentions contact", () =>
+    withChat(
+      [post('p1', 'With Sam Ridge', ['ridge'], [{ contactId: 'deleted', location: 5, name: 'Sam Ridge' }])],
+      async (session) => {
+        readPhotoAndAlbumContacts.mockResolvedValueOnce([{ id: 'live', name: 'Sam Ridge' }]);
+        const { mentioned } = await chatContextReader(session, () => ({ tagging: noTagging }))(
+          new AbortController().signal,
+          () => {},
+          'p1',
+        );
+        expect(mentioned).toEqual([{ id: 'live', name: 'Sam Ridge' }]);
       },
     ));
 

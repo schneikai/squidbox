@@ -6,6 +6,8 @@ import postTags from './postTags';
 import readMentions from './readMentions';
 
 import markedText, { type MentionCandidate } from '@/features/post-mentions/markedText';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import readMentionContacts from '@/features/post-mentions/readMentionContacts';
 import validMentions from '@/features/post-mentions/validMentions';
 import { readLiveAssets } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
@@ -24,7 +26,7 @@ type ContextSources = {
  * may mention (readMentions, as the chat card shows them, with the Mentions sheet's edits; each name
  * once); and in a thread, the posts' texts (threadWindow). The texts go with their chips as mention
  * markers (markedText.write), so a rewrite keeps them. It resolves to that context and the contacts
- * the reply's markers may name (`mentioned`): those the posts' own chips mention, and the Mentions
+ * the reply's markers may name (`mentioned`): the live contacts the posts' own chips mention, and the Mentions
  * under every other name (a name a chip carries means the contact the user chose for it). A target no
  * longer in the thread fails the turn.
  */
@@ -39,9 +41,10 @@ export default function chatContextReader(session: ChatSession, getSources: () =
     if (at === -1) throw new Error('This post was removed');
     const assetIds = assets.map((asset) => asset.id);
     // Read here: the render's rows and contacts can be a moment behind the photos added or tagged.
-    const [rows, mentions] = await Promise.all([
+    const [rows, mentions, chipContacts] = await Promise.all([
       readLiveAssets(getDb(), assetIds),
       readMentions(getDb(), assetIds, mentionEdits),
+      readMentionContacts(getDb(), posts),
     ]);
     return {
       context: {
@@ -52,7 +55,7 @@ export default function chatContextReader(session: ChatSession, getSources: () =
         mentions: [...new Set(mentions.map((contact) => contact.name))],
         ...(posts.length > 1 && { thread: threadWindow(posts, at) }),
       },
-      mentioned: mentionedBy(draftChips(posts), mentions),
+      mentioned: mentionedBy(draftChips(posts, chipContacts), mentions),
     };
   };
 }
@@ -65,9 +68,17 @@ function threadWindow(posts: readonly ChatDraftPost[], at: number): ChatThread {
   return { index: at - start, posts: window.map((post) => markedText.write(post, CHAT_LIMITS.text)) };
 }
 
-// The contacts the posts' own chips mention, by the name each chip carries.
-function draftChips(posts: readonly ChatDraftPost[]): MentionCandidate[] {
-  return posts.flatMap((post) => validMentions(post).map(({ contactId, name }) => ({ id: contactId, name })));
+// The live contacts (of `contactsById`) the posts' own chips mention, by the name each chip carries:
+// a deleted contact's chip never outranks a Mention.
+function draftChips(
+  posts: readonly ChatDraftPost[],
+  contactsById: ReadonlyMap<string, MentionContact>,
+): MentionCandidate[] {
+  return posts.flatMap((post) =>
+    validMentions(post).flatMap(({ contactId, name }) =>
+      contactsById.has(contactId) ? [{ id: contactId, name }] : [],
+    ),
+  );
 }
 
 // Who a marker may name: the chips' contacts, and the Mentions under a name no chip carries.
