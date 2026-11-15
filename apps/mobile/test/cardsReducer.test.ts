@@ -41,4 +41,19 @@ describe('cardsReducer', () => {
     const changed = cardsReducer(draft, { type: 'updateCard', key: draft.cards[1]!.key, changes: { text: 'Edited' } });
     expect(changed.cards.map((card) => card.text)).toEqual(['Sunrise on the ridge', 'Edited']);
   });
+
+  it("keeps a card's chips where their names still stand in a text written over it", () => {
+    const draft = draftFromPost({
+      ...post,
+      text: 'With Maya Lindqvist',
+      mentions: [{ contactId: 'maya', location: 5, name: 'Maya Lindqvist' }],
+    });
+    const key = draft.cards[0]!.key;
+    const next = cardsReducer(draft, { type: 'setCardText', key, text: 'Up the ridge with Maya Lindqvist' });
+    expect(next.cards[0]).toMatchObject({
+      text: 'Up the ridge with Maya Lindqvist',
+      mentions: [{ contactId: 'maya', location: 18, name: 'Maya Lindqvist' }],
+    });
+    expect(cardsReducer(draft, { type: 'setCardText', key, text: 'Up the ridge' }).cards[0]!.mentions).toBeNull();
+  });
 });

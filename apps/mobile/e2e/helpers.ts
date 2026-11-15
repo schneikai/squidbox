@@ -68,6 +68,17 @@ export async function withDialog(page: Page, handle: (dialog: Dialog) => Promise
   await Promise.all([page.waitForEvent('dialog').then(handle), action()]);
 }
 
+// The text of an editor's `index`th post: the mention field (on the web a contentEditable), named by
+// its placeholder.
+export function postText(scope: Page | Locator, index = 0) {
+  return scope.getByRole('textbox', { name: "What's new?" }).nth(index);
+}
+
+// Expects a post's text in the mention field, each chip read as its label.
+export async function expectPostText(field: Locator, text: string) {
+  await expect(field).toHaveText(text);
+}
+
 // The post cards on `screen` (the posts list or a post).
 export function postCards(screen: Page | Locator) {
   return screen.getByTestId('post-card');

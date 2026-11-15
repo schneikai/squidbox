@@ -10,6 +10,7 @@ import Card from '@/components/Card';
 import FadeView from '@/components/FadeView';
 import SuperPressable from '@/components/SuperPressable';
 import MoreAction from '@/features/post-detail/actions/MoreAction';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostView from '@/features/posts/PostView';
 import longPressAccessibility from '@/lib/longPressAccessibility';
 import { layout, space } from '@/styles/designTokens';
@@ -26,6 +27,8 @@ export type PostListItemProps = {
   onToggleThread: (postId: string) => void;
   unfoldedPosts: Map<string, PostDetailRow>;
   hasMenu: boolean;
+  // The contacts its mention chips show; the card is the press target, so they take no tap.
+  contactsById: ReadonlyMap<string, MentionContact>;
 };
 
 /**
@@ -47,6 +50,7 @@ function PostListItem({
   onToggleThread,
   unfoldedPosts,
   hasMenu,
+  contactsById,
 }: PostListItemProps) {
   // A cell that comes back on screen unfolded shows its following posts at once; once folded, the
   // next unfold animates.
@@ -87,6 +91,7 @@ function PostListItem({
       <View style={styles.firstCard} collapsable={false}>
         <PostView
           post={post}
+          contactsById={contactsById}
           meta={
             isThread && (
               <Button
@@ -119,6 +124,7 @@ function PostListItem({
               isUnfoldAnimated={isUnfoldAnimated}
               unfoldedPosts={unfoldedPosts}
               roomStyle={room}
+              contactsById={contactsById}
             />
           ) : (
             <View style={room} />

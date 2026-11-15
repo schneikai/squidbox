@@ -4,14 +4,17 @@ import { StyleSheet, View } from 'react-native';
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
-import Text from '@/components/Text';
+import MentionText from '@/features/post-mentions/MentionText';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
 type PostViewProps = {
-  post: Pick<PostWithAssets, 'text' | 'postAssets' | 'postedAt'>;
+  post: Pick<PostWithAssets, 'text' | 'mentions' | 'postAssets' | 'postedAt'>;
+  contactsById: ReadonlyMap<string, MentionContact>;
+  onPressMention?: (contactId: string) => void;
   onPressAsset?: PostImageProps['onPressAsset'];
   isTextSelectable?: boolean;
   meta?: ReactNode;
@@ -19,13 +22,22 @@ type PostViewProps = {
 };
 
 /**
- * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text (copied on a
- * long press with `isTextSelectable`), then a row with when it was posted and `meta` (what else the
+ * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text with its
+ * mentions as chips (MentionText: of `contactsById`, a tap on one to `onPressMention`; copied on a
+ * long press with `isTextSelectable`, when it has none), then a row with when it was posted and `meta` (what else the
  * place shows about it: a thread's size), and `children` under that row (buttons for this post).
  * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]).
  */
-export default function PostView({ post, onPressAsset, isTextSelectable = false, meta, children }: PostViewProps) {
-  const { text, postAssets, postedAt } = post;
+export default function PostView({
+  post,
+  contactsById,
+  onPressMention,
+  onPressAsset,
+  isTextSelectable = false,
+  meta,
+  children,
+}: PostViewProps) {
+  const { text, mentions, postAssets, postedAt } = post;
 
   return (
     <Card testID="post-card" style={styles.card}>
@@ -33,7 +45,14 @@ export default function PostView({ post, onPressAsset, isTextSelectable = false,
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}
       <View style={[styles.body, !isPresent(postAssets) && styles.bodyTextOnly]}>
-        {isPresent(text) && <Text selectable={isTextSelectable}>{text}</Text>}
+        {isPresent(text) && (
+          <MentionText
+            value={{ text, mentions }}
+            contactsById={contactsById}
+            onPressMention={onPressMention}
+            isSelectable={isTextSelectable}
+          />
+        )}
         <View style={styles.meta}>
           <PostPostedAt postedAt={postedAt} />
           {meta}

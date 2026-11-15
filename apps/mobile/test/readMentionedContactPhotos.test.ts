@@ -49,4 +49,10 @@ describe('readMentionedContactPhotos', () => {
     ]);
     expect(await read()).toEqual({ photos: { ben: ['p1', 'p2'] }, postCount: 1 });
   });
+
+  it("puts a chip's live contact on the post's photos, by the chip alone", async () => {
+    await createPost(db, { text: 'Out with Ana', mentions: [{ contactId: 'ana', location: 9, name: 'Ana' }] }, ['p1']);
+    await createPost(db, { text: 'And Gone', mentions: [{ contactId: 'gone', location: 4, name: 'Gone' }] }, ['p2']);
+    expect(await read()).toEqual({ photos: { ana: ['p1'] }, postCount: 1 });
+  });
 });

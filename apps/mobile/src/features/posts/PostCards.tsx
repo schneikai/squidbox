@@ -13,6 +13,8 @@ import WarningNote from '@/components/WarningNote';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
+import useMentionContacts from '@/features/post-mentions/useMentionContacts';
+import useMentionSheet from '@/features/post-mentions/useMentionSheet';
 import { layout } from '@/styles/designTokens';
 import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 
@@ -21,7 +23,7 @@ type PostCardsProps = {
   dispatch: (action: CardsAction) => void;
   kind: Extract<ChatSubjectKind, 'draft' | 'edit'>;
   ideas: IdeasKind;
-  channel?: Pick<Channel, 'name' | 'maxTextLength' | 'maxMedia' | 'hasThreads'>;
+  channel?: Pick<Channel, 'name' | 'maxTextLength' | 'maxMedia' | 'hasThreads' | 'handleField'>;
   startsOnItsOwn?: boolean;
   autoFocusFirst?: boolean;
   postedAt?: PostedAtPickerProps['timestamp'];
@@ -31,7 +33,8 @@ type PostCardsProps = {
 
 /**
  * A post's cards in an editor (`draft`: the post and its thread), its edits going to `dispatch`
- * (cardsReducer): one card per post, joined by a short line, the card being edited with the
+ * (cardsReducer): one card per post, joined by a short line, a tapped mention chip showing its
+ * contact (useMentionSheet), the card being edited with the
  * assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own only
  * while `startsOnItsOwn`). The first card has the Posted time when `onChangePostedAt` is given (and
  * the cursor with `autoFocusFirst`). With `channel` (a copy for it) every card follows its limits; ⊕
@@ -61,7 +64,16 @@ export default function PostCards({
     },
     [dispatch],
   );
-  const setText = useCallback((key: string, text: string) => updateCard(key, { text }), [updateCard]);
+  // The assistant's text for a card (Use): its chips stay where their names still stand.
+  const setText = useCallback(
+    (key: string, text: string) => {
+      dispatch({ type: 'setCardText', key, text });
+      setActiveKey(key);
+    },
+    [dispatch],
+  );
+  const contactsById = useMentionContacts();
+  const { onPressMention, sheet } = useMentionSheet(contactsById);
   // The cards as the chat takes them.
   const posts = useMemo(() => cards.map((card) => toChatDraftPost(card.key, card)), [cards]);
   const { sessionId, settings } = useEditorIdeas({ kind, ideas, posts, activeKey, setText, startsOnItsOwn });
@@ -100,6 +112,8 @@ export default function PostCards({
             onRemove={index > 0 ? removeCard : undefined}
             onAddToThread={hasThreads && index === cards.length - 1 ? addToThread : undefined}
             channel={channel}
+            contactsById={contactsById}
+            onPressMention={onPressMention}
             tray={
               card.key === activeKey
                 ? (style) => (
@@ -119,6 +133,7 @@ export default function PostCards({
       {!hasThreads && cards.length > 1 && (
         <WarningNote style={styles.note}>{`${channel?.name} has no threads.`}</WarningNote>
       )}
+      {sheet}
     </View>
   );
 }

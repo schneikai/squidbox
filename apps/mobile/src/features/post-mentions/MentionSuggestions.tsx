@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 
+import type { MentionContact } from './mentionHandle';
 import mentionSuggestions, { mentionEntries, type MentionSuggestion } from './mentionSuggestions';
 
 import Divider from '@/components/Divider';
@@ -11,21 +12,25 @@ import useContactRows from '@/features/contact-list/useContactRows';
 import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
-type MentionSuggestionsProps = { query: string; assetIds: string[]; onPick: (handle: string) => void };
+type MentionSuggestionsProps = {
+  query: string;
+  contactsById: ReadonlyMap<string, MentionContact>;
+  assetIds: string[];
+  onPick: (contact: MentionContact) => void;
+};
 
 /**
- * The contacts the @handle being typed may mean (`query`, without the @; mentionSuggestions), those on
- * the post's photos (`assetIds`) first, each with its avatar, name, handle and networks; a tap hands
- * the handle to `onPick`. Only text: nothing is linked to the contact. Nothing shows while reading or when no contact matches.
+ * The contacts (`contactsById`) the @ being typed may mean (`query`, without the @;
+ * mentionSuggestions), those on the post's photos (`assetIds`) first, each with its avatar, name and
+ * handles; a tap hands the contact to `onPick`. Nothing shows while reading or when no contact matches.
  */
-export default function MentionSuggestions({ query, assetIds, onPick }: MentionSuggestionsProps) {
-  const contacts = useContactRows({});
+export default function MentionSuggestions({ query, contactsById, assetIds, onPick }: MentionSuggestionsProps) {
   const onPhotos = useContactRows({ scope: { photoIds: assetIds } });
 
-  const entries = useMemo(() => contacts && mentionEntries(contacts), [contacts]);
+  const entries = useMemo(() => mentionEntries([...contactsById.values()]), [contactsById]);
   const onPhotoIds = useMemo(() => onPhotos && new Set(onPhotos.map(({ id }) => id)), [onPhotos]);
   const suggestions = useMemo(
-    () => (entries && onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query) : []),
+    () => (onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query) : []),
     [entries, onPhotoIds, query],
   );
 
@@ -34,7 +39,7 @@ export default function MentionSuggestions({ query, assetIds, onPick }: MentionS
   return (
     <View style={styles.list} testID="mention-suggestions">
       {suggestions.map((suggestion, index) => (
-        <View key={suggestion.key}>
+        <View key={suggestion.contact.id}>
           {index > 0 && <Divider style={styles.divider} />}
           <SuggestionRow suggestion={suggestion} onPick={onPick} />
         </View>
@@ -43,23 +48,23 @@ export default function MentionSuggestions({ query, assetIds, onPick }: MentionS
   );
 }
 
-type SuggestionRowProps = { suggestion: MentionSuggestion; onPick: (handle: string) => void };
+type SuggestionRowProps = { suggestion: MentionSuggestion; onPick: (contact: MentionContact) => void };
 
-function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: SuggestionRowProps) {
+function SuggestionRow({ suggestion: { contact, handlesText }, onPick }: SuggestionRowProps) {
   return (
     <Pressable
       style={({ pressed }) => pressed && press.flat}
-      onPress={() => onPick(handle)}
+      onPress={() => onPick(contact)}
       accessibilityRole="button"
-      accessibilityLabel={`${contact.name}, @${handle} on ${networks.join(' and ')}`}
-      accessibilityHint="Adds the handle to the text"
+      accessibilityLabel={`${contact.name}, ${handlesText}`}
+      accessibilityHint="Adds the contact to the text"
     >
       <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
         <Text variant="title" size="small" numberOfLines={1}>
           {contact.name}
         </Text>
         <RNText style={listTextStyles.subtitle} numberOfLines={1}>
-          @{handle} · {networks.join(', ')}
+          {handlesText}
         </RNText>
       </RowSlots>
     </Pressable>

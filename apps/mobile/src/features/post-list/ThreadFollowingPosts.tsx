@@ -16,6 +16,7 @@ import usePost from './usePost';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import ThreadParts from '@/components/ThreadParts';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import ThreadPost from '@/features/posts/ThreadPost';
 import { motion } from '@/styles/designTokens';
 import type { PostDetailRow } from '@/sync/queries/readPost';
@@ -36,6 +37,7 @@ type ThreadFollowingPostsProps = {
   isUnfoldAnimated: boolean;
   unfoldedPosts: Map<string, PostDetailRow>;
   roomStyle: StyleProp<ViewStyle>;
+  contactsById: ReadonlyMap<string, MentionContact>;
 };
 
 /**
@@ -57,6 +59,7 @@ export default function ThreadFollowingPosts({
   isUnfoldAnimated,
   unfoldedPosts,
   roomStyle,
+  contactsById,
 }: ThreadFollowingPostsProps) {
   const livePost = usePost(postId);
   const [unfoldPartIds, setUnfoldPartIds] = useState<Set<string> | null>(null);
@@ -97,6 +100,7 @@ export default function ThreadFollowingPosts({
       renderPart={(part, index) => (
         <ThreadPost
           post={part}
+          contactsById={contactsById}
           entering={
             isUnfoldAnimated && hasCustomAnimations && unfoldPartIds?.has(part.id)
               ? stackOut(index, edgeCount)

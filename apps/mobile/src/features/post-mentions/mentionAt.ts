@@ -1,25 +1,26 @@
-import { HANDLE_BODY } from '@/lib/extractHandles';
+import { MENTION_CHIP } from './fieldContent';
 
-// The handle being typed up to the cursor: an @ at the start or after anything but a word character
-// or another @ (so an email address isn't one), then a handle (or nothing yet), maybe with the dot or
-// hyphen that goes on to its next part.
-const TYPED = new RegExp(String.raw`(?<![\w@])@((?:${HANDLE_BODY}[.-]?)?)$`);
-// The rest of the handle after the cursor, replaced with it; not a dot or hyphen that ends a sentence.
-const REST = /^\w*(?:[.-]\w+)*/;
-// Longer than any handle: past this the user writes something else.
-const MAX_QUERY = 50;
+// Longer than any name typed to find a contact: past this the user writes something else.
+const MAX_QUERY = 40;
+// What an @ may follow to start a mention: the text's start, a space, a line break or a chip.
+const BOUNDARY = new RegExp(String.raw`[\s${MENTION_CHIP}]`);
 
 export type TypedMention = { start: number; end: number; query: string };
 
 /**
- * The @handle the cursor is in, in `text` with the cursor at `cursor` (a collapsed selection): where
- * its @ is (`start`), where the handle ends (`end`, past the cursor when it sits inside one) and what
- * was typed between them before the cursor (`query`, without the @); null when the cursor isn't in
- * one.
+ * The @ being typed up to the cursor in the field's `text` (MENTION_CHIP for each chip), the cursor
+ * at `cursor` (a collapsed selection): an @ at the start or after a space, a line break or a chip,
+ * then up to MAX_QUERY characters to the cursor with no line break or chip among them, so a name with
+ * spaces matches. Where its @ is (`start`), the cursor (`end`) and what was typed after the @
+ * (`query`); null when none is being typed (an email address is none).
  */
 export default function mentionAt(text: string, cursor: number): TypedMention | null {
-  const typed = TYPED.exec(text.slice(0, cursor));
-  if (!typed || typed[1].length > MAX_QUERY) return null;
-  const [rest] = REST.exec(text.slice(cursor)) as RegExpExecArray;
-  return { start: typed.index, end: cursor + rest.length, query: typed[1] };
+  for (let i = cursor - 1; i >= 0 && cursor - i <= MAX_QUERY + 1; i--) {
+    const character = text[i]!;
+    if (character === MENTION_CHIP || character === '\n') return null;
+    if (character !== '@') continue;
+    if (i > 0 && !BOUNDARY.test(text[i - 1]!)) return null;
+    return { start: i, end: cursor, query: text.slice(i + 1, cursor) };
+  }
+  return null;
 }

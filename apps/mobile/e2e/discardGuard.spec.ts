@@ -1,7 +1,7 @@
 import type { Page } from 'playwright/test';
 
 import { expect, test } from './fixtures';
-import { button, openTab, postCards, uniqueName, withDialog } from './helpers';
+import { button, expectPostText, openTab, postCards, postText, uniqueName, withDialog } from './helpers';
 
 // Opens the first post's editor and changes its text; returns the editor and the original text.
 async function editFirstPost(page: Page) {
@@ -11,8 +11,8 @@ async function editFirstPost(page: Page) {
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
   const editor = page.getByTestId('post-editor');
-  const field = editor.getByPlaceholder("What's new?").first();
-  const original = await field.inputValue();
+  const field = postText(editor);
+  const original = await field.innerText();
   const changed = uniqueName('Changed my mind about the ridge');
   await field.fill(changed);
   return { editor, field, original, changed };
@@ -28,7 +28,7 @@ test('closing the editor with unsaved changes asks first, and Keep editing keeps
   );
 
   await expect(editor).toBeVisible();
-  await expect(field).toHaveValue(changed);
+  await expectPostText(field, changed);
 });
 
 test('Discard closes the editor without saving', async ({ page }) => {

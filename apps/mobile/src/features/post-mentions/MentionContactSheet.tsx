@@ -1,25 +1,25 @@
-import { CONTACT_HANDLES, type ContactHandleField } from '@squidbox/shared';
+import { CONTACT_HANDLES } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
+
+import mentionHandle, { type MentionContact } from './mentionHandle';
 
 import BottomSheet from '@/components/BottomSheet';
 import { Row, Section } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import { space } from '@/styles/designTokens';
 
-type MentionContact = { id: string; name: string; avatarFilename?: string | null } & Partial<
-  Record<ContactHandleField, string | null>
->;
-
 type MentionContactSheetProps = {
   /** The contact of the tapped chip; null hides the sheet. */
   contact: MentionContact | null;
   onClose: () => void;
-  onOpenContact: (id: string) => void;
+  /** Opens the contact's page; left out inside a sheet, where no page is pushed over it. */
+  onOpenContact?: (id: string) => void;
 };
 
 /**
- * SPIKE: who a mention's chip is, in a sheet: the contact's avatar, the handle on each platform
- * (what the chip becomes there) and Open contact for the full page.
+ * Who a mention's chip is, in a sheet: the contact's avatar, its handle on each network (what the
+ * chip goes out as there, mentionHandle; "No handle" without one) and, with `onOpenContact`, Open
+ * contact for the full page.
  */
 export default function MentionContactSheet({ contact, onClose, onOpenContact }: MentionContactSheetProps) {
   return (
@@ -30,13 +30,16 @@ export default function MentionContactSheet({ contact, onClose, onOpenContact }:
             <ContactAvatar contact={contact} size="hero" />
           </View>
           <Section>
-            {CONTACT_HANDLES.map(({ field, label }) => (
-              <Row key={field} label={label} value={contact[field] ? `@${contact[field]}` : 'No handle'} />
-            ))}
+            {CONTACT_HANDLES.map(({ field, label }) => {
+              const handle = mentionHandle(contact, field);
+              return <Row key={field} label={label} value={handle ? `@${handle}` : 'No handle'} />;
+            })}
           </Section>
-          <Section>
-            <Row label="Open contact" hasChevron onPress={() => onOpenContact(contact.id)} />
-          </Section>
+          {onOpenContact && (
+            <Section>
+              <Row label="Open contact" hasChevron onPress={() => onOpenContact(contact.id)} />
+            </Section>
+          )}
         </View>
       )}
     </BottomSheet>

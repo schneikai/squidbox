@@ -6,6 +6,8 @@ import AssetAlbums from '@/features/album-list/AssetAlbums';
 import ContactChipsSection from '@/features/contact-links/ContactChipsSection';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
 import PostRows from '@/features/post-list/PostRows';
+import useMentionContacts from '@/features/post-mentions/useMentionContacts';
+import useMentionSheet from '@/features/post-mentions/useMentionSheet';
 import { layout } from '@/styles/designTokens';
 import type { PostDetailRow } from '@/sync/queries/readPost';
 
@@ -19,7 +21,8 @@ type PostProps = {
 
 /**
  * A post and its thread: the post's card (PostView, a long press copies a post's text) and each
- * following post's card joined by a short line (PostThreadCards). Then, when it has pictures, the
+ * following post's card joined by a short line (PostThreadCards), a tapped mention chip showing its
+ * contact (useMentionSheet). Then, when it has pictures, the
  * contacts on them, their albums, and the other posts from those albums. `post` is a postQuery row
  * read by id (with its `threadPosts`).
  */
@@ -29,12 +32,14 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
     const all = [post, ...post.threadPosts];
     return [...new Set(all.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))];
   }, [post]);
+  const contactsById = useMentionContacts();
+  const { onPressMention, sheet } = useMentionSheet(contactsById);
 
   return (
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: contentPaddingTop, paddingBottom: contentPaddingBottom }]}
     >
-      <PostThreadCards post={post} />
+      <PostThreadCards post={post} contactsById={contactsById} onPressMention={onPressMention} />
 
       {/* Contacts and albums go on photos: a post without any has none, and so no other posts from its
           albums either. */}
@@ -49,6 +54,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
           <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
         </>
       )}
+      {sheet}
     </ScrollView>
   );
 }

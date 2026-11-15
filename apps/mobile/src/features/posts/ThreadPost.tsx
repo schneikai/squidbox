@@ -2,7 +2,8 @@ import type { ComponentProps } from 'react';
 
 import PostRowCard from './PostRowCard';
 
-import Text from '@/components/Text';
+import MentionText from '@/features/post-mentions/MentionText';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import type { AssetRow } from '@/sync/db/schema';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
@@ -10,7 +11,9 @@ import isPresent from '@/utils/isPresent';
 type PostRowCardProps = ComponentProps<typeof PostRowCard>;
 
 type ThreadPostProps = {
-  post: Pick<PostWithAssets, 'text' | 'postAssets'>;
+  post: Pick<PostWithAssets, 'text' | 'mentions' | 'postAssets'>;
+  contactsById: ReadonlyMap<string, MentionContact>;
+  onPressMention?: (contactId: string) => void;
   onOpenAsset?: (asset: AssetRow) => void;
   isTextSelectable?: boolean;
   entering?: PostRowCardProps['entering'];
@@ -22,7 +25,7 @@ type ThreadPostProps = {
 
 /**
  * A following post of a thread as a row card (the post screen, an unfolded thread in the posts
- * list): its first picture as a tile ("+N" when it has more), its text beside it. With
+ * list): its first picture as a tile ("+N" when it has more), its text beside it, its mentions as chips (MentionText; a tap on one to `onPressMention`, left out inside something pressable). With
  * `onOpenAsset(asset)` a tap on the tile opens the picture; without it (inside something pressable,
  * the posts list) the tile takes no touch. `isTextSelectable` lets a long press copy the text.
  * `entering` and `exiting` are Reanimated layout animations of the card, and `contentStyle` and
@@ -31,6 +34,8 @@ type ThreadPostProps = {
  */
 export default function ThreadPost({
   post,
+  contactsById,
+  onPressMention,
   onOpenAsset,
   isTextSelectable = false,
   entering,
@@ -52,7 +57,14 @@ export default function ThreadPost({
       contentStyle={contentStyle}
       contentExiting={contentExiting}
     >
-      {isPresent(post.text) && <Text selectable={isTextSelectable}>{post.text}</Text>}
+      {isPresent(post.text) && (
+        <MentionText
+          value={post}
+          contactsById={contactsById}
+          onPressMention={onPressMention}
+          isSelectable={isTextSelectable}
+        />
+      )}
     </PostRowCard>
   );
 }

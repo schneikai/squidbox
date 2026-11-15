@@ -8,13 +8,15 @@ final class MentionAttachment: NSTextAttachment {
   var avatar: UIImage?
 }
 
-// SPIKE: a UITextView whose mentions are chips inside the text. A chip is an attachment, so it is
-// one character: the cursor steps over it and backspace deletes it whole. The view reports its text
-// with the mentions' places (onChangeContent), the @… being typed (onMentionQuery), the height its
-// text needs (onContentHeight; the JS side sets it) and a tap on a chip (onMentionPress).
+// A UITextView whose mentions are chips inside the text. A chip is an attachment, so it is one
+// character: the cursor steps over it and backspace deletes it whole. The view reports its text with
+// the mentions' places and the selection (onChangeContent), the selection alone (onSelectionChange),
+// focus (onFocusChange), the height its text needs (onContentHeight; the JS side sets it) and a tap
+// on a chip (onMentionPress). Which @… is being typed is the JS side's to decide (mentionAt).
 public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureRecognizerDelegate {
   let onChangeContent = EventDispatcher()
-  let onMentionQuery = EventDispatcher()
+  let onSelectionChange = EventDispatcher()
+  let onFocusChange = EventDispatcher()
   let onContentHeight = EventDispatcher()
   let onMentionPress = EventDispatcher()
 
@@ -31,9 +33,6 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   // offsetY (up from centered), labelSize (0: the text's), radius (under 0: a pill).
   private var chipStyle: [String: Double] = [:]
   private var reportedHeight: CGFloat = -1
-  // The "@…" before the cursor, when one is being typed.
-  private var queryRange: NSRange?
-  private var reportedQuery: String?
 
   public required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -181,18 +180,39 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     textView.becomeFirstResponder()
   }
 
-  func insertMention(id: String, label: String, avatarUri: String?) {
-    let range = queryRange ?? textView.selectedRange
+  // The text and its chips, as the app holds them: each chip one U+FFFC at its location. The cursor
+  // goes to the end. Not reported back: the app knows what it set.
+  func setContent(text: String, mentions: [MentionRecord]) {
+    let attributes = typingAttributes()
+    let content = NSMutableAttributedString(string: text, attributes: attributes)
+    let characters = content.string as NSString
+    for mention in mentions {
+      guard mention.location >= 0, mention.location < characters.length,
+        characters.character(at: mention.location) == 0xFFFC
+      else {
+        continue
+      }
+      let attachment = makeAttachment(id: mention.id, label: mention.label, avatarUri: mention.avatarUri)
+      content.addAttribute(
+        NSAttributedString.Key.attachment,
+        value: attachment,
+        range: NSRange(location: mention.location, length: 1)
+      )
+    }
+    textView.textStorage.setAttributedString(content)
+    textView.selectedRange = NSRange(location: content.length, length: 0)
+    applyTypingAttributes()
+    placeholderLabel.isHidden = content.length > 0
+    reportHeight()
+  }
+
+  func insertMention(id: String, label: String, avatarUri: String?, start: Int, end: Int) {
     let storage = textView.textStorage
-    guard range.location + range.length <= storage.length else {
+    guard start >= 0, start <= end, end <= storage.length else {
       return
     }
-
-    let attachment = MentionAttachment()
-    attachment.mentionId = id
-    attachment.mentionLabel = label
-    attachment.avatar = loadAvatar(avatarUri)
-    draw(attachment)
+    let range = NSRange(location: start, length: end - start)
+    let attachment = makeAttachment(id: id, label: label, avatarUri: avatarUri)
 
     let attributes = typingAttributes()
     let inserted = NSMutableAttributedString(attachment: attachment)
@@ -212,7 +232,19 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   }
 
   public func textViewDidChangeSelection(_ textView: UITextView) {
-    updateQuery()
+    // Not while dictation, autocorrect or an input method is composing.
+    guard textView.markedTextRange == nil else {
+      return
+    }
+    onSelectionChange(selection())
+  }
+
+  public func textViewDidBeginEditing(_ textView: UITextView) {
+    onFocusChange(["isFocused": true])
+  }
+
+  public func textViewDidEndEditing(_ textView: UITextView) {
+    onFocusChange(["isFocused": false])
   }
 
   // MARK: - UIGestureRecognizerDelegate
@@ -225,6 +257,20 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   }
 
   // MARK: - Private
+
+  private func makeAttachment(id: String, label: String, avatarUri: String?) -> MentionAttachment {
+    let attachment = MentionAttachment()
+    attachment.mentionId = id
+    attachment.mentionLabel = label
+    attachment.avatar = loadAvatar(avatarUri)
+    draw(attachment)
+    return attachment
+  }
+
+  private func selection() -> [String: Any] {
+    let range = textView.selectedRange
+    return ["start": range.location, "end": range.location + range.length]
+  }
 
   private func typingAttributes() -> [NSAttributedString.Key: Any] {
     let box = lineBox()
@@ -256,7 +302,6 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     if textView.markedTextRange == nil {
       applyTypingAttributes()
     }
-    updateQuery()
     reportContent()
     reportHeight()
   }
@@ -273,7 +318,10 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
         mentions.append(["id": mention.mentionId, "label": mention.mentionLabel, "location": range.location])
       }
     }
-    onChangeContent(["text": storage.string, "mentions": mentions])
+    var content = selection()
+    content["text"] = storage.string
+    content["mentions"] = mentions
+    onChangeContent(content)
   }
 
   private func reportHeight() {
@@ -286,43 +334,6 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
       reportedHeight = height
       onContentHeight(["height": Double(height)])
     }
-  }
-
-  // The "@…" that ends at the cursor: an @ at the text's start or after a space, a line break or a
-  // chip, with up to 40 characters and no line break or chip after it.
-  private func updateQuery() {
-    var found: NSRange?
-    var query: String?
-    let selection = textView.selectedRange
-    if textView.markedTextRange == nil && selection.length == 0 {
-      let text = textView.textStorage.string as NSString
-      let cursor = min(selection.location, text.length)
-      var index = cursor - 1
-      while index >= 0 && cursor - index <= 41 {
-        let character = text.character(at: index)
-        if character == 0xFFFC || character == 0x0A {
-          break
-        }
-        if character == 0x40 {
-          let isStart = index == 0 || isBoundary(text.character(at: index - 1))
-          if isStart {
-            found = NSRange(location: index, length: cursor - index)
-            query = text.substring(with: NSRange(location: index + 1, length: cursor - index - 1))
-          }
-          break
-        }
-        index -= 1
-      }
-    }
-    queryRange = found
-    if query != reportedQuery {
-      reportedQuery = query
-      onMentionQuery(["isActive": query != nil, "query": query ?? ""])
-    }
-  }
-
-  private func isBoundary(_ character: unichar) -> Bool {
-    return character == 0x20 || character == 0x0A || character == 0xFFFC || character == 0xA0
   }
 
   private func loadAvatar(_ uri: String?) -> UIImage? {

@@ -1,13 +1,9 @@
-import type { PostMention } from '@squidbox/shared';
 import { CONTACT_HANDLE_FIELDS } from '@squidbox/shared';
 
 import mentionHandle, { type MentionContact } from './mentionHandle';
-import mentionParts from './mentionParts';
+import mentionParts, { type MentionTextValue } from './mentionParts';
 
 import extractHandles from '@/lib/extractHandles';
-
-/** A post's text and its mentions, as the mention reads give them. */
-export type PostWithMentions = { text: string; mentions: PostMention[] | null };
 
 /**
  * The @handles these posts mention, those used most first (extractHandles): each post's typed
@@ -15,7 +11,7 @@ export type PostWithMentions = { text: string; mentions: PostMention[] | null };
  * has. A chip of a deleted contact adds none.
  */
 export default function postHandles(
-  posts: readonly PostWithMentions[],
+  posts: readonly MentionTextValue[],
   contactsById: ReadonlyMap<string, MentionContact>,
 ): string[] {
   const texts = posts.flatMap(({ text, mentions }) => {

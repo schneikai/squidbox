@@ -2,7 +2,7 @@ import { DEFAULT_IDEA_PROMPTS } from '@squidbox/shared';
 import type { Locator, Page } from 'playwright/test';
 
 import { expect, STUB_TAGS, test } from './fixtures';
-import { button, openTab, pickFromSquidbox, withDialog } from './helpers';
+import { button, expectPostText, openTab, pickFromSquidbox, postText, withDialog } from './helpers';
 import { loadAppAsync } from '../scripts/webPreview.mjs';
 
 // The assistant's ideas in the post editor, on the stubbed assistant (fixtures): a new post's start
@@ -25,7 +25,7 @@ async function openNewPost(page: Page) {
 
 // The caption of the editor's `index`th post.
 function caption(editor: Locator, index = 0) {
-  return editor.getByPlaceholder("What's new?").nth(index);
+  return postText(editor, index);
 }
 
 test('a new post gets ideas once it has photos, written after the photos are tagged', async ({ page, assistant }) => {
@@ -47,7 +47,7 @@ test('a new post gets ideas once it has photos, written after the photos are tag
   expect(assistant.chats[0]!.context.tags).toEqual(STUB_TAGS);
 
   await button(editor, 'Use').first().click();
-  await expect(caption(editor)).toHaveValue(firstIdea(1));
+  await expectPostText(caption(editor), firstIdea(1));
   // Use folds the tray into its title's row; a tap unfolds it, the used idea marked.
   await expect(button(editor, 'More')).toHaveCount(0);
   await button(editor, 'Ideas').click();
@@ -109,7 +109,7 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
   expect(assistant.chats[0]!.context.thread).toEqual({ index: 1, posts: ['Fog on the ridge this morning', ''] });
 
   await button(editor, 'Use').first().click();
-  await expect(caption(editor, 1)).toHaveValue(firstIdea(1));
+  await expectPostText(caption(editor, 1), firstIdea(1));
   await button(editor, 'Follow-up with link').click();
   await button(editor, 'Back to Write with AI').click();
   await expect(button(editor, 'Follow-up with link')).toBeVisible();
@@ -136,7 +136,7 @@ test('a repost opens with its text and its ideas', async ({ page, assistant }) =
   const editor = page.getByTestId('post-editor');
 
   await expect(editor.getByText(firstIdea(1))).toBeVisible();
-  await expect(caption(editor)).not.toHaveValue('');
+  await expect(caption(editor)).not.toHaveText('');
   // His Repost ideas prompt (seed-mock).
   expect(assistant.chats[0]!.messages[0]).toMatchObject({
     role: 'user',

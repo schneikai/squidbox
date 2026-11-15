@@ -1,5 +1,8 @@
 import type { PostMention } from '@squidbox/shared';
 
+/** A text and the contacts it mentions (null: none), as a post stores them. */
+export type MentionTextValue = { text: string; mentions: PostMention[] | null };
+
 /** A piece of a text with mentions: plain text, or a mention whose name stands there. */
 export type MentionPart = { kind: 'text'; text: string } | { kind: 'mention'; mention: PostMention };
 
