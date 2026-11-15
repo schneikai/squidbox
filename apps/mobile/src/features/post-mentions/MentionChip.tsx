@@ -35,7 +35,8 @@ export default function MentionChip({ label, contact, onPress }: MentionChipProp
       accessibilityLabel={label}
       style={({ pressed }) => [styles.chip, pressed && press.flat]}
     >
-      <ContactAvatar contact={contact} size={BOX.avatar} />
+      {/* The chip is read as its label: the avatar says nothing of its own. */}
+      <ContactAvatar contact={contact} size={BOX.avatar} isDecorative />
       <RNText style={styles.label} numberOfLines={1}>
         {label}
       </RNText>

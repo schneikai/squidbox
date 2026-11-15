@@ -24,7 +24,7 @@ import { getAvatarUri } from '@/utils/assets/assetStorage';
  * overlapping in a stack. `cutout`, for a face in a row of overlapping ones, is how far the next face
  * reaches over its right edge: a crescent that much plus a thin gap is cut out of this one, so a real
  * gap shows whatever is behind the row, on any background.
- * VoiceOver reads the contact's name. style is for layout only.
+ * VoiceOver reads the contact's name, unless `isDecorative`. style is for layout only.
  */
 export type ContactAvatarProps = {
   // A new contact has no photo name yet.
@@ -35,6 +35,8 @@ export type ContactAvatarProps = {
   isStacked?: boolean;
   outlineColor?: string;
   cutout?: number;
+  /** Inside a control already labelled with the name (a mention chip): no label of its own. */
+  isDecorative?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -46,6 +48,7 @@ export default function ContactAvatar({
   isStacked = false,
   outlineColor = colors.background.surface,
   cutout,
+  isDecorative = false,
   style,
 }: ContactAvatarProps) {
   const avatarUri = useAvatarUri(contact);
@@ -65,9 +68,9 @@ export default function ContactAvatar({
         !!cutout && styles.cut,
         style,
       ]}
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={contact.name || 'New contact'}
+      accessible={!isDecorative}
+      accessibilityRole={isDecorative ? undefined : 'image'}
+      accessibilityLabel={isDecorative ? undefined : contact.name || 'New contact'}
     >
       {cutout ? (
         <CutFace diameter={diameter} cutout={cutout} uri={pictureUri} initials={initials} />
