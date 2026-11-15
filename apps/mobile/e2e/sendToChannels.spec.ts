@@ -101,7 +101,8 @@ test("an idea in a copy's composer reads its chip as the contact's handle on tha
   assistant,
 }) => {
   assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with @[Sam Ridge]'] });
-  await fromPostMenu(page, CHIP_POST, 'Send to channels');
+  // A post with Sam's chip and no Bluesky copy yet: Sam has a handle only there.
+  await fromPostMenu(page, 'Summer recap, part 1, with', 'Send to channels');
   await button(sendSheet(page), 'Add channel').click();
   await page.getByRole('menuitem', { name: 'Bluesky', exact: true }).click();
   const editor = page.getByTestId('channel-copy-editor');
