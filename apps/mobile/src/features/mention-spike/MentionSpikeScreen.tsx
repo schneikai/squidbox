@@ -1,8 +1,9 @@
 import { CONTACT_HANDLES, type ContactHandleField } from '@squidbox/shared';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import MentionContactSheet from './MentionContactSheet';
 import MentionInput, { type MentionInputContent, type MentionInputHandle } from './MentionInput';
 
 import Card from '@/components/Card';
@@ -39,12 +40,15 @@ const CHANNELS: { name: string; field: ContactHandleField }[] = [
  */
 export default function MentionSpikeScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const inputRef = useRef<MentionInputHandle>(null);
   const contacts = useContactRows({});
   const { paths: library } = useOpenLibrary();
   const [query, setQuery] = useState<string | null>(null);
+  const [pressedId, setPressedId] = useState<string | null>(null);
   const [content, setContent] = useState<MentionInputContent>({ text: '', mentions: [] });
 
+  const pressedContact = contacts?.find((contact) => contact.id === pressedId) ?? null;
   const suggestions = useMemo(() => {
     if (query == null || !contacts) return [];
     const needle = query.toLowerCase();
@@ -56,9 +60,9 @@ export default function MentionSpikeScreen() {
     inputRef.current?.insertMention(contact.id, contact.name, uri).catch(console.error);
   }
 
-  function handleMentionPress(id: string) {
-    const contact = contacts?.find((each) => each.id === id);
-    if (contact) Alert.alert(contact.name, handlesText(contact) || 'No handles');
+  function openContact(id: string) {
+    setPressedId(null);
+    router.navigate(`/contact/${id}`);
   }
 
   // The text with each chip written as the contact's handle on the channel, or the name without one.
@@ -86,7 +90,7 @@ export default function MentionSpikeScreen() {
               placeholder="What's new?"
               onChangeContent={setContent}
               onMentionQuery={setQuery}
-              onMentionPress={handleMentionPress}
+              onMentionPress={setPressedId}
             />
             {suggestions.length > 0 && (
               <View style={styles.suggestions}>
@@ -133,6 +137,7 @@ export default function MentionSpikeScreen() {
           </Text>
         </Card>
       </DetailScrollView>
+      <MentionContactSheet contact={pressedContact} onClose={() => setPressedId(null)} onOpenContact={openContact} />
     </Page>
   );
 }
