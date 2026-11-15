@@ -6,17 +6,17 @@ import readPostCopies, { postCopiesTables, type PostCopyWithAssets } from './rea
 import { readChannels } from '@/sync/channelsRepository';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
-import { copyIdOf, followsPost } from '@/sync/postCopiesRepository';
+import { copyIdOf, holdsCopy, isRemoved, showsPost } from '@/sync/postCopiesRepository';
 import postAsCopyPosts from '@/utils/posts/postAsCopyPosts';
 
 /**
- * A card of Send to channels, for its channel: a stored copy of the post, or (`followsPost`) one that
+ * A card of Send to channels, for its channel: a stored copy of the post, or (`showsPost`) one that
  * shows the post and its thread as they are now: an untouched card, not stored, under the id its
- * record will get (`copyIdOf`), or a stored copy never sent nor saved in its composer.
+ * record will get (`copyIdOf`), or a stored copy that shows the post (postCopiesRepository's showsPost).
  */
 export type ChannelCopy = Pick<PostCopyWithAssets, 'id' | 'postId' | 'channelId' | 'sentAt' | 'posts'> & {
   channel: Channel;
-  followsPost: boolean;
+  showsPost: boolean;
 };
 
 /**
@@ -31,7 +31,7 @@ export const channelCopiesTables = [...new Set([...postCopiesTables, schema.chan
 /**
  * A post's cards, in one transaction, or null when the post doesn't exist: for each of the user's
  * channels in their order, its copies, or an untouched card when it has none; a channel whose copies
- * the user removed (`removedAt`) has no card and is `addable`. Then the sent and saved copies of
+ * the user removed (`removedAt`) has no card and is `addable`. Then the sent and own copies of
  * channels no longer in the user's channels, in the order they were added. A channel this build
  * doesn't know is left out.
  */
@@ -48,14 +48,14 @@ export default function readChannelCopies(db: SyncDb, postId: string): Promise<C
     const shown: Omit<ChannelCopy, 'channel'>[] = [];
     const addableIds: string[] = [];
     const card = (copy: PostCopyWithAssets) => {
-      const follows = followsPost(copy);
+      const shows = showsPost(copy);
       const { id, channelId, sentAt } = copy;
-      return { id, postId, channelId, sentAt, posts: follows ? postPosts : copy.posts, followsPost: follows };
+      return { id, postId, channelId, sentAt, posts: shows ? postPosts : copy.posts, showsPost: shows };
     };
     for (const channelId of channelIds) {
       const copies = byChannel.get(channelId) ?? [];
       byChannel.delete(channelId);
-      const kept = copies.filter((copy) => copy.removedAt == null);
+      const kept = copies.filter((copy) => !isRemoved(copy));
       if (copies.length === 0)
         shown.push({
           id: copyIdOf(postId, channelId),
@@ -63,13 +63,12 @@ export default function readChannelCopies(db: SyncDb, postId: string): Promise<C
           channelId,
           sentAt: null,
           posts: postPosts,
-          followsPost: true,
+          showsPost: true,
         });
       else if (kept.length === 0) addableIds.push(channelId);
       else shown.push(...kept.map(card));
     }
-    for (const copies of byChannel.values())
-      shown.push(...copies.filter((copy) => copy.removedAt == null && !followsPost(copy)).map(card));
+    for (const copies of byChannel.values()) shown.push(...copies.filter(holdsCopy).map(card));
 
     return {
       copies: shown.flatMap((copy) => {

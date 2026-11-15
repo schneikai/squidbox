@@ -2,7 +2,7 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ChannelCopyCard from './ChannelCopyCard';
-import useSendCopies from './useSendCopies';
+import useCopyActions from './useCopyActions';
 
 import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
@@ -17,11 +17,9 @@ import useMentionSheet from '@/features/post-mentions/useMentionSheet';
 import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import usePosts from '@/providers/posts/usePosts';
 import { layout, sizes } from '@/styles/designTokens';
 import readChannelCopies, { channelCopiesTables, type ChannelCopy } from '@/sync/queries/readChannelCopies';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 
 /**
  * Send to channels, a sheet over a post: a card for each of the user's channels, in their order, then
@@ -39,8 +37,7 @@ export default function SendToChannelsScreen() {
   const read = useLiveQuery((db) => readChannelCopies(db, postId), channelCopiesTables, [postId]);
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(read?.copies.flatMap((copy) => copy.posts));
   const { onPressMention, sheet } = useMentionSheet(contactsById);
-  const { sendNow, sendAll } = useSendCopies();
-  const { addPostCopy, removePostCopy, setPostCopiesSent } = usePosts();
+  const { sendNow, sendAll, markNotSent, remove, addBack } = useCopyActions();
   const padding = useScreenPadding('sheet');
   const actionPadding = useFloatingPrimaryActionPadding();
   useCloseWhenGone(read, 'This post was deleted');
@@ -57,10 +54,6 @@ export default function SendToChannelsScreen() {
 
   function openCopy(copy: ChannelCopy) {
     router.navigate({ pathname: '/send-to-channels/[postId]/copies/[copyId]', params: { postId, copyId: copy.id } });
-  }
-
-  async function removeCopy(copy: ChannelCopy) {
-    if (await confirmRemoveAsync(`this ${copy.channel.name} copy`)) await removePostCopy(copy);
   }
 
   // The cards show once their chips' contacts are read: their handles and warnings don't move in.
@@ -86,7 +79,7 @@ export default function SendToChannelsScreen() {
                   key={channel.id}
                   label={channel.name}
                   trailing={<ChannelLogo channelId={channel.id} size={sizes.menuIcon} />}
-                  onPress={() => addPostCopy(postId, channel.id)}
+                  onPress={() => addBack(postId, channel.id)}
                 />
               ))}
             </MenuButton>
@@ -122,8 +115,8 @@ export default function SendToChannelsScreen() {
               onOpen={() => openCopy(copy)}
               onSendNow={() => sendNow(copy)}
               onEdit={() => editCopy(copy)}
-              onRemove={() => removeCopy(copy)}
-              onMarkNotSent={() => setPostCopiesSent([copy], null)}
+              onRemove={() => remove(copy)}
+              onMarkNotSent={() => markNotSent(copy)}
             />
           ))}
         </ScrollView>

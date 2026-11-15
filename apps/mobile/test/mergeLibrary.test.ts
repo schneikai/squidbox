@@ -855,11 +855,13 @@ describe('post copies', () => {
     const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
     const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'mine.jpg' });
     const post = await posts.create(source, makePostRecord({ text: 'Ridge' }));
-    const gone = await posts.create(source, makePostRecord({ text: 'Gone', deletedAt: 5 }));
+    const gone = await posts.create(source, makePostRecord({ text: 'Gone' }));
     const missing = '00000000-0000-4000-8000-000000000001';
     const copy = { text: 'Ridge', mentions: null, assetIds: [mine.id, missing] };
     await source.transaction((tx) => createCopy(tx, { postId: post.id, channelId: 'bluesky', posts: [copy] }));
     await source.transaction((tx) => createCopy(tx, { postId: gone.id, channelId: 'x', posts: [copy] }));
+    // Deleted on an installed build, which leaves its copies live.
+    await posts.update(source, gone.id, { deletedAt: 5 });
 
     const plan = await commitPass();
 

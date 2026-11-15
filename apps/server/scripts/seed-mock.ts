@@ -133,12 +133,12 @@ const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
 // `thread`: the posts that follow this one in its thread, each with its own text and photos.
 // `mention`: the contact (CONTACTS index) whose name in the text is a chip.
 type MockPostPart = { text: string; media: number[]; mention?: number; thread?: { text: string; media: number[] }[] };
-// A post's copy for one of his channels, `sentDaysAgo` null while unsent, `edited` when he saved it in
-// its composer; its posts in thread order.
+// A post's copy for one of his channels, `sentDaysAgo` null while unsent, `followsPost` when the app
+// stored it from a card that showed the post (else his own); its posts in thread order.
 type MockCopy = {
   channelId: string;
   sentDaysAgo: number | null;
-  edited?: boolean;
+  followsPost?: boolean;
   posts: { text: string; media: number[] }[];
 };
 const POSTS: (MockPostPart & {
@@ -161,7 +161,6 @@ const POSTS: (MockPostPart & {
       {
         channelId: 'bluesky',
         sentDaysAgo: 32,
-        edited: true,
         posts: [
           { text: 'A whole day under the trees with Sam Ridge. Best shots below 🌲', media: [14, 15] },
           { text: 'And the light on the way out.', media: [17, 32] },
@@ -170,6 +169,7 @@ const POSTS: (MockPostPart & {
       {
         channelId: 'instagram',
         sentDaysAgo: null,
+        followsPost: true,
         posts: [{ text: 'Lost in the forest for a day with Sam Ridge 🌲', media: [14, 15, 17, 32] }],
       },
     ],
@@ -445,12 +445,12 @@ const postAssets: PostAssetRecord[] = [
 });
 
 // The posts' copies for his channels (a channel without one gets a card that follows the post), each
-// post with the parent's chip where its name stands: one he saved in its composer (`edited`) is his
-// own, an unsent one he didn't follows the post.
+// post with the parent's chip where its name stands: his own, or (`followsPost`) one that shows the
+// post while unsent.
 const postCopies: PostCopyRecord[] = POSTS.flatMap(({ copies = [], mention }, index) =>
-  copies.map(({ channelId, sentDaysAgo, edited = false, posts: parts }, j) => ({
+  copies.map(({ channelId, sentDaysAgo, followsPost = false, posts: parts }, j) => ({
     ...baseRecord(`post:${index}:copy:${channelId}`, posts[index]!.createdAt + j),
-    editedAt: edited ? posts[index]!.createdAt + j : null,
+    followsPost,
     removedAt: null,
     postId: posts[index]!.id,
     channelId,

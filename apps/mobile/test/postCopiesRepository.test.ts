@@ -18,7 +18,8 @@ import {
 } from '../src/sync/postCopiesRepository';
 import { removeThreads } from '../src/sync/postThreads';
 import readChannelCopies, { type ChannelCopy } from '../src/sync/queries/readChannelCopies';
-import readPostCopies from '../src/sync/queries/readPostCopies';
+import readPostCopies, { countPostCopies } from '../src/sync/queries/readPostCopies';
+import readRepostCopies from '../src/sync/queries/readRepostCopies';
 import { makeRepository } from '../src/sync/repository';
 import newRecord from '../src/utils/newRecord';
 
@@ -60,7 +61,7 @@ const saveAs = (db: SyncDb, channelId: string, text: string) =>
 describe('postCopiesRepository', () => {
   it("stores a repost's copy unsent under its fixed id, and saves its edited posts", async () => {
     const { db, copy } = await setup();
-    expect(copy).toMatchObject({ id: copyIdOf(P1, 'bluesky'), channelId: 'bluesky', sentAt: null, editedAt: null });
+    expect(copy).toMatchObject({ id: copyIdOf(P1, 'bluesky'), channelId: 'bluesky', sentAt: null, followsPost: false });
     const thread = [ridge, { text: 'More from the trail', mentions: null, assetIds: [] }];
     await db.transaction((tx) => updateCopyPosts(tx, copy, thread));
     expect(texts((await read(db))[0]!)).toEqual(['Ridge at dawn', 'More from the trail']);
@@ -110,7 +111,7 @@ describe('readChannelCopies', () => {
     const shown = await cards(db);
     expect(shown.map((copy) => copy.channel.id)).toEqual(['bluesky', 'x', 'instagram']);
     for (const copy of shown) {
-      expect(copy).toMatchObject({ id: copyIdOf(P1, copy.channelId), sentAt: null, followsPost: true });
+      expect(copy).toMatchObject({ id: copyIdOf(P1, copy.channelId), sentAt: null, showsPost: true });
       expect(texts(copy)).toEqual(['Ridge at dawn', 'More from the trail']);
       expect(copy.posts.map((post) => post.assetIds)).toEqual([[A1], [A2]]);
     }
@@ -129,8 +130,8 @@ describe('readChannelCopies', () => {
     const db = await setupCards();
     await saveAs(db, 'x', 'For X');
     expect(await rows(db)).toMatchObject([{ id: copyIdOf(P1, 'x'), channelId: 'x', posts: [{ text: 'For X' }] }]);
-    expect((await rows(db))[0]!.editedAt).not.toBeNull();
-    expect(await card(db, 'x')).toMatchObject({ followsPost: false, posts: [{ text: 'For X' }] });
+    expect((await rows(db))[0]!.followsPost).toBe(false);
+    expect(await card(db, 'x')).toMatchObject({ showsPost: false, posts: [{ text: 'For X' }] });
   });
 
   it('stores the cards Send all marks sent with the posts they showed, and keeps showing them after the post is edited', async () => {
@@ -138,7 +139,7 @@ describe('readChannelCopies', () => {
     await saveAs(db, 'x', 'For X');
     await db.transaction(async (tx) => setCopiesSent(tx, await cards(tx), 50));
     await editPost(db, 'Ridge at noon');
-    expect((await cards(db)).map((copy) => [copy.channelId, copy.sentAt, copy.followsPost, texts(copy)[0]])).toEqual([
+    expect((await cards(db)).map((copy) => [copy.channelId, copy.sentAt, copy.showsPost, texts(copy)[0]])).toEqual([
       ['bluesky', 50, false, 'Ridge at dawn'],
       ['x', 50, false, 'For X'],
       ['instagram', 50, false, 'Ridge at dawn'],
@@ -162,7 +163,7 @@ describe('readChannelCopies', () => {
     await db.transaction(async (tx) => setCopiesSent(tx, [await card(tx, 'x')], 50));
     await db.transaction(async (tx) => setCopiesSent(tx, [await card(tx, 'x')], null));
     await editPost(db, 'Ridge at noon');
-    expect(await card(db, 'x')).toMatchObject({ sentAt: null, followsPost: true });
+    expect(await card(db, 'x')).toMatchObject({ sentAt: null, showsPost: true });
     expect(texts(await card(db, 'x'))).toEqual(['Ridge at noon', 'More from the trail']);
   });
 
@@ -176,7 +177,7 @@ describe('readChannelCopies', () => {
     expect(removed.copies.map((copy) => copy.channelId)).toEqual(['instagram']);
 
     for (const channelId of ['x', 'bluesky']) await db.transaction((tx) => restoreCopies(tx, P1, channelId));
-    expect(await card(db, 'x')).toMatchObject({ id: copyIdOf(P1, 'x'), sentAt: null, followsPost: true });
+    expect(await card(db, 'x')).toMatchObject({ id: copyIdOf(P1, 'x'), sentAt: null, showsPost: true });
     expect(texts(await card(db, 'x'))).toEqual(['Ridge at noon', 'More from the trail']);
     expect(texts(await card(db, 'bluesky'))).toEqual(['Just for Bluesky']);
     expect((await readChannelCopies(db, P1))!.addable).toEqual([]);
@@ -191,8 +192,8 @@ describe('readChannelCopies', () => {
       (tx: SyncDb) => setCopiesSent(tx, [x], 50),
       (tx: SyncDb) => removeCopies(tx, [x]),
     ])
-      await expect(db.transaction(write)).rejects.toThrow('This copy was deleted');
-    expect(await rows(db)).toMatchObject([{ id: x.id, sentAt: null, editedAt: null }]);
+      await expect(db.transaction(write)).rejects.toThrow('This copy was removed');
+    expect(await rows(db)).toMatchObject([{ id: x.id, sentAt: null, followsPost: true }]);
     expect((await rows(db))[0]!.removedAt).not.toBeNull();
   });
 
@@ -231,9 +232,30 @@ describe('readChannelCopies', () => {
     const x = await card(db, 'x');
     await db.transaction((tx) => setCopiesSent(tx, [x], 50));
     await copiesRepository.remove(db, [x.id]);
-    expect(await card(db, 'x')).toMatchObject({ id: x.id, sentAt: null, followsPost: true });
+    expect(await card(db, 'x')).toMatchObject({ id: x.id, sentAt: null, showsPost: true });
     await db.transaction(async (tx) => setCopiesSent(tx, [await card(tx, 'x')], 60));
     expect(await rows(db)).toMatchObject([{ id: x.id, sentAt: 60, deletedAt: null }]);
+  });
+
+  it("shows a copy written without followsPost (an older build's) as the channel's own", async () => {
+    const db = await setupCards();
+    const record = newRecord(postCopyCollection, {}, { postId: P1, channelId: 'x', posts: [ridge], sentAt: null });
+    await copiesRepository.create(db, record);
+    expect(await card(db, 'x')).toMatchObject({ id: record.id, showsPost: false, posts: [{ text: 'Ridge at dawn' }] });
+  });
+
+  it('refuses a write on a card of a deleted post, and on a stored copy deleted meanwhile', async () => {
+    const db = await setupCards();
+    const record = newRecord(postCopyCollection, {}, { postId: P1, channelId: 'x', posts: [ridge], sentAt: null });
+    await copiesRepository.create(db, record);
+    const [bluesky, x] = await cards(db);
+    await copiesRepository.remove(db, [record.id]);
+    await expect(db.transaction((tx) => setCopiesSent(tx, [x!], 50))).rejects.toThrow('This copy was removed');
+    await db.transaction((tx) => removeThreads(tx, [P1]));
+    await expect(db.transaction((tx) => updateCopyPosts(tx, bluesky!, [ridge]))).rejects.toThrow(
+      'This post was deleted',
+    );
+    expect((await rows(db)).filter((row) => row.deletedAt === null)).toEqual([]);
   });
 
   it('reads nothing for a deleted post', async () => {
@@ -255,5 +277,29 @@ describe('readChannelCopies', () => {
     const [shown] = (await read(db))[0]!.posts;
     expect(shown!.assets.map((asset) => asset.id)).toEqual([A1, A3]);
     expect(shown!.assetIds).toEqual([A1, A3]);
+  });
+});
+
+describe('readRepostCopies', () => {
+  it("starts a repost with the post's own copies, sent or not, and not with removed ones or those that show the post", async () => {
+    const db = await setupCards();
+    await saveAs(db, 'bluesky', 'Just for Bluesky');
+    await db.transaction(async (tx) => setCopiesSent(tx, [await card(tx, 'bluesky'), await card(tx, 'x')], 50));
+    await saveAs(db, 'instagram', 'Just for Instagram');
+    await db.transaction(async (tx) => removeCopies(tx, [await card(tx, 'instagram')]));
+    expect(await readRepostCopies(db, P1)).toEqual([
+      { channelId: 'bluesky', posts: [{ text: 'Just for Bluesky', mentions: null, assetIds: [] }] },
+    ]);
+  });
+});
+
+describe('countPostCopies', () => {
+  it("counts the copies that hold something of the user's: sent or own, not removed", async () => {
+    const db = await setupCards();
+    await saveAs(db, 'bluesky', 'Just for Bluesky');
+    await db.transaction(async (tx) => setCopiesSent(tx, [await card(tx, 'x')], 50));
+    await db.transaction(async (tx) => setCopiesSent(tx, [await card(tx, 'x')], null));
+    await db.transaction(async (tx) => removeCopies(tx, [await card(tx, 'instagram')]));
+    expect(await countPostCopies(db, P1)).toBe(1);
   });
 });

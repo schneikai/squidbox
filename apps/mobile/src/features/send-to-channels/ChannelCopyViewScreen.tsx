@@ -13,6 +13,7 @@ import useMentionedContacts from '@/features/post-mentions/useMentionedContacts'
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import { layout } from '@/styles/designTokens';
+import { REMOVED } from '@/sync/postCopiesRepository';
 import { channelCopiesTables, readChannelCopy } from '@/sync/queries/readChannelCopies';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
@@ -31,7 +32,7 @@ export default function ChannelCopyViewScreen() {
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(copy?.posts);
   const { onPressMention, sheet } = useMentionSheet(contactsById);
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
-  useCloseWhenGone(copy, 'This copy was deleted');
+  useCloseWhenGone(copy, REMOVED);
 
   // The parts' ids only key the cards.
   const post = useMemo(() => {

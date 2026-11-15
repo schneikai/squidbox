@@ -25,6 +25,9 @@ const repository = makeRepository('post_copies', t);
 // The namespace of the copies' fixed ids. Stored data: never change it.
 const COPY_ID_NAMESPACE = '08224fd5-0fed-416b-b0a5-0aeec90d275c';
 
+/** What a write on a removed card says, and what a screen showing one says when it closes. */
+export const REMOVED = 'This copy was removed';
+
 /**
  * A card of Send to channels as a write takes it (a ChannelCopy, or a stored record): its stored or
  * fixed id, and what it shows.
@@ -40,18 +43,36 @@ export function copyIdOf(postId: string, channelId: string): string {
 }
 
 /**
- * Whether a stored copy shows the post as it is now, like an untouched card: unsent and never saved
- * in its composer. A sent copy shows what was sent; a saved one is the channel's own.
+ * Whether a copy is the channel's own: saved in its composer, or written by a build without
+ * `followsPost`. The others were stored by this app from a card that showed the post.
  */
-export function followsPost(copy: Pick<PostCopyRow, 'sentAt' | 'editedAt'>): boolean {
-  return copy.sentAt === null && copy.editedAt == null;
+export function isOwnCopy(copy: Pick<PostCopyRow, 'followsPost'>): boolean {
+  return copy.followsPost !== true;
 }
 
 /**
- * A copy of `postId` for `channelId` (a repost's), unsent, under `copyIdOf`; `editedAt` when it is a
- * copy the user saved. A live copy there is kept as it is. Its posts over a limit throw the schema's
- * message. `createdAt` (now without it) orders the copies of channels no longer in the user's
- * channels: copies made together pass one each, in order, so they list in that order.
+ * Whether a stored copy shows the post as it is now, like an untouched card: not the channel's own,
+ * and unsent (a sent copy shows what was sent).
+ */
+export function showsPost(copy: Pick<PostCopyRow, 'sentAt' | 'followsPost'>): boolean {
+  return !isOwnCopy(copy) && copy.sentAt === null;
+}
+
+/** Whether the user took the copy's channel off the post (Remove): no card shows for it. */
+export function isRemoved(copy: Pick<PostCopyRow, 'removedAt'>): boolean {
+  return copy.removedAt != null;
+}
+
+/** Whether a copy holds something of the user's: not removed, and not showing the post. */
+export function holdsCopy(copy: Pick<PostCopyRow, 'sentAt' | 'followsPost' | 'removedAt'>): boolean {
+  return !isRemoved(copy) && !showsPost(copy);
+}
+
+/**
+ * A copy of `postId` for `channelId` (a repost's), the channel's own, unsent, under `copyIdOf`. A
+ * live copy there is kept as it is. Its posts over a limit throw the schema's message. `createdAt`
+ * (now without it) orders the copies of channels no longer in the user's channels: copies made
+ * together pass one each, in order, so they list in that order.
  */
 export async function createCopy(
   tx: SyncDb,
@@ -59,23 +80,22 @@ export async function createCopy(
     postId,
     channelId,
     posts,
-    editedAt = null,
     createdAt,
-  }: Pick<PostCopyRecord, 'postId' | 'channelId' | 'posts' | 'editedAt'> & { createdAt?: number },
+  }: Pick<PostCopyRecord, 'postId' | 'channelId' | 'posts'> & { createdAt?: number },
 ): Promise<void> {
   const card = { id: copyIdOf(postId, channelId), postId, channelId, posts };
   const made = createdAt === undefined ? {} : { createdAt, updatedAt: createdAt };
-  await writeCards(tx, [card], (row) => (row ? null : { editedAt, ...made }));
+  await writeCards(tx, [card], (row) => (row ? null : { followsPost: false, ...made }));
 }
 
 /**
  * Save a card's posts (its composer's Save): the channel's own copy from then on. A sent copy is
- * locked, and a removed one is gone: both throw.
+ * locked: it throws.
  */
 export async function updateCopyPosts(tx: SyncDb, copy: CopyRef, posts: PostCopyPost[]): Promise<void> {
   await writeCards(tx, [copy], (row) => {
     if (row?.sentAt != null) throw new Error('This copy was sent: mark it as not sent to edit it');
-    return { posts: parsePosts(posts), editedAt: getTimestamp() };
+    return { posts: parsePosts(posts), followsPost: false };
   });
 }
 
@@ -85,29 +105,28 @@ export async function removeCopies(tx: SyncDb, copies: CopyRef[]): Promise<void>
 }
 
 /**
- * Mark cards sent at `sentAt` (a card that follows the post with the posts it showed, what was
- * sent), or not sent (null: a copy never saved then follows the post again).
+ * Mark cards sent at `sentAt` (one that shows the post with the posts it showed, what was sent), or
+ * not sent (null: one stored from a card that showed the post shows it again).
  */
 export async function setCopiesSent(tx: SyncDb, copies: CopyRef[], sentAt: number | null): Promise<void> {
   await writeCards(tx, copies, (row, copy) =>
-    sentAt !== null && row && followsPost(row) ? { sentAt, posts: parsePosts(copy.posts) } : { sentAt },
+    sentAt !== null && row && showsPost(row) ? { sentAt, posts: parsePosts(copy.posts) } : { sentAt },
   );
 }
 
-/**
- * Bring a channel's card back to a post (Send to channels' +): its removed copies are shown again,
- * one never saved following the post.
- */
+/** Bring a channel's card back to a post (Send to channels' +): its removed copies show again. */
 export async function restoreCopies(tx: SyncDb, postId: string, channelId: string): Promise<void> {
   const removed = await tx
-    .select({ id: t.id })
+    .select()
     .from(t)
     .where(and(eq(t.postId, postId), eq(t.channelId, channelId), isNull(t.deletedAt), isNotNull(t.removedAt)));
   if (removed.length > 0)
-    await repository.updateAll(
+    await saveRecords(
       tx,
-      removed.map((copy) => copy.id),
-      { removedAt: null },
+      'post_copies',
+      t,
+      removed.map((row) => nextVersion(row, { removedAt: null })),
+      { previous: removed },
     );
 }
 
@@ -126,15 +145,19 @@ export async function removeCopiesOf(tx: SyncDb, postIds: string[]): Promise<voi
 
 /**
  * Writes `changesOf(row, card)` to each card's record, as one new version: a card without a live
- * record (untouched; a tombstone under its fixed id, too) is stored with them, as it shows, unsent.
- * `changesOf` gets the live record (undefined for an untouched card) and returns null to write
- * nothing. A card removed meanwhile (on this or another device) throws.
+ * record (untouched, or a deleted record under its fixed id) is stored with them, as it shows,
+ * unsent, showing the post. `changesOf` gets the live record (undefined for an untouched card) and
+ * returns null to write nothing. A card of a deleted post, a removed card and a deleted stored copy
+ * (removed meanwhile, here or on another device) throw.
  */
 async function writeCards(
   tx: SyncDb,
   cards: CopyRef[],
   changesOf: (row: PostCopyRow | undefined, card: CopyRef) => Partial<PostCopyRecord> | null,
 ): Promise<void> {
+  const postIds = [...new Set(cards.map((card) => card.postId))];
+  const posts = await readByIdMap(tx, schema.posts, postIds);
+  if (postIds.some((id) => posts.get(id)?.deletedAt !== null)) throw new Error('This post was deleted');
   const rows = await readByIdMap(
     tx,
     t,
@@ -146,7 +169,8 @@ async function writeCards(
   for (const card of cards) {
     const row = rows.get(card.id);
     const live = row?.deletedAt === null ? row : undefined;
-    if (live?.removedAt != null) throw new Error('This copy was deleted');
+    const isFixed = card.id === copyIdOf(card.postId, card.channelId);
+    if ((live && isRemoved(live)) || (row && !live && !isFixed)) throw new Error(REMOVED);
     const changes = changesOf(live, card);
     if (!changes) continue;
     if (live) {
@@ -154,8 +178,15 @@ async function writeCards(
       previous.push(live);
       continue;
     }
-    const { id, postId, channelId, posts } = card;
-    const fresh = { postId, channelId, posts: parsePosts(posts), sentAt: null, editedAt: null, removedAt: null };
+    const { id, postId, channelId } = card;
+    const fresh = {
+      postId,
+      channelId,
+      posts: parsePosts(card.posts),
+      sentAt: null,
+      followsPost: true,
+      removedAt: null,
+    };
     if (row) {
       updated.push(nextVersion<PostCopyRecord>(row, { ...fresh, deletedAt: null, ...changes }));
       previous.push(row);

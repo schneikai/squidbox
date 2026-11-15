@@ -1,9 +1,10 @@
 import type { PostCopyPost } from '@squidbox/shared';
-import { and, asc, count, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import * as schema from '@/sync/db/schema';
 import type { AssetRow, PostCopyRow } from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
+import { holdsCopy } from '@/sync/postCopiesRepository';
 import assetQuery from '@/sync/queries/assetQuery';
 
 /**
@@ -47,12 +48,15 @@ export default async function readPostCopies(db: SyncDb, postId: string): Promis
   }));
 }
 
-/** How many live copies a post has, in one statement over post_copies_post_idx. */
+/**
+ * How many copies of a post hold something of the user's (holdsCopy: sent or the channel's own, not
+ * removed), in one statement over post_copies_post_idx.
+ */
 export async function countPostCopies(db: SyncDb, postId: string): Promise<number> {
   const t = schema.postCopies;
-  const [row] = await db
-    .select({ count: count() })
+  const copies = await db
+    .select({ sentAt: t.sentAt, followsPost: t.followsPost, removedAt: t.removedAt })
     .from(t)
     .where(and(eq(t.postId, postId), isNull(t.deletedAt)));
-  return row?.count ?? 0;
+  return copies.filter(holdsCopy).length;
 }

@@ -1,8 +1,9 @@
-import type { PostCopyRecord, PostRecord } from '@squidbox/shared';
+import type { PostRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
 import type { CopyRef } from '@/sync/postCopiesRepository';
 import type { AssetRef, ThreadPart } from '@/sync/postThreads';
+import type { RepostCopy } from '@/sync/queries/readRepostCopies';
 
 // A post as an editor writes it: its fields, its photos (`assetRefs`) and its following posts
 // (`threadPosts`, postThreads).
@@ -14,8 +15,8 @@ export type PostFields = Partial<PostRecord> & {
 // The post an editor was seeded with: what a changed photo list or thread is saved over.
 export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts'>;
 
-// A channel copy as a repost starts with it (post_copies): its channel, its posts and when it was saved.
-export type PostCopyFields = Pick<PostCopyRecord, 'channelId' | 'posts' | 'editedAt'>;
+// A channel copy as a repost starts with it (post_copies): its channel and its posts.
+export type PostCopyFields = RepostCopy;
 
 export type PostsContextValue = {
   addPost: (fields: PostFields & { copies?: PostCopyFields[] }) => Promise<PostRecord & { assetRefs: AssetRef[] }>;

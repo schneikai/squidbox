@@ -1,3 +1,4 @@
+import type { PostCopyPost } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useReducer } from 'react';
 
@@ -5,13 +6,14 @@ import copyAsPost from './copyAsPost';
 
 import EditSheet from '@/components/EditSheet';
 import PostCards from '@/features/posts/PostCards';
-import cardsReducer from '@/features/posts/draft/cardsReducer';
+import cardsReducer, { type CardsDraft } from '@/features/posts/draft/cardsReducer';
 import draftFromPost, { type CardsSeed } from '@/features/posts/draft/draftFromPost';
 import hasCardContent from '@/features/posts/draft/hasCardContent';
 import useEditSheet from '@/hooks/useEditSheet';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import usePosts from '@/providers/posts/usePosts';
 import type { SyncDb } from '@/sync/db/types';
+import { REMOVED } from '@/sync/postCopiesRepository';
 import { readChannelCopy, type ChannelCopy } from '@/sync/queries/readChannelCopies';
 import postAsCopyPosts from '@/utils/posts/postAsCopyPosts';
 
@@ -27,7 +29,7 @@ type CopySeed = { copy: ChannelCopy; post: CardsSeed };
  */
 export default function ChannelCopyScreen() {
   const { postId, copyId } = useLocalSearchParams<{ postId: string; copyId: string }>();
-  const seed = useSeedOrClose((db) => readSeed(db, postId, copyId), `${postId}:${copyId}`, 'This copy was deleted');
+  const seed = useSeedOrClose((db) => readSeed(db, postId, copyId), `${postId}:${copyId}`, REMOVED);
 
   if (!seed) return null;
 
@@ -41,9 +43,9 @@ function CopyComposer({ seed }: CopyComposerProps) {
   const [draft, dispatch] = useReducer(cardsReducer, seed.post, draftFromPost);
   const { copy } = seed;
   const { channel } = copy;
-  const seedPosts = useMemo(() => JSON.stringify(postAsCopyPosts(draftFromPost(seed.post).cards)), [seed.post]);
+  const seedPosts = useMemo(() => JSON.stringify(recordPosts(draftFromPost(seed.post))), [seed.post]);
   // Worked out once per change of the cards, not on every render.
-  const posts = useMemo(() => postAsCopyPosts(draft.cards), [draft]);
+  const posts = useMemo(() => recordPosts(draft), [draft]);
   const isDirty = useMemo(() => JSON.stringify(posts) !== seedPosts, [posts, seedPosts]);
 
   const { sheetProps } = useEditSheet({
@@ -58,7 +60,7 @@ function CopyComposer({ seed }: CopyComposerProps) {
       <PostCards
         draft={draft}
         dispatch={dispatch}
-        kind={copy.followsPost ? 'draft' : 'edit'}
+        kind={copy.showsPost ? 'draft' : 'edit'}
         ideas="post"
         channel={channel}
       />
@@ -70,4 +72,9 @@ async function readSeed(db: SyncDb, postId: string, copyId: string): Promise<Cop
   const copy = await readChannelCopy(db, postId, copyId);
   const post = copy && copyAsPost(copy);
   return post ? { copy, post } : null;
+}
+
+// The copy's posts as the record holds them, from its cards.
+function recordPosts({ cards }: Pick<CardsDraft, 'cards'>): PostCopyPost[] {
+  return postAsCopyPosts(cards).map(({ text, mentions, assetIds }) => ({ text, mentions, assetIds }));
 }
