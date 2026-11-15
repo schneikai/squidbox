@@ -1,4 +1,4 @@
-import { CHAT_LIMITS, type ChatThread } from '@squidbox/shared';
+import { CHAT_LIMITS, type ChatThread, mentionMarkers } from '@squidbox/shared';
 
 import type { ChatDraftPost, ChatSession, ContextReader } from './chatSessions';
 import chatTags from './chatTags';
@@ -24,8 +24,9 @@ type ContextSources = {
  * may mention (readMentions, as the chat card shows them, with the Mentions sheet's edits; each name
  * once); and in a thread, the posts' texts (threadWindow). The texts go with their chips as mention
  * markers (markedText.write), so a rewrite keeps them. It resolves to that context and the contacts
- * the reply's markers may name (`mentioned`): the Mentions, and those the posts' own chips mention
- * (`isInDraft`). A target no longer in the thread fails the turn.
+ * the reply's markers may name (`mentioned`): those the posts' own chips mention, and the Mentions
+ * under every other name (a name a chip carries means the contact the user chose for it). A target no
+ * longer in the thread fails the turn.
  */
 export default function chatContextReader(session: ChatSession, getSources: () => ContextSources): ContextReader {
   return async (signal, onWait, target) => {
@@ -45,13 +46,13 @@ export default function chatContextReader(session: ChatSession, getSources: () =
     return {
       context: {
         kind,
-        text: markedText.write(posts[at]!).slice(0, CHAT_LIMITS.text),
+        text: markedText.write(posts[at]!, CHAT_LIMITS.text),
         media: countMediaTypes(assets),
         tags: postTags(chatTags.withTags(rows, chatTags.tags.get()), tagEdits).slice(0, CHAT_LIMITS.tags),
         mentions: [...new Set(mentions.map((contact) => contact.name))],
         ...(posts.length > 1 && { thread: threadWindow(posts, at) }),
       },
-      mentioned: [...mentions.map(({ id, name }) => ({ id, name })), ...draftChips(posts)],
+      mentioned: mentionedBy(draftChips(posts), mentions),
     };
   };
 }
@@ -61,12 +62,19 @@ export default function chatContextReader(session: ChatSession, getSources: () =
 function threadWindow(posts: readonly ChatDraftPost[], at: number): ChatThread {
   const start = Math.max(0, Math.min(at - CHAT_LIMITS.threadPosts + 1, posts.length - CHAT_LIMITS.threadPosts));
   const window = posts.slice(start, start + CHAT_LIMITS.threadPosts);
-  return { index: at - start, posts: window.map((post) => markedText.write(post).slice(0, CHAT_LIMITS.text)) };
+  return { index: at - start, posts: window.map((post) => markedText.write(post, CHAT_LIMITS.text)) };
 }
 
 // The contacts the posts' own chips mention, by the name each chip carries.
 function draftChips(posts: readonly ChatDraftPost[]): MentionCandidate[] {
-  return posts.flatMap((post) =>
-    validMentions(post).map(({ contactId, name }) => ({ id: contactId, name, isInDraft: true })),
-  );
+  return posts.flatMap((post) => validMentions(post).map(({ contactId, name }) => ({ id: contactId, name })));
+}
+
+// Who a marker may name: the chips' contacts, and the Mentions under a name no chip carries.
+function mentionedBy(chips: readonly MentionCandidate[], mentions: readonly MentionCandidate[]): MentionCandidate[] {
+  const chipNames = new Set(chips.map(({ name }) => mentionMarkers.key(name)));
+  return [
+    ...chips,
+    ...mentions.filter(({ name }) => !chipNames.has(mentionMarkers.key(name))).map(({ id, name }) => ({ id, name })),
+  ];
 }

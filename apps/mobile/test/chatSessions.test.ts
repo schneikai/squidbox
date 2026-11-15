@@ -124,19 +124,6 @@ describe('chatSessions', () => {
     expect(apply).toHaveBeenCalledWith('p1', { text: 'Out with Sam Ridge and Nobody Here', mentions: sam(9) });
   });
 
-  it('fails a reply that nothing is left of once its markers are read, with Retry', async () => {
-    const { session } = open();
-    const { request, calls } = deferredRequest();
-    const { sending } = await sendNow(session, turn('Ideas'), request);
-    calls[0]!.resolve({ reply: '@[]', postOptions: ['@[ ]'] });
-    await sending;
-    expect(session.getState().messages[1]).toMatchObject({
-      status: 'error',
-      error: 'Returned neither a reply nor posts',
-    });
-    expect(session.retry(readContext, request)).not.toBeNull();
-  });
-
   it("puts the user's turn and a loading reply in the chat before the context is read, and sends once it is", async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();

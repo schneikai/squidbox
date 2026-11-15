@@ -902,11 +902,13 @@ describe('POST /api/v1/ai/chat', () => {
     );
   });
 
-  it('502 ai_unavailable when nothing is left of the reply without its markers', async () => {
-    veniceAnswers({ chatReply: { reply: '@[]', postOptions: [] } });
-    const res = await call('POST', '/ai/chat', chatRequest);
-    expect(res.statusCode).toBe(502);
-    expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Returned neither a reply nor posts' } });
+  it('502 ai_unavailable when nothing is left of the reply without its markers, for every build', async () => {
+    veniceAnswers({ chatReply: { reply: '@[]', postOptions: ['@[ ]'] } });
+    for (const request of [chatRequest, { ...chatRequest, readsMentionMarkers: true }]) {
+      const res = await call('POST', '/ai/chat', request);
+      expect(res.statusCode).toBe(502);
+      expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Returned neither a reply nor posts' } });
+    }
   });
 
   it("runs the chat on each model's own defaults: no reasoning or effort settings", async () => {

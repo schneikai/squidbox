@@ -126,8 +126,28 @@ describe('chatContextReader', () => {
         expect(context.thread!.posts).toEqual(['With @[Maya]', 'Then @[Sam Ridge]']);
         expect(context.mentions).toEqual([]);
         expect(mentioned).toEqual([
-          { id: 'maya', name: 'Maya', isInDraft: true },
-          { id: 'sam', name: 'Sam Ridge', isInDraft: true },
+          { id: 'maya', name: 'Maya' },
+          { id: 'sam', name: 'Sam Ridge' },
+        ]);
+      },
+    ));
+
+  it("names for a name a chip carries the chip's contact only, though a Mentions contact shares it", () =>
+    withChat(
+      [post('p1', 'With Sam Ridge', ['ridge'], [{ contactId: 'chip', location: 5, name: 'Sam Ridge' }])],
+      async (session) => {
+        readPhotoAndAlbumContacts.mockResolvedValueOnce([
+          { id: 'other', name: 'sam ridge' },
+          { id: 'maya', name: 'Maya' },
+        ]);
+        const { mentioned } = await chatContextReader(session, () => ({ tagging: noTagging }))(
+          new AbortController().signal,
+          () => {},
+          'p1',
+        );
+        expect(mentioned).toEqual([
+          { id: 'chip', name: 'Sam Ridge' },
+          { id: 'maya', name: 'Maya' },
         ]);
       },
     ));

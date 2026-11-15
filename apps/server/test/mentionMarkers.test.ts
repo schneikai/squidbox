@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mentionMarkers } from '@squidbox/shared';
 
-const NAMES = ['Sam Ridge', 'Maya'];
+const NAMES = new Map(['Sam Ridge', 'Maya'].map((name) => [mentionMarkers.key(name), name]));
 
 describe('mentionMarkers', () => {
   it("makes a marker of a given name that name, with its place; a later one's place counts what was removed", () => {
@@ -42,29 +42,7 @@ describe('mentionMarkers', () => {
     });
   });
 
-  it('leaves a name two given names share but for case or spaces as plain text', () => {
-    expect(mentionMarkers.read('With @[Sam Ridge]', ['Sam Ridge', 'sam  ridge'])).toEqual({
-      text: 'With Sam Ridge',
-      marks: [],
-    });
-  });
-
-  it('reads back what it writes', () => {
-    const text = 'Sam Ridge and Maya, then Maya again';
-    const marks = [
-      { location: 0, name: 'Sam Ridge' },
-      { location: 14, name: 'Maya' },
-      { location: 25, name: 'Maya' },
-    ];
-    expect(mentionMarkers.read(mentionMarkers.write(text, marks), NAMES)).toEqual({ text, marks });
-  });
-
-  it('writes a name holding ] unmarked', () => {
-    expect(
-      mentionMarkers.write('With Sam] and Maya', [
-        { location: 5, name: 'Sam]' },
-        { location: 14, name: 'Maya' },
-      ]),
-    ).toBe('With Sam] and @[Maya]');
+  it('marks a name, and leaves one holding ] as it is', () => {
+    expect([mentionMarkers.mark('Maya'), mentionMarkers.mark('Sam]')]).toEqual(['@[Maya]', 'Sam]']);
   });
 });

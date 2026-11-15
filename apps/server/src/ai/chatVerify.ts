@@ -21,7 +21,7 @@ import {
 import { findModel } from './catalog.js';
 import { MOCK_PERSONA, MOCK_POSTS } from './mockPersona.js';
 import { chatMessages, judgeMessages } from './prompts.js';
-import { chatTask, checkChatReply, judgeTask, runTask, withoutMarkers } from './tasks.js';
+import { chatTask, judgeTask, runTask, withoutMarkers } from './tasks.js';
 import { VeniceUnavailableError } from './venice.js';
 import type { VerifyRunner } from './verify.js';
 import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
@@ -274,9 +274,8 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
     for (const { id, isBare, title, steps } of sections) {
       let section: VerifySection | null = null;
       let post = { ...BASE_POST };
-      // The model's replies as it wrote them, for the model; without markers, for the judge.
+      // The model's replies as it wrote them, mention markers included.
       const transcript: ChatTurn[] = [];
-      const plainTranscript: ChatTurn[] = [];
       let before: string[] | null = null;
       let failure: string | null = null;
       for (const step of steps) {
@@ -309,17 +308,14 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
             return chatTask.onUnreadable!(text, json);
           },
         };
-        // A reply that nothing is left of without its markers is a useless reply, the turn's error.
-        const call = await timedCall(async () => {
-          const written = await runTask({ task, messages, model });
-          return { written, plain: checkChatReply(withoutMarkers(written)) };
-        });
+        const call = await timedCall(() => runTask({ task, messages, model }));
         if ('error' in call) {
           failure = `an earlier turn failed (${call.error})`;
           await progress.add(section, missedTurn(turn, call.error, expected, call.seconds));
           continue;
         }
-        const { written, plain: reply } = call.value;
+        const written = call.value;
+        const reply = withoutMarkers(written);
         // Venice not answering the judge stops the run, after this turn: the model's reply is in.
         let judgeStopped: VeniceUnavailableError | null = null;
         const verdict = await timedCall(() =>
@@ -330,7 +326,9 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
               context: contextOf(post),
               persona: isBare ? null : MOCK_PERSONA,
               posts: isBare ? [] : MOCK_POSTS,
-              transcript: plainTranscript,
+              transcript: transcript.map((each) =>
+                each.role === 'assistant' ? { ...each, ...withoutMarkers(each) } : each,
+              ),
               request: { content },
               reply,
             }),
@@ -359,7 +357,6 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
         });
         if (judgeStopped) throw judgeStopped;
         transcript.push({ role: 'user', content }, { role: 'assistant', ...written });
-        plainTranscript.push({ role: 'user', content }, { role: 'assistant', ...reply });
         if (reply.postOptions.length > 0) before = reply.postOptions;
       }
     }

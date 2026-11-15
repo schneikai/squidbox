@@ -9,8 +9,9 @@ export type MentionMark = { location: number; name: string };
 
 const OPEN = '@[';
 const CLOSE = ']';
-// A name that could not be read back from a marker.
-const UNMARKABLE = /[[\]\r\n]/;
+// What a marker's name never holds: a `[` or `]`, or a line break.
+const NOT_IN_NAME = /[[\]\r\n]/;
+const NO_NAMES: ReadonlyMap<string, string> = new Map();
 
 /** What a name is compared by: trimmed, its spaces collapsed, without case. Two names are the same name when their keys are equal. */
 function key(name: string): string {
@@ -18,19 +19,13 @@ function key(name: string): string {
 }
 
 /**
- * `text` with its markers read against `names` (the names the turn was told). At each `@[`: when a
- * `]` follows on the same line, the inner text holds no `[` and is at most CONTACT_LIMITS.name long,
- * and its key equals the key of exactly one distinct given name, that name as given stands there
- * with a mark; with no such name (unknown, or two given names that differ only in case or spaces)
- * the inner text, trimmed, stays as plain text; anything else (broken, or no marker at all) loses
- * only its `@[`. Marks are at their places in the returned text.
+ * `text` with its markers read against `names` (the names the turn was told, by their `key`). At
+ * each `@[`: when a `]` follows with no `[` or line break before it, at most CONTACT_LIMITS.name on,
+ * and its key is one of `names`, that name as given stands there with a mark; with no such name the
+ * inner text, trimmed, stays as plain text; anything else (broken, or no marker at all) loses only
+ * its `@[`. Marks are at their places in the returned text.
  */
-function read(text: string, names: readonly string[]): { text: string; marks: MentionMark[] } {
-  const byKey = new Map<string, Set<string>>();
-  for (const name of names) {
-    const nameKey = key(name);
-    if (nameKey) byKey.set(nameKey, (byKey.get(nameKey) ?? new Set()).add(name));
-  }
+function read(text: string, names: ReadonlyMap<string, string>): { text: string; marks: MentionMark[] } {
   let result = '';
   const marks: MentionMark[] = [];
   let at = 0;
@@ -43,10 +38,9 @@ function read(text: string, names: readonly string[]): { text: string; marks: Me
       continue;
     }
     const inner = text.slice(start, close);
-    const matches = byKey.get(key(inner));
-    if (matches?.size === 1) {
-      const [name] = matches as Set<string>;
-      marks.push({ location: result.length, name: name! });
+    const name = names.get(key(inner));
+    if (name) {
+      marks.push({ location: result.length, name });
       result += name;
     } else {
       result += inner.trim();
@@ -56,36 +50,24 @@ function read(text: string, names: readonly string[]): { text: string; marks: Me
   return { text: result + text.slice(at), marks };
 }
 
-// Where the marker opened at `start` closes: the first `]` on its line, when no `[` comes before it
-// and the name is no longer than a contact's; else null (broken).
+// Where the marker opened at `start` closes: the first `]`, when nothing a name never holds comes
+// before it and the name is no longer than a contact's; else null (broken).
 function closeOf(text: string, start: number): number | null {
   for (let at = start; at < text.length && at - start <= CONTACT_LIMITS.name; at++) {
-    const char = text[at];
-    if (char === CLOSE) return at;
-    if (char === '[' || char === '\n' || char === '\r') return null;
+    if (text[at] === CLOSE) return at;
+    if (NOT_IN_NAME.test(text[at]!)) return null;
   }
   return null;
 }
 
-/**
- * The inverse of `read`: `text` with `@[name]` around each mark. A mark whose name doesn't stand at
- * its place, overlaps an earlier one, or holds `[`, `]` or a line break (it couldn't be read back)
- * stays plain text.
- */
-function write(text: string, marks: readonly MentionMark[]): string {
-  let result = '';
-  let at = 0;
-  for (const { location, name } of [...marks].sort((a, b) => a.location - b.location)) {
-    if (location < at || !name || UNMARKABLE.test(name) || !text.startsWith(name, location)) continue;
-    result += `${text.slice(at, location)}${OPEN}${name}${CLOSE}`;
-    at = location + name.length;
-  }
-  return result + text.slice(at);
+/** `name` as a marker, `@[name]`; a name that couldn't be read back from one (it holds `[`, `]` or a line break) as it is. */
+function mark(name: string): string {
+  return name && !NOT_IN_NAME.test(name) ? `${OPEN}${name}${CLOSE}` : name;
 }
 
 /** `text` without markers, for a reader that knows none: each marked name as plain text. */
 function strip(text: string): string {
-  return read(text, []).text;
+  return read(text, NO_NAMES).text;
 }
 
-export const mentionMarkers = { key, read, write, strip };
+export const mentionMarkers = { key, read, mark, strip };
