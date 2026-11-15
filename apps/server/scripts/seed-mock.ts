@@ -4,7 +4,7 @@
  * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky (his channels: Bluesky, then X and
- * Instagram; one post mentions a friend by chip and has its copies for Bluesky, sent, and Instagram), the people he shoots and
+ * Instagram; two posts mention a friend by chip, no post types a handle, and one has its copies for Bluesky, sent, and Instagram), the people he shoots and
  * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
@@ -167,7 +167,8 @@ const POSTS: (MockPostPart & {
   },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
   {
-    text: 'Summer recap, part 1, with @ridgeline.bsky.social',
+    text: 'Summer recap, part 1, with Sam Ridge',
+    mention: 0,
     media: [3, 5, 7, 8, 11],
     postedDaysAgo: 12,
     thread: [
