@@ -348,7 +348,8 @@ export type ChatThread = z.infer<typeof chatThreadSchema>;
 // written) and `thread` (the {thread}, when the post is one of a thread); `kind` is only the app's
 // (ChatSubjectCard), the default briefing doesn't name it. The app cuts `text` to CHAT_LIMITS.text
 // (a post's text has no cap) so a long caption never makes a 400. `thread` is optional: older
-// builds don't send it.
+// builds don't send it. `mentions` are who the post may mention: their names from builds that link
+// a name to its contact (chips), @handles from older installed builds; the server joins either.
 export const chatContextSchema = z.object({
   kind: chatSubjectKindSchema,
   text: z.string().max(CHAT_LIMITS.text),

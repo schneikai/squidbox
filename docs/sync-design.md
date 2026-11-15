@@ -951,6 +951,13 @@ mentions, and two devices never mix one's text with the other's mentions. An ins
 the field shows a mention as its name, and a text it edits may lose its chips (the names stay as
 plain text). Server 0041, app 0041.
 
+The assistant works with contacts too: the chat's Mentions are contacts, and a turn sends their
+names (`context.mentions`, still `string[]`, so older builds keep sending handles). Use and an idea's
+Copy make each full name of that turn's Mentions in the idea a mention, so every channel gets the
+contact's own handle there. A typed `@handle` in a saved text becomes the chip of the one contact it
+means when the post is edited, reposted or copied for a channel, stored only when that is saved;
+nothing is converted in bulk, and a handle that means no contact, or several, stays text.
+
 Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and
 0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
 channel of a post was a post of its own, linked by `channelRootId`, and `channelId` with
