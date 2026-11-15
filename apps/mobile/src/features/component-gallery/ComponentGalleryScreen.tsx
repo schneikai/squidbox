@@ -233,8 +233,8 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="MentionChip">
           <Text style={styles.fill}>
-            Up the ridge with <MentionChip label="Maya Lindqvist" avatarUri={null} onPress={noop} /> and{' '}
-            <MentionChip label="@samridge" avatarUri={null} /> at dawn.
+            Up the ridge with <MentionChip label="Maya Lindqvist" contact={{ name: 'Maya Lindqvist' }} onPress={noop} />{' '}
+            and <MentionChip label="@samridge" contact={{ name: 'Sam Ridge' }} /> at dawn.
           </Text>
         </Specimen>
       </>

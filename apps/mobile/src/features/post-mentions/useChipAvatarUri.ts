@@ -1,17 +1,16 @@
+import { useCallback } from 'react';
+
 import type { MentionContact } from './mentionHandle';
 
-import { isFileName } from '@/library/fileFields';
+import avatarOnDevice from '@/features/contact-avatar/avatarOnDevice';
 import useOpenLibrary from '@/library/useOpenLibrary';
-import { getAvatarUri } from '@/utils/assets/assetStorage';
 
 /**
- * Where a contact's photo is for a mention chip to draw it (the file on this device); null without
- * one, and the chip shows a grey disc. The chip takes what is on the device, it fetches nothing.
+ * Where a contact's photo is for the mention field to draw it in a chip (avatarOnDevice, the file on
+ * this device); null without one, and the chip shows a grey disc. The field takes what is on the
+ * device, it fetches nothing. The function stays the same while the library does.
  */
 export default function useChipAvatarUri(): (contact: MentionContact | undefined) => string | null {
   const { paths: library } = useOpenLibrary();
-  return (contact) => {
-    const filename = contact?.avatarFilename;
-    return filename && isFileName(filename) ? (getAvatarUri(filename, library) ?? null) : null;
-  };
+  return useCallback((contact) => avatarOnDevice(contact?.avatarFilename, library), [library]);
 }

@@ -4,7 +4,6 @@ import MentionChip from './MentionChip';
 import type { MentionContact } from './mentionHandle';
 import mentionLabel from './mentionLabel';
 import mentionParts, { type MentionTextValue } from './mentionParts';
-import useChipAvatarUri from './useChipAvatarUri';
 
 import Text from '@/components/Text';
 
@@ -31,7 +30,6 @@ export default function MentionText({
   onPressMention,
   isSelectable = false,
 }: MentionTextProps) {
-  const avatarUriOf = useChipAvatarUri();
   const parts = mentionParts(value.text, value.mentions);
   const hasChips = parts.some((part) => part.kind === 'mention');
 
@@ -44,7 +42,7 @@ export default function MentionText({
           <MentionChip
             key={part.mention.location}
             label={mentionLabel(part.mention, contactsById, channel)}
-            avatarUri={avatarUriOf(contact)}
+            contact={contact ?? { name: part.mention.name }}
             onPress={contact && onPressMention ? () => onPressMention(contact.id) : undefined}
           />
         );
