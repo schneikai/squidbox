@@ -1,10 +1,10 @@
 import type { Channel } from '@squidbox/shared';
 import type { StyleProp, ViewStyle } from 'react-native';
 
+import type { MentionTextValue } from './mentionParts';
 import useCopyPostText from './useCopyPostText';
 
-import CopyTextButton from '@/components/CopyTextButton';
-import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
+import CopyButton from '@/components/CopyButton';
 
 type CopyPostTextButtonProps = {
   post: MentionTextValue;
@@ -19,7 +19,7 @@ export default function CopyPostTextButton({ post, channel, style }: CopyPostTex
 
   return (
     <>
-      <CopyTextButton text={() => copyPostText([post], channel)} style={style} />
+      <CopyButton onCopy={() => copyPostText(post, channel)} style={style} />
       {sheet}
     </>
   );

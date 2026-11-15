@@ -4,9 +4,9 @@ import { StyleSheet } from 'react-native';
 
 import PostRowCard from './PostRowCard';
 
+import CopyPostTextButton from '@/features/post-mentions/CopyPostTextButton';
 import MentionText from '@/features/post-mentions/MentionText';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
-import CopyPostTextButton from '@/features/send-to-channels/CopyPostTextButton';
 import type { AssetRow } from '@/sync/db/schema';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';

@@ -14,7 +14,7 @@ export type ChannelPayload = { channelId: string; posts: { caption: string; asse
 export type PayloadPost = MentionTextValue & { assetIds: readonly string[] };
 
 /**
- * The payload of `posts` (a copy's, or the posts whose text is copied, useCopyPostText) for `channel`: each
+ * The payload of a copy's `posts` for `channel`: each
  * caption is textForChannel's, and `missing` the contacts mentioned without a handle there (whose
  * names go out as plain text), once each, in the order they come.
  */
@@ -32,7 +32,7 @@ export default function channelPayload(
   return { payload: { channelId: channel.id, posts: payloadPosts }, missing: [...missing.values()] };
 }
 
-/** The payload as one text, what Send now and Copy text put on the clipboard: its captions joined by a blank line. */
+/** The payload as one text, what Send now puts on the clipboard: its captions joined by a blank line. */
 export function payloadText(payload: ChannelPayload): string {
   return payload.posts
     .map(({ caption }) => caption.trim())

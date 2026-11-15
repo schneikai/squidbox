@@ -1,14 +1,15 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
+import CopyButton from '@/components/CopyButton';
 import Icon from '@/components/Icon';
 import MenuButton from '@/components/MenuButton';
 import OptionCard, { type OptionCardProps } from '@/components/OptionCard';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import relinkMentions, { type MentionCandidate } from '@/features/post-mentions/relinkMentions';
-import CopyPostTextButton from '@/features/send-to-channels/CopyPostTextButton';
+import useCopyPostText from '@/features/post-mentions/useCopyPostText';
 import { colors, layout, sizes } from '@/styles/designTokens';
 
 // Memoized: a new reply renders only its own options.
@@ -25,8 +26,8 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
 };
 
 /**
- * The option `index` of the reply `replyId`: its text with a copy icon (CopyPostTextButton: each name
- * of `mentioned` in it is that contact, copied as a channel writes it, relinkMentions), ⋯ → More like this
+ * The option `index` of the reply `replyId`: its text with a copy icon (useCopyPostText; each name of
+ * `mentioned` in it is that contact, linked when tapped, relinkMentions), ⋯ → More like this
  * (`onMoreLikeThis(text)`, when given: the chat's, not the tray's), and Use (`onUse(replyId,
  * index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and the
  * card outlined. style is for layout only.
@@ -42,11 +43,12 @@ function ChatOptionCard({
   style,
   textSize,
 }: ChatOptionCardProps) {
-  const post = useMemo(() => relinkMentions({ text, mentions: null }, text, mentioned), [text, mentioned]);
+  const { copyPostText, sheet } = useCopyPostText();
 
   return (
     <OptionCard text={text} textSize={textSize} isUsed={isUsed} style={style}>
-      <CopyPostTextButton post={post} />
+      <CopyButton onCopy={() => copyPostText(relinkMentions({ text, mentions: null }, text, mentioned))} />
+      {sheet}
       {onMoreLikeThis && (
         <MenuButton accessibilityLabel="More for this idea">
           <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />

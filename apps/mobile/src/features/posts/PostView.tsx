@@ -5,10 +5,10 @@ import { StyleSheet, View } from 'react-native';
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
+import CopyPostTextButton from '@/features/post-mentions/CopyPostTextButton';
 import MentionText from '@/features/post-mentions/MentionText';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostPostedAt from '@/features/posts/PostPostedAt';
-import CopyPostTextButton from '@/features/send-to-channels/CopyPostTextButton';
 import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
