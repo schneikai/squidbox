@@ -7,7 +7,6 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -19,6 +18,7 @@ import type { MentionInputProps } from './MentionInput';
 import { MENTION_CHIP, type FieldContent, type FieldMention } from './fieldContent';
 import { mentionChipBox } from './mentionChipStyle';
 
+import useLatestRef from '@/hooks/useLatestRef';
 import { colors, textStyles } from '@/styles/designTokens';
 
 const CHIP = 'mentionId';
@@ -38,10 +38,7 @@ export default function MentionInput({
   const reportedRef = useRef('');
   const [isEmpty, setIsEmpty] = useState(true);
   // The latest onChangeContent, so the handle and `changed` stay the same across renders.
-  const onChangeRef = useRef(onChangeContent);
-  useLayoutEffect(() => {
-    onChangeRef.current = onChangeContent;
-  });
+  const onChangeRef = useLatestRef(onChangeContent);
 
   const changed = useCallback((root: HTMLDivElement) => {
     // A browser that put in a block or styled text of its own is drawn again as plain text and chips.
@@ -128,7 +125,7 @@ export default function MentionInput({
   }
 
   return (
-    <div style={WRAP_STYLE}>
+    <div style={wrapStyle(minHeight)}>
       {isEmpty && (
         <span aria-hidden style={PLACEHOLDER_STYLE}>
           {placeholder}
@@ -155,7 +152,7 @@ export default function MentionInput({
           const chip = (event.target as HTMLElement).closest<HTMLElement>(`[data-mention-id]`);
           if (chip?.dataset[CHIP]) onMentionPress?.(chip.dataset[CHIP]);
         }}
-        style={{ ...FIELD_STYLE, minHeight }}
+        style={FIELD_STYLE}
       />
     </div>
   );
@@ -321,23 +318,33 @@ function placeCaret(root: HTMLElement, position: number) {
   selection.addRange(range);
 }
 
-const WRAP_STYLE: CSSProperties = { position: 'relative', alignSelf: 'stretch' };
+// The field and its placeholder in a column at least `minHeight` tall, in the reading text of a post
+// (textareaTextStyle), which both take from it.
+function wrapStyle(minHeight: number): CSSProperties {
+  return {
+    position: 'relative',
+    alignSelf: 'stretch',
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight,
+    color: colors.text.primary,
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', // the system font react-native-web's Text uses
+    fontSize: textStyles.reading.fontSize,
+    lineHeight: `${textStyles.reading.lineHeight}px`,
+  };
+}
 
-// The reading text of a post (textareaTextStyle), wrapping as typed.
+// The text, filling the column, wrapping as typed.
 const FIELD_STYLE: CSSProperties = {
+  flexGrow: 1,
   outline: 'none',
   whiteSpace: 'pre-wrap',
   overflowWrap: 'anywhere',
-  color: colors.text.primary,
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', // the system font react-native-web's Text uses
-  fontSize: textStyles.reading.fontSize,
-  lineHeight: `${textStyles.reading.lineHeight}px`,
   caretColor: colors.text.primary,
 };
 
 // Over the empty field's first line, letting taps through to it.
 const PLACEHOLDER_STYLE: CSSProperties = {
-  ...FIELD_STYLE,
   position: 'absolute',
   top: 0,
   left: 0,
