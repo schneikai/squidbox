@@ -80,7 +80,7 @@ async function readSeed(
   { postId, channelId, copyId }: { postId: string; channelId?: string; copyId?: string },
 ): Promise<CopySeed | null> {
   if (copyId) {
-    const copy = (await readPostCopies(db, postId)).find(({ id }) => id === copyId);
+    const [copy] = await readPostCopies(db, postId, { copyId });
     const channel = channelById(copy?.channelId);
     if (!copy || !channel) return null;
     const [first, ...following] = copy.posts.map(({ text, mentions, assets }) => ({

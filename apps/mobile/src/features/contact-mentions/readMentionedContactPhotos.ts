@@ -1,12 +1,12 @@
 import { CONTACT_HANDLE_FIELDS, handleKey } from '@squidbox/shared';
-import { and, eq, isNotNull, isNull, like, or } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
 import mentionParts from '@/features/post-mentions/mentionParts';
 import extractHandles from '@/lib/extractHandles';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { listedPostId } from '@/sync/postsRepository';
+import { listedPostId, mentionsSomeone } from '@/sync/postsRepository';
 
 // The suffix a Bluesky handle may be mentioned without (`@maya` for `maya.bsky.social`).
 const BLUESKY_SUFFIX = '.bsky.social';
@@ -26,7 +26,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
     const posts = await tx
       .select({ id: p.id, listedId: listedPostId('posts'), text: p.text, mentions: p.mentions })
       .from(p)
-      .where(and(isNull(p.deletedAt), or(like(p.text, '%@%'), isNotNull(p.mentions))));
+      .where(mentionsSomeone(p));
     const { contactsByHandle, liveIds } = await readLiveContacts(tx);
 
     const contactsByPost = new Map<string, string[]>();

@@ -65,7 +65,7 @@ async function readSeed(
     if (!rePost) return null;
     const copies = (await readPostCopies(db, rePostId)).map(({ channelId, posts }) => ({
       channelId,
-      posts: posts.map(({ text, mentions, assets }) => ({ text, mentions, assetIds: assets.map(({ id }) => id) })),
+      posts: posts.map(({ text, mentions, assetIds }) => ({ text, mentions, assetIds })),
     }));
     return {
       post: { ...fresh, text: rePost.text, mentions: rePost.mentions, postAssets: freshPostAssets(rePost.postAssets) },

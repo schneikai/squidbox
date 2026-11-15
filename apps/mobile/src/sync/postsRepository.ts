@@ -92,6 +92,11 @@ export async function readMentionTexts(
   return { posts: await read(), fromAlbum: false };
 }
 
+/** A live post with an @ in its text or a mention chip: the posts that may mention a contact. */
+export function mentionsSomeone(p: typeof schema.posts) {
+  return sql`${p.deletedAt} is null and (instr(${p.text}, '@') > 0 or ${p.mentions} is not null)`;
+}
+
 /**
  * The texts and mentions of every live post with an @ or a mention, newest post date first: the
  * handles the user ever mentioned.
@@ -101,6 +106,6 @@ export function readMentionedTexts(db: SyncDb): Promise<MentionTextRow[]> {
   return db
     .select({ text: p.text, mentions: p.mentions })
     .from(p)
-    .where(sql`${p.deletedAt} is null and (instr(${p.text}, '@') > 0 or ${p.mentions} is not null)`)
+    .where(mentionsSomeone(p))
     .orderBy(sql`${p.postedAt} desc, ${p.id} desc`);
 }

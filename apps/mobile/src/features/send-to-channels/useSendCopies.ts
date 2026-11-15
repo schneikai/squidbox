@@ -1,5 +1,4 @@
 import type { Channel } from '@squidbox/shared';
-import { Alert } from 'react-native';
 
 import channelPayload, { payloadText } from './channelPayload';
 
@@ -19,19 +18,8 @@ export default function useSendCopies(contactsById: ReadonlyMap<string, MentionC
   const copyText = useCopyText();
 
   async function sendNow(copy: PostCopyWithAssets, channel: Pick<Channel, 'id' | 'handleField'>) {
-    const posts = copy.posts.map(({ text, mentions, assets }) => ({
-      text,
-      mentions,
-      assetIds: assets.map((asset) => asset.id),
-    }));
-    const { payload } = channelPayload(channel, posts, contactsById);
-    try {
-      await copyText(payloadText(payload));
-    } catch (error) {
-      console.error("Couldn't copy the text", error);
-      Alert.alert("Couldn't copy the text", 'The copy is not marked as sent.');
-      return;
-    }
+    const { payload } = channelPayload(channel, copy.posts, contactsById);
+    if (!(await copyText(payloadText(payload), 'The copy is not marked as sent.'))) return;
     await setPostCopiesSent([copy.id], getTimestamp());
   }
 

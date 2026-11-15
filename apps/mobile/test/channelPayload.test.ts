@@ -25,8 +25,21 @@ describe('channelPayload', () => {
   });
 
   it("joins a thread's captions by a blank line, leaving out an empty one", () => {
-    const { payload, missing } = channelPayload(channelById('instagram')!, posts, contacts);
+    const { payload } = channelPayload(channelById('instagram')!, posts, contacts);
     expect(payloadText(payload)).toBe('With Sam Ridge 🌲\n\nAnd the light on the way out.');
-    expect(missing.map(({ id }) => id)).toEqual(['sam']);
+  });
+
+  it('lists a contact without a handle on the channel once, however many posts mention them', () => {
+    const maya = { id: 'maya', name: 'Maya Lindqvist' };
+    const thread = [
+      { text: 'Maya Lindqvist and Sam Ridge', mentions: [mention(maya, 0), mention(sam, 19)], assetIds: [] },
+      { text: 'Sam Ridge again', mentions: [mention(sam, 0)], assetIds: [] },
+    ];
+    const { missing } = channelPayload(channelById('instagram')!, thread, new Map([...contacts, [maya.id, maya]]));
+    expect(missing.map(({ id }) => id)).toEqual(['maya', 'sam']);
   });
 });
+
+function mention(contact: { id: string; name: string }, location: number) {
+  return { contactId: contact.id, location, name: contact.name };
+}

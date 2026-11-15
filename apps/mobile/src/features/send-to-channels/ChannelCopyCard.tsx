@@ -51,12 +51,7 @@ export default function ChannelCopyCard({
   const [first] = copy.posts;
   const [asset, ...more] = first?.assets ?? [];
   const isSent = copy.sentAt !== null;
-  const posts = copy.posts.map(({ text, mentions, assets }) => ({
-    text,
-    mentions,
-    assetIds: assets.map(({ id }) => id),
-  }));
-  const { missing } = channelPayload(channel, posts, contactsById);
+  const { missing } = channelPayload(channel, copy.posts, contactsById);
   const names = joinWords(missing.map((contact) => contact.name));
 
   return (

@@ -228,35 +228,35 @@ function chipNode({ id, label, avatarUri }: FieldMention): HTMLElement {
   return chip;
 }
 
+// How much of the field's text `child` holds: a chip is one character, a line break one (none at the end).
+function lengthOf(root: HTMLElement, child: Node): number {
+  if (child.nodeType === Node.TEXT_NODE) return (child.textContent ?? '').length;
+  if (!(child instanceof HTMLElement)) return 0;
+  if (child.dataset[CHIP]) return 1;
+  if (child.tagName === 'BR') return child === root.lastChild ? 0 : 1;
+  return [...child.childNodes].reduce((sum, inner) => sum + lengthOf(root, inner), 0);
+}
+
 // Where (`node`, `offset`) is in the field's text.
 function positionOf(root: HTMLElement, node: Node, offset: number): number {
   let count = 0;
   let found: number | null = null;
-  function lengthOf(child: Node): number {
-    if (child.nodeType === Node.TEXT_NODE) return (child.textContent ?? '').length;
-    if (!(child instanceof HTMLElement)) return 0;
-    if (child.dataset[CHIP]) return 1;
-    if (child.tagName === 'BR') return child === root.lastChild ? 0 : 1;
-    return [...child.childNodes].reduce((sum, inner) => sum + lengthOf(inner), 0);
-  }
   function visit(current: Node) {
     if (found != null) return;
     if (current === node) {
-      if (current.nodeType === Node.TEXT_NODE) found = count + offset;
-      else found = count + [...current.childNodes].slice(0, offset).reduce((sum, child) => sum + lengthOf(child), 0);
+      const before = [...current.childNodes].slice(0, offset);
+      found =
+        count +
+        (current.nodeType === Node.TEXT_NODE ? offset : before.reduce((sum, child) => sum + lengthOf(root, child), 0));
       return;
     }
-    if (current !== root && (current.nodeType === Node.TEXT_NODE || (current as HTMLElement).dataset?.[CHIP])) {
+    const leaf =
+      current.nodeType === Node.TEXT_NODE ||
+      (current instanceof HTMLElement && (current.dataset[CHIP] || current.tagName === 'BR'));
+    if (current !== root && leaf) {
       // A place inside a chip is after it.
-      if (current.contains(node)) {
-        found = count + 1;
-        return;
-      }
-      count += lengthOf(current);
-      return;
-    }
-    if (current !== root && current instanceof HTMLElement && current.tagName === 'BR') {
-      count += lengthOf(current);
+      if (current.contains(node)) found = count + 1;
+      else count += lengthOf(root, current);
       return;
     }
     current.childNodes.forEach(visit);
@@ -284,12 +284,7 @@ function placeCaret(root: HTMLElement, position: number) {
   let left = position;
   let placed = false;
   for (const [index, child] of [...root.childNodes].entries()) {
-    const length =
-      child.nodeType === Node.TEXT_NODE
-        ? (child.textContent ?? '').length
-        : child === root.lastChild && child.nodeName === 'BR'
-          ? 0
-          : 1;
+    const length = lengthOf(root, child);
     if (child.nodeType === Node.TEXT_NODE && left <= length) {
       range.setStart(child, left);
       placed = true;

@@ -68,6 +68,8 @@ describe('readPostCopies', () => {
     await posts.create(db, makePostRecord({ id: P1 }));
     const post = { text: '', mentions: null, assetIds: [A1!, A2!, A3!] };
     await db.transaction((tx) => createCopy(tx, { postId: P1, channelId: 'x', posts: [post] }));
-    expect((await read(db))[0]!.posts[0]!.assets.map((asset) => asset.id)).toEqual([A1, A3]);
+    const [shown] = (await read(db))[0]!.posts;
+    expect(shown!.assets.map((asset) => asset.id)).toEqual([A1, A3]);
+    expect(shown!.assetIds).toEqual([A1, A3]);
   });
 });

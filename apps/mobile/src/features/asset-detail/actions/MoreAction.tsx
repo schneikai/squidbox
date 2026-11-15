@@ -22,13 +22,14 @@ export default function MoreAction({ asset }: MoreActionProps) {
   }
 
   async function handleCopyFileUrl() {
+    let url: string;
     try {
-      const url = await getAssetFileDownloadUrlAsync(asset.filename, { expiresIn: 7 * 24 * 60 * 60 });
-      await copyText(url);
-      Alert.alert('Copied', 'File URL copied to clipboard.');
+      url = await getAssetFileDownloadUrlAsync(asset.filename, { expiresIn: 7 * 24 * 60 * 60 });
     } catch {
       Alert.alert('Error', 'Failed to get file URL.');
+      return;
     }
+    if (await copyText(url)) Alert.alert('Copied', 'File URL copied to clipboard.');
   }
 
   return (

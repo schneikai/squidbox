@@ -1,4 +1,4 @@
-import type { ContactListRecord, ContactPlace, ContactRecord } from '@squidbox/shared';
+import type { ContactHandleField, ContactListRecord, ContactPlace, ContactRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
 // The children that join a parent and those that leave it (membershipRepository's `change`).
@@ -10,6 +10,8 @@ export type ContactsContextValue = {
     options?: { avatarUri?: string | null; listIds?: string[] },
   ) => Promise<{ contact: ContactRecord; avatarError: unknown }>;
   toggleFavoriteContact: (id: string) => Promise<void>;
+  // Stores a handle the user typed for a contact (storedHandle); an empty one changes nothing.
+  setContactHandle: (id: string, field: ContactHandleField, typed: string) => Promise<void>;
   setAvatarAsync: (id: string, sourceUri: string) => Promise<void>;
   removeAvatar: (id: string) => Promise<void>;
   changePlace: (id: string, from: ContactPlace | null, to: ContactPlace | null) => Promise<void>;

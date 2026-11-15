@@ -5,9 +5,7 @@ import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
-import * as contactsRepository from '@/sync/contactsRepository';
-import { getDb } from '@/sync/db/client';
-import storedHandle from '@/utils/contacts/storedHandle';
+import useContacts from '@/providers/contacts/useContacts';
 
 type AddHandleButtonProps = {
   /** The mentioned contacts without a handle on `channel`. */
@@ -17,18 +15,17 @@ type AddHandleButtonProps = {
 
 /**
  * Add handle on a copy's card: asks for a contact's handle on the channel in one line (its field's
- * form as the hint) and stores it on the contact, as the contact's form stores a handle
- * (storedHandle). With several contacts, a menu of them first.
+ * form as the hint) and stores it on the contact (setContactHandle, as the contact's
+ * form stores a handle). With several contacts, a menu of them first.
  */
 export default function AddHandleButton({ contacts, channel }: AddHandleButtonProps) {
   const { label, placeholder } = CONTACT_HANDLE_BY_FIELD[channel.handleField];
+  const { setContactHandle } = useContacts();
 
   function ask(contact: MentionContact) {
     Alert.prompt(`${contact.name} on ${label}`, placeholder, async (typed: string) => {
-      const handle = storedHandle(typed);
-      if (!handle) return;
       try {
-        await contactsRepository.update(getDb(), contact.id, { [channel.handleField]: handle });
+        await setContactHandle(contact.id, channel.handleField, typed);
       } catch (error) {
         console.error("Couldn't add the handle", error);
         Alert.alert("Couldn't add the handle");

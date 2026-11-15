@@ -24,6 +24,7 @@ import readPhotoIdsOf from '@/sync/readPhotoIdsOf';
 import { requestSync } from '@/sync/worker';
 import { deleteAvatar } from '@/utils/assets/assetStorage';
 import placesChanged from '@/utils/contacts/placesChanged';
+import storedHandle from '@/utils/contacts/storedHandle';
 import getNewItemId from '@/utils/getNewItemId';
 import newRecord from '@/utils/newRecord';
 
@@ -91,6 +92,10 @@ export default function ContactsProvider({ children }: ContactsProviderProps) {
           return created;
         });
         return { contact, avatarError };
+      },
+      setContactHandle: async (id, field, typed) => {
+        const handle = storedHandle(typed);
+        if (handle) await written((tx) => contacts.update(tx, id, { [field]: handle }));
       },
       toggleFavoriteContact: (id) => written((tx) => contacts.toggleFavorite(tx, id)),
       // A new photo gets a new name (newAvatarFilename), so a device holding the old one never shows

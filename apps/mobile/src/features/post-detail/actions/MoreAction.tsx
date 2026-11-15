@@ -11,7 +11,7 @@ import usePosts from '@/providers/posts/usePosts';
 import { getDb } from '@/sync/db/client';
 import type { PostListRow } from '@/sync/queries/postQuery';
 import readPost from '@/sync/queries/readPost';
-import readPostCopies from '@/sync/queries/readPostCopies';
+import { countPostCopies } from '@/sync/queries/readPostCopies';
 import useShareAssets from '@/utils/assets/useShareAssets';
 import confirmDeleteAsync from '@/utils/confirmDeleteAsync';
 import canShareFiles from '@/utils/files/canShareFiles';
@@ -41,7 +41,7 @@ export default function MoreAction({ post, beforeDelete, trigger }: MoreActionPr
   }
 
   async function handleDeletePost() {
-    const copyCount = (await readPostCopies(getDb(), post.id)).length;
+    const copyCount = await countPostCopies(getDb(), post.id);
     const confirmed = await confirmDeleteAsync(deletePostConfirm({ threadCount: post.threadCount, copyCount }));
     if (!confirmed) return;
     beforeDelete?.();
