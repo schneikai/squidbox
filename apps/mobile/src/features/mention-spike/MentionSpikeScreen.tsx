@@ -17,9 +17,12 @@ import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeade
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
+import useOpenLibrary from '@/library/useOpenLibrary';
 import { colors, press, radii, scale, space, textStyles } from '@/styles/designTokens';
+import { getAvatarUri } from '@/utils/assets/assetStorage';
 
 const MAX_SUGGESTIONS = 4;
+const AVATAR_SIZE = 22;
 const WEB_KEEP_FOCUS =
   Platform.OS === 'web'
     ? ({ onMouseDown: (event: { preventDefault: () => void }) => event.preventDefault() } as object)
@@ -48,6 +51,27 @@ export default function MentionSpikeScreen() {
   const contacts = useContactRows({});
   const [query, setQuery] = useState<string | null>(null);
   const [html, setHtml] = useState('');
+  const { paths: library } = useOpenLibrary();
+  // Where the cursor is, to find where the mention being typed starts.
+  const cursorRef = useRef(0);
+
+  // The mention, then the contact's picture before it: the closest this editor gets to a chip.
+  function pick(contact: NonNullable<typeof contacts>[number]) {
+    const input = inputRef.current;
+    if (!input) return;
+    const start = cursorRef.current - ((query ?? '').length + 1);
+    const shown = `@${contact.name}`;
+    input.setMention('@', shown, { id: contact.id });
+    const uri = contact.avatarFilename ? getAvatarUri(contact.avatarFilename, library) : null;
+    if (!uri || start < 0) return;
+    setTimeout(() => {
+      input.setSelection(start, start);
+      input.setImage(uri, AVATAR_SIZE, AVATAR_SIZE);
+      // Past the picture, the mention and the space after it.
+      const end = start + 1 + shown.length + 1;
+      setTimeout(() => input.setSelection(end, end), 60);
+    }, 60);
+  }
 
   const suggestions = useMemo(() => {
     if (query == null || !contacts) return [];
@@ -90,6 +114,7 @@ export default function MentionSpikeScreen() {
             onStartMention={() => setQuery('')}
             onChangeMention={({ text }) => setQuery(text)}
             onEndMention={() => setQuery(null)}
+            onChangeSelection={(event) => (cursorRef.current = event.nativeEvent.start)}
             onChangeHtml={(event) => setHtml(event.nativeEvent.value)}
           />
           {suggestions.length > 0 && (
@@ -101,7 +126,7 @@ export default function MentionSpikeScreen() {
                   <Pressable
                     style={({ pressed }) => pressed && press.flat}
                     accessibilityRole="button"
-                    onPress={() => inputRef.current?.setMention('@', `@${contact.name}`, { id: contact.id })}
+                    onPress={() => pick(contact)}
                   >
                     <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
                       <Text variant="title" size="small" numberOfLines={1}>
