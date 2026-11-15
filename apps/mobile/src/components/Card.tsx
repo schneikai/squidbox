@@ -1,7 +1,5 @@
-import { useContext } from 'react';
 import { View, StyleSheet, type ViewProps } from 'react-native';
 
-import sheetSurfaceContext from '@/components/sheetSurfaceContext';
 import { colors, layout, radii, shadows } from '@/styles/designTokens';
 
 export type CardProps = ViewProps & {
@@ -18,22 +16,11 @@ export type CardProps = ViewProps & {
  * content reaches the edges (media frames, inputs). `hasControlRow`, on a padded card that ends in
  * a row of 44 pt controls (a toolbar, a chat option's actions), lets that row's own room make up
  * the inset under it and the gap above it, so its glyphs sit cardGap from the text and cardInset
- * from the edge. On a sheet's white surface (sheetSurfaceContext, a BottomSheet) it has no shadow.
+ * from the edge.
  */
 export default function Card({ padded = false, hasControlRow = false, children, style, ...rest }: CardProps) {
-  const isOnSheet = useContext(sheetSurfaceContext);
-
   return (
-    <View
-      style={[
-        styles.card,
-        isOnSheet && styles.onSheet,
-        padded && styles.padded,
-        hasControlRow && styles.controlRow,
-        style,
-      ]}
-      {...rest}
-    >
+    <View style={[styles.card, padded && styles.padded, hasControlRow && styles.controlRow, style]} {...rest}>
       {children}
     </View>
   );
@@ -45,9 +32,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     ...shadows.card,
     overflow: 'hidden',
-  },
-  onSheet: {
-    ...shadows.none,
   },
   padded: {
     padding: layout.cardInset,

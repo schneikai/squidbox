@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { Children, isValidElement, useContext, type ReactElement, type ReactNode } from 'react';
 import {
   Pressable,
   Text as RNText,
@@ -15,8 +15,9 @@ import Card from '@/components/Card';
 import Divider from '@/components/Divider';
 import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
+import sheetSurfaceContext from '@/components/sheetSurfaceContext';
 import longPressAccessibility from '@/lib/longPressAccessibility';
-import { colors, layout, press, space, textStyles } from '@/styles/designTokens';
+import { colors, layout, press, shadows, space, textStyles } from '@/styles/designTokens';
 
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
@@ -24,10 +25,13 @@ import { colors, layout, press, space, textStyles } from '@/styles/designTokens'
 export type SectionProps = { children: ReactNode; isHeaderless?: boolean };
 
 // `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
+// On a sheet's white surface (sheetSurfaceContext, a BottomSheet) it has no shadow, as an iOS grouped
+// list on a sheet.
 export function Section({ children, isHeaderless = false }: SectionProps) {
+  const isOnSheet = useContext(sheetSurfaceContext);
   const kids = Children.toArray(children);
   return (
-    <Card style={[styles.section, isHeaderless && styles.headerless]}>
+    <Card style={[styles.section, isHeaderless && styles.headerless, isOnSheet && styles.onSheet]}>
       {kids.map((child, i) => (
         // A text child has no key.
         <View key={(isValidElement(child) ? child.key : null) ?? i}>
@@ -146,6 +150,9 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: space.xs,
+  },
+  onSheet: {
+    ...shadows.none,
   },
   rowLabel: {
     ...textStyles.body,
