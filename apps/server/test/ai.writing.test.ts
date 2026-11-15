@@ -15,7 +15,7 @@ import {
   JUDGE_FORMAT,
   judgeMessages,
   MENTION_AS_GIVEN_FORMAT,
-  MENTION_FORMAT,
+  mentionFormat,
   writingMessages,
 } from '../src/ai/prompts.js';
 
@@ -161,7 +161,13 @@ describe('chatMessages', () => {
   });
 
   it('adds how to write a mention after the JSON object for a build that reads mention markers', () => {
-    expect(systemOfChat({ readsMentionMarkers: true }).endsWith(`\n${CHAT_FORMAT}\n\n${MENTION_FORMAT}`)).toBe(true);
+    const content = systemOfChat({ readsMentionMarkers: true });
+    expect(content.endsWith(`\n${CHAT_FORMAT}\n\n${mentionFormat(['Sam Ridge'])}`)).toBe(true);
+    expect(content.endsWith('For example: "Out all day with @[Sam Ridge]."')).toBe(true);
+  });
+
+  it('lists the people they may mention as markers for a build that reads mention markers', () => {
+    expect(systemOfChat({ readsMentionMarkers: true })).toContain('People they may mention: @[Sam Ridge]\n');
   });
 
   it('tells a build that does not read mention markers to write handles as given, and nothing of markers', () => {
@@ -179,7 +185,7 @@ describe('chatMessages', () => {
   it('lists the people they may mention for a Writing text without {mentions}', () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief.' };
     expect(systemOfChat({ instructions, readsMentionMarkers: true })).toBe(
-      formatted('Be brief.\n\nPeople they may mention: Sam Ridge', CHAT_FORMAT, MENTION_FORMAT),
+      formatted('Be brief.\n\nPeople they may mention: @[Sam Ridge]', CHAT_FORMAT, mentionFormat(['Sam Ridge'])),
     );
   });
 
