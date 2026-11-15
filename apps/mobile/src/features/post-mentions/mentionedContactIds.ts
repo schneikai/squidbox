@@ -1,8 +1,7 @@
 import type { MentionContact } from './mentionHandle';
 import type { MentionTextValue } from './mentionParts';
+import typedHandles from './typedHandles';
 import validMentions from './validMentions';
-
-import extractHandles from '@/lib/extractHandles';
 
 /**
  * The contacts a post mentions, each once: each valid chip's contact that is still live
@@ -18,7 +17,7 @@ export default function mentionedContactIds(
     .map((mention) => mention.contactId)
     .filter((id) => contactsById.has(id));
   const typed = ofHandle
-    ? extractHandles([value.text]).flatMap((handle) => ofHandle(handle).map((contact) => contact.id))
+    ? typedHandles(value.text).flatMap((handle) => ofHandle(handle).map((contact) => contact.id))
     : [];
   return [...new Set([...chips, ...typed])];
 }
