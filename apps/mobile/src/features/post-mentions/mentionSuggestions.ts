@@ -1,17 +1,12 @@
-import { CONTACT_HANDLES, parseHandle } from '@squidbox/shared';
-
+import contactAtHandles, { type AtHandleField } from '@/lib/contactAtHandles';
 import { searchForms } from '@/sync/matchingIds';
 import type { ContactSummary } from '@/sync/queries/contactQuery';
-
-// The networks whose handles are written with @ in a post's text, in the order the app shows them.
-const MENTION_HANDLES = CONTACT_HANDLES.filter((handle) => handle.isAtHandle);
-type MentionHandleField = (typeof MENTION_HANDLES)[number]['field'];
 
 // The rows shown at most.
 const MAX_SUGGESTIONS = 4;
 
 export type MentionContact = Pick<ContactSummary, 'id' | 'name' | 'isFavorite' | 'avatarFilename'> &
-  Partial<Pick<ContactSummary, MentionHandleField>>;
+  Partial<Pick<ContactSummary, AtHandleField>>;
 
 // One handle of a contact to mention, with the networks it is theirs on ('X', 'Bluesky').
 export type MentionSuggestion = { key: string; contact: MentionContact; handle: string; networks: string[] };
@@ -42,17 +37,19 @@ export function mentionEntries(contacts: readonly MentionContact[]): MentionEntr
  * whichever way they match. Then a handle starting with the query, then one whose contact has a name
  * word starting with it, then one where either holds it anywhere, blind to case and accents as a
  * contact search is (searchForms); among those, favorites first, then by name. An empty query (just
- * the @) takes every handle.
+ * the @) takes every handle. A handle in `taken` (lowercased, without the @) is left out.
  */
 export default function mentionSuggestions(
   entries: readonly MentionEntry[],
   onPhotoIds: ReadonlySet<string>,
   query: string,
+  taken: ReadonlySet<string> = new Set(),
 ): MentionSuggestion[] {
   const needles = searchForms(query);
   const ranked: { suggestion: MentionSuggestion; rank: number }[] = [];
   for (const { contact, nameWords, handles } of entries) {
     for (const { suggestion, forms } of handles) {
+      if (taken.has(suggestion.handle.toLowerCase())) continue;
       const rank = matchRank(forms, nameWords, needles);
       // Past every rank of a contact that isn't on the photos.
       if (rank != null) ranked.push({ suggestion, rank: rank + (onPhotoIds.has(contact.id) ? 0 : 3) });
@@ -72,21 +69,14 @@ export default function mentionSuggestions(
     .map(({ suggestion }) => suggestion);
 }
 
-// A contact's distinct @handles, each bare (parseHandle: a profile link's too) with the networks it is
-// on, in the app's order. A link that isn't a profile can't be written as an @handle.
+// A contact's @handles (contactAtHandles) as suggestions.
 function handlesOf(contact: MentionContact): MentionSuggestion[] {
-  const byKey = new Map<string, MentionSuggestion>();
-  for (const { field, label } of MENTION_HANDLES) {
-    const text = contact[field] ?? '';
-    // Its handle on this network (another network's link is none), keyed as handleKey keys it.
-    const { handle } = parseHandle(text, field);
-    if (!handle) continue;
-    const key = handle.toLowerCase();
-    const seen = byKey.get(key);
-    if (seen) seen.networks.push(label);
-    else byKey.set(key, { key: `${contact.id}:${key}`, contact, handle, networks: [label] });
-  }
-  return [...byKey.values()];
+  return contactAtHandles(contact).map(({ handle, networks }) => ({
+    key: `${contact.id}:${handle.toLowerCase()}`,
+    contact,
+    handle,
+    networks,
+  }));
 }
 
 // How well the query's forms (`needles`) match a handle's forms and its contact's name words (0

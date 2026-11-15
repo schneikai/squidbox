@@ -2,14 +2,11 @@ import { CHAT_LIMITS } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
 import type { LiveChat } from './useChatSession';
-import useMentionedHandles from './useMentionedHandles';
-import withEdits from './withEdits';
 
 import BottomSheet from '@/components/BottomSheet';
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import IntroText from '@/components/IntroText';
 import TagsField from '@/components/TagsField';
+import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
 import { space } from '@/styles/designTokens';
 import tagsDifference from '@/utils/tagsDifference';
 
@@ -17,15 +14,24 @@ type ChatMentionsSheetProps = {
   isVisible: boolean;
   onClose: () => void;
   handles: string[];
+  // The post's photos: their contacts come first among the suggestions.
+  assetIds: string[];
   onEditMentions: LiveChat['editMentions'];
 };
 
 /**
  * The handles the chat may mention, in a sheet (`handles`), edited in place like its tags: a tap
- * takes one off, Add types one in, and the other handles of all the posts (MoreMentions) are added
- * with a tap. Each change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
+ * takes one off, and Add types one in, suggesting the contacts' handles it may mean as the post
+ * editor does (MentionSuggestions, those on the photos `assetIds` first, none already there), a tap adding one. Each
+ * change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
  */
-export default function ChatMentionsSheet({ isVisible, onClose, handles, onEditMentions }: ChatMentionsSheetProps) {
+export default function ChatMentionsSheet({
+  isVisible,
+  onClose,
+  handles,
+  assetIds,
+  onEditMentions,
+}: ChatMentionsSheetProps) {
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title="Mentions">
       <View style={styles.body}>
@@ -37,47 +43,22 @@ export default function ChatMentionsSheet({ isVisible, onClose, handles, onEditM
           maxTags={CHAT_LIMITS.mentions}
           maxTagLength={CHAT_LIMITS.mention}
           itemName="handle"
+          renderSuggestions={(text, add) => (
+            <MentionSuggestions
+              query={text.trim().replace(/^@/, '')}
+              assetIds={assetIds}
+              taken={handles}
+              onPick={(handle) => add(`@${handle}`)}
+            />
+          )}
         />
-        <MoreMentions handles={handles} onEditMentions={onEditMentions} />
       </View>
     </BottomSheet>
-  );
-}
-
-type MoreMentionsProps = Pick<ChatMentionsSheetProps, 'handles' | 'onEditMentions'>;
-
-// Every other handle the user ever mentioned, to add with a tap; read only while the sheet is open
-// (a Modal renders nothing while hidden), since it reads every post.
-function MoreMentions({ handles, onEditMentions }: MoreMentionsProps) {
-  const mentioned = useMentionedHandles();
-
-  const more = mentioned ? withEdits(mentioned, { removed: handles }) : [];
-
-  if (more.length === 0) return null;
-
-  return (
-    <View style={styles.more}>
-      <IntroText>More from your posts</IntroText>
-      <ChipRow>
-        {more.map((handle) => (
-          <Chip
-            key={handle}
-            label={handle}
-            variant="add"
-            onPress={() => onEditMentions({ add: [handle] })}
-            accessibilityHint="Adds this handle"
-          />
-        ))}
-      </ChipRow>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   body: {
     gap: space.md,
-  },
-  more: {
-    gap: space.sm,
   },
 });

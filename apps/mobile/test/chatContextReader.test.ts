@@ -10,10 +10,11 @@ import chatTags from '../src/features/post-chat/chatTags';
 const readLiveAssets = vi.hoisted(() => vi.fn(async (): Promise<{ id?: string; tags: string[] | null }[]> => []));
 vi.mock('../src/sync/aiStateRepository', () => ({ readLiveAssets }));
 // The posts the handles come from: none unless a test says so.
-const readMentionTexts = vi.hoisted(() =>
-  vi.fn(async (): Promise<{ texts: string[]; fromAlbum: boolean }> => ({ texts: [], fromAlbum: false })),
-);
+const readMentionTexts = vi.hoisted(() => vi.fn(async (): Promise<string[]> => []));
 vi.mock('../src/sync/postsRepository', () => ({ readMentionTexts }));
+// The contacts on the photos: none unless a test says so.
+const readPhotoAndAlbumContacts = vi.hoisted(() => vi.fn(async (): Promise<{ xHandle: string }[]> => []));
+vi.mock('../src/sync/contactsRepository', () => ({ readPhotoAndAlbumContacts }));
 vi.mock('../src/sync/db/client', () => ({ getDb: () => null }));
 vi.mock('../src/utils/assets/readVisionImageAsync', () => ({ default: vi.fn() }));
 vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }));
@@ -67,7 +68,7 @@ describe('chatContextReader', () => {
 
   it("reads the handles of the photos as they are when the turn goes, with the Mentions sheet's edits", () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {
-      readMentionTexts.mockResolvedValueOnce({ texts: ['With @trailmike'], fromAlbum: true });
+      readMentionTexts.mockResolvedValueOnce(['With @trailmike']);
       session.editMentions({ add: ['@corntwee'] });
       expect((await read(chatContextReader(session, () => ({ tagging: noTagging })))).mentions).toEqual([
         '@corntwee',

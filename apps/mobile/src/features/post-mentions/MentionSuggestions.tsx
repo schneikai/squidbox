@@ -8,31 +8,39 @@ import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
+import keepFocusOnPress from '@/lib/keepFocusOnPress';
 import { colors, layout, press, radii, sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
-type MentionSuggestionsProps = { query: string; assetIds: string[]; onPick: (handle: string) => void };
+type MentionSuggestionsProps = {
+  query: string;
+  assetIds: string[];
+  // The handles already there (with or without the @), left out.
+  taken?: readonly string[];
+  onPick: (handle: string) => void;
+};
 
 /**
  * The contacts the @handle being typed may mean (`query`, without the @; mentionSuggestions), those on
- * the post's photos (`assetIds`) first, each with its avatar, name, handle and networks; a tap hands
+ * the post's photos (`assetIds`) first, none of those `taken`, each with its avatar, name, handle and networks; a tap hands
  * the handle to `onPick`. Only text: nothing is linked to the contact. Nothing shows while reading or when no contact matches.
  */
-export default function MentionSuggestions({ query, assetIds, onPick }: MentionSuggestionsProps) {
+export default function MentionSuggestions({ query, assetIds, taken, onPick }: MentionSuggestionsProps) {
   const contacts = useContactRows({});
   const onPhotos = useContactRows({ scope: { photoIds: assetIds } });
 
   const entries = useMemo(() => contacts && mentionEntries(contacts), [contacts]);
   const onPhotoIds = useMemo(() => onPhotos && new Set(onPhotos.map(({ id }) => id)), [onPhotos]);
+  const takenKeys = useMemo(() => new Set(taken?.map((handle) => handle.replace(/^@/, '').toLowerCase())), [taken]);
   const suggestions = useMemo(
-    () => (entries && onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query) : []),
-    [entries, onPhotoIds, query],
+    () => (entries && onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query, takenKeys) : []),
+    [entries, onPhotoIds, query, takenKeys],
   );
 
   if (suggestions.length === 0) return null;
 
   return (
-    <View style={styles.list} testID="mention-suggestions">
+    <View style={styles.list} testID="mention-suggestions" {...keepFocusOnPress}>
       {suggestions.map((suggestion, index) => (
         <View key={suggestion.key}>
           {index > 0 && <Divider style={styles.divider} />}
@@ -52,7 +60,7 @@ function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: Su
       onPress={() => onPick(handle)}
       accessibilityRole="button"
       accessibilityLabel={`${contact.name}, @${handle} on ${networks.join(' and ')}`}
-      accessibilityHint="Adds the handle to the text"
+      accessibilityHint="Adds the handle"
     >
       <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
         <Text variant="title" size="small" numberOfLines={1}>

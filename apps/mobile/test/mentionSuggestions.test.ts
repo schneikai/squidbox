@@ -11,8 +11,8 @@ function contact(fields: Partial<MentionContact> & Pick<MentionContact, 'name'>)
 
 const NONE = new Set<string>();
 
-const mentionSuggestions = (contacts: MentionContact[], onPhotoIds: Set<string>, query: string) =>
-  mentionSuggestionsOf(mentionEntries(contacts), onPhotoIds, query);
+const mentionSuggestions = (contacts: MentionContact[], onPhotoIds: Set<string>, query: string, taken?: Set<string>) =>
+  mentionSuggestionsOf(mentionEntries(contacts), onPhotoIds, query, taken);
 
 const shown = (suggestions: ReturnType<typeof mentionSuggestions>) =>
   suggestions.map(({ handle, networks }) => `${handle} ${networks.join(',')}`);
@@ -52,6 +52,17 @@ describe('mentionSuggestions', () => {
     const onPhotos = new Set(['Sam Theodor']);
     expect(shown(mentionSuggestions(contacts, onPhotos, 'theo'))).toEqual(['samt X', 'theo X']);
     expect(shown(mentionSuggestions(contacts, onPhotos, ''))).toEqual(['samt X', 'al X', 'theo X']);
+  });
+
+  it('leaves out the handles already taken, so the next ones take their place', () => {
+    const contacts = [
+      contact({ name: 'Mike', xHandle: 'Ridge', instagramHandle: 'ridge.pics' }),
+      contact({ name: 'Rita', xHandle: 'rita' }),
+    ];
+    expect(shown(mentionSuggestions(contacts, NONE, 'ri', new Set(['ridge'])))).toEqual([
+      'ridge.pics Instagram',
+      'rita X',
+    ]);
   });
 
   it('matches a name blind to case and accents, as a contact search does', () => {
