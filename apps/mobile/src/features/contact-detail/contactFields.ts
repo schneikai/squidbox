@@ -7,6 +7,7 @@ import {
   placeParts,
 } from '@squidbox/shared';
 
+import storedHandle from '@/utils/contacts/storedHandle';
 import storedPlace from '@/utils/contacts/storedPlace';
 import noteText from '@/utils/noteText';
 
@@ -57,7 +58,7 @@ export function contactDraft(contact?: Partial<ContactRecord> | null): ContactDr
 export function storedContactFields(draft: ContactDraft): ContactFormFields {
   return {
     name: draft.name.trim(),
-    ...handlesOf((field) => draft[field].trim() || null),
+    ...handlesOf((field) => storedHandle(draft[field])),
     phoneNumber: draft.phoneNumber.trim() || null,
     places: draft.places.map(storedPlace).filter((place): place is ContactPlace => place !== null),
     notes: noteText(draft.notes),

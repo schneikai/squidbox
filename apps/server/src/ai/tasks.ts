@@ -5,6 +5,7 @@ import {
   assetTagSchema,
   CHAT_LIMITS,
   CONTACT_HANDLE_FIELDS,
+  mentionMarkers,
   parseHandle,
   uniqueTags,
   type ContactRead,
@@ -30,19 +31,27 @@ export function checkTweets(tweets: string[]): string[] {
 
 /**
  * A chat reply trimmed to chatReplySchema, so the app can send it back: the reply and each post option
- * cut to CHAT_LIMITS.message, the non-empty options, the first CHAT_LIMITS.posts of them; throws when
- * neither is left (a useless reply, so Retry shows).
+ * cut to CHAT_LIMITS.message, the options with words in them, the first CHAT_LIMITS.posts of them;
+ * throws when neither is left (a useless reply, so Retry shows). Its mention markers are kept, and a
+ * text counts as empty when nothing is left of it without them (`@[]`), for every reader.
  */
 export function checkChatReply({ reply, postOptions }: ChatReply): ChatReply {
   const kept = {
     reply: reply.trim().slice(0, CHAT_LIMITS.message),
     postOptions: postOptions
       .map((option) => option.trim().slice(0, CHAT_LIMITS.message))
-      .filter(Boolean)
+      .filter(hasWords)
       .slice(0, CHAT_LIMITS.posts),
   };
-  if (!kept.reply && kept.postOptions.length === 0) throw new VeniceError('Returned neither a reply nor posts');
+  if (!hasWords(kept.reply) && kept.postOptions.length === 0) {
+    throw new VeniceError('Returned neither a reply nor posts');
+  }
   return kept;
+}
+
+// Whether a text says anything once its mention markers are taken off.
+function hasWords(text: string): boolean {
+  return mentionMarkers.strip(text).trim().length > 0;
 }
 
 /**
@@ -102,6 +111,19 @@ export const chatTask: AiTask<ChatReply> = {
   schema: chatReplyJsonSpec,
   check: checkChatReply,
   onUnreadable: readChatReplyLeniently,
+};
+
+/** A checked chat reply for a reader that knows no mention markers: each marked name as plain text, trimmed. */
+export function withoutMarkers({ reply, postOptions }: ChatReply): ChatReply {
+  const plain = (text: string) => mentionMarkers.strip(text).trim();
+  return { reply: plain(reply), postOptions: postOptions.map(plain) };
+}
+
+// A chat reply for a build that doesn't read mention markers (no `readsMentionMarkers`): checked,
+// then without them.
+export const plainChatTask: AiTask<ChatReply> = {
+  ...chatTask,
+  check: (reply) => withoutMarkers(checkChatReply(reply)),
 };
 
 // A compare's tags: as many as the prompt asked for.

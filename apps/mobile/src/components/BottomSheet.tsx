@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { scheduleOnRN } from 'react-native-worklets';
 
 import Button from '@/components/Button';
+import sheetSurfaceContext from '@/components/sheetSurfaceContext';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 import { colors, motion, radii, space, textStyles } from '@/styles/designTokens';
@@ -69,7 +70,7 @@ export default function BottomSheet({ isVisible, onClose, title, children }: Bot
             contentContainerStyle={styles.contentInner}
             keyboardShouldPersistTaps="handled"
           >
-            {children}
+            <sheetSurfaceContext.Provider value>{children}</sheetSurfaceContext.Provider>
           </ScrollView>
         </Animated.View>
       </View>

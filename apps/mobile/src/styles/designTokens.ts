@@ -51,8 +51,6 @@ const palette = {
   // the black ones are `black`.
   brandBluesky: '#1185FE',
   brandInstagram: '#FF0069',
-  brandYoutube: '#FF0000',
-  brandReddit: '#FF4500',
   brandOnlyfans: '#00AFF0',
 };
 
@@ -118,12 +116,7 @@ export const colors = {
   brand: {
     x: palette.black,
     bluesky: palette.brandBluesky,
-    threads: palette.black,
     instagram: palette.brandInstagram,
-    tiktok: palette.black,
-    youtube: palette.brandYoutube,
-    reddit: palette.brandReddit,
-    patreon: palette.black,
     onlyfans: palette.brandOnlyfans,
     justforfans: palette.black,
   },
@@ -159,6 +152,10 @@ function litEdge(light: string, shade: string) {
 }
 
 export const shadows = {
+  // No shadow: a card on a sheet's white surface (Card inside a BottomSheet).
+  none: {
+    boxShadow: 'none',
+  },
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
     boxShadow: `0 16px 56px ${alpha(palette.black, 0.12)}, 0 2px 12px ${alpha(palette.black, 0.06)}`,

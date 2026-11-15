@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, type Dialog, type Locator, type Page } from 'playwright/test';
+import { expect, type BrowserContext, type Dialog, type Locator, type Page } from 'playwright/test';
 
 // Helpers for the UI flow tests. Screens under a pushed screen or a sheet, and the other tabs, stay
 // in the page, so every lookup is scoped to its screen's testID.
@@ -68,9 +68,37 @@ export async function withDialog(page: Page, handle: (dialog: Dialog) => Promise
   await Promise.all([page.waitForEvent('dialog').then(handle), action()]);
 }
 
+// The text of an editor's `index`th post: the mention field (on the web a contentEditable), named by
+// its placeholder.
+export function postText(scope: Page | Locator, index = 0) {
+  return scope.getByRole('textbox', { name: "What's new?" }).nth(index);
+}
+
+// Expects a post's text in the mention field, each chip read as its label.
+export async function expectPostText(field: Locator, text: string) {
+  await expect(field).toHaveText(text);
+}
+
 // The post cards on `screen` (the posts list or a post).
 export function postCards(screen: Page | Locator) {
   return screen.getByTestId('post-card');
+}
+
+// Opens the post with `text` from the posts list (the newest of them), and returns its screen.
+export async function openPost(page: Page, text: string) {
+  await openTab(page, 'Posts');
+  await postCards(page.getByTestId('posts-screen')).filter({ hasText: text }).first().click();
+  return page.getByTestId('post-screen');
+}
+
+// Lets the page read and write the clipboard, for a test that reads what was copied.
+export async function allowClipboard(context: BrowserContext) {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+}
+
+// The text on the clipboard.
+export function clipboard(page: Page) {
+  return page.evaluate(() => navigator.clipboard.readText());
 }
 
 // The middle of the locator's box, and its width.

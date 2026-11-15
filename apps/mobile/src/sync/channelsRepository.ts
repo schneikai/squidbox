@@ -20,11 +20,6 @@ export async function readChannels(db: SyncDb): Promise<ChannelRecord[]> {
   return readInOrder(db, t);
 }
 
-/** The ids of the user's channels in their order, as read now (useChannelOrder is the live one). */
-export async function readChannelOrder(db: SyncDb): Promise<string[]> {
-  return (await readChannels(db)).map((row) => row.channelId);
-}
-
 /**
  * Add a channel at the end of the list: its record is created, or revived when it was deleted (a new
  * position at the end). Nothing when it is in the list already.
@@ -45,7 +40,7 @@ export async function addChannel(db: SyncDb, channel: Channel): Promise<void> {
 }
 
 /**
- * Take a channel out of the list (a tombstone; posts on it keep their channel). Written by hand, not
+ * Take a channel out of the list (a tombstone; copies sent to it keep their channel). Written by hand, not
  * with makeRepository's remove: that one tombstones a deleted record again, a write and a push for nothing.
  */
 export async function removeChannel(db: SyncDb, channel: Channel): Promise<void> {

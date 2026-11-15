@@ -1,56 +1,70 @@
+import type { Channel } from '@squidbox/shared';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostImage, { type PostImageProps } from './PostImage';
 
 import Card from '@/components/Card';
-import CopyTextButton from '@/components/CopyTextButton';
-import Text from '@/components/Text';
-import ChannelLogos from '@/features/channels/ChannelLogos';
+import CopyPostTextButton from '@/features/post-mentions/CopyPostTextButton';
+import MentionText from '@/features/post-mentions/MentionText';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostPostedAt from '@/features/posts/PostPostedAt';
 import { layout, scale } from '@/styles/designTokens';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
 import isPresent from '@/utils/isPresent';
 
 type PostViewProps = {
-  post: Pick<PostWithAssets, 'text' | 'postAssets' | 'postedAt'>;
+  post: Pick<PostWithAssets, 'text' | 'mentions' | 'postAssets' | 'postedAt'>;
+  contactsById: ReadonlyMap<string, MentionContact>;
+  /** The channel a copy is for: its chips read, and its text is copied, as the contacts' handles there. */
+  channel?: Pick<Channel, 'id' | 'handleField'>;
+  onPressMention?: (contactId: string) => void;
   onPressAsset?: PostImageProps['onPressAsset'];
   isCopyable?: boolean;
   meta?: ReactNode;
-  channelIds?: readonly string[];
   children?: ReactNode;
 };
 
 /**
- * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text, then a row with
- * when it was posted and `meta` (what else the place shows about it: a thread's size), with
- * `isCopyable` a copy icon at its right end (CopyTextButton) when there is text, and `children` under that row (buttons for this post).
- * `post` is a postQuery row: it carries its `postAssets` ([{ id, asset }]). `channelIds` are the
- * channels it is on, as plain logos at the card's top (ChannelLogos), in the order given; none
- * for an empty list.
+ * A post as a card: its pictures (`onPressAsset(asset)` makes each open), its text with its
+ * mentions as chips (MentionText: of `contactsById`, a tap on one to `onPressMention`), then a row
+ * with when it was posted and `meta` (what else the place shows about it: a thread's size), with
+ * `isCopyable` a copy icon at its right end (CopyPostTextButton) when there is text, and `children`
+ * under that row (buttons for this post). `post` is a postQuery row: it carries its `postAssets`
+ * ([{ id, asset }]).
  */
 export default function PostView({
   post,
+  contactsById,
+  channel,
+  onPressMention,
   onPressAsset,
   isCopyable = false,
   meta,
-  channelIds = [],
   children,
 }: PostViewProps) {
-  const { text, postAssets, postedAt } = post;
+  const { text, mentions, postAssets, postedAt } = post;
 
   return (
     <Card testID="post-card" style={styles.card}>
-      <ChannelLogos channelIds={channelIds} />
       {isPresent(postAssets) && (
         <PostImage assets={postAssets.map((postAsset) => postAsset.asset)} onPressAsset={onPressAsset} />
       )}
       <View style={[styles.body, !isPresent(postAssets) && styles.bodyTextOnly]}>
-        {isPresent(text) && <Text>{text}</Text>}
+        {isPresent(text) && (
+          <MentionText
+            value={{ text, mentions }}
+            contactsById={contactsById}
+            channel={channel}
+            onPressMention={onPressMention}
+          />
+        )}
         <View style={styles.meta}>
           <PostPostedAt postedAt={postedAt} />
           {meta}
-          {isCopyable && isPresent(text) && <CopyTextButton text={text} style={styles.copy} />}
+          {isCopyable && isPresent(text) && (
+            <CopyPostTextButton post={{ text, mentions }} channel={channel} style={styles.copy} />
+          )}
         </View>
         {children}
       </View>

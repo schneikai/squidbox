@@ -1,8 +1,18 @@
 import { DEFAULT_IDEA_PROMPTS } from '@squidbox/shared';
-import type { Locator, Page } from 'playwright/test';
+import type { Page } from 'playwright/test';
 
 import { expect, STUB_TAGS, test } from './fixtures';
-import { button, openTab, pickFromSquidbox, withDialog } from './helpers';
+import {
+  allowClipboard,
+  assetCells,
+  button,
+  clipboard,
+  expectPostText,
+  openTab,
+  pickFromSquidbox,
+  postText,
+  withDialog,
+} from './helpers';
 import { loadAppAsync } from '../scripts/webPreview.mjs';
 
 // The assistant's ideas in the post editor, on the stubbed assistant (fixtures): a new post's start
@@ -21,20 +31,6 @@ async function openNewPost(page: Page) {
   const newPost = page.getByTestId('new-post-sheet');
   await button(newPost, 'New post').click();
   return { newPost, editor: page.getByTestId('post-editor') };
-}
-
-// A new post goes to all his channels, Instagram too, which has no threads: unticked there, the post
-// keeps to Bluesky and X, and Add to thread shows.
-async function untickInstagram(page: Page, editor: Locator) {
-  await editor.getByRole('tab', { name: 'All channels', exact: true }).click();
-  await page.getByRole('checkbox', { name: 'Instagram', exact: true }).click();
-  await page.mouse.click(5, 5);
-  await expect(editor.getByRole('tab', { name: 'Bluesky and X', exact: true })).toBeVisible();
-}
-
-// The caption of the editor's `index`th post.
-function caption(editor: Locator, index = 0) {
-  return editor.getByPlaceholder("What's new?").nth(index);
 }
 
 test('a new post gets ideas once it has photos, written after the photos are tagged', async ({ page, assistant }) => {
@@ -56,7 +52,7 @@ test('a new post gets ideas once it has photos, written after the photos are tag
   expect(assistant.chats[0]!.context.tags).toEqual(STUB_TAGS);
 
   await button(editor, 'Use').first().click();
-  await expect(caption(editor)).toHaveValue(firstIdea(1));
+  await expectPostText(postText(editor), firstIdea(1));
   // Use folds the tray into its title's row; a tap unfolds it, the used idea marked.
   await expect(button(editor, 'More')).toHaveCount(0);
   await button(editor, 'Ideas').click();
@@ -105,8 +101,7 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
   assistant,
 }) => {
   const { editor } = await openNewPost(page);
-  await untickInstagram(page, editor);
-  await caption(editor).fill('Fog on the ridge this morning');
+  await postText(editor).fill('Fog on the ridge this morning');
   await button(editor, 'Add to thread').click();
 
   await expect(editor.getByText('Write with AI')).toBeVisible();
@@ -119,7 +114,7 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
   expect(assistant.chats[0]!.context.thread).toEqual({ index: 1, posts: ['Fog on the ridge this morning', ''] });
 
   await button(editor, 'Use').first().click();
-  await expect(caption(editor, 1)).toHaveValue(firstIdea(1));
+  await expectPostText(postText(editor, 1), firstIdea(1));
   await button(editor, 'Follow-up with link').click();
   await button(editor, 'Back to Write with AI').click();
   await expect(button(editor, 'Follow-up with link')).toBeVisible();
@@ -127,7 +122,6 @@ test("a thread post offers the prompt buttons, and one loads that post's ideas u
 
 test("the first post's tray keeps its ideas while a thread post is written", async ({ page }) => {
   const { editor } = await openNewPost(page);
-  await untickInstagram(page, editor);
   await button(editor, 'Add photos').click();
   await pickFromSquidbox(page, 1);
   await button(editor, 'Use').first().click();
@@ -135,7 +129,7 @@ test("the first post's tray keeps its ideas while a thread post is written", asy
   await button(editor, 'Follow-up with link').click();
   await button(editor, 'Use').first().click();
 
-  await caption(editor).click();
+  await postText(editor).click();
   await button(editor, 'Ideas').click();
   await expect(editor.getByText('Used', { exact: true })).toBeVisible();
 });
@@ -147,7 +141,7 @@ test('a repost opens with its text and its ideas', async ({ page, assistant }) =
   const editor = page.getByTestId('post-editor');
 
   await expect(editor.getByText(firstIdea(1))).toBeVisible();
-  await expect(caption(editor)).not.toHaveValue('');
+  await expect(postText(editor)).not.toHaveText('');
   // His Repost ideas prompt (seed-mock).
   expect(assistant.chats[0]!.messages[0]).toMatchObject({
     role: 'user',
@@ -163,10 +157,38 @@ test('a posted post has no tray, and its editor starts no ideas', async ({ page,
   await expect(post.getByText('Write with AI')).toHaveCount(0);
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Edit' }).click();
-  // The channel that shows: the post's other channels keep their cards, hidden.
-  await expect(page.getByTestId('post-editor-channel').getByText('Write with AI')).toBeVisible();
+  await expect(page.getByTestId('post-editor').getByText('Write with AI')).toBeVisible();
 
   expect(assistant.events).toEqual([]);
+});
+
+test("an idea's marked names of the chat's Mentions are chips: Copy writes each channel's handle, Use puts the chip in", async ({
+  page,
+  context,
+  assistant,
+}) => {
+  await allowClipboard(context);
+  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Out on the ridge with @[Sam Ridge] and @[Nobody Here]'] });
+  // A post of a Weekend walks photo: Sam Ridge is on one of its photos, so he is one of its Mentions.
+  await openTab(page, 'Albums');
+  await page.getByTestId('albums-screen').getByText('Weekend walks', { exact: true }).click();
+  await assetCells(page.getByTestId('album-screen')).first().click();
+  await button(page.getByTestId('asset-screen'), 'More options').click();
+  await page.getByRole('menuitem', { name: 'Create post' }).click();
+  const editor = page.getByTestId('post-editor');
+  // Sam Ridge's chip on the card, the name nobody was given as text, and no marker.
+  await expect(editor.getByText('Sam Ridge', { exact: true }).first()).toBeVisible();
+  await expect(editor.getByText('and Nobody Here', { exact: false })).toBeVisible();
+  await expect(editor.getByText('@[')).toHaveCount(0);
+  expect(assistant.chats[0]!.context.mentions).toContain('Sam Ridge');
+  expect(assistant.chats[0]!.readsMentionMarkers).toBe(true);
+
+  await button(editor, 'Copy text').click();
+  await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
+  await expect.poll(() => clipboard(page)).toBe('Out on the ridge with @ridgeline.bsky.social and Nobody Here');
+
+  await button(editor, 'Use').click();
+  await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();
 });
 
 test.describe('Post ideas settings', () => {

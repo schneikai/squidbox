@@ -35,7 +35,7 @@ type ChatSubjectCardProps = {
  * What the chat is about, at its top: the post's first photos, "New post · 2 Photos · <album>" (the
  * album named when every photo is in it; "Edit post" for a saved post; "· thread of 3" after the
  * name for a thread, the photos those of all its posts), what the assistant sees in
- * them and the handles it may mention, as grey lines a tap edits (ChatSubjectLines: `tagging`,
+ * them and the contacts it may mention, as grey lines a tap edits (ChatSubjectLines: `tagging`,
  * useChatTags', with the post's tag edits `tagEdits`, changed with `onEditTags`; `mentions`,
  * usePostChat's, changed with `onEditMentions`).
  */

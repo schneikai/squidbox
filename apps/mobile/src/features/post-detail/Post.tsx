@@ -1,95 +1,48 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
 
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import AssetAlbums from '@/features/album-list/AssetAlbums';
-import ChannelBar from '@/features/channels/ChannelBar';
-import orderPostChannels from '@/features/channels/orderPostChannels';
-import useChannelOrder from '@/features/channels/useChannelOrder';
-import useChannelSlide from '@/features/channels/useChannelSlide';
-import useChannels from '@/features/channels/useChannels';
 import ContactChipsSection from '@/features/contact-links/ContactChipsSection';
 import PostThreadCards from '@/features/post-detail/PostThreadCards';
-import postAndThread from '@/features/post-detail/postAndThread';
 import PostRows from '@/features/post-list/PostRows';
+import useMentionSheet from '@/features/post-mentions/useMentionSheet';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import { layout } from '@/styles/designTokens';
-import type { ChannelPostRow, PostDetailRow } from '@/sync/queries/readPost';
+import type { PostDetailRow } from '@/sync/queries/readPost';
 
 const OTHER_POSTS_LIMIT = 30;
 
 type PostProps = {
   post: PostDetailRow;
-  channelPost?: ChannelPostRow;
-  onSelectChannel: (channelPostId: string | null) => void;
   contentPaddingTop?: number;
   contentPaddingBottom?: number;
 };
 
 /**
- * A post and its thread: the channel bar (ChannelBar, one tab per version) when the post has a channel
- * or other versions, then the card of the version it shows (`channelPost`, else the post's own; PostView, a long press
- * copies a post's text) and each following post's card joined by a short line (PostThreadCards); a tap
- * on another channel's bubble calls `onSelectChannel` with its copy's id (null for the post's own).
- * Then, for the whole post (every channel) when it has pictures, the contacts on them, their albums,
- * and the other posts from those albums. `post` is a postQuery row read by id (with its `threadPosts` and
- * `channelPosts`).
+ * A post and its thread: the post's card (PostView, its copy icon copying its text for a channel) and each
+ * following post's card joined by a short line (PostThreadCards), a tapped mention chip showing its
+ * contact (useMentionSheet). Then, when it has pictures, the
+ * contacts on them, their albums, and the other posts from those albums. `post` is a postQuery row
+ * read by id (with its `threadPosts`).
  */
-export default function Post({
-  post,
-  channelPost,
-  onSelectChannel,
-  contentPaddingTop = 0,
-  contentPaddingBottom = 0,
-}: PostProps) {
-  const channels = useChannels();
-  const channelOrder = useChannelOrder(channels);
-
-  // In bar order.
-  const parts = useMemo(
-    () =>
-      orderPostChannels(
-        [
-          { key: post.id, channelIds: post.channelIds },
-          ...post.channelPosts.map((copy) => ({ key: copy.id, channelIds: copy.channelIds })),
-        ],
-        (part) => part.channelIds,
-        channelOrder,
-      ),
-    [post.id, post.channelIds, post.channelPosts, channelOrder],
+export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom = 0 }: PostProps) {
+  // The pictures of the whole thread.
+  const thread = useMemo(() => [post, ...post.threadPosts], [post]);
+  const assetIds = useMemo(
+    () => [...new Set(thread.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))],
+    [thread],
   );
-  const selectedKey = channelPost?.id ?? post.id;
-  const slide = useChannelSlide(
-    selectedKey,
-    parts.map((part) => part.key),
-  );
-  // The pictures of the whole post: its thread's and its other channels' (with their threads) too.
-  const assetIds = useMemo(() => {
-    const all = [...postAndThread(post), ...post.channelPosts.flatMap(postAndThread)];
-    return [...new Set(all.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))];
-  }, [post]);
-  // Once the user's channels are read, so the bubbles never reorder after they show.
-  const hasBar = !!channels && (post.channelIds.length > 0 || post.channelPosts.length > 0);
+  const { contactsById } = useMentionedContacts(thread);
+  const { onPressMention, sheet } = useMentionSheet(contactsById);
 
   return (
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: contentPaddingTop, paddingBottom: contentPaddingBottom }]}
     >
-      {hasBar && (
-        <ChannelBar
-          parts={parts}
-          selectedKey={selectedKey}
-          onSelect={(key) => onSelectChannel(key === post.id ? null : key)}
-          channelOrder={channelOrder}
-          style={styles.bar}
-        />
-      )}
+      <PostThreadCards post={post} contactsById={contactsById} onPressMention={onPressMention} />
 
-      <Animated.View style={slide}>
-        <PostThreadCards post={channelPost ?? post} />
-      </Animated.View>
-
-      {/* Contacts and albums go on photos (every channel's): a post without any has none, and so no other posts from its
+      {/* Contacts and albums go on photos: a post without any has none, and so no other posts from its
           albums either. */}
       {assetIds.length > 0 && (
         <>
@@ -102,6 +55,7 @@ export default function Post({
           <PostRows scope={{ sharesAlbumWithPostId: post.id }} emptyText="No other posts" limit={OTHER_POSTS_LIMIT} />
         </>
       )}
+      {sheet}
     </ScrollView>
   );
 }
@@ -109,8 +63,5 @@ export default function Post({
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: layout.sideGutter,
-  },
-  bar: {
-    marginBottom: layout.cardGap,
   },
 });

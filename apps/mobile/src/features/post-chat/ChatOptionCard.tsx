@@ -1,34 +1,45 @@
+import type { Channel } from '@squidbox/shared';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import Button from '@/components/Button';
-import CopyTextButton from '@/components/CopyTextButton';
 import Icon from '@/components/Icon';
 import MenuButton from '@/components/MenuButton';
 import OptionCard, { type OptionCardProps } from '@/components/OptionCard';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
+import CopyPostTextButton from '@/features/post-mentions/CopyPostTextButton';
+import MentionRuns from '@/features/post-mentions/MentionRuns';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import { colors, layout, sizes } from '@/styles/designTokens';
 
 // Memoized: a new reply renders only its own options.
 export default memo(ChatOptionCard);
 
 export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | 'isUsed'> & {
-  text: string;
+  value: MentionTextValue;
+  // The contacts its chips mention, by id (useMentionedContacts): their names and avatars.
+  contactsById: ReadonlyMap<string, MentionContact>;
+  // The channel a copy's composer writes for: its chips read as the contacts' handles there, and Copy copies for it.
+  channel?: Pick<Channel, 'handleField'>;
   replyId: string;
   index: number;
-  onMoreLikeThis: ((text: string) => void) | null;
+  onMoreLikeThis: ((value: MentionTextValue) => void) | null;
   onUse: ((replyId: string, index: number) => void) | null;
 };
 
 /**
- * The option `index` of the reply `replyId`: its text with a copy icon, ⋯ → More like this
- * (`onMoreLikeThis(text)`, when given: the chat's, not the tray's), and Use (`onUse(replyId,
- * index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and the
- * card outlined. style is for layout only.
+ * The option `index` of the reply `replyId`: its text with its mentions (`value`, each a chip that
+ * takes no tap: the card has its own buttons) with a copy icon (CopyPostTextButton), ⋯ → More like
+ * this (`onMoreLikeThis(value)`, when given: the chat's, not the tray's), and Use
+ * (`onUse(replyId, index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and
+ * the card outlined. style is for layout only.
  */
 function ChatOptionCard({
-  text,
+  value,
+  contactsById,
+  channel,
   replyId,
   index,
   onMoreLikeThis,
@@ -38,11 +49,16 @@ function ChatOptionCard({
   textSize,
 }: ChatOptionCardProps) {
   return (
-    <OptionCard text={text} textSize={textSize} isUsed={isUsed} style={style}>
-      <CopyTextButton text={text} />
+    <OptionCard
+      text={<MentionRuns value={value} contactsById={contactsById} channel={channel} />}
+      textSize={textSize}
+      isUsed={isUsed}
+      style={style}
+    >
+      <CopyPostTextButton post={value} channel={channel} />
       {onMoreLikeThis && (
         <MenuButton accessibilityLabel="More for this idea">
-          <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(text)} />
+          <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(value)} />
         </MenuButton>
       )}
       <View style={styles.action}>

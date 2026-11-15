@@ -1,60 +1,98 @@
 import { CHAT_LIMITS } from '@squidbox/shared';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import canBeChatMention from './canBeChatMention';
 import type { LiveChat } from './useChatSession';
+import type { Mentions } from './useMentions';
 
 import BottomSheet from '@/components/BottomSheet';
 import IntroText from '@/components/IntroText';
 import TagsField from '@/components/TagsField';
+import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import useMentionContacts from '@/features/post-mentions/useMentionContacts';
 import { space } from '@/styles/designTokens';
 import tagsDifference from '@/utils/tagsDifference';
 
 type ChatMentionsSheetProps = {
   isVisible: boolean;
   onClose: () => void;
-  handles: string[];
+  mentions: Mentions;
   // The post's photos: their contacts come first among the suggestions.
   assetIds: string[];
   onEditMentions: LiveChat['editMentions'];
 };
 
 /**
- * The handles the chat may mention, in a sheet (`handles`), edited in place like its tags: a tap
- * takes one off, and Add types one in, suggesting the contacts' handles it may mean as the post
- * editor does (MentionSuggestions, those on the photos `assetIds` first, none already there), a tap adding one. Each
- * change is the chat's only (`onEditMentions({ add, remove })`), never the posts'.
+ * The contacts the chat may mention, in a sheet (`mentions`), as chips edited in place like its tags:
+ * a × takes one off, and Add searches the contacts that may be one (MentionSuggestions over those
+ * not there yet that canBeChatMention, those on the photos `assetIds` first), a tap adding one; what
+ * is typed alone adds nothing. Each change is the chat's only (`onEditMentions({ add, remove })`, by
+ * contact id), never the posts'.
  */
 export default function ChatMentionsSheet({
   isVisible,
   onClose,
-  handles,
+  mentions,
   assetIds,
   onEditMentions,
 }: ChatMentionsSheetProps) {
+  const ids = useMemo(() => mentions.map((contact) => contact.id), [mentions]);
+  const byId = useMemo(() => new Map(mentions.map((contact) => [contact.id, contact])), [mentions]);
+  const taken = useMemo(() => new Set(ids), [ids]);
+
+  function chipOf(id: string) {
+    const contact = byId.get(id);
+    if (!contact) return { label: id };
+    return { label: contact.name, leading: <ContactAvatar contact={contact} size="chip" /> };
+  }
+
   return (
     <BottomSheet isVisible={isVisible} onClose={onClose} title="Mentions">
       <View style={styles.body}>
         <IntroText>Who the assistant may mention in this chat. Your posts stay as they are.</IntroText>
         <TagsField
-          tags={handles}
-          onChange={(next) => onEditMentions(tagsDifference(handles, next))}
+          tags={ids}
+          onChange={(next) => onEditMentions(tagsDifference(ids, next))}
           placeholder="No mentions"
           maxTags={CHAT_LIMITS.mentions}
-          maxTagLength={CHAT_LIMITS.mention}
-          itemName="handle"
+          itemName="contact"
+          chipOf={chipOf}
+          isPickOnly
           renderSuggestions={(text, add) => (
-            <MentionSuggestions
+            <ContactSuggestions
               query={text.trim().replace(/^@/, '')}
               assetIds={assetIds}
-              taken={handles}
-              onPick={(handle) => add(`@${handle}`)}
+              taken={taken}
+              onPick={(contact) => add(contact.id)}
             />
           )}
         />
       </View>
     </BottomSheet>
   );
+}
+
+type ContactSuggestionsProps = {
+  query: string;
+  assetIds: string[];
+  taken: ReadonlySet<string>;
+  onPick: (contact: MentionContact) => void;
+};
+
+// The contacts Add may add (MentionSuggestions), read only while Add is open: every contact that can
+// be a chat mention and isn't one yet (`taken`).
+function ContactSuggestions({ query, assetIds, taken, onPick }: ContactSuggestionsProps) {
+  const contacts = useMentionContacts();
+
+  const contactsById = useMemo(
+    () => new Map([...contacts].filter(([id, contact]) => !taken.has(id) && canBeChatMention(contact))),
+    [contacts, taken],
+  );
+
+  return <MentionSuggestions query={query} contactsById={contactsById} assetIds={assetIds} onPick={onPick} />;
 }
 
 const styles = StyleSheet.create({

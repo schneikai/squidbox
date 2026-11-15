@@ -7,7 +7,17 @@ import {
   INSTRUCTION_LIMITS,
   missingPlaceholders,
 } from '@squidbox/shared';
-import { chatMessages, fillLines, judgeMessages, writingMessages } from '../src/ai/prompts.js';
+import {
+  CHAT_FORMAT,
+  chatMessages,
+  fillLines,
+  FORMAT_HEADING,
+  JUDGE_FORMAT,
+  judgeMessages,
+  MENTION_AS_GIVEN_FORMAT,
+  MENTION_FORMAT,
+  writingMessages,
+} from '../src/ai/prompts.js';
 
 const persona = {
   aboutYou: '34, outdoor photographer from Oregon, a bit dry.',
@@ -25,8 +35,14 @@ const context = {
   text: 'Fog on the trail',
   media: { photo: 4, video: 1 },
   tags: ['forest', 'fog'],
-  mentions: ['@ridgeline.bsky.social'],
+  mentions: ['Sam Ridge'],
 };
+// The post without people to mention, for a briefing without the mention block.
+const unmentioned = { ...context, mentions: [] };
+
+// `text` as the server ends it: the format heading, then each block.
+const formatted = (text: string, ...blocks: string[]) => `${text}\n\n${FORMAT_HEADING}\n${blocks.join('\n\n')}`;
+
 const transcript = [
   { role: 'user' as const, content: 'Write a caption' },
   { role: 'assistant' as const, reply: 'Here you go.', postOptions: ['one', 'two', 'three'] },
@@ -52,11 +68,25 @@ describe('fillLines', () => {
 
 describe('chatMessages', () => {
   const systemOfChat = (overrides: Partial<Parameters<typeof chatMessages>[0]> = {}) =>
-    chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, posts, ...overrides })[0]!
-      .content as string;
+    chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+      ...overrides,
+    })[0]!.content as string;
 
   it('sends the filled briefing alone as the system message', () => {
-    const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, posts });
+    const [system] = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     const content = system!.content as string;
     expect(system!.role).toBe('system');
     expect(content.startsWith('You are a writing assistant for a content creator')).toBe(true);
@@ -87,8 +117,17 @@ describe('chatMessages', () => {
 
   it('fills {favorites} like {posts}, for a text published before the posts replaced the Favorites', () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Like these:\n{favorites}' };
-    const [system] = chatMessages({ instructions, context, transcript, persona, posts });
-    expect(system!.content).toBe('Like these:\n- First light on the ridge.\n- Fog on the lake.');
+    const [system] = chatMessages({
+      instructions,
+      context: unmentioned,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
+    expect(system!.content).toBe(
+      formatted('Like these:\n- First light on the ridge.\n- Fog on the lake.', CHAT_FORMAT),
+    );
   });
 
   it('keeps a post with line breaks on its one line', () => {
@@ -96,11 +135,11 @@ describe('chatMessages', () => {
     expect(content).toContain('never copy them):\n- Up early. Fog on the lake.\n');
   });
 
-  it('fills the post: media, tags, handles, the caption as a JSON string, and the count', () => {
+  it('fills the post: media, tags, mentions, the caption as a JSON string, and the count', () => {
     const content = systemOfChat();
     expect(content).toContain('Media: 4 photos and 1 video');
     expect(content).toContain("What's in the photos (from image recognition): forest, fog");
-    expect(content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
+    expect(content).toContain('People they may mention: Sam Ridge');
     expect(content).toContain('Their post so far: "Fog on the trail"');
     expect(content).toContain('Use 6 options unless the creator specifies otherwise');
   });
@@ -116,23 +155,63 @@ describe('chatMessages', () => {
     expect(systemOfChat()).toContain('Their post so far: "Fog on the trail"\n\nThis is the current state');
   });
 
+  it('ends the briefing with the JSON object to answer with, under the format heading', () => {
+    const content = systemOfChat({ context: unmentioned });
+    expect(content.endsWith(formatted('For multiple suggestions, put each on its own line.', CHAT_FORMAT))).toBe(true);
+  });
+
+  it('adds how to write a mention after the JSON object for a build that reads mention markers', () => {
+    expect(systemOfChat({ readsMentionMarkers: true }).endsWith(`\n${CHAT_FORMAT}\n\n${MENTION_FORMAT}`)).toBe(true);
+  });
+
+  it('tells a build that does not read mention markers to write handles as given, and nothing of markers', () => {
+    const content = systemOfChat();
+    expect(content.endsWith(`\n${CHAT_FORMAT}\n\n${MENTION_AS_GIVEN_FORMAT}`)).toBe(true);
+    expect(content).not.toContain('@[');
+  });
+
+  it('says nothing of mentions without people to mention', () => {
+    for (const readsMentionMarkers of [true, false]) {
+      expect(systemOfChat({ context: unmentioned, readsMentionMarkers }).endsWith(`\n${CHAT_FORMAT}`)).toBe(true);
+    }
+  });
+
+  it('lists the people they may mention for a Writing text without {mentions}', () => {
+    const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief.' };
+    expect(systemOfChat({ instructions, readsMentionMarkers: true })).toBe(
+      formatted('Be brief.\n\nPeople they may mention: Sam Ridge', CHAT_FORMAT, MENTION_FORMAT),
+    );
+  });
+
+  it('still works with a Writing text that holds the JSON object itself, the format added all the same', () => {
+    const writing = `Be brief.\n\n${CHAT_FORMAT}`;
+    expect(systemOfChat({ context: unmentioned, instructions: { ...DEFAULT_INSTRUCTIONS, writing } })).toBe(
+      formatted(writing, CHAT_FORMAT),
+    );
+  });
+
   it('adds the thread at the end of a Writing text without {thread}, and nothing without a thread', () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' };
     const thread = { index: 0, posts: ['Fog on the trail', 'Then the sun.'] };
-    expect(systemOfChat({ instructions, context: { ...context, thread } })).toBe(
-      'Be brief. "Fog on the trail"\n\nPost 1 of a thread of 2. The other posts:\n2. "Then the sun."',
+    expect(systemOfChat({ instructions, context: { ...unmentioned, thread } })).toBe(
+      formatted(
+        'Be brief. "Fog on the trail"\n\nPost 1 of a thread of 2. The other posts:\n2. "Then the sun."',
+        CHAT_FORMAT,
+      ),
     );
-    expect(systemOfChat({ instructions })).toBe('Be brief. "Fog on the trail"');
+    expect(systemOfChat({ instructions, context: unmentioned })).toBe(
+      formatted('Be brief. "Fog on the trail"', CHAT_FORMAT),
+    );
   });
 
-  it('says so for an empty caption and no media, and leaves out empty tags and handles', () => {
+  it('says so for an empty caption and no media, and leaves out empty tags and mentions', () => {
     const content = systemOfChat({
       context: { ...context, text: '  ', media: { photo: 0, video: 0 }, tags: [], mentions: [] },
     });
     expect(content).toContain('Their post so far: (empty)');
     expect(content).toContain('Media: none yet');
     expect(content).not.toContain("What's in the photos");
-    expect(content).not.toContain("People they've tagged");
+    expect(content).not.toContain('People they may mention');
   });
 
   it('drops the creator, rules and posts sections, headings included, without a persona or posts', () => {
@@ -151,7 +230,14 @@ describe('chatMessages', () => {
   });
 
   it('follows with the transcript, the past replies as their JSON', () => {
-    const [, ...rest] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, posts });
+    const [, ...rest] = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     expect(rest).toEqual([
       { role: 'user', content: 'Write a caption' },
       { role: 'assistant', content: '{"reply":"Here you go.","postOptions":["one","two","three"]}' },
@@ -162,14 +248,28 @@ describe('chatMessages', () => {
   it("puts the user's More like this instruction before a More like this turn's option", () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, moreLikeThis: 'Again, please.' };
     const turns = [...transcript, { role: 'user' as const, content: 'one', moreLikeThis: true }];
-    const messages = chatMessages({ instructions, context, transcript: turns, persona, posts });
+    const messages = chatMessages({
+      instructions,
+      context,
+      transcript: turns,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     expect(messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\none' });
   });
 
   it("puts the user's More instruction before a More turn's request", () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, moreIdeas: 'Another set.' };
     const turns = [...transcript, { role: 'user' as const, content: 'Write ideas', moreIdeas: true }];
-    const messages = chatMessages({ instructions, context, transcript: turns, persona, posts });
+    const messages = chatMessages({
+      instructions,
+      context,
+      transcript: turns,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     expect(messages.at(-1)).toEqual({ role: 'user', content: 'Another set.\n\nWrite ideas' });
   });
 
@@ -180,8 +280,11 @@ describe('chatMessages', () => {
   });
 
   it("uses the user's own Writing text as the briefing", () => {
-    const content = systemOfChat({ instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' } });
-    expect(content).toBe('Be brief. "Fog on the trail"');
+    const content = systemOfChat({
+      context: unmentioned,
+      instructions: { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' },
+    });
+    expect(content).toBe(formatted('Be brief. "Fog on the trail"', CHAT_FORMAT));
   });
 });
 
@@ -201,7 +304,9 @@ describe('judgeMessages', () => {
       request: { content: 'Write ideas', moreIdeas: true },
       reply: { reply: '', postOptions: ['one'] },
     });
-    expect(message!.content).toBe('Creator: Another set.\n\nWrite ideas\n---\nAnother set.\n\nWrite ideas');
+    expect(message!.content).toBe(
+      formatted('Creator: Another set.\n\nWrite ideas\n---\nAnother set.\n\nWrite ideas', JUDGE_FORMAT),
+    );
   });
 
   it('gives a judge text without {thread} the thread at its end', () => {
@@ -215,8 +320,26 @@ describe('judgeMessages', () => {
       reply: { reply: '', postOptions: ['one'] },
     });
     expect(message!.content).toBe(
-      'Judge (no reply text)\n1. one\n\nPost 2 of a thread of 2. The other posts:\n1. "Fog first"',
+      formatted(
+        'Judge (no reply text)\n1. one\n\nPost 2 of a thread of 2. The other posts:\n1. "Fog first"',
+        JUDGE_FORMAT,
+      ),
     );
+  });
+
+  it('ends the question with the verdict to answer with, set off from the reply by the format heading', () => {
+    const [message] = judgeMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      persona,
+      posts,
+      transcript: [],
+      request: { content: 'Write ideas' },
+      reply: { reply: '', postOptions: ['one'] },
+    });
+    expect(
+      (message!.content as string).endsWith(formatted('# The reply to judge\n(no reply text)\n1. one', JUDGE_FORMAT)),
+    ).toBe(true);
   });
 });
 

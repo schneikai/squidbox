@@ -4,9 +4,13 @@
 // fallback and checkChatReply), briefed as the mock account's creator (mockPersona.ts) with his
 // posts, each real reply appended to the transcript as the app keeps it. Each turn gets the
 // checks that can be made in code, then one judge question to VERIFY_JUDGE_MODEL_ID: did the reply
-// answer the request and hold the conversation.
+// answer the request and hold the conversation. The model is sent its replies as it wrote them, mention
+// markers included (as the app sends them back), and the mentions check reads the reply so;
+// everything else (the other checks, the judge, the stored turn) reads them without markers
+// (withoutMarkers), as Verify's screen shows them.
 import {
   DEFAULT_PROMPT_BUTTONS,
+  mentionMarkers,
   VERIFY_JUDGE_MODEL_ID,
   type ChatContext,
   type ChatReply,
@@ -16,10 +20,11 @@ import {
   type VerifySection,
   type VerifyTurn,
 } from '@squidbox/shared';
+import { escapeRegExp } from '../escapeRegExp.js';
 import { findModel } from './catalog.js';
 import { MOCK_PERSONA, MOCK_POSTS } from './mockPersona.js';
 import { chatMessages, judgeMessages } from './prompts.js';
-import { chatTask, judgeTask, runTask } from './tasks.js';
+import { chatTask, judgeTask, runTask, withoutMarkers } from './tasks.js';
 import { VeniceUnavailableError } from './venice.js';
 import type { VerifyRunner } from './verify.js';
 import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
@@ -35,7 +40,7 @@ import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
  *   lines:N   no cards, and at least N lines in the reply (bios, ideas)
  *   about:re  every card matches the regex (the caption was rewritten, not the chat's posts)
  * Every reply with cards is also checked against the persona's rules, his posts (never copied)
- * and the post's handles (only those, spelled exactly).
+ * and the post's mentions (only those, each marked).
  */
 type Step = { user: string; post?: Partial<VerifyPost>; expect: string[] };
 
@@ -56,7 +61,7 @@ const BASE_POST: VerifyPost = {
     'driftwood',
     'empty beach',
   ],
-  mentions: ['@ridgeline.bsky.social'],
+  mentions: ['Sam Ridge'],
   caption: '',
 };
 
@@ -93,7 +98,7 @@ export const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
       },
     ],
   },
-  // Captions, a switch to bios, back with a count and the handle
+  // Captions, a switch to bios, back with a count and who was there
   switch: {
     title: 'Captions, bios and back',
     steps: [
@@ -156,7 +161,8 @@ export const CHAT_PLAN: VerifyPlan = {
   sections: SECTIONS.map(({ id, title, steps }) => ({ id, title, prompts: steps.map((step) => step.user) })),
 };
 
-const HANDLE = /@[\w-]+(?:\.[\w-]+)+/g;
+// An @ that starts a word: a handle the model wrote of its own.
+const AT_HANDLE = /(?:^|[^\w@])@\w/u;
 
 const normalized = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
 const meanLength = (texts: string[]) => texts.reduce((sum, text) => sum + text.length, 0) / (texts.length || 1);
@@ -194,11 +200,19 @@ export function check(expectation: string, reply: ChatReply, before: string[] | 
   throw new Error(`Unknown expectation ${expectation}`);
 }
 
-// The checks every set of cards gets: the persona's rules, none of his posts copied, only the post's handles.
-export function cardChecks(cards: string[], post: VerifyPost, isBare: boolean): Check[] {
-  if (cards.length === 0) return [];
+/**
+ * The checks every reply gets: the persona's rules and none of his posts copied, on its cards
+ * (`plain`, without markers; none without cards), and the post's mentions, only those, each marked,
+ * in its text and its cards as the model wrote them (`written`, mentionProblem).
+ */
+export function replyChecks(
+  { written, plain }: { written: ChatReply; plain: ChatReply },
+  post: VerifyPost,
+  isBare: boolean,
+): Check[] {
+  const cards = plain.postOptions;
   const checks: Check[] = [];
-  if (!isBare) {
+  if (!isBare && cards.length > 0) {
     checks.push(
       checked(
         'rules: no hashtags',
@@ -222,15 +236,37 @@ export function cardChecks(cards: string[], post: VerifyPost, isBare: boolean): 
       ),
     );
   }
-  const handles = cards.flatMap((card) => card.match(HANDLE) ?? []);
-  checks.push(
-    checked(
-      "handles: only the post's, exact",
-      handles.every((handle) => post.mentions.includes(handle)),
-      'a handle not in the post',
-    ),
-  );
+  const names = new Map(post.mentions.map((name) => [mentionMarkers.key(name), name]));
+  const problem =
+    [written.reply, ...written.postOptions].map((text) => mentionProblem(text, names)).find((each) => each !== null) ??
+    null;
+  checks.push(checked("mentions: only the post's, marked", problem === null, problem ?? ''));
   return checks;
+}
+
+// A given name as a whole word, its case and spaces as the codec's key ignores them (one leading @
+// left out, as mentionMarkers.key does).
+function wholeName(name: string): RegExp {
+  const words = name.trim().replace(/^@/, '').split(/\s+/).map(escapeRegExp).join('\\s+');
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${words}(?![\\p{L}\\p{N}_])`, 'iu');
+}
+
+// What is wrong with a text's mentions of the post's `names` (by key), or null: a marker of a name
+// not given, an @handle of the model's own, or a given name standing outside a marker. The marked
+// names are blanked first, so a marked handle name is no @handle of its own.
+function mentionProblem(written: string, names: ReadonlyMap<string, string>): string | null {
+  const { text, marks, unmatched } = mentionMarkers.read(written, names);
+  if (unmatched.length > 0) return 'a marker of a name not given';
+  const outside = marks.reduce(
+    (rest, { location, name }) =>
+      rest.slice(0, location) + ' '.repeat(name.length) + rest.slice(location + name.length),
+    text,
+  );
+  if (AT_HANDLE.test(outside)) return 'an @handle';
+  if ([...names.values()].some((name) => wholeName(name).test(outside))) {
+    return 'a given name standing outside a marker';
+  }
+  return null;
 }
 
 /** The editor's change to the post before a turn, as a sentence. */
@@ -238,7 +274,7 @@ export function changeNote(change: Partial<VerifyPost>): string {
   const parts = [
     change.caption !== undefined && `the caption to “${change.caption}”`,
     change.tags && `the tags to ${change.tags.join(', ')}`,
-    change.mentions && `the tagged people to ${change.mentions.join(', ')}`,
+    change.mentions && `the mentions to ${change.mentions.join(', ')}`,
   ].filter((part) => typeof part === 'string');
   return `The editor changed ${parts.join(' and ')}.`;
 }
@@ -272,6 +308,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
     for (const { id, isBare, title, steps } of sections) {
       let section: VerifySection | null = null;
       let post = { ...BASE_POST };
+      // The model's replies as it wrote them, mention markers included.
       const transcript: ChatTurn[] = [];
       let before: string[] | null = null;
       let failure: string | null = null;
@@ -284,6 +321,8 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           persona: isBare ? null : MOCK_PERSONA,
           posts: isBare ? [] : MOCK_POSTS,
           instructions,
+          // Verify reads the markers the model writes, as the app does.
+          readsMentionMarkers: true,
         });
         if (!section) {
           // The briefing shows once, and again for the bare one, which differs.
@@ -311,7 +350,8 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           await progress.add(section, missedTurn(turn, call.error, expected, call.seconds));
           continue;
         }
-        const reply: ChatReply = call.value;
+        const written = call.value;
+        const reply = withoutMarkers(written);
         // Venice not answering the judge stops the run, after this turn: the model's reply is in.
         let judgeStopped: VeniceUnavailableError | null = null;
         const verdict = await timedCall(() =>
@@ -322,7 +362,9 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
               context: contextOf(post),
               persona: isBare ? null : MOCK_PERSONA,
               posts: isBare ? [] : MOCK_POSTS,
-              transcript,
+              transcript: transcript.map((each) =>
+                each.role === 'assistant' ? { ...each, ...withoutMarkers(each) } : each,
+              ),
               request: { content },
               reply,
             }),
@@ -335,7 +377,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
         });
         const checks = [
           ...step.expect.map((name) => check(name, reply, before)),
-          ...cardChecks(reply.postOptions, post, isBare),
+          ...replyChecks({ written, plain: reply }, post, isBare),
           'error' in verdict
             ? { name: 'judge', ok: false, reason: `the judge failed: ${verdict.error}` }
             : { name: 'judge', ok: verdict.value.pass, reason: verdict.value.reason || null },
@@ -350,7 +392,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           error: null,
         });
         if (judgeStopped) throw judgeStopped;
-        transcript.push({ role: 'user', content }, { role: 'assistant', ...reply });
+        transcript.push({ role: 'user', content }, { role: 'assistant', ...written });
         if (reply.postOptions.length > 0) before = reply.postOptions;
       }
     }

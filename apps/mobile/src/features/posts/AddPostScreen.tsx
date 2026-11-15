@@ -1,17 +1,18 @@
-import { channelById } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import leaveWithNewPostSheet from './leaveWithNewPostSheet';
 
 import PostEditor from '@/features/posts/PostEditor';
-import type { EditedPost, PostEditorPost } from '@/features/posts/draft/postDraftReducer';
+import type { PostEditorPost } from '@/features/posts/draft/draftFromPost';
+import type { EditedPost } from '@/features/posts/draft/postData';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
+import type { PostCopyFields } from '@/providers/posts/PostsContext';
 import usePosts from '@/providers/posts/usePosts';
-import { readChannels } from '@/sync/channelsRepository';
 import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
 import readPost from '@/sync/queries/readPost';
+import readPostCopies from '@/sync/queries/readPostCopies';
 import { readByIds } from '@/sync/readByIds';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
@@ -19,8 +20,8 @@ import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, comma-separated, in that
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
-// without its thread or its other channels). It goes to the reposted version's channels, else all the
-// user's channels, else none. Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
+// without its thread, and its channel copies, held here beside the editor and added with the post,
+// unsent: the new post's own from then on). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
 // marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
 // would add the post again. Added from the New post sheet, the post closes that sheet too: the user
 // lands on the posts list with the new post, not back on what to post next.
@@ -35,7 +36,7 @@ export default function AddPostScreen() {
   );
 
   async function handleAddPost(data: EditedPost) {
-    await addPost({ ...data, rePostId });
+    await addPost({ ...data, rePostId, copies: seed?.copies });
     if (rePostId) {
       try {
         await updatePost(rePostId, { hasBeenReposted: true });
@@ -48,28 +49,34 @@ export default function AddPostScreen() {
 
   if (!seed) return null;
 
-  return <PostEditor kind="draft" ideas={rePostId ? 'repost' : 'post'} post={seed} onSave={handleAddPost} />;
+  return <PostEditor kind="draft" ideas={rePostId ? 'repost' : 'post'} post={seed.post} onSave={handleAddPost} />;
 }
+
+// A new post's seed: the post for the editor, and the copies a repost starts with.
+type NewPostSeed = { post: PostEditorPost; copies: PostCopyFields[] };
 
 async function readSeed(
   db: SyncDb,
   { rePostId, assetIds }: { rePostId: string | undefined; assetIds: string[] },
-): Promise<PostEditorPost | null> {
-  // A new post goes to all the user's channels this build knows, as Settings → Channels lists them
-  // (useChannels).
-  const channelIds = (await readChannels(db)).flatMap((row) => (channelById(row.channelId) ? [row.channelId] : []));
-  const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
+): Promise<NewPostSeed | null> {
+  const fresh = { postedAt: getTimestamp(), threadPosts: [] };
   if (rePostId) {
-    const rePost = await readPost(db, rePostId, { withChannels: false });
-    if (!rePost) return null;
+    // One transaction: the post and its copies as of one moment.
+    const read = await db.transaction(async (tx) => {
+      const post = await readPost(tx, rePostId);
+      return post && { post, copies: await readPostCopies(tx, rePostId) };
+    });
+    if (!read) return null;
+    const { post: rePost } = read;
+    const copies = read.copies.map(({ channelId, posts }) => ({
+      channelId,
+      posts: posts.map(({ text, mentions, assetIds }) => ({ text, mentions, assetIds })),
+    }));
     return {
-      ...fresh,
-      text: rePost.text,
-      postAssets: freshPostAssets(rePost.postAssets),
-      // A repost goes to the reposted version's channels.
-      channelIds: rePost.channelIds.length > 0 ? rePost.channelIds : channelIds,
+      post: { ...fresh, text: rePost.text, mentions: rePost.mentions, postAssets: freshPostAssets(rePost.postAssets) },
+      copies,
     };
   }
   const assets = assetIds.length ? await readByIds(db, schema.assets, assetIds) : [];
-  return { ...fresh, text: '', postAssets: buildPostAssets(assets), channelIds };
+  return { post: { ...fresh, text: '', mentions: null, postAssets: buildPostAssets(assets) }, copies: [] };
 }

@@ -57,10 +57,17 @@ const listNames = (withTagged: boolean) =>
  * A list's members, or the contacts on any of these photos (`photoIds`). `photosOf`: the contacts on
  * the live, untrashed photos of an album or a post (a thread's posts too), which is who is in it:
  * contacts go on photos only. `tagged`: the contacts on any untrashed photo; `deleted`: the deleted
- * contacts.
+ * contacts; `ids`: these contacts (the ones a post's chips mention).
  */
 export type ContactScope =
-  'all' | 'favorites' | 'tagged' | 'deleted' | { listId: string } | { photoIds: string[] } | { photosOf: PhotosOf };
+  | 'all'
+  | 'favorites'
+  | 'tagged'
+  | 'deleted'
+  | { listId: string }
+  | { photoIds: string[] }
+  | { photosOf: PhotosOf }
+  | { ids: string[] };
 
 // The Contacts tab's filters (contactFilterOptions): each one narrows the scope's contacts to the
 // favorites or to the contacts on a photo still there (the built-in lists' rules).
@@ -100,6 +107,7 @@ export default function contactQuery({
   const listId = typeof scope === 'object' && 'listId' in scope ? scope.listId : null;
   const photoIds = typeof scope === 'object' && 'photoIds' in scope ? scope.photoIds : null;
   const photosOf = typeof scope === 'object' && 'photosOf' in scope ? scope.photosOf : null;
+  const contactIds = typeof scope === 'object' && 'ids' in scope ? scope.ids : null;
   const tables: SQLiteTable[] = [schema.contacts];
   if (listId) tables.push(schema.contactListMembers);
   if (photoIds) tables.push(schema.contactLinks);
@@ -120,6 +128,7 @@ export default function contactQuery({
     if (photoIds) {
       return sql`${c.id} in (select contact_id from contact_links where target_type = 'asset' and deleted_at is null and ${inJson(sql.raw('target_id'), photoIds)})`;
     }
+    if (contactIds) return inJson(c.id, contactIds);
     if (photosOf) {
       return sql`${c.id} in (select contact_id from contact_links where target_type = 'asset' and deleted_at is null
         and target_id in ${livePhotoIdsOf(photosOf)})`;

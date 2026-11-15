@@ -16,8 +16,9 @@ vi.mock('../src/config.js', async (importOriginal) => {
 import { DEFAULT_INSTRUCTIONS, VERIFY_JUDGE_MODEL_ID, type ChatReply } from '@squidbox/shared';
 import fixture from './fixtures/venice-models.json';
 import type { CatalogEntry } from '../src/ai/catalog.js';
-import { cardChecks, changeNote, CHAT_PLAN, check, verifyChatModel } from '../src/ai/chatVerify.js';
+import { changeNote, CHAT_PLAN, check, replyChecks, verifyChatModel } from '../src/ai/chatVerify.js';
 import { VerifyStopped } from '../src/ai/verifyTurns.js';
+import { withoutMarkers } from '../src/ai/tasks.js';
 
 const catalog = fixture.data as CatalogEntry[];
 const model = catalog.find((entry) => entry.id === 'kimi-k3')!;
@@ -30,7 +31,7 @@ const instructions = {
     '{posts}',
     'Media: {media}',
     "What's in the photos (from image recognition): {tags}",
-    "People they've tagged in posts from the same album: {mentions}",
+    'People they may mention: {mentions}',
     'Caption so far: {caption}',
     'Before:',
     '{transcript}',
@@ -120,25 +121,53 @@ describe('check', () => {
   });
 });
 
-describe('cardChecks', () => {
-  const post = { photos: 1, videos: 0, tags: [], mentions: ['@ridgeline.bsky.social'], caption: '' };
+describe('replyChecks', () => {
+  const post = { photos: 1, videos: 0, tags: [], mentions: ['Sam Ridge'], caption: '' };
+  const checksOf = (written: ChatReply, isBare: boolean, of = post) =>
+    replyChecks({ written, plain: withoutMarkers(written) }, of, isBare);
+  const mentionReason = (card: string, of = post) => checksOf({ reply: '', postOptions: [card] }, true, of)[0]!.reason;
 
-  it("holds cards to the persona's rules and the post's handles, a failed one with its reason", () => {
-    expect(cardChecks([], post, false)).toEqual([]);
-    const fine = cardChecks(['Quiet coast with @ridgeline.bsky.social.'], post, false);
+  it("holds cards to the persona's rules and the post's mentions, a failed one with its reason", () => {
+    const fine = checksOf({ reply: '', postOptions: ['Quiet coast with @[Sam Ridge].'] }, false);
     expect(fine.every(({ ok, reason }) => ok && reason === null)).toBe(true);
-    const failed = cardChecks(['Wow! #coast with @someone.bsky.social'], post, false).filter(({ ok }) => !ok);
+    const failed = checksOf({ reply: '', postOptions: ['Wow! #coast with @[Jo Vale]'] }, false).filter(({ ok }) => !ok);
     expect(failed.map(({ reason }) => reason)).toEqual([
       'a hashtag',
       'an exclamation mark',
-      'a handle not in the post',
+      'a marker of a name not given',
     ]);
   });
 
-  it('checks only the handles without the persona', () => {
-    expect(cardChecks(['Wow! #coast'], post, true)).toEqual([
-      { name: "handles: only the post's, exact", ok: true, reason: null },
+  it('checks only the mentions without the persona', () => {
+    expect(checksOf({ reply: '', postOptions: ['Wow! #coast'] }, true)).toEqual([
+      { name: "mentions: only the post's, marked", ok: true, reason: null },
     ]);
+  });
+
+  it('checks the mentions of a reply without cards, in its text', () => {
+    expect(checksOf({ reply: 'Ask Sam Ridge.', postOptions: [] }, false)).toEqual([
+      { name: "mentions: only the post's, marked", ok: false, reason: 'a given name standing outside a marker' },
+    ]);
+  });
+
+  it("fails an @handle of the model's own", () => {
+    expect(mentionReason('Out with @samridge.bsky.social')).toBe('an @handle');
+  });
+
+  it('passes a marked handle name, which is no @handle of its own', () => {
+    expect(mentionReason('Out with @[@ridgeline.bsky.social]', { ...post, mentions: ['@ridgeline.bsky.social'] })).toBe(
+      null,
+    );
+  });
+
+  it('fails a given name written without its marker, in any case or spacing', () => {
+    for (const card of ['@[Sam Ridge] and Sam Ridge again', 'out with sam ridge', 'With SAM  RIDGE']) {
+      expect(mentionReason(card)).toBe('a given name standing outside a marker');
+    }
+  });
+
+  it('passes a longer word that starts with a given name', () => {
+    expect(mentionReason('Out with Sam Ridgeway')).toBe(null);
   });
 });
 
@@ -148,6 +177,7 @@ describe('changeNote', () => {
     expect(changeNote({ caption: 'Moss.', tags: ['moss', 'creek'] })).toBe(
       'The editor changed the caption to “Moss.” and the tags to moss, creek.',
     );
+    expect(changeNote({ mentions: ['Sam Ridge'] })).toBe('The editor changed the mentions to Sam Ridge.');
   });
 });
 
@@ -177,9 +207,7 @@ describe('verifyChatModel', () => {
     expect(calls[1]!.messages[0].content).toContain('Before:\n(none)');
     // what the writing model was told about the creator and the post
     expect(judge.messages[0].content).toContain("About the creator: I'm a guy who shoots outdoors");
-    expect(judge.messages[0].content).toContain(
-      "People they've tagged in posts from the same album: @ridgeline.bsky.social",
-    );
+    expect(judge.messages[0].content).toContain('People they may mention: Sam Ridge');
     expect(judge.messages[0].content).toContain("What's in the photos (from image recognition): coastline, grey sky");
     expect(judge.messages[0].content).toContain('Media: 4 photos and 1 video');
     expect(judge.messages[0].content).toContain('Caption so far: (empty)');
@@ -199,6 +227,34 @@ describe('verifyChatModel', () => {
     expect(result.passes).toBe(checks.filter((each) => each.ok).length);
     expect(result.fails).toBe(1);
     expect(result.unreadable).toBe(0);
+  });
+
+  it('sends the model its replies with their mention markers, and the judge and the stored turns get none', async () => {
+    venice({
+      model: (last) =>
+        last.startsWith('Just got back')
+          ? { reply: 'Sounds like a trip with @[Sam Ridge]. Want posts?', postOptions: [] }
+          : { reply: 'Here you go.', postOptions: ['Out with @[Sam Ridge]', ...POSTS.slice(1)] },
+    });
+    const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk'] });
+    const [, , second, secondJudge] = bodies();
+    expect(second!.messages).toContainEqual({
+      role: 'assistant',
+      content: JSON.stringify({ reply: 'Sounds like a trip with @[Sam Ridge]. Want posts?', postOptions: [] }),
+    });
+    expect(secondJudge!.messages[0].content).toContain('Assistant: Sounds like a trip with Sam Ridge. Want posts?');
+    expect(secondJudge!.messages[0].content).toContain('1. Out with Sam Ridge');
+    expect(secondJudge!.messages[0].content).not.toContain('@[');
+    expect(JSON.stringify(result.sections[0]!.turns)).not.toContain('@[');
+  });
+
+  it("misses a turn whose reply is nothing without its markers, and skips the scenario's later turns", async () => {
+    venice({
+      model: (last) => (last.startsWith('nice, create') ? { reply: '@[]', postOptions: [] } : modelReply(last)),
+    });
+    const turns = (await verifyChatModel(model, { catalog, instructions, sectionIds: ['talk'] })).sections[0]!.turns;
+    expect(turns[1]).toMatchObject({ error: 'Returned neither a reply nor posts', reply: null });
+    expect(turns[2]!.error).toContain('Skipped');
   });
 
   it('misses a turn the model was too slow for, with its seconds, and goes on', async () => {
@@ -280,7 +336,7 @@ describe('verifyChatModel', () => {
     venice({ model: () => ({ reply: 'Here.', postOptions: POSTS }) });
     const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['refine'] });
     const [section] = result.sections;
-    expect(section!.post).toMatchObject({ photos: 4, videos: 1, caption: '', mentions: ['@ridgeline.bsky.social'] });
+    expect(section!.post).toMatchObject({ photos: 4, videos: 1, caption: '', mentions: ['Sam Ridge'] });
     expect(section!.turns.map((turn) => turn.note)).toEqual([
       null,
       'The editor changed the caption to “Three days on the coast. The tent lost to the rain, the car won.”.',
@@ -298,7 +354,7 @@ describe('verifyChatModel', () => {
       .at(-1)!;
     expect(judgeOfBare.messages[0].content).not.toContain('About the creator');
     expect(judgeOfBare.messages[0].content).not.toContain('Posts they wrote');
-    expect(judgeOfBare.messages[0].content).toContain('@ridgeline.bsky.social');
+    expect(judgeOfBare.messages[0].content).toContain('Sam Ridge');
   });
 
   it('rejects before any call when Venice does not offer the judge', async () => {

@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import mentionSuggestionsOf, {
-  mentionEntries,
-  type MentionContact,
-} from '../src/features/post-mentions/mentionSuggestions';
+import type { MentionContact } from '../src/features/post-mentions/mentionHandle';
+import mentionSuggestionsOf, { mentionEntries } from '../src/features/post-mentions/mentionSuggestions';
 
 function contact(fields: Partial<MentionContact> & Pick<MentionContact, 'name'>): MentionContact {
   return { id: fields.name, isFavorite: false, avatarFilename: null, ...fields };
@@ -11,73 +9,61 @@ function contact(fields: Partial<MentionContact> & Pick<MentionContact, 'name'>)
 
 const NONE = new Set<string>();
 
-const mentionSuggestions = (contacts: MentionContact[], onPhotoIds: Set<string>, query: string, taken?: Set<string>) =>
-  mentionSuggestionsOf(mentionEntries(contacts), onPhotoIds, query, taken);
+const mentionSuggestions = (contacts: MentionContact[], onPhotoIds: Set<string>, query: string) =>
+  mentionSuggestionsOf(mentionEntries(contacts), onPhotoIds, query);
 
 const shown = (suggestions: ReturnType<typeof mentionSuggestions>) =>
-  suggestions.map(({ handle, networks }) => `${handle} ${networks.join(',')}`);
+  suggestions.map(({ contact: { name }, handlesText }) => `${name}: ${handlesText}`);
+const names = (suggestions: ReturnType<typeof mentionSuggestions>) => suggestions.map(({ contact: { name } }) => name);
 
 describe('mentionSuggestions', () => {
-  it('ranks a handle starting with the query over a name word, over a match anywhere', () => {
+  it('ranks a name (or a word of it) starting with the query over a handle starting with it, over a match anywhere', () => {
     const contacts = [
+      contact({ name: 'Jo Outtrail', xHandle: 'jo' }),
+      contact({ name: 'Nora Lake', xHandle: 'trailnora' }),
       contact({ name: 'Sam Trailmix', xHandle: 'sammy_t' }),
-      contact({ name: 'Nora Lake', xHandle: 'outdoortrail' }),
-      contact({ name: 'Jo Peak', xHandle: 'trailjo' }),
     ];
-    expect(shown(mentionSuggestions(contacts, NONE, 'Trail'))).toEqual(['trailjo X', 'sammy_t X', 'outdoortrail X']);
+    expect(names(mentionSuggestions(contacts, NONE, 'Trail'))).toEqual(['Sam Trailmix', 'Nora Lake', 'Jo Outtrail']);
   });
 
-  it('lists a handle a contact uses on several networks once, naming them, without the @ it was typed with', () => {
+  it('shows a contact once, with each handle once and the networks it is on, without the @ it was typed with', () => {
     const contacts = [
       contact({ name: 'Mike', xHandle: '@Ridge', blueskyHandle: 'ridge', instagramHandle: 'ridge.pics' }),
     ];
-    expect(shown(mentionSuggestions(contacts, NONE, 'ri'))).toEqual(['Ridge X,Bluesky', 'ridge.pics Instagram']);
+    expect(shown(mentionSuggestions(contacts, NONE, 'ri'))).toEqual([
+      'Mike: @Ridge on X and Bluesky · @ridge.pics on Instagram',
+    ]);
   });
 
   it('puts favorites first among equal matches, then goes by name', () => {
-    const contacts = [
-      contact({ name: 'Bea', xHandle: 'b1' }),
-      contact({ name: 'Al', xHandle: 'b2' }),
-      contact({ name: 'Cy', xHandle: 'b3', isFavorite: true }),
-    ];
-    expect(shown(mentionSuggestions(contacts, NONE, ''))).toEqual(['b3 X', 'b2 X', 'b1 X']);
+    const contacts = [contact({ name: 'Bea' }), contact({ name: 'Al' }), contact({ name: 'Cy', isFavorite: true })];
+    expect(names(mentionSuggestions(contacts, NONE, ''))).toEqual(['Cy', 'Al', 'Bea']);
   });
 
   it("puts the contacts on the post's photos first, however they match", () => {
     const contacts = [
       contact({ name: 'Theo', xHandle: 'theo' }),
-      contact({ name: 'Sam Theodor', xHandle: 'samt' }),
+      contact({ name: 'Sam Kim', xHandle: 'samtheo' }),
       contact({ name: 'Al', xHandle: 'al' }),
     ];
-    const onPhotos = new Set(['Sam Theodor']);
-    expect(shown(mentionSuggestions(contacts, onPhotos, 'theo'))).toEqual(['samt X', 'theo X']);
-    expect(shown(mentionSuggestions(contacts, onPhotos, ''))).toEqual(['samt X', 'al X', 'theo X']);
-  });
-
-  it('leaves out the handles already taken, so the next ones take their place', () => {
-    const contacts = [
-      contact({ name: 'Mike', xHandle: 'Ridge', instagramHandle: 'ridge.pics' }),
-      contact({ name: 'Rita', xHandle: 'rita' }),
-    ];
-    expect(shown(mentionSuggestions(contacts, NONE, 'ri', new Set(['ridge'])))).toEqual([
-      'ridge.pics Instagram',
-      'rita X',
-    ]);
+    const onPhotos = new Set(['Sam Kim']);
+    expect(names(mentionSuggestions(contacts, onPhotos, 'theo'))).toEqual(['Sam Kim', 'Theo']);
+    expect(names(mentionSuggestions(contacts, onPhotos, ''))).toEqual(['Sam Kim', 'Al', 'Theo']);
   });
 
   it('matches a name blind to case and accents, as a contact search does', () => {
-    const contacts = [contact({ name: 'Jonas Müller', xHandle: 'jm' }), contact({ name: 'João', xHandle: 'jsilva' })];
-    expect(shown(mentionSuggestions(contacts, NONE, 'muell'))).toEqual(['jm X']);
-    expect(shown(mentionSuggestions(contacts, NONE, 'joa'))).toEqual(['jsilva X']);
+    const contacts = [contact({ name: 'Jonas Müller' }), contact({ name: 'João' })];
+    expect(names(mentionSuggestions(contacts, NONE, 'muell'))).toEqual(['Jonas Müller']);
+    expect(names(mentionSuggestions(contacts, NONE, 'joa'))).toEqual(['João']);
   });
 
-  it('leaves out contacts without a handle, a link that is no profile, and those that match nothing', () => {
+  it('lists a contact without handles (a link that is no profile is none), and leaves out those that match nothing', () => {
     const contacts = [
       contact({ name: 'Fan' }),
-      contact({ name: 'Zed', xHandle: 'zed' }),
       contact({ name: 'Ivy', xHandle: 'https://x.com/i/lists/1' }),
+      contact({ name: 'Zed', xHandle: 'zed' }),
     ];
-    expect(shown(mentionSuggestions(contacts, NONE, 'fa'))).toEqual([]);
-    expect(shown(mentionSuggestions(contacts, NONE, 'i'))).toEqual([]);
+    expect(shown(mentionSuggestions(contacts, NONE, 'fa'))).toEqual(['Fan: No handles']);
+    expect(shown(mentionSuggestions(contacts, NONE, 'iv'))).toEqual(['Ivy: No handles']);
   });
 });

@@ -20,4 +20,5 @@ export const notFuzzed: Record<string, string> = {
   contact_settings: PER_USER,
   idea_settings: PER_USER,
   channels: `${PLAIN}; one record per catalog channel under its fixed id, as channelsRepository.test covers`,
+  post_copies: `${PLAIN}, its posts one value; saved whole by its composer, as postCopiesRepository.test covers`,
 };

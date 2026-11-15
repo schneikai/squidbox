@@ -1,18 +1,16 @@
 import { useLocalSearchParams } from 'expo-router';
 
 import PostEditor from '@/features/posts/PostEditor';
-import type { EditedPost } from '@/features/posts/draft/postDraftReducer';
+import type { EditedPost } from '@/features/posts/draft/postData';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import usePosts from '@/providers/posts/usePosts';
 import readPost from '@/sync/queries/readPost';
 import changedValues from '@/utils/changedValues';
 
-// Edits a post, its thread and its other versions (the post as read carries its `threadPosts` and
-// `channelPosts`), seeded once from what it is when the screen opens, showing the version saved as
-// `channelPostId` when given (the one the post screen showed), and saves what the user changed from
-// that seed; a post deleted meanwhile (e.g. by a sync) closes the editor.
+// Edits a post and its thread (the post as read carries its `threadPosts`), seeded once from what it
+// is when the screen opens, and saves what the user changed from that seed; a post deleted meanwhile (e.g. by a sync) closes the editor.
 export default function EditPostScreen() {
-  const { postId, channelPostId } = useLocalSearchParams<{ postId: string; channelPostId?: string }>();
+  const { postId } = useLocalSearchParams<{ postId: string }>();
   const { updatePost } = usePosts();
   const post = useSeedOrClose((db) => readPost(db, postId), postId, 'This post was deleted');
 
@@ -22,7 +20,5 @@ export default function EditPostScreen() {
 
   if (!post) return null;
 
-  return (
-    <PostEditor kind="edit" ideas="post" post={post} selectedChannelPostId={channelPostId} onSave={handleUpdatePost} />
-  );
+  return <PostEditor kind="edit" ideas="post" post={post} onSave={handleUpdatePost} />;
 }

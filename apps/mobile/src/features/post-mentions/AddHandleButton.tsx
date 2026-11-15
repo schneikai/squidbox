@@ -1,0 +1,53 @@
+import { CONTACT_HANDLE_BY_FIELD, type Channel } from '@squidbox/shared';
+import { Alert } from 'react-native';
+
+import type { MentionContact } from './mentionHandle';
+
+import Button from '@/components/Button';
+import MenuButton from '@/components/MenuButton';
+import MenuOption from '@/components/popup-menu-options/MenuOption';
+import useContacts from '@/providers/contacts/useContacts';
+
+type AddHandleButtonProps = {
+  /** The mentioned contacts without a handle on `channel`. */
+  contacts: readonly MentionContact[];
+  channel: Pick<Channel, 'name' | 'handleField'>;
+};
+
+/**
+ * Add handle in MissingHandleNote: asks for a contact's handle on the channel in one line (its field's
+ * form as the hint) and stores it on the contact (setContactHandle, as the contact's
+ * form stores a handle). With several contacts, a menu of them first.
+ */
+export default function AddHandleButton({ contacts, channel }: AddHandleButtonProps) {
+  const { label, placeholder } = CONTACT_HANDLE_BY_FIELD[channel.handleField];
+  const { setContactHandle } = useContacts();
+
+  function ask(contact: MentionContact) {
+    Alert.prompt(`${contact.name} on ${label}`, placeholder, async (typed: string) => {
+      try {
+        await setContactHandle(contact.id, channel.handleField, typed);
+      } catch (error) {
+        console.error("Couldn't add the handle", error);
+        Alert.alert("Couldn't add the handle");
+      }
+    });
+  }
+
+  if (contacts.length === 1) {
+    return <Button variant="secondary" size="small" label="Add handle" onPress={() => ask(contacts[0]!)} />;
+  }
+  return (
+    <MenuButton
+      variant="secondary"
+      size="small"
+      label="Add handle"
+      accessibilityLabel="Add handle"
+      title="Add a handle for"
+    >
+      {contacts.map((contact) => (
+        <MenuOption key={contact.id} label={contact.name} onPress={() => ask(contact)} />
+      ))}
+    </MenuButton>
+  );
+}

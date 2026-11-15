@@ -99,6 +99,7 @@ const TITLES: Record<CollectionName, (payload: Record<string, unknown>, parents:
   contact_settings: () => 'Pinned list on Contacts',
   idea_settings: () => 'Post ideas and Repost ideas',
   channels: (payload) => `Channel "${channelName(String(payload.channelId))}"`,
+  post_copies: (payload) => `${channelName(String(payload.channelId))} copy of a post`,
 };
 
 function describe({ collection, recordId, payload }: schema.OutboxRow, parents: Parents): string {

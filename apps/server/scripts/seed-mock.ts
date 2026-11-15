@@ -4,7 +4,7 @@
  * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky (his channels: Bluesky, then X and
- * Instagram, where a few posts have their own text and photos, and one goes to X as it is), the people he shoots and
+ * Instagram; two posts mention a friend by chip, no post types a handle, and one has its copies for Bluesky, sent, and Instagram), the people he shoots and
  * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
@@ -39,6 +39,8 @@ import {
   type PersonaRecord,
   type PromptButtonRecord,
   type PostAssetRecord,
+  type PostCopyRecord,
+  type PostMention,
   type PostRecord,
   type PullResponse,
   type PushMutation,
@@ -123,43 +125,50 @@ const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | '
   { name: 'To post', media: [33, 34, 35, 36, 37, 38, 40, 4] },
 ];
 
-// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts, with their
-// own text (`channels`) or as on Bluesky (`alsoOn`).
+// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts.
 const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
 
-// Every post is on Bluesky. `thread`: the posts that follow this one in its thread, each with its own
-// text and photos. `alsoOn`: his other channels the post goes to as it is (one version shared by
-// several channels, its `extraChannelIds`). `channels`: the post on his other channels, each with its
-// own text, photos and thread.
-type MockPostPart = { text: string; media: number[]; thread?: { text: string; media: number[] }[] };
+// `thread`: the posts that follow this one in its thread, each with its own text and photos.
+// `mention`: the contact (CONTACTS index) whose name in the text is a chip.
+type MockPostPart = { text: string; media: number[]; mention?: number; thread?: { text: string; media: number[] }[] };
+// A post's copy for one of his channels, `sentDaysAgo` null while unsent; its posts in thread order.
+type MockCopy = { channelId: string; sentDaysAgo: number | null; posts: { text: string; media: number[] }[] };
 const POSTS: (MockPostPart & {
   postedDaysAgo: number | null;
   isFavorite?: boolean;
-  alsoOn?: Exclude<(typeof CHANNEL_IDS)[number], 'bluesky'>[];
-  channels?: (MockPostPart & { channelId: (typeof CHANNEL_IDS)[number] })[];
+  copies?: MockCopy[];
 })[] = [
   {
     text: 'First light over the hills ☀️',
     media: [0, 1],
     postedDaysAgo: 40,
     isFavorite: true,
-    channels: [
+  },
+  {
+    text: 'Lost in the forest for a day with Sam Ridge 🌲',
+    media: [14, 15, 17, 32],
+    mention: 0,
+    postedDaysAgo: 32,
+    copies: [
+      {
+        channelId: 'bluesky',
+        sentDaysAgo: 32,
+        posts: [
+          { text: 'A whole day under the trees with Sam Ridge. Best shots below 🌲', media: [14, 15] },
+          { text: 'And the light on the way out.', media: [17, 32] },
+        ],
+      },
       {
         channelId: 'instagram',
-        text: 'First light over the hills ☀️ Up at 4:30, an hour of switchbacks in the dark, and then this. The valley was still asleep under the fog, and for ten minutes the whole ridge turned gold. Worth every step. #hiking #sunrise #landscapephotography',
-        media: [0, 1, 2, 9, 10],
+        sentDaysAgo: null,
+        posts: [{ text: 'Lost in the forest for a day with Sam Ridge 🌲', media: [14, 15, 17, 32] }],
       },
     ],
   },
-  {
-    text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲',
-    media: [14, 15, 17, 32],
-    postedDaysAgo: 32,
-    alsoOn: ['x'],
-  },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
   {
-    text: 'Summer recap, part 1, with @ridgeline.bsky.social',
+    text: 'Summer recap, part 1, with Sam Ridge',
+    mention: 0,
     media: [3, 5, 7, 8, 11],
     postedDaysAgo: 12,
     thread: [
@@ -167,24 +176,12 @@ const POSTS: (MockPostPart & {
       { text: 'Last walk before heading home. Part 2 soon.', media: [16] },
       { text: 'Thanks for following along. Back on the trail next weekend 🥾', media: [] },
     ],
-    channels: [
-      {
-        channelId: 'x',
-        text: 'Summer recap, part 1 🧵',
-        media: [3, 5],
-        thread: [
-          { text: 'The coast road, one stop at every pull-out 🌊', media: [6] },
-          { text: 'Part 2 next week.', media: [] },
-        ],
-      },
-    ],
   },
   {
     text: 'Quiet roads, loud thoughts.',
     media: [19],
     postedDaysAgo: 5,
     isFavorite: true,
-    channels: [{ channelId: 'x', text: 'Quiet roads.', media: [19] }],
   },
   { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
   { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
@@ -386,39 +383,27 @@ const postRecord = (key: string, createdAt: number, fields: Partial<PostRecord>)
   ...fields,
 });
 
+// The chip of contact `mention` (CONTACTS index) where its name stands in `text`; null without one.
+function mockMentions(text: string, mention: number | undefined): PostMention[] | null {
+  if (mention === undefined) return null;
+  const { name } = CONTACTS[mention]!;
+  const location = text.indexOf(name);
+  return location < 0 ? null : [{ contactId: mockUuid(`contact:${mention}`), location, name }];
+}
+
 const posts: PostRecord[] = POSTS.map((post, index) => {
   const postedAt = post.postedDaysAgo === null ? null : now - post.postedDaysAgo * DAY;
   return postRecord(`post:${index}`, postedAt ?? now - index * DAY, {
     text: post.text,
-    channelId: 'bluesky',
-    extraChannelIds: post.alsoOn?.length ? post.alsoOn : null, // null, never []
+    mentions: mockMentions(post.text, post.mention),
     isFavorite: post.isFavorite ?? false,
     postedAt,
     suggestRepostAt: postedAt === null ? 0 : postedAt + 90 * DAY,
   });
 });
 
-// A post on another channel: its own record, linked to the post, with its Posted time.
-const channelPosts = POSTS.flatMap((post, index) =>
-  (post.channels ?? []).map((channel) => {
-    const root = posts[index]!;
-    const key = `post:${index}:channel:${channel.channelId}`;
-    posts.push(
-      postRecord(key, root.createdAt, {
-        text: channel.text,
-        channelId: channel.channelId,
-        channelRootId: root.id,
-        postedAt: root.postedAt,
-        suggestRepostAt: root.suggestRepostAt,
-      }),
-    );
-    return { ...channel, key };
-  }),
-);
-
-// A thread's following posts (a post's, or its post on another channel's): their own records, linked
-// to the first post, with its Posted time.
-const threadParts = [...POSTS.map((post, index) => ({ ...post, key: `post:${index}` })), ...channelPosts].flatMap(
+// A thread's following posts: their own records, linked to the first post, with its Posted time.
+const threadParts = POSTS.map((post, index) => ({ ...post, key: `post:${index}` })).flatMap(
   ({ thread, key: rootKey }) => {
     const root = posts.find((post) => post.id === mockUuid(rootKey))!;
     return (thread ?? []).map((part, j) => ({ ...part, key: `${rootKey}:part:${j + 1}`, root, j }));
@@ -439,7 +424,6 @@ for (const { text, key, root, j } of threadParts) {
 // Each post's edges to its `media`, in that order.
 const postAssets: PostAssetRecord[] = [
   ...POSTS.map((post, index) => ({ key: `post:${index}`, media: post.media })),
-  ...channelPosts,
   ...threadParts,
 ].flatMap(({ key, media }) => {
   const positions = initialKeys(media.length);
@@ -450,6 +434,21 @@ const postAssets: PostAssetRecord[] = [
     position: positions[i]!,
   }));
 });
+
+// The posts' copies for his channels, each post with the parent's chip where its name stands.
+const postCopies: PostCopyRecord[] = POSTS.flatMap(({ copies = [], mention }, index) =>
+  copies.map(({ channelId, sentDaysAgo, posts: parts }, j) => ({
+    ...baseRecord(`post:${index}:copy:${channelId}`, posts[index]!.createdAt + j),
+    postId: posts[index]!.id,
+    channelId,
+    sentAt: sentDaysAgo === null ? null : now - sentDaysAgo * DAY,
+    posts: parts.map(({ text, media }) => ({
+      text,
+      mentions: mockMentions(text, mention),
+      assetIds: media.map((item) => assetAt(item).id),
+    })),
+  })),
+);
 
 // One persona per user, whose id is the user's id.
 const personas: PersonaRecord[] = [{ ...baseRecord('persona', now - 60 * DAY), ...MOCK_PERSONA, id: userId }];
@@ -554,6 +553,7 @@ const mockRecords: Record<string, { id: string }[]> = {
   album_assets: albumAssets,
   posts,
   post_assets: postAssets,
+  post_copies: postCopies,
   personas,
   prompt_buttons: promptButtons,
   instructions,

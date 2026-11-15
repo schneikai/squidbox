@@ -1,83 +1,53 @@
-import { channelName, type ChatSubjectKind, type IdeasKind } from '@squidbox/shared';
-import { memo, useCallback, useMemo, useReducer, useState } from 'react';
-import { Keyboard, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
+import { useMemo, useReducer, useState } from 'react';
 
 import PostCards from './PostCards';
-import type { PostedAtPickerProps } from './PostedAtPicker';
-import type { ChannelDraft, ChannelDraftAction } from './draft/channelDraftReducer';
-import { MAIN_KEY } from './draft/channelKey';
-import draftFromPost from './draft/draftFromPost';
+import cardsReducer from './draft/cardsReducer';
+import draftFromPost, { type PostEditorPost } from './draft/draftFromPost';
 import hasCardContent from './draft/hasCardContent';
-import postData from './draft/postData';
-import postDraftReducer, { type EditedPost, type PostDraftAction, type PostEditorPost } from './draft/postDraftReducer';
-import versionOfChannel from './draft/versionOfChannel';
-import postedAtToSave from './postedAtToSave';
+import postData, { type EditedPost } from './draft/postData';
+import postedAtToSave, { type PickedPostedAt } from './postedAtToSave';
 
 import EditSheet from '@/components/EditSheet';
-import ChannelBar from '@/features/channels/ChannelBar';
-import orderPostChannels from '@/features/channels/orderPostChannels';
-import useChannelOrder from '@/features/channels/useChannelOrder';
-import useChannelSlide from '@/features/channels/useChannelSlide';
-import useChannels from '@/features/channels/useChannels';
 import useEditSheet from '@/hooks/useEditSheet';
-import { layout } from '@/styles/designTokens';
 import changedValues from '@/utils/changedValues';
-import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 import isPresent from '@/utils/isPresent';
 
-type PostEditorKind = Extract<ChatSubjectKind, 'draft' | 'edit'>;
-
 type PostEditorProps = {
-  kind: PostEditorKind;
+  kind: Extract<ChatSubjectKind, 'draft' | 'edit'>;
   ideas: IdeasKind;
   post: PostEditorPost;
-  selectedChannelPostId?: string;
   onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
 };
 
-// Edits a post, its thread and its other versions, seeded once from `post` ({ text, postAssets,
-// postedAt, threadPosts, channelIds, channelPosts }) into its draft (postDraftReducer), as a draft
-// sheet: the channel bar (ChannelBar) on top, then the cards (PostCards) of the version it selects,
-// first the one saved as `selectedChannelPostId` (Edit from the post screen) else the post's own. Every
-// channel's cards stay mounted, the others hidden, so a switch loses nothing (each keeps its assistant
-// chat). Add (a new post, `kind` 'draft') or Save (an edit) hands `onSave` the post the posts store
-// takes (postData), allowed once every post of every channel has text or a photo (and, for Save,
-// something changed), and the seed in the same shape, so an edit can save only what changed; a save
-// that throws says so and keeps the editor open. A new post that opens empty has the cursor in its
-// text, keyboard up. × or a swipe down with changes asks first. `kind` is also what the assistant's
-// chat about the post's own cards is about ('draft' a new post, 'edit' a saved one), and `ideas` which
-// ideas their first card's tray offers, started on their own for a new post. The bar shows while the
-// user has channels, or the post has a channel or other versions.
-export default function PostEditor({ kind, ideas, post, selectedChannelPostId, onSave }: PostEditorProps) {
-  const [draft, dispatch] = useReducer(postDraftReducer, post, (seedPost) =>
-    draftFromPost(seedPost, selectedChannelPostId),
-  );
-  const channels = useChannels();
-  const channelOrder = useChannelOrder(channels);
+// Edits a post and its thread, seeded once from `post` ({ text, postAssets, postedAt, threadPosts })
+// into its cards (cardsReducer), as a draft sheet of PostCards. Add (a new post, `kind` 'draft') or
+// Save (an edit) hands `onSave` the post the posts store takes (postData), allowed once every post
+// has text or a photo (and, for Save, something changed), and the seed in the same shape, so an edit
+// can save only what changed; a save that throws says so and keeps the editor open. A new post that
+// opens empty has the cursor in its text, keyboard up. × or a swipe down with changes asks first.
+// `kind` is also what the assistant's chat about the cards is about ('draft' a new post, 'edit' a
+// saved one), and `ideas` which ideas the first card's tray offers, started on their own for a new post.
+export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProps) {
+  const [draft, dispatch] = useReducer(cardsReducer, post, draftFromPost);
+  // The Posted time the user picked: undefined while untouched, null once removed (postedAtToSave).
+  const [pickedPostedAt, setPickedPostedAt] = useState<PickedPostedAt>(undefined);
   const isNew = kind === 'draft';
   // A new post that opens empty (New post's card) is there to be written: its text takes the cursor.
   const [isOpenedEmpty] = useState(() => isNew && !hasCardContent(post));
   const seed = useMemo(() => postData(draftFromPost(post), post.postedAt), [post]);
-  const { pickedPostedAt } = draft;
   const postedAt = pickedPostedAt === undefined ? post.postedAt : pickedPostedAt;
   // A new post's time is now until the user picks one, and a removed one is none: till then the
   // toolbar shows only its clock.
   const isPostedAtShown = postedAt != null && (kind === 'edit' || pickedPostedAt !== undefined);
   const data = postData(draft, postedAt);
-  const parts = [draft.main, ...draft.others];
-  const orderedParts = orderPostChannels(parts, (part) => part.channelIds, channelOrder);
-  const slide = useChannelSlide(
-    draft.selectedKey,
-    orderedParts.map((part) => part.key),
-  );
 
   // The posts store syncs by itself. The save resolves an untouched Posted time (postedAtToSave): a
   // new post's is the time of the save.
   const { sheetProps } = useEditSheet({
     isNew,
-    isValid: parts.every((part) => part.cards.every(hasCardContent)),
+    isValid: draft.cards.every(hasCardContent),
     isDirty: isPresent(changedValues(seed, data)),
     save: () => {
       const savedAt = postedAtToSave({
@@ -91,165 +61,19 @@ export default function PostEditor({ kind, ideas, post, selectedChannelPostId, o
     syncsItself: true,
   });
 
-  const handleChangePostedAt = useCallback(
-    (value: number | null) => dispatch({ type: 'pickPostedAt', postedAt: value }),
-    [],
-  );
-
-  // The focused text would be a hidden channel's.
-  function handleSelect(key: string) {
-    Keyboard.dismiss();
-    dispatch({ type: 'select', key });
-  }
-
-  // Unticking a version's last channel removes the version, always asked: a tick is easy to miss.
-  async function handleRemove() {
-    if (!(await confirmRemoveAsync('this version'))) return;
-    Keyboard.dismiss();
-    dispatch({ type: 'removeVersion', key: draft.selectedKey, channelOrder });
-  }
-
-  // A channel ticked here (on the shown version or a new one) leaves the version it was on, and a
-  // version that had only it goes: asked first when it has text, like Remove.
-  async function confirmTakeAsync(channelId: string) {
-    const version = versionOfChannel(draft, channelId);
-    const isRemoved = version && version.key !== draft.selectedKey && version.channelIds.length === 1;
-    if (!isRemoved || !version.cards.some(hasCardContent)) return true;
-    return confirmRemoveAsync(`this ${channelName(channelId)} version`);
-  }
-
-  async function handleToggle(channelId: string) {
-    if (!(await confirmTakeAsync(channelId))) return;
-    dispatch({ type: 'toggleChannel', key: draft.selectedKey, channelId, channelOrder });
-  }
-
-  async function handleKeep(channelId: string) {
-    if (!(await confirmTakeAsync(channelId))) return;
-    dispatch({ type: 'keepChannel', key: draft.selectedKey, channelId, channelOrder });
-  }
-
-  // The focused text would be the version's that is left.
-  async function handleNewVersion(channelId: string) {
-    if (!(await confirmTakeAsync(channelId))) return;
-    Keyboard.dismiss();
-    dispatch({ type: 'newVersion', channelId, channelOrder });
-  }
-
-  function renderBody() {
-    if (!channels) return null;
-    const hasBar = channels.length > 0 || draft.main.channelIds.length > 0 || draft.others.length > 0;
-    return (
-      <View>
-        {hasBar && (
-          <ChannelBar
-            parts={orderedParts}
-            selectedKey={draft.selectedKey}
-            onSelect={handleSelect}
-            channelOrder={channelOrder}
-            editing={{
-              channels,
-              onNewVersion: handleNewVersion,
-              onToggle: handleToggle,
-              onKeep: handleKeep,
-              onRemove: parts.length > 1 ? handleRemove : undefined,
-            }}
-            style={styles.bar}
-          />
-        )}
-        <Animated.View style={slide}>
-          {parts.map((part) => (
-            <ChannelPanel
-              key={part.key}
-              channel={part}
-              isSelected={part.key === draft.selectedKey}
-              isOpenedPost={part.key === MAIN_KEY}
-              dispatch={dispatch}
-              kind={kind}
-              ideas={ideas}
-              isOpenedEmpty={isOpenedEmpty}
-              postedAt={postedAt}
-              isPostedAtShown={isPostedAtShown}
-              onChangePostedAt={handleChangePostedAt}
-            />
-          ))}
-        </Animated.View>
-      </View>
-    );
-  }
-
   return (
     <EditSheet testID="post-editor" {...sheetProps}>
-      {renderBody()}
+      <PostCards
+        draft={draft}
+        dispatch={dispatch}
+        kind={kind}
+        ideas={ideas}
+        startsOnItsOwn
+        autoFocusFirst={isOpenedEmpty}
+        postedAt={postedAt}
+        isPostedAtShown={isPostedAtShown}
+        onChangePostedAt={setPickedPostedAt}
+      />
     </EditSheet>
   );
 }
-
-type ChannelPanelProps = {
-  channel: ChannelDraft;
-  isSelected: boolean;
-  isOpenedPost: boolean;
-  dispatch: (action: PostDraftAction) => void;
-  kind: PostEditorKind;
-  ideas: IdeasKind;
-  isOpenedEmpty: boolean;
-  postedAt: PostedAtPickerProps['timestamp'];
-  isPostedAtShown: boolean;
-  onChangePostedAt: PostedAtPickerProps['onChange'];
-};
-
-// One version's cards, mounted while the version is in the draft and hidden (from the eye and from
-// VoiceOver) while another shows. Memoized, with its own dispatch, so a keystroke draws only the
-// channel being edited. What its chat is about is fixed as it mounts: the post's own channel as the
-// sheet opened is the post (`kind`, its `ideas`, started on their own for a new post), another is
-// its saved copy ('edit') or a new one ('draft'). The post's own takes the cursor when the sheet
-// opened empty (`isOpenedEmpty`).
-const ChannelPanel = memo(function ChannelPanel({
-  channel,
-  isSelected,
-  isOpenedPost,
-  dispatch,
-  kind,
-  ideas,
-  isOpenedEmpty,
-  postedAt,
-  isPostedAtShown,
-  onChangePostedAt,
-}: ChannelPanelProps) {
-  const { key } = channel;
-  const [chatKind] = useState<PostEditorKind>(() => (isOpenedPost ? kind : channel.id ? 'edit' : 'draft'));
-  const dispatchChannel = useCallback(
-    (action: ChannelDraftAction) => dispatch({ type: 'channel', key, action }),
-    [dispatch, key],
-  );
-
-  return (
-    <View
-      testID={isSelected ? 'post-editor-channel' : undefined}
-      accessibilityElementsHidden={!isSelected}
-      importantForAccessibility={isSelected ? 'auto' : 'no-hide-descendants'}
-      aria-hidden={!isSelected}
-      style={!isSelected && styles.hidden}
-    >
-      <PostCards
-        draft={channel}
-        dispatch={dispatchChannel}
-        kind={chatKind}
-        ideas={isOpenedPost ? ideas : 'post'}
-        startsOnItsOwn={isOpenedPost}
-        autoFocusFirst={isOpenedPost && isOpenedEmpty}
-        postedAt={postedAt}
-        isPostedAtShown={isPostedAtShown}
-        onChangePostedAt={onChangePostedAt}
-      />
-    </View>
-  );
-});
-
-const styles = StyleSheet.create({
-  bar: {
-    marginBottom: layout.cardGap,
-  },
-  hidden: {
-    display: 'none',
-  },
-});

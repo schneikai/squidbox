@@ -3,36 +3,40 @@ import { useEffect, useId, useState } from 'react';
 import { Image, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Image as SvgImage, Mask, Path, Rect, Text as SvgText } from 'react-native-svg';
 
+import avatarOnDevice, { rememberAvatarOnDevice } from './avatarOnDevice';
+
 import Icon from '@/components/Icon';
 import { isFileName } from '@/library/fileFields';
-import type { LibraryPaths } from '@/library/libraryPaths';
 import useOpenLibrary from '@/library/useOpenLibrary';
 import useAssetThumbnailLoader from '@/providers/asset-thumbnail-loader/useAssetThumbnailLoader';
 import useCloud from '@/providers/cloud/useCloud';
 import { colors, sizes, space } from '@/styles/designTokens';
-import { getAvatarUri, hasAvatar } from '@/utils/assets/assetStorage';
+import { getAvatarUri } from '@/utils/assets/assetStorage';
 
 /**
  * A contact's round avatar: the picture at `uri` when given, else the contact's photo (from the device,
  * or fetched from the user's storage), else its initials (a person without a
  * name yet) on the accent's soft surface, like the account button.
- * `size` is a key of sizes.avatar (`chip` … `hero`). With `isFavorite` it wears a large red heart over
+ * `size` is a key of sizes.avatar (`chip` … `hero`), or a diameter in points (a mention chip's).
+ * With `isFavorite` it wears a large red heart over
  * its top right edge, outlined in `outlineColor`, the color of the surface behind it (a card's white
  * unless told), so it stands apart from the picture. `isStacked` rings it in white, for avatars
  * overlapping in a stack. `cutout`, for a face in a row of overlapping ones, is how far the next face
  * reaches over its right edge: a crescent that much plus a thin gap is cut out of this one, so a real
  * gap shows whatever is behind the row, on any background.
- * VoiceOver reads the contact's name. style is for layout only.
+ * VoiceOver reads the contact's name, unless `isDecorative`. style is for layout only.
  */
 export type ContactAvatarProps = {
   // A new contact has no photo name yet.
   contact: Pick<ContactRecord, 'name'> & Partial<Pick<ContactRecord, 'avatarFilename'>>;
   uri?: string | null;
-  size?: keyof typeof sizes.avatar;
+  size?: keyof typeof sizes.avatar | number;
   isFavorite?: boolean;
   isStacked?: boolean;
   outlineColor?: string;
   cutout?: number;
+  /** Inside a control already labelled with the name (a mention chip): no label of its own. */
+  isDecorative?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -44,10 +48,11 @@ export default function ContactAvatar({
   isStacked = false,
   outlineColor = colors.background.surface,
   cutout,
+  isDecorative = false,
   style,
 }: ContactAvatarProps) {
   const avatarUri = useAvatarUri(contact);
-  const diameter = sizes.avatar[size];
+  const diameter = typeof size === 'number' ? size : sizes.avatar[size];
   const initials = initialsOf(contact.name);
   const heart = Math.round(diameter * HEART_RATIO);
   const ring = Math.max(2, Math.round(heart * OUTLINE_RATIO));
@@ -63,9 +68,9 @@ export default function ContactAvatar({
         !!cutout && styles.cut,
         style,
       ]}
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={contact.name || 'New contact'}
+      accessible={!isDecorative}
+      accessibilityRole={isDecorative ? undefined : 'image'}
+      accessibilityLabel={isDecorative ? undefined : contact.name || 'New contact'}
     >
       {cutout ? (
         <CutFace diameter={diameter} cutout={cutout} uri={pictureUri} initials={initials} />
@@ -170,49 +175,26 @@ function FavoriteHeart({ heart, ring, color, style }: FavoriteHeartProps) {
   );
 }
 
-// The photos found on this device since launch, by uri: an avatar shown again (a row scrolled back,
-// the same contact in a row and a stack) skips the file check.
-const foundUris = new Set<string>();
-const MAX_FOUND_URIS = 2000;
-
-function rememberFound(uri: string) {
-  const oldest = foundUris.values().next();
-  if (foundUris.size >= MAX_FOUND_URIS && !oldest.done) foundUris.delete(oldest.value);
-  foundUris.add(uri);
-}
-
-// Whether the photo at `uri` is on the device, remembered once it is.
-function isFoundOnDevice(filename: string, uri: string, library: Pick<LibraryPaths, 'avatarsDir'>): boolean {
-  if (!hasAvatar(filename, library)) return false;
-  rememberFound(uri);
-  return true;
-}
-
-// The uri of the contact's photo once it is on the device: one not on it yet is fetched
-// through the loader while signed in; null until then, and for a contact without a photo (or with a
-// name that isn't a file name, isFileName).
+// The uri of the contact's photo once it is on the device (avatarOnDevice): one not on it yet is
+// fetched through the loader while signed in; null until then, and for a contact without a photo.
 function useAvatarUri(contact: Partial<Pick<ContactRecord, 'avatarFilename'>>): string | null {
   const filename = contact.avatarFilename && isFileName(contact.avatarFilename) ? contact.avatarFilename : null;
   const [shown, setShown] = useState<string | null>(null); // the filename found on the device
   const { paths: library } = useOpenLibrary();
   const { isAuthenticated } = useCloud();
   const { loadAvatar } = useAssetThumbnailLoader();
-  const uri = filename ? getAvatarUri(filename, library) : null;
-  // A photo already on the device shows in the first frame, not a moment after its initials: the file
-  // check is synchronous, and a photo found once skips it.
-  const isShown =
-    !!filename && !!uri && (shown === filename || foundUris.has(uri) || isFoundOnDevice(filename, uri, library));
+  const uri = filename && shown === filename ? getAvatarUri(filename, library) : avatarOnDevice(filename, library);
 
   useEffect(() => {
-    if (!filename || isShown || !isAuthenticated) return undefined;
+    if (!filename || uri || !isAuthenticated) return undefined;
     return loadAvatar({ avatarFilename: filename }, (result) => {
       if (result !== 'done') return;
-      rememberFound(getAvatarUri(filename, library));
+      rememberAvatarOnDevice(filename, library);
       setShown(filename);
     });
-  }, [filename, isAuthenticated, isShown, library, loadAvatar]);
+  }, [filename, isAuthenticated, uri, library, loadAvatar]);
 
-  return isShown ? uri : null;
+  return uri;
 }
 
 // The first letters of the name's first two words ("Maya Lindqvist" → "ML").

@@ -23,33 +23,24 @@ export function repostDate(posts: Record<'suggestRepostAt' | 'postedAt', SQLiteC
 }
 
 /**
- * A post is listed as itself, with its thread and its other channels (sync-design §10): the id the
- * post row `alias` (a name of the posts table in the query) lists under. A following post lists as its
- * live first post, and another channel as its live post, so in order: the live post its live first
- * post is another channel of; else its live first post; else the live post it is another channel of;
- * else its own id (a post of its own, or one whose first post or post was deleted). Raw SQL over the
+ * A thread is listed as its first post (sync-design §10): the id the post row `alias` (a name of the
+ * posts table in the query) lists under, its thread's first post while that is live, else its own (a
+ * first or standalone post, or a following post whose first post was deleted). Raw SQL over the
  * alias, so it reads the outer row in a select list too, where drizzle leaves columns unqualified.
  */
 export function listedPostId(alias: string): SQL<string> {
   const row = sql.raw(alias);
-  // A post of its own (most rows) reads nothing more; a following post reads its first post once.
-  return sql<string>`case when ${row}.thread_root_id is null and ${row}.channel_root_id is null then ${row}.id
-    else coalesce(
-      (select coalesce(c.id, r.id) from posts r left join posts c on c.id = r.channel_root_id and c.deleted_at is null
-        where r.id = ${row}.thread_root_id and r.deleted_at is null),
-      (select c.id from posts c where c.id = ${row}.channel_root_id and c.deleted_at is null),
-      ${row}.id)
-    end`;
+  return sql<string>`coalesce((select r.id from posts r where r.id = ${row}.thread_root_id and r.deleted_at is null), ${row}.id)`;
 }
 
-/** Whether the post row `alias` is listed as itself: not a following post or another channel of a live post. */
+/** Whether the post row `alias` is listed as itself: not a following post of a live first post. */
 export function isListedPost(alias: string): SQL {
   return sql`${listedPostId(alias)} = ${sql.raw(alias)}.id`;
 }
 
 /**
  * The listed posts (listedPostId) of the live posts with a live edge to an asset `assetCondition`
- * (SQL on `asset_id`) picks: a photo in a following post or another channel finds the post.
+ * (SQL on `asset_id`) picks: a photo in a following post finds its thread's first post.
  */
 export function postsHoldingAssets(assetCondition: SQL): SQL {
   return sql`(select ${listedPostId('q')} from posts q where q.deleted_at is null and q.id in
@@ -68,26 +59,34 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
 // The posts the chat reads its mentions from, at most.
 const MENTION_POSTS = 100;
 
-// The mention reads take every live post, a thread's following posts and a post's other channels too:
-// a handle the user wrote in one is still a handle they mentioned.
+// The mention read takes a thread's following posts too: a contact the user mentioned in one is still
+// a contact they mentioned. It reads only posts with mentions (chips), and gives each one's text and
+// mentions: the chat finds the contacts of its chips (mentionedContactIds); a typed @handle is text.
+
+/** A post's text and mentions, as the mention reads give them. */
+export type MentionTextRow = { text: string; mentions: schema.PostRow['mentions'] };
 
 /**
- * The texts of the live posts whose assets share a live album with `assetIds` (through live edges),
- * newest post date first, at most MENTION_POSTS: where the chat finds the handles the user mentions in
- * posts like the one they write. None without an album or one never posted from: the library's other
- * posts are about other people.
+ * The texts and mentions of the live posts with mentions whose assets share a live album with
+ * `assetIds` (through live edges), newest post date first, at most MENTION_POSTS: where the chat finds the contacts the
+ * user mentions in posts like the one they write. None without an album or one never posted from: the
+ * library's other posts are about other people.
  */
-export async function readMentionTexts(db: SyncDb, assetIds: string[]): Promise<string[]> {
+export async function readMentionTexts(db: SyncDb, assetIds: string[]): Promise<MentionTextRow[]> {
   if (assetIds.length === 0) return [];
   const p = schema.posts;
-  const rows = await db
-    .select({ text: p.text })
+  return db
+    .select({ text: p.text, mentions: p.mentions })
     .from(p)
     .where(
-      sql`${p.deletedAt} is null and ${p.id} in (select pe.post_id from post_assets pe
+      sql`${p.deletedAt} is null and ${p.mentions} is not null and ${p.id} in (select pe.post_id from post_assets pe
         where pe.deleted_at is null and pe.asset_id in ${albumAssetIdsOf(assetIds)})`,
     )
     .orderBy(sql`${p.postedAt} desc, ${p.id} desc`)
     .limit(MENTION_POSTS);
-  return rows.map((row) => row.text);
+}
+
+/** A live post with an @ in its text or a mention chip: the posts that may mention a contact. */
+export function mentionsSomeone(p: typeof schema.posts) {
+  return sql`${p.deletedAt} is null and (instr(${p.text}, '@') > 0 or ${p.mentions} is not null)`;
 }

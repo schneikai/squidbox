@@ -1,26 +1,29 @@
-import type { PostRecord } from '@squidbox/shared';
+import type { PostCopyRecord, PostRecord } from '@squidbox/shared';
 import { createContext } from 'react';
 
-import type { ChannelPart } from '@/sync/postChannels';
 import type { AssetRef, ThreadPart } from '@/sync/postThreads';
 
-// A post as an editor writes it: its fields, its channels (`channelIds`, versionChannelFields: the only
-// way to set them), its photos (`assetRefs`), its following posts (`threadPosts`, postThreads) and its
-// other versions (`channelPosts`, postChannels).
-export type PostFields = Omit<Partial<PostRecord>, 'channelId' | 'extraChannelIds'> & {
-  channelIds?: string[];
+// A post as an editor writes it: its fields, its photos (`assetRefs`) and its following posts
+// (`threadPosts`, postThreads).
+export type PostFields = Partial<PostRecord> & {
   assetRefs?: AssetRef[];
   threadPosts?: ThreadPart[];
-  channelPosts?: ChannelPart[];
 };
 
-// The post an editor was seeded with: what a changed photo list, thread or other channels are saved over.
-export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts' | 'channelPosts'>;
+// The post an editor was seeded with: what a changed photo list or thread is saved over.
+export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts'>;
+
+// A channel copy as its composer writes it (post_copies): its channel and its posts.
+export type PostCopyFields = Pick<PostCopyRecord, 'channelId' | 'posts'>;
 
 export type PostsContextValue = {
-  addPost: (fields: PostFields) => Promise<PostRecord & { assetRefs: AssetRef[] }>;
+  addPost: (fields: PostFields & { copies?: PostCopyFields[] }) => Promise<PostRecord & { assetRefs: AssetRef[] }>;
   updatePost: (id: string, changes: PostFields, seed?: PostSeed | null) => Promise<void>;
   deletePost: (id: string) => Promise<void>;
+  addPostCopy: (postId: string, copy: PostCopyFields) => Promise<void>;
+  updatePostCopy: (id: string, posts: PostCopyFields['posts']) => Promise<void>;
+  removePostCopy: (id: string) => Promise<void>;
+  setPostCopiesSent: (ids: string[], sentAt: number | null) => Promise<void>;
 };
 
 const PostsContext = createContext<PostsContextValue | null>(null);

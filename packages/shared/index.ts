@@ -27,6 +27,7 @@ export * from './collections/contactList';
 export * from './collections/contactListMember';
 export * from './collections/contactLink';
 export * from './collections/channel';
+export * from './collections/postCopy';
 export * from './collections/defaultPromptButtons';
 export * from './collections/registry';
 export * from './collections/widenToGroups';
@@ -41,6 +42,7 @@ export * from './uniqueTags';
 export * from './contacts/formatPlace';
 export * from './contacts/parseHandle';
 export * from './contacts/handleKey';
+export * from './mentionMarkers';
 
 // Wire contracts shared between the mobile app and the server.
 export * from './contracts/auth';

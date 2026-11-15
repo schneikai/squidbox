@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import type { UserChatMessage } from './chatSessions';
 
 import ChatBubble from '@/components/ChatBubble';
+import CopyTextButton from '@/components/CopyTextButton';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import useHaptics from '@/hooks/useHaptics';
 import ruleResultText from '@/lib/ruleResultText';
@@ -40,7 +41,7 @@ export default function UserMessage({ label, content, userId }: UserMessageProps
   }
 
   return (
-    <ChatBubble side="user" label={label} text={content} isCopyable>
+    <ChatBubble side="user" label={label} text={content} copy={<CopyTextButton text={content} />}>
       <MenuOption label="Add to rules" icon="list-checks" onPress={handleAddToRules} />
     </ChatBubble>
   );

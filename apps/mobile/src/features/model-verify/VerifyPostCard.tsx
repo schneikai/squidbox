@@ -9,10 +9,10 @@ import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 type VerifyPostCardProps = { post: VerifyPost };
 
-/** The post a Verify conversation started with: its media and tagged people, its tags, its caption. */
+/** The post a Verify conversation started with: its media and mentions, its tags, its caption. */
 export default function VerifyPostCard({ post }: VerifyPostCardProps) {
   const media = getAssetCountInfo({ photo: post.photos, video: post.videos });
-  const people = post.mentions.length > 0 ? ` · tagged ${post.mentions.join(', ')}` : '';
+  const people = post.mentions.length > 0 ? ` · mentions ${post.mentions.join(', ')}` : '';
 
   return (
     <Card padded>

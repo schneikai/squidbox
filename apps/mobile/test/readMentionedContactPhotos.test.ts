@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createPost, makeAssetRecord, makeContactRecord } from './helpers/factory';
+import { createPost, createThread, makeAssetRecord, makeContactRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
 import readMentionedContactPhotos from '../src/features/contact-mentions/readMentionedContactPhotos';
 import * as assets from '../src/sync/assetsRepository';
@@ -43,9 +43,16 @@ describe('readMentionedContactPhotos', () => {
     expect(await read()).toEqual({ photos: { ben: ['p2'] }, postCount: 1 });
   });
 
-  it("counts a post once when another channel of it mentions the same handle, with that channel's photos", async () => {
-    await createPost(db, { id: 'post-1', text: 'Ridge run with @BenClimbs', channelId: 'x' }, ['p1']);
-    await createPost(db, { text: 'Full set with @benclimbs', channelId: 'onlyfans', channelRootId: 'post-1' }, ['p2']);
+  it("counts a thread once when its following post mentions the same handle, with that post's photos", async () => {
+    await createThread(db, { id: 'post-1', text: 'Ridge run with @BenClimbs', assetIds: ['p1'] }, [
+      { text: 'Full set with @benclimbs', assetIds: ['p2'] },
+    ]);
     expect(await read()).toEqual({ photos: { ben: ['p1', 'p2'] }, postCount: 1 });
+  });
+
+  it("puts a chip's live contact on the post's photos, by the chip alone", async () => {
+    await createPost(db, { text: 'Out with Ana', mentions: [{ contactId: 'ana', location: 9, name: 'Ana' }] }, ['p1']);
+    await createPost(db, { text: 'And Gone', mentions: [{ contactId: 'gone', location: 4, name: 'Gone' }] }, ['p2']);
+    expect(await read()).toEqual({ photos: { ana: ['p1'] }, postCount: 1 });
   });
 });

@@ -15,12 +15,7 @@ type Glyph = keyof typeof CHANNEL_GLYPHS;
 const LOGO_OF: Record<ChannelId, { glyph: Glyph; badge?: 'lock' }> = {
   x: { glyph: 'x' },
   bluesky: { glyph: 'bluesky' },
-  threads: { glyph: 'threads' },
   instagram: { glyph: 'instagram' },
-  tiktok: { glyph: 'tiktok' },
-  youtube: { glyph: 'youtube' },
-  reddit: { glyph: 'reddit' },
-  patreon: { glyph: 'patreon' },
   onlyfans: { glyph: 'onlyfans' },
   'onlyfans-ppv': { glyph: 'onlyfans', badge: 'lock' },
   justforfans: { glyph: 'justforfans' },

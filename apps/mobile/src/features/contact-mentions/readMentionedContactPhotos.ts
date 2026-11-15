@@ -1,41 +1,36 @@
-import { CONTACT_HANDLE_FIELDS, handleKey } from '@squidbox/shared';
-import { and, eq, isNull, like } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
-import extractHandles from '@/lib/extractHandles';
+import mentionedContactIds from '@/features/post-mentions/mentionedContactIds';
+import readContactsByHandle from '@/features/post-mentions/readContactsByHandle';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
-import { listedPostId } from '@/sync/postsRepository';
-
-// The suffix a Bluesky handle may be mentioned without (`@maya` for `maya.bsky.social`).
-const BLUESKY_SUFFIX = '.bsky.social';
+import { listedPostId, mentionsSomeone } from '@/sync/postsRepository';
 
 /** What the posts' mentions match: each contact's photos, and how many posts matched (as listed: listedPostId). */
 export type MentionedContactPhotos = { photosByContact: Map<string, string[]>; postCount: number };
 
 /**
- * For every live post with an @handle that is a live contact's handle (any of CONTACT_HANDLES,
- * without case; a Bluesky handle also without `.bsky.social`), that contact and the post's live
- * photos. A handle that several contacts have matches each of them. One transaction.
+ * For every live post that mentions a live contact (mentionedContactIds: a chip, or an @handle that
+ * is the contact's, contactsByHandle), that contact and the post's live photos. A handle that several
+ * contacts have matches each of them. One transaction.
  */
 export default function readMentionedContactPhotos(db: SyncDb): Promise<MentionedContactPhotos> {
   return db.transaction(async (tx) => {
     const p = schema.posts;
     const posts = await tx
-      .select({ id: p.id, listedId: listedPostId('posts'), text: p.text })
+      .select({ id: p.id, listedId: listedPostId('posts'), text: p.text, mentions: p.mentions })
       .from(p)
-      .where(and(isNull(p.deletedAt), like(p.text, '%@%')));
-    const contactsByHandle = await readContactsByHandle(tx);
+      .where(mentionsSomeone(p));
+    const { contactsById, ofHandle } = await readContactsByHandle(tx);
 
     const contactsByPost = new Map<string, string[]>();
-    // A post's other channels and following posts are the post: it counts once.
+    // A thread's following posts are its first post: it counts once.
     const listedPosts = new Set<string>();
     for (const post of posts) {
-      const ids = new Set(
-        extractHandles([post.text]).flatMap((handle) => contactsByHandle.get(handleKey(handle)) ?? []),
-      );
-      if (ids.size === 0) continue;
-      contactsByPost.set(post.id, [...ids]);
+      const ids = mentionedContactIds(post, contactsById, ofHandle);
+      if (ids.length === 0) continue;
+      contactsByPost.set(post.id, ids);
       listedPosts.add(post.listedId);
     }
 
@@ -52,27 +47,6 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
       postCount: listedPosts.size,
     };
   });
-}
-
-// The live contacts by each of their handles' keys (handleKey).
-async function readContactsByHandle(tx: SyncDb): Promise<Map<string, string[]>> {
-  const c = schema.contacts;
-  const contacts = await tx.select().from(c).where(isNull(c.deletedAt));
-  const byHandle = new Map<string, string[]>();
-  const add = (handle: string, contactId: string) => {
-    const ids = byHandle.get(handle) ?? [];
-    if (!ids.includes(contactId)) byHandle.set(handle, [...ids, contactId]);
-  };
-  for (const contact of contacts) {
-    for (const field of CONTACT_HANDLE_FIELDS) {
-      const handle = handleKey(contact[field] ?? '', field);
-      if (!handle) continue;
-      add(handle, contact.id);
-      if (field === 'blueskyHandle' && handle.endsWith(BLUESKY_SUFFIX))
-        add(handle.slice(0, -BLUESKY_SUFFIX.length), contact.id);
-    }
-  }
-  return byHandle;
 }
 
 // The live photos of these posts, through their live edges.

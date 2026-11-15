@@ -27,8 +27,23 @@ export function fillTemplate(template: string, values: Record<string, string>): 
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? values[name]! : match));
 }
 
-// The fields a contact read returns and how, for From screenshot and From link alike (their
-// instructions' `{fields}`). Not one of the editable instructions (the owner's call): it follows the
+// How each task answers: one fixed block per task, which withFormat adds at the end of the filled
+// text under FORMAT_HEADING. Not part of the editable instructions (the owner's call): an instruction says what to write,
+// the server how to answer, so a text edited, published or written before a block changed still gets
+// the reply its schema and checks expect. The blocks name JSON: some providers behind Venice refuse a
+// response format when the messages don't.
+
+// The chat's reply (chatReplyJsonSpec); the writing text says what goes into each key.
+export const CHAT_FORMAT = ['Return exactly one JSON object:', '{"reply": "…", "postOptions": ["…"]}'].join('\n');
+
+// Photo tags (tagsSchema), for Photo tags and a vision compare alike.
+export const TAGS_FORMAT =
+  'Return only a valid JSON object containing a "tags" array of unique strings. No commentary or Markdown.';
+
+// Verify's judge (judgeVerdictJsonSpec).
+export const JUDGE_FORMAT = 'Answer as JSON: {"pass": true or false, "reason": one short line}.';
+
+// The fields a contact read returns and how, for From screenshot and From link alike. It follows the
 // contact's own fields, so a handle added to CONTACT_HANDLES is asked for by both, with the keys
 // contactSchema holds the reply to.
 export const CONTACT_FIELDS_FORMAT = [
@@ -39,25 +54,44 @@ export const CONTACT_FIELDS_FORMAT = [
   'No commentary or Markdown.',
 ].join('\n');
 
-// Only how a writing compare answers, not what it writes, so it isn't one of the editable
-// instructions (the owner's call): the prompt box stays all the guidance a model gets. It names
-// JSON: some providers behind Venice refuse a response format when the messages don't.
+// How the chat's writing model writes a mention, after CHAT_FORMAT while the post has people to
+// mention: for a build that makes each marker a chip (`readsMentionMarkers`, mentionMarkers), the
+// protocol the app reads; for an installed build without it, the line every build had before.
+export const MENTION_FORMAT =
+  'When a post or your reply names one of the people listed above, write the name exactly as listed, wrapped like this: @[name as listed]. Keep every @[…] already in their post or the thread as it is. Use @[…] for nobody else, and never write a handle or an @ of your own.';
+export const MENTION_AS_GIVEN_FORMAT = 'Write handles exactly as given.';
+
+// The line above the format blocks, which sets them off from the data the text ends with (the reply to
+// judge, a profile's bio). Not "# How to answer": the built-in Writing text has that heading.
+export const FORMAT_HEADING = '# Answer format';
+
+// A writing compare's answer (postsSchema): its own block, not CHAT_FORMAT, since the reply holds only
+// the posts the prompt box asks for, with no "reply" to talk in. The prompt box stays all the guidance
+// on what to write.
 const COMPARE_WRITING_FORMAT =
   'Answer in JSON, with only the posts the prompt asks for. Each item is one finished post, with no intro, notes or quotes around it.';
 
 // After the model's earlier posts, so New suggestions with the same prompt brings new ones.
 const COMPARE_WRITE_DIFFERENT = 'Write different ones.';
 
-// A vision compare's line on the answer's format, after the prompt box: a prompt about "each photo"
-// had a model answer a list of photos.
-const COMPARE_VISION_FORMAT = 'Answer in JSON, with the tags of this one photo.';
+// A vision compare's line after TAGS_FORMAT: a prompt box about "each photo" had a model answer a list
+// of photos, a need Photo tags (its own text, one photo by design) doesn't have.
+const COMPARE_ONE_PHOTO = 'Only the tags of this one photo.';
 
 // After the model's earlier tags of the photo, so a new round with the same prompt brings new ones.
 const COMPARE_TAG_DIFFERENT = 'Give different tags.';
 
 /**
- * The writing prompt of a compare: the prompt box as the user's message, after a system line on the
- * answer's format only; the reply's JSON schema (postsSchema) asks for the posts alone. Each of
+ * `text`, then FORMAT_HEADING and each of `format` (a task's blocks), a blank line between the blocks:
+ * how every prompt gets the way to answer.
+ */
+function withFormat(text: string, ...format: string[]): string {
+  return `${text.trim()}\n\n${FORMAT_HEADING}\n${format.join('\n\n')}`;
+}
+
+/**
+ * The writing prompt of a compare: the prompt box as the user's message, after a system message that
+ * is only the answer's format; the reply's JSON schema (postsSchema) asks for the posts alone. Each of
  * `earlierRounds` (the model's posts of its last rounds, oldest first) follows as its answer, then
  * asks for different ones.
  */
@@ -74,6 +108,9 @@ export function writingMessages(prompt: string, earlierRounds: string[][] = []):
 
 // A user turn without its role, as the creator's turns are read for the model and the judge.
 type UserTurn = Omit<ChatUserTurn, 'role'>;
+
+// The people a post may mention, as the built-in Writing text lists them, for a text without them.
+const MENTIONS_LINE = 'People they may mention: {mentions}';
 
 /**
  * `template` with `{name}` at its end when it lacks it and `when` holds: a text published or tried
@@ -98,7 +135,9 @@ function userTurnText(turn: UserTurn, instructions: Instructions): string {
 /**
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
  * persona, their posts and the post) as the whole system message, then the transcript, a past reply in
- * the JSON the model replies in and a user turn as userTurnText has it.
+ * the JSON the model replies in and a user turn as userTurnText has it. The briefing ends with
+ * CHAT_FORMAT, then, while the post has people to mention, MENTION_FORMAT for a build that reads
+ * mention markers (`readsMentionMarkers`) or MENTION_AS_GIVEN_FORMAT for one that doesn't.
  */
 export function chatMessages({
   context,
@@ -106,15 +145,24 @@ export function chatMessages({
   persona,
   posts,
   instructions,
+  readsMentionMarkers,
 }: {
   context: ChatContext;
   transcript: ChatTurn[];
   persona: Persona;
   posts: string[];
   instructions: Instructions;
+  readsMentionMarkers: boolean;
 }): ChatMessage[] {
   return [
-    { role: 'system', content: writingBriefingText(instructions.writing, { persona, posts, context }) },
+    {
+      role: 'system',
+      content: withFormat(
+        writingBriefingText(instructions.writing, { persona, posts, context }),
+        CHAT_FORMAT,
+        ...(context.mentions.length === 0 ? [] : [readsMentionMarkers ? MENTION_FORMAT : MENTION_AS_GIVEN_FORMAT]),
+      ),
+    },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? { role: 'user', content: userTurnText(turn, instructions) }
@@ -131,11 +179,12 @@ function replyText({ reply, postOptions }: ChatReply): string {
 /**
  * Verify's judge question after a chat turn: instructions.modelCheckJudge filled with what the writing model was told about the creator and the post, with the writing
  * briefing's placeholders (the persona's facts, the posts they wrote, none for a section without them,
- * and the post's media, photo tags, tagged people and caption), so a name, handle or tag it was given
+ * and the post's media, photo tags, mentions and caption), so a name, handle or tag it was given
  * never counts as invented; the turns before it (`{transcript}`, "Creator: …" and "Assistant: …" with its numbered
  * options, "(none)" on the first turn), the creator's last message (`{request}`) and the reply to
- * judge (`{reply}`), as the one message. The creator's turns read as the writing model got them
- * (userTurnText). A judge text without `{thread}` gets the thread at its end, as the briefing does.
+ * judge (`{reply}`), then JUDGE_FORMAT, as the one message. The creator's turns read as the writing
+ * model got them (userTurnText). A judge text without `{thread}` gets the thread at its end, as the
+ * briefing does.
  */
 export function judgeMessages({
   instructions,
@@ -157,14 +206,17 @@ export function judgeMessages({
   const before = transcript.map((turn) =>
     turn.role === 'user' ? `Creator: ${userTurnText(turn, instructions)}` : `Assistant: ${replyText(turn)}`,
   );
-  const content = fillLines(withPlaceholder(instructions.modelCheckJudge, 'thread', Boolean(context.thread)), {
-    ...personaValues(persona),
-    ...postsValues(posts),
-    ...postValues(context),
-    transcript: before.join('\n\n') || '(none)',
-    request: userTurnText(request, instructions),
-    reply: replyText(reply),
-  });
+  const content = withFormat(
+    fillLines(withPlaceholder(instructions.modelCheckJudge, 'thread', Boolean(context.thread)), {
+      ...personaValues(persona),
+      ...postsValues(posts),
+      ...postValues(context),
+      transcript: before.join('\n\n') || '(none)',
+      request: userTurnText(request, instructions),
+      reply: replyText(reply),
+    }),
+    JUDGE_FORMAT,
+  );
   // A user message: a model behind Venice (Claude) refuses a request with only a system message.
   return [{ role: 'user', content }];
 }
@@ -263,14 +315,19 @@ function postValues(context: ChatContext | null): Record<string, string> {
  * post (`context`, null for none): `{caption}` is the caption as a JSON string, or (empty);
  * `{thread}` the thread's other posts; `{count}` the options to write. A line whose value is empty
  * is left out, with its heading (fillLines). A text without `{thread}` (one published or tried
- * before it had one) gets the thread at its end when there is one, as contactReadPrompt does for
- * `{fields}`, so a thread post is never written without it.
+ * before it had one) gets the thread at its end when there is one, so a thread post is never
+ * written without it; one without `{mentions}` gets the people they may mention there too, when there
+ * are any, so the mention block (chatMessages) never points at a list that isn't there. Without the
+ * answer's format: chatMessages adds it.
  */
 export function writingBriefingText(
   template: string,
   { persona, posts, context }: { persona: Persona; posts: string[]; context: ChatContext | null },
 ): string {
-  return fillLines(withPlaceholder(template, 'thread', Boolean(context?.thread)), {
+  const withThread = withPlaceholder(template, 'thread', Boolean(context?.thread));
+  const hasMentions = Boolean(context?.mentions.length) && !withThread.includes('{mentions}');
+  const full = hasMentions ? `${withThread.trimEnd()}\n\n${MENTIONS_LINE}` : withThread;
+  return fillLines(full, {
     ...personaValues(persona),
     ...postsValues(posts),
     ...postValues(context),
@@ -283,20 +340,26 @@ export function writingBriefingText(
 export type XProfileText = { handle: string; name: string; bio: string; location: string; website: string };
 
 /**
- * A contact read's instructions (contactScreenshot, contactXProfile) with `{fields}` filled by
- * CONTACT_FIELDS_FORMAT, and `values` as fillTemplate does; a text without `{fields}` (one published
- * or tried before it had one) gets it at its end, so the reply's keys always follow the contact's.
+ * A contact read's instructions (contactScreenshot, contactXProfile) filled with `values` (fillLines),
+ * then CONTACT_FIELDS_FORMAT, so the reply's keys always follow the contact's. A text published or
+ * tried while the format was its `{fields}` has only that placeholder taken out (a line that was
+ * nothing else goes with it), the rest of its words kept.
  */
-export function contactReadPrompt(template: string, values: Record<string, string> = {}): string {
-  return fillTemplate(withPlaceholder(template, 'fields'), { ...values, fields: CONTACT_FIELDS_FORMAT });
+function contactReadPrompt(template: string, values: Record<string, string> = {}): string {
+  const withoutFields = template
+    .split('\n')
+    .filter((line) => line.trim() !== '{fields}')
+    .join('\n')
+    .replaceAll('{fields}', '');
+  return withFormat(fillLines(withoutFields, values), CONTACT_FIELDS_FORMAT);
 }
 
 /**
  * From link's question about an X profile: `template` (instructions.contactXProfile) with
- * `{fields}` (CONTACT_FIELDS_FORMAT) and `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
+ * `{profile}` filled by the profile's fields as labelled lines ("Handle: @…", "Name: …", "Bio: …",
  * "Location: …", "Website: …"; an empty field's line left out), as the one user message (a model
- * behind Venice refuses a request with only a system message). The model gets these lines, never
- * the page.
+ * behind Venice refuses a request with only a system message), then CONTACT_FIELDS_FORMAT
+ * (contactReadPrompt). The model gets these lines, never the page.
  */
 export function xProfileMessages(template: string, profile: XProfileText): ChatMessage[] {
   const lines: [string, string][] = [
@@ -313,29 +376,43 @@ export function xProfileMessages(template: string, profile: XProfileText): ChatM
   return [{ role: 'user', content: contactReadPrompt(template, { profile: text }) }];
 }
 
-/**
- * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
- * compare's prompt) filled with the creator's content themes (their persona's `contentTags`; the line
- * is left out without any, as for a compare) as the system message, then the photo.
- */
-export function visionMessages({
-  prompt,
-  imageDataUrl,
-  contentTags = [],
-}: {
-  prompt: string;
-  imageDataUrl: string;
-  contentTags?: string[];
-}): ChatMessage[] {
+// A photo request: `system` as the system message, then the photo.
+function photoMessages(system: string, imageDataUrl: string): ChatMessage[] {
   return [
-    { role: 'system', content: fillLines(prompt, { themes: contentTags.join(', ') }) },
+    { role: 'system', content: system },
     { role: 'user', content: [{ type: 'image_url', image_url: { url: imageDataUrl } }] },
   ];
 }
 
 /**
- * A vision compare's request: the prompt box (visionMessages, without content themes) and a line on
- * the answer's format, then the photo; each of `earlierRounds` (the model's tags of this photo in
+ * A photo tags request: the photo tags briefing (`prompt`: the user's Photo tags instructions, or a
+ * compare's prompt box) filled with the creator's content themes (their persona's `contentTags`; the
+ * line is left out without any), then TAGS_FORMAT and `format` (a compare's own lines), as the system
+ * message, then the photo.
+ */
+export function visionMessages({
+  prompt,
+  imageDataUrl,
+  contentTags = [],
+  format = [],
+}: {
+  prompt: string;
+  imageDataUrl: string;
+  contentTags?: string[];
+  format?: string[];
+}): ChatMessage[] {
+  const system = withFormat(fillLines(prompt, { themes: contentTags.join(', ') }), TAGS_FORMAT, ...format);
+  return photoMessages(system, imageDataUrl);
+}
+
+/** From screenshot's request: instructions.contactScreenshot then CONTACT_FIELDS_FORMAT, then the photo. */
+export function contactScreenshotMessages(template: string, imageDataUrl: string): ChatMessage[] {
+  return photoMessages(contactReadPrompt(template), imageDataUrl);
+}
+
+/**
+ * A vision compare's request: the prompt box as visionMessages has the briefing (without content
+ * themes), with COMPARE_ONE_PHOTO after TAGS_FORMAT, then the photo; each of `earlierRounds` (the model's tags of this photo in
  * its last rounds, oldest first) follows as its answer, then asks for different ones.
  */
 export function compareVisionMessages({
@@ -347,10 +424,8 @@ export function compareVisionMessages({
   imageDataUrl: string;
   earlierRounds?: string[][];
 }): ChatMessage[] {
-  const [system, photo] = visionMessages({ prompt, imageDataUrl });
   return [
-    { role: 'system', content: `${system!.content}\n\n${COMPARE_VISION_FORMAT}` },
-    photo!,
+    ...visionMessages({ prompt, imageDataUrl, format: [COMPARE_ONE_PHOTO] }),
     ...earlierRounds.flatMap((tags): ChatMessage[] => [
       { role: 'assistant', content: JSON.stringify({ tags }) },
       { role: 'user', content: COMPARE_TAG_DIFFERENT },

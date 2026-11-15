@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { ContactPlace, FieldClocks, VerifyResult } from '@squidbox/shared';
+import type { ContactPlace, FieldClocks, PostCopyPost, PostMention, VerifyResult } from '@squidbox/shared';
 import {
   pgTable,
   uuid,
@@ -171,11 +171,12 @@ export const posts = pgTable(
     // A thread's following post: its first post and its place after it (null on a first post).
     threadRootId: uuid('thread_root_id'),
     threadIndex: integer('thread_index'),
-    // The catalog id of the channel the post is on, and on another channel of a post: that post.
+    // Retired (sync-design §10): the channel versions' fields, kept for installed builds that send them.
     channelId: text('channel_id'),
     channelRootId: uuid('channel_root_id'),
-    // The channels the post also goes to besides channelId (null: none).
     extraChannelIds: jsonb('extra_channel_ids').$type<string[]>(),
+    // The contacts the text mentions (null: none); merges with `text` as one.
+    mentions: jsonb('mentions').$type<PostMention[]>(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('posts_user_seq_idx').on(t.userId, t.serverSeq)],
 );
@@ -361,6 +362,20 @@ export const channels = pgTable(
     position: text('position').notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('channels_user_seq_idx').on(t.userId, t.serverSeq)],
+);
+
+// A post as it goes to one channel (Send to channels): its posts in thread order, a jsonb array of
+// `{ text, mentions, assetIds }` that merges as one value, and when it was sent.
+export const postCopies = pgTable(
+  'post_copies',
+  {
+    ...syncableBase(),
+    postId: uuid('post_id').notNull(),
+    channelId: text('channel_id').notNull(),
+    sentAt: bigint('sent_at', { mode: 'number' }),
+    posts: jsonb('posts').$type<PostCopyPost[]>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.id] }), index('post_copies_user_seq_idx').on(t.userId, t.serverSeq)],
 );
 
 export const contactListMembers = pgTable(

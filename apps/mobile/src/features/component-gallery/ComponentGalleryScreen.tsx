@@ -40,10 +40,11 @@ import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import ChannelLogo from '@/features/channels/ChannelLogo';
-import ChannelLogos from '@/features/channels/ChannelLogos';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
+import MentionChip from '@/features/post-mentions/MentionChip';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import { colors, layout, radii, sizes, space } from '@/styles/designTokens';
 import popupMenuStyles from '@/styles/popupMenuStyles';
@@ -62,6 +63,8 @@ const CATEGORIES = ['Toolbars', 'Buttons', 'Surfaces', 'Lists', 'Inputs', 'Text'
 type Category = (typeof CATEGORIES)[number];
 
 const noop = () => {};
+// The ideas' chips mention no live contact: each draws its stored name.
+const NO_CONTACTS: ReadonlyMap<string, MentionContact> = new Map();
 
 // Tags a viewer can take off one by one; Add brings them back.
 const GALLERY_TAGS = ['Hiking', 'Sunrise', 'Coast'];
@@ -84,11 +87,15 @@ const WRITING_RUN: IdeasRun = {
 const IDEAS_RUN: IdeasRun = {
   ...WRITING_RUN,
   isWriting: false,
+  // One idea mentions a contact.
   items: [
-    'Golden hour on the ridge. Worth the 5 am start, every single time.',
-    'Sunrise or sunset: which one gets you out of bed?',
-    'The trail was empty, the coffee was cold, and then the fog lifted all at once.',
-  ].map((text, index) => ({ replyId: 'gallery', index, text, isUsed: false })),
+    { text: 'Golden hour on the ridge. Worth the 5 am start, every single time.', mentions: null },
+    {
+      text: 'Up before the sun with Sam Ridge. The fog lifted at the first switchback.',
+      mentions: [{ contactId: 'gallery-sam', location: 23, name: 'Sam Ridge' }],
+    },
+    { text: 'The trail was empty, the coffee was cold, and then the fog lifted all at once.', mentions: null },
+  ].map((value, index) => ({ replyId: 'gallery', index, value, isUsed: false })),
 };
 
 // A popover shown open, as if it had finished growing.
@@ -147,25 +154,15 @@ export default function ComponentGalleryScreen() {
             </View>
             <Divider variant="menu" />
             <View style={popupMenuStyles.row}>
-              <MenuItemContent
-                label="Bluesky"
-                leading={<ChannelLogo channelId="bluesky" />}
-                selection="several"
-                isSelected
-              />
+              <MenuItemContent label="Bluesky" selection="several" isSelected />
             </View>
             <Divider variant="menuRow" />
             <View style={popupMenuStyles.row}>
-              <MenuItemContent label="X" leading={<ChannelLogo channelId="x" />} selection="several" />
+              <MenuItemContent label="X" selection="several" />
             </View>
             <Divider variant="menuRow" />
-            <View style={[popupMenuStyles.row, popupMenuStyles.disabledRow]}>
-              <MenuItemContent
-                label="Instagram"
-                leading={<ChannelLogo channelId="instagram" />}
-                selection="several"
-                isSelected
-              />
+            <View style={popupMenuStyles.row}>
+              <MenuItemContent label="Instagram" trailing={<ChannelLogo channelId="instagram" />} />
             </View>
             <Divider variant="menu" />
             <View style={popupMenuStyles.row}>
@@ -241,41 +238,11 @@ export default function ComponentGalleryScreen() {
             <Chip label="Disabled" disabled onPress={noop} />
           </ChipRow>
         </Specimen>
-        <Specimen name="Channel tabs">
-          <View accessibilityRole="tablist">
-            <ChipRow>
-              <Chip label="All channels" isSelected hasCaret accessibilityRole="tab" onPress={noop} />
-              <Chip
-                label="Bluesky, X"
-                accessibilityLabel="Bluesky and X"
-                mark={<ChannelLogos channelIds={['bluesky', 'x']} isDecorative />}
-                isIconOnly
-                hasCaret
-                accessibilityRole="tab"
-                onPress={noop}
-              />
-              <Chip
-                label="OnlyFans PPV"
-                mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
-                isIconOnly
-                hasCaret
-                accessibilityRole="tab"
-                onPress={noop}
-              />
-              <Chip variant="add" label="New version" isIconOnly onPress={noop} />
-            </ChipRow>
-          </View>
-          <ChipRow>
-            <Chip
-              label="Bluesky"
-              mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
-              isIconOnly
-              isSelected
-              accessibilityRole="tab"
-            />
-            <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
-            <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
-          </ChipRow>
+        <Specimen name="MentionChip">
+          <Text style={styles.fill}>
+            Up the ridge with <MentionChip label="Maya Lindqvist" contact={{ name: 'Maya Lindqvist' }} onPress={noop} />{' '}
+            and <MentionChip label="@samridge" contact={{ name: 'Sam Ridge' }} /> at dawn.
+          </Text>
         </Specimen>
       </>
     );
@@ -300,12 +267,26 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="AssistantTray: writing">
           <AssistantTray title="Writing ideas…" isWorking trailing={CHAT_CHIP} style={styles.fill}>
-            <IdeasCarousel run={WRITING_RUN} onUse={null} onMore={noop} onRetry={noop} isBusy />
+            <IdeasCarousel
+              run={WRITING_RUN}
+              contactsById={NO_CONTACTS}
+              onUse={null}
+              onMore={noop}
+              onRetry={noop}
+              isBusy
+            />
           </AssistantTray>
         </Specimen>
         <Specimen name="AssistantTray: ideas">
           <AssistantTray title="Ideas" trailing={CHAT_CHIP} style={styles.fill}>
-            <IdeasCarousel run={IDEAS_RUN} onUse={noop} onMore={noop} onRetry={noop} isBusy={false} />
+            <IdeasCarousel
+              run={IDEAS_RUN}
+              contactsById={NO_CONTACTS}
+              onUse={noop}
+              onMore={noop}
+              onRetry={noop}
+              isBusy={false}
+            />
           </AssistantTray>
         </Specimen>
         <Specimen name="OptionCard">

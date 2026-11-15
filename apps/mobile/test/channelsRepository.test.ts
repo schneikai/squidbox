@@ -39,10 +39,10 @@ describe('channelsRepository', () => {
 
   it('moves a channel between its new neighbours', async () => {
     const db = makeTestDb();
-    for (const id of ['x', 'bluesky', 'threads']) await addChannel(db, channel(id));
-    await moveChannel(db, channel('threads').recordId, channel('x').recordId);
-    expect(await order(db)).toEqual(['x', 'threads', 'bluesky']);
+    for (const id of ['x', 'bluesky', 'instagram']) await addChannel(db, channel(id));
+    await moveChannel(db, channel('instagram').recordId, channel('x').recordId);
+    expect(await order(db)).toEqual(['x', 'instagram', 'bluesky']);
     await moveChannel(db, channel('bluesky').recordId, null);
-    expect(await order(db)).toEqual(['bluesky', 'x', 'threads']);
+    expect(await order(db)).toEqual(['bluesky', 'x', 'instagram']);
   });
 });

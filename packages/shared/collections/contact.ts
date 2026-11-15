@@ -26,8 +26,9 @@ const NO_PAGES: ReadonlySet<string> = new Set();
 
 /**
  * The networks a contact has a handle on, in the order the app shows them: the field, the network's
- * name, a hint of the form a handle takes, whether it is shown with `@` (`isAtHandle`: where the app
- * writes a handle itself), the hosts a profile URL is pasted from (without scheme or `www.`), the
+ * name, a hint of the form a handle takes, whether it is shown with `@` (`isAtHandle`: how the
+ * contact's own field writes it; a mention in a post goes out as `@` and the handle on every
+ * channel), the hosts a profile URL is pasted from (without scheme or `www.`), the
  * web profile a handle opens, and how a profile link's first path segment reads as a handle
  * (`handleSegment`, group 1 the handle; `reserved`: the network's pages at the root, lowercased, that
  * are no profile). A handle is stored as typed, trimmed, and compared with handleKey. Everything that

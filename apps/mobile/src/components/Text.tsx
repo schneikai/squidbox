@@ -7,6 +7,7 @@ import {
   type TextStyle,
 } from 'react-native';
 
+import TextMetricsContext, { type TextMetrics } from '@/components/TextMetricsContext';
 import { colors, textStyles } from '@/styles/designTokens';
 
 export type TextVariant = keyof typeof styles;
@@ -16,6 +17,8 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
   variant?: TextVariant;
   size?: 'regular' | 'small';
   tone?: TextTone;
+  /** Views stand in its line (a mention chip): they read its size and line height (TextMetricsContext). */
+  hasInlineViews?: boolean;
   children?: ReactNode;
   style?: StyleProp<TextStyle>;
 };
@@ -39,11 +42,14 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
  * across the assistant's title at work).
  * `selectable` lets it be copied, `numberOfLines` cuts a long one short. style is for layout only.
  * A nested Text takes its own role and tone inside the line (a bold `label` part of a `hint`).
+ * With `hasInlineViews`, what stands inline in it reads its size and line height from
+ * TextMetricsContext (only there, so other texts mount nothing more).
  */
 export default function Text({
   variant = 'reading',
   size = 'regular',
   tone,
+  hasInlineViews = false,
   children,
   selectable,
   numberOfLines,
@@ -57,7 +63,11 @@ export default function Text({
       numberOfLines={numberOfLines}
       accessibilityLabel={accessibilityLabel}
     >
-      {children}
+      {hasInlineViews ? (
+        <TextMetricsContext.Provider value={textMetrics(variant, size)}>{children}</TextMetricsContext.Provider>
+      ) : (
+        children
+      )}
     </RNText>
   );
 }
@@ -116,3 +126,20 @@ const toneStyles = StyleSheet.create({
   // The light band sweeping across the assistant's title at work (AssistantTray).
   shine: { color: colors.accent.shine },
 });
+
+// The size and line height of each role in each size, worked out once each.
+const metricsCache = new Map<string, TextMetrics>();
+function textMetrics(variant: TextVariant, size: 'regular' | 'small'): TextMetrics {
+  const cacheKey = `${variant}:${size}`;
+  let metrics = metricsCache.get(cacheKey);
+  if (!metrics) {
+    const base: TextStyle = styles[variant];
+    const small: TextStyle | undefined = size === 'small' ? smallStyles[variant] : undefined;
+    metrics = {
+      fontSize: small?.fontSize ?? base.fontSize ?? textStyles.reading.fontSize,
+      lineHeight: small?.lineHeight ?? base.lineHeight ?? textStyles.reading.lineHeight,
+    };
+    metricsCache.set(cacheKey, metrics);
+  }
+  return metrics;
+}

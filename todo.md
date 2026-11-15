@@ -274,13 +274,6 @@ routes), F23 (the albums repository lives in a feature), F19 (40 components miss
 and F6–F65 below them, each a complete build request. Plus the ready checks C1–C22 of section 4 whose
 finding no thread took. Take them after the nine threads of Nov 13 land, biggest cost first.
 
-### [ ] Read the chat's "More from your posts" more cheaply
-
-The chat's Mentions sheet lists every handle the owner ever mentioned: while it's open,
-`readMentionedTexts` (`apps/mobile/src/sync/postsRepository.ts`) reads the text of every live post
-with an @, again on each post change, and `extractHandles` parses them all. Fine now, but costly
-with thousands of posts. Keeping the handles with their counts in a table would avoid it.
-
 ### [ ] Drop the outbox's whole-record rows
 
 `outbox.whole_record` (`sync/db/schema.ts`, the `fields` it leaves out in `sync/worker.ts`) exists

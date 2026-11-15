@@ -1,26 +1,28 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import CopyTextButton from '@/components/CopyTextButton';
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
+import TextMetricsContext from '@/components/TextMetricsContext';
 import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 
 export type ChatBubbleProps = {
   side: 'user' | 'assistant';
   label?: string | null;
-  text: string;
-  isCopyable?: boolean;
+  /** What stands in its text: a string, or inline nodes. */
+  text: ReactNode;
+  /** Its copy button, under it. */
+  copy?: ReactNode;
   children?: ReactNode;
 };
 
 /**
  * A turn in the chat as a bubble: the user's on the right in violet (`side` 'user', with the prompt
  * button's name, `label`, over the `text`), the assistant's on the left on the glass surface (`side`
- * 'assistant'); line breaks kept. Under it, a copy icon with `isCopyable` (CopyTextButton; without
- * it a long press selects the text) and a ⋯ holding `children` (its MenuOptions) when there are any.
+ * 'assistant'); line breaks kept. Under it, its `copy` icon when given (without one a long press
+ * selects the text) and a ⋯ holding `children` (its MenuOptions) when there are any.
  */
-export default function ChatBubble({ side, label, text, isCopyable = false, children }: ChatBubbleProps) {
+export default function ChatBubble({ side, label, text, copy, children }: ChatBubbleProps) {
   const isUser = side === 'user';
   const Fill = isUser ? GradientFill : View;
 
@@ -28,13 +30,17 @@ export default function ChatBubble({ side, label, text, isCopyable = false, chil
     <View style={isUser ? styles.userRow : styles.assistantRow}>
       <Fill style={isUser ? [styles.bubble, styles.userCorner] : [glass, styles.bubble, styles.assistantCorner]}>
         {!!label && <Text style={styles.label}>{label}</Text>}
-        <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]} selectable={!isCopyable}>
-          {text}
+        <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]} selectable={!copy}>
+          {typeof text === 'string' ? (
+            text
+          ) : (
+            <TextMetricsContext.Provider value={textStyles.reading}>{text}</TextMetricsContext.Provider>
+          )}
         </Text>
       </Fill>
-      {(isCopyable || children) && (
+      {(copy || children) && (
         <View style={styles.actions}>
-          {isCopyable && <CopyTextButton text={text} />}
+          {copy}
           {children && (
             <MenuButton size="small" accessibilityLabel="More for this message">
               {children}

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import type { Palette } from '@/components/Button';
 import Icon, { type IconName } from '@/components/Icon';
@@ -9,7 +9,6 @@ import { colors, layout, sizes, space, textStyles } from '@/styles/designTokens'
 export type MenuItemContentProps = {
   label: string;
   icon?: IconName;
-  leading?: ReactNode;
   trailing?: ReactNode;
   colorPalette?: Extract<Palette, 'danger'>;
   isSelected?: boolean;
@@ -21,13 +20,11 @@ export type MenuItemContentProps = {
 // pick-one menu (`selection="one"`, the default) shows the selection check (colors.selection) when
 // `isSelected`; a row of a pick-several menu (`selection="several"`) always shows a select circle
 // (SelectIndicator), filled when `isSelected`.
-// A given `trailing` takes the mark's place. `leading` goes before the label where what the row picks
-// has a mark of its own (a channel's logo). The row itself (height, padding, press feedback, the
-// dimming of a disabled one) belongs to MenuOption or the popover drawing it.
+// A given `trailing` takes the mark's place (a channel's logo). The row itself (height, padding, press feedback) belongs
+// to MenuOption or the popover drawing it.
 export default function MenuItemContent({
   label,
   icon,
-  leading,
   trailing,
   colorPalette,
   isSelected = false,
@@ -51,7 +48,6 @@ export default function MenuItemContent({
   return (
     <>
       {isHeader && iconNode}
-      {leading && <View style={styles.leading}>{leading}</View>}
       <Text style={[styles.label, isDanger && styles.labelDanger, isHeader && styles.labelHeader]}>{label}</Text>
       {trailing ?? mark}
       {!isHeader && iconNode}
@@ -80,9 +76,6 @@ const styles = StyleSheet.create({
     color: colors.status.danger,
   },
   labelHeader: textStyles.subheadlineBold,
-  leading: {
-    marginRight: layout.iconGap,
-  },
   mark: {
     marginLeft: space.sm,
   },

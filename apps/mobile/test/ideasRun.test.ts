@@ -16,13 +16,18 @@ const user = (kind: TurnKind, target = 'p1', content = `${kind} prompt`): UserCh
   target,
   content,
   label: kind === 'ideas' ? 'Post ideas' : kind,
+  quoted: null,
 });
-const reply = (options: string[], changes: Partial<AssistantChatMessage> = {}): AssistantChatMessage => ({
+const plain = (text: string) => ({ text, mentions: null });
+const reply = (
+  options: string[],
+  { reply: text = '', ...changes }: Partial<Omit<AssistantChatMessage, 'reply'>> & { reply?: string } = {},
+): AssistantChatMessage => ({
   id: `m${++lastId}`,
   role: 'assistant',
   status: 'done',
-  reply: '',
-  postOptions: options,
+  reply: plain(text),
+  postOptions: options.map(plain),
   systemMessage: null,
   error: null,
   errorStatus: null,
@@ -30,7 +35,7 @@ const reply = (options: string[], changes: Partial<AssistantChatMessage> = {}): 
   ...changes,
 });
 const texts = (messages: ChatMessage[], target = 'p1', closedAt: string | null = null) =>
-  ideasRun(messages, target, closedAt)?.items.map((item) => item.text);
+  ideasRun(messages, target, closedAt)?.items.map((item) => item.value.text);
 
 describe('ideasRun', () => {
   it("starts at the post's last ideas or prompt button turn from the tray", () => {
@@ -39,7 +44,7 @@ describe('ideasRun', () => {
       name: 'prompt',
       prompt: 'Follow-up',
       isOwnIdeas: false,
-      items: [{ text: 'b', index: 0 }],
+      items: [{ value: { text: 'b' }, index: 0 }],
     });
   });
 
@@ -76,7 +81,7 @@ describe('ideasRun', () => {
 
   it('is writing while its last reply is written', () => {
     const messages = [user('ideas'), reply(['a']), user('more'), reply([], { status: 'loading' })];
-    expect(ideasRun(messages, 'p1', null)).toMatchObject({ isWriting: true, items: [{ text: 'a' }] });
+    expect(ideasRun(messages, 'p1', null)).toMatchObject({ isWriting: true, items: [{ value: { text: 'a' } }] });
   });
 
   it("is its last reply's failure, with Retry only when that is the chat's last reply", () => {

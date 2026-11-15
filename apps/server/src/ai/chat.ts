@@ -7,11 +7,12 @@ import type { User } from '../db/schema.js';
 import { readInstructions } from './instructions.js';
 import { readPersona, readSamplePosts } from './persona.js';
 import { chatMessages } from './prompts.js';
-import { chatTask, runChosenModelTask } from './tasks.js';
+import { chatTask, plainChatTask, runChosenModelTask } from './tasks.js';
 
 /**
  * The user's writing model's reply to the chat's last turn (runChosenModelTask's errors), with the
- * system message it was told for an ai_admin account.
+ * system message it was told for an ai_admin account. Its mention markers as the model wrote them
+ * for a build that reads them (`readsMentionMarkers`), else taken off.
  */
 export async function chatAsync({
   db,
@@ -30,14 +31,21 @@ export async function chatAsync({
       readSamplePosts(db, user.id, request.chatId ?? ''),
       readInstructions(db, user),
     ]);
-    return chatMessages({ context: request.context, transcript: request.messages, persona, posts, instructions });
+    return chatMessages({
+      context: request.context,
+      transcript: request.messages,
+      persona,
+      posts,
+      instructions,
+      readsMentionMarkers: Boolean(request.readsMentionMarkers),
+    });
   }
   const messages = messagesAsync();
   const reply = await runChosenModelTask({
     db,
     user,
     kind: 'writing',
-    task: chatTask,
+    task: request.readsMentionMarkers ? chatTask : plainChatTask,
     messagesAsync: messages,
     signal,
   });

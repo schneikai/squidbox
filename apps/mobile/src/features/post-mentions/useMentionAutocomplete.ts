@@ -1,50 +1,43 @@
-import { useState } from 'react';
-import type { TextInputSelectionChangeEvent } from 'react-native';
+import { useCallback, useState } from 'react';
 
-import insertMention from './insertMention';
-import mentionAt from './mentionAt';
+import type { FieldSelection } from './MentionInput';
+import mentionAt, { type TypedMention } from './mentionAt';
 
-type Selection = TextInputSelectionChangeEvent['nativeEvent']['selection'];
+// What the mention field holds as it last reported it: its text, its selection, and whether the
+// text is the user's (false once set from elsewhere, until the user changes it).
+type FieldState = { text: string; selection: FieldSelection | null; isTyped: boolean };
 
 /**
- * @mention autocomplete for a text field holding `text`, changed with `setText`: `mention`, the
- * @handle the cursor is in (mentionAt), null while there is none, the field hasn't reported its
- * cursor yet, or the text was last changed from elsewhere (Write with AI's Use); `pick(handle)` puts
- * `@handle` in its place and the cursor after it; `inputProps` go on the field instead of its own
- * onChangeText, so it reports its text and cursor and takes the cursor a pick sets.
+ * @mention autocomplete over a mention field's text and selection: `mention`, the @ being typed
+ * (mentionAt), null while there is none or the field's text was last set from elsewhere (a saved
+ * post opening, Write with AI's Use) and the user has not changed it since. The field reports
+ * through `onContent` and `onSelection`; `onSetContent` notes a text set from elsewhere. The three stay
+ * the same across renders.
  */
-export default function useMentionAutocomplete(text: string, setText: (text: string) => void) {
-  const [selection, setSelection] = useState<Selection | null>(null);
-  // The text as the field (or a pick) last set it; another text came from elsewhere.
-  const [fieldText, setFieldText] = useState(text);
-  // The cursor a pick sets, held on the field until it reports one back.
-  const [pickedSelection, setPickedSelection] = useState<Selection>();
+export default function useMentionAutocomplete() {
+  const [field, setField] = useState<FieldState>({ text: '', selection: null, isTyped: false });
+  const { text, selection, isTyped } = field;
 
-  // A field may report the cursor of a text it hasn't handed over yet.
-  const mention =
-    selection && selection.start === selection.end && fieldText === text
+  const mention: TypedMention | null =
+    isTyped && selection && selection.start === selection.end
       ? mentionAt(text, Math.min(selection.end, text.length))
       : null;
 
-  function onChangeText(next: string) {
-    setFieldText(next);
-    setText(next);
-  }
+  const onContent = useCallback(
+    (next: string, nextSelection: FieldSelection) => setField({ text: next, selection: nextSelection, isTyped: true }),
+    [],
+  );
+  // A selection the state already has (the one a text change carried) renders nothing.
+  const onSelection = useCallback(
+    (next: FieldSelection) =>
+      setField((state) =>
+        state.selection?.start === next.start && state.selection.end === next.end
+          ? state
+          : { ...state, selection: next },
+      ),
+    [],
+  );
+  const onSetContent = useCallback((next: string) => setField({ text: next, selection: null, isTyped: false }), []);
 
-  function onSelectionChange(event: TextInputSelectionChangeEvent) {
-    setSelection(event.nativeEvent.selection);
-    setPickedSelection(undefined);
-  }
-
-  function pick(handle: string) {
-    if (!mention) return;
-    const next = insertMention(text, mention, handle);
-    const cursor = { start: next.cursor, end: next.cursor };
-    setFieldText(next.text);
-    setText(next.text);
-    setSelection(cursor);
-    setPickedSelection(cursor);
-  }
-
-  return { mention, pick, inputProps: { onChangeText, selection: pickedSelection, onSelectionChange } };
+  return { mention, onContent, onSelection, onSetContent };
 }

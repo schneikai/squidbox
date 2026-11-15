@@ -1,5 +1,5 @@
-import type { AssetRecord } from '@squidbox/shared';
-import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import type { AssetRecord, Channel } from '@squidbox/shared';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
@@ -7,13 +7,13 @@ import PostCardToolbar, { type PostCardToolbarProps } from './PostCardToolbar';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import TextInput from '@/components/TextInput';
 import textLimit from '@/features/channels/textLimit';
-import type { VersionLimits } from '@/features/channels/versionLimits';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
-import MentionSuggestions from '@/features/post-mentions/MentionSuggestions';
-import useMentionAutocomplete from '@/features/post-mentions/useMentionAutocomplete';
+import MentionTextInput from '@/features/post-mentions/MentionTextInput';
+import MissingHandleNote from '@/features/post-mentions/MissingHandleNote';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
+import textForChannel from '@/features/post-mentions/textForChannel';
 import type { Point } from '@/lib/Point';
 import isPastTapSlop from '@/lib/isPastTapSlop';
 import { layout, scale, space } from '@/styles/designTokens';
@@ -21,12 +21,12 @@ import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
 // What a card holds: one post of the thread, with its assets as the editor's strip holds them.
-export type PostCardContent = Pick<ThreadPart, 'id' | 'text'> & { postAssets: EditorPostAsset[] };
+export type PostCardContent = Pick<ThreadPart, 'id' | 'text' | 'mentions'> & { postAssets: EditorPostAsset[] };
 
 export type PostCardData = PostCardContent & { key: string };
 
 // What a card reports changed to the editor.
-export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'postAssets'>>;
+export type PostCardChange = Partial<Pick<PostCardData, 'text' | 'mentions' | 'postAssets'>>;
 
 type PostCardProps = {
   card: PostCardData;
@@ -39,20 +39,24 @@ type PostCardProps = {
   // The assistant's tray under the toolbar (the card being edited has it), placed by `style`: on the
   // card's layout only when it shows, so a card without one has no room left under its toolbar.
   tray?: (style: StyleProp<ViewStyle>) => ReactNode;
-  // The limits of the post's version (versionLimits: the strictest of its channels').
-  limits?: Pick<VersionLimits, 'maxTextLength' | 'maxMedia' | 'textLimitOf' | 'mediaLimitOf'>;
+  // The channel a copy is for, whose limits the card follows and whose handles its chips show.
+  channel?: Pick<Channel, 'name' | 'maxTextLength' | 'maxMedia' | 'handleField'>;
+  contactsById: ReadonlyMap<string, MentionContact>;
+  onPressMention?: (contactId: string) => void;
 } & Pick<PostCardToolbarProps, 'postedAt' | 'isPostedAtShown' | 'onChangePostedAt' | 'onAddToThread'>;
 
 /**
- * One post of the post editor (`card`: { key, text, postAssets }): its text, the contacts an @handle
- * being typed may mean while it `isActive` (MentionSuggestions, a tap writes the handle), its photos
- * once it has any, the toolbar, and `tray` under it (the assistant's, IdeasTray). `autoFocus` puts the cursor in its text as it opens. `onChange(key,
+ * One post of the post editor (`card`: { key, text, mentions, postAssets }): its text with its
+ * mentions as chips (MentionTextInput: while it `isActive`, typing @ lists the contacts of
+ * `contactsById` and a tap puts the contact's chip in; a tap on a chip goes to `onPressMention`), its
+ * photos once it has any, the toolbar, and `tray` under it (the assistant's, IdeasTray). `autoFocus` puts the cursor in its text as it opens. `onChange(key,
  * changes)` and `onActivate(key)` report to the editor; the first card (`isFirst`) has the thread's
  * time (`postedAt`, as text once `isPostedAtShown`, `onChangePostedAt`), a following one ×
  * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
- * being edited (its tray shows), without the keyboard. With `limits` (its version's) the text's
- * counter ("45 / 280", "281 / 280 · X" on a version of several channels) follows the text, at its right, while its text is typed in, or while the text is over; the
- * counter and the media line turn red over a limit.
+ * being edited (its tray shows), without the keyboard. With `channel` (a copy's) the text's counter
+ * ("260 / 280", the text as the channel gets it: textForChannel) follows the text, at its right, while its text is typed in, or while the text is
+ * over; the counter and the media line turn red over a limit; under the text, a warning about the
+ * contacts it mentions without a handle there (MissingHandleNote).
  */
 export default function PostCard({
   card,
@@ -67,25 +71,27 @@ export default function PostCard({
   onRemove,
   onAddToThread,
   tray,
-  limits,
+  channel,
+  contactsById,
+  onPressMention,
 }: PostCardProps) {
-  const { key, text, postAssets } = card;
+  const { key, text, mentions, postAssets } = card;
   // Where a touch on the card began: a tap anywhere on it (a touch that ends near there, so scrolling
   // the editor past it doesn't count) makes it the one being edited.
   const touchStartRef = useRef<Point | null>(null);
   // While its text is being typed in: the counter shows only then (or once the text is over).
   const [isTyping, setIsTyping] = useState(false);
-  const setText = useCallback((value: string) => onChange(key, { text: value }), [onChange, key]);
-  const autocomplete = useMentionAutocomplete(text, setText);
-  // The handle being typed in the card being edited, whose suggestions show.
-  const mention = isActive ? autocomplete.mention : null;
   const assetIds = useMemo(() => postAssets.map((postAsset) => postAsset.asset.id), [postAssets]);
 
-  // The first card leaves room to write until photos come in under the text, or the suggestions of a
-  // handle being typed, which follow the text closely.
-  const isRoomy = isFirst && postAssets.length === 0 && !mention;
+  // The first card leaves room to write until photos come in under the text, or an @ brings up the
+  // contacts it may mean (they follow the line being typed).
+  const isRoomy = isFirst && postAssets.length === 0;
 
-  const { counter, isOver } = textLimit(limits, text);
+  const sent = useMemo(
+    () => (channel ? textForChannel({ text, mentions }, contactsById, channel) : { text, missing: [] }),
+    [channel, contactsById, mentions, text],
+  );
+  const { counter, isOver } = textLimit(channel, sent.text);
   // The date's look beside it (Text `status`: regular, grey), so the toolbar has one grey.
   const counterNode = counter && (isTyping || isOver) && (
     <Text variant="status" tone={isOver ? 'danger' : undefined} style={styles.counter}>
@@ -125,16 +131,20 @@ export default function PostCard({
       onTouchCancel={() => (touchStartRef.current = null)}
     >
       <View style={styles.top}>
-        <TextInput
-          multiline
+        <MentionTextInput
+          value={{ text, mentions }}
+          onChange={(value) => onChange(key, value)}
+          channel={channel}
+          contactsById={contactsById}
           placeholder="What's new?"
           minHeight={isRoomy ? scale(84) : scale(48)}
+          mentionMinHeight={scale(48)}
           autoFocus={autoFocus}
+          isActive={isActive}
+          assetIds={assetIds}
+          onPressMention={onPressMention}
           onFocus={handleFocus}
           onBlur={() => setIsTyping(false)}
-          value={text}
-          {...autocomplete.inputProps}
-          style={styles.text}
         />
         {onRemove && (
           <Button
@@ -147,11 +157,11 @@ export default function PostCard({
         )}
       </View>
       {counterNode}
-      {mention && <MentionSuggestions query={mention.query} assetIds={assetIds} onPick={autocomplete.pick} />}
+      {channel && <MissingHandleNote contacts={sent.missing} channel={channel} style={styles.note} />}
       <PostAssetsEditor
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
-        limits={limits}
+        channel={channel}
         style={styles.assets}
       />
       <PostCardToolbar
@@ -175,10 +185,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  text: {
-    flex: 1,
-    minWidth: 0,
-  },
   // A card's gap from the text and the toolbar (the card's gap is the toolbar's slack).
   assets: {
     marginVertical: layout.cardGap - layout.controlRowSlack,
@@ -188,6 +194,10 @@ const styles = StyleSheet.create({
   tray: {
     marginTop: layout.cardGap - layout.controlRowSlack,
     marginBottom: layout.cardInset - layout.controlRowSlack,
+  },
+  // Under the text it is about, at the card's gap.
+  note: {
+    marginTop: layout.cardGap,
   },
   // Right under the text's end, where the eye is while typing.
   counter: {

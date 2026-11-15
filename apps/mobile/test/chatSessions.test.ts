@@ -17,8 +17,14 @@ const setTags = vi.hoisted(() => vi.fn());
 vi.mock('../src/sync/assetsRepository', () => ({ setTags }));
 
 const context: ChatContext = { kind: 'draft', text: '', media: { photo: 1, video: 0 }, tags: [], mentions: [] };
-const readContext: ContextReader = async () => context;
+// The contacts the turn names as mentions.
+const SAM = { id: 'sam', name: 'Sam Ridge' };
+const read = { context, mentioned: [SAM] };
+const readContext: ContextReader = async () => read;
 const REPLY: ChatResponse = { reply: 'Here are three.', postOptions: ['one', 'two', 'three'] };
+const plain = (text: string) => ({ text, mentions: null });
+// REPLY as it lands: texts with their mentions.
+const LANDED = { reply: plain(REPLY.reply), postOptions: REPLY.postOptions.map(plain) };
 
 // A typed message for the post p1, unless `turn` says otherwise.
 const turn = (content: string, changes: Partial<UserTurn> = {}): UserTurn => ({
@@ -27,7 +33,12 @@ const turn = (content: string, changes: Partial<UserTurn> = {}): UserTurn => ({
   target: 'p1',
   ...changes,
 });
-const post = (key: string, assets: ChatDraftPost['assets'] = []): ChatDraftPost => ({ key, text: '', assets });
+const post = (key: string, assets: ChatDraftPost['assets'] = []): ChatDraftPost => ({
+  key,
+  text: '',
+  mentions: null,
+  assets,
+});
 
 // A request whose answers the test settles by hand, in order.
 function deferredRequest() {
@@ -69,24 +80,59 @@ describe('chatSessions', () => {
     expect(isSending).toBe(true);
     expect(messages).toMatchObject([
       { role: 'user', label: 'Post ideas', content: 'Write a caption', kind: 'ideas', target: 'p1' },
-      { role: 'assistant', status: 'loading', reply: '', postOptions: [] },
+      { role: 'assistant', status: 'loading', reply: plain(''), postOptions: [] },
     ]);
     expect(calls[0]!.body).toEqual({
       chatId: expect.any(String),
       context,
       messages: [{ role: 'user', content: 'Write a caption' }],
+      readsMentionMarkers: true,
     });
     calls[0]!.resolve(REPLY);
     await sending;
     expect(session.getState().isSending).toBe(false);
-    expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...REPLY });
+    expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...LANDED });
+  });
+
+  it("lands a reply's mention markers as chips of the contacts its turn named, and sends them back marked", async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    const apply = vi.fn();
+    session.setTextApplier(apply);
+    session.setDraft({ posts: [post('p1')] });
+    const marked = { reply: 'With @[Sam Ridge].', postOptions: ['Out with @[Sam Ridge] and @[Nobody Here]'] };
+    const { sending } = await sendNow(session, turn('Ideas'), request);
+    calls[0]!.resolve(marked);
+    await sending;
+    const reply = session.getState().messages[1]!;
+    const sam = (location: number) => [{ contactId: 'sam', location, name: 'Sam Ridge' }];
+    expect(reply).toMatchObject({
+      reply: { text: 'With Sam Ridge.', mentions: sam(5) },
+      postOptions: [{ text: 'Out with Sam Ridge and Nobody Here', mentions: sam(9) }],
+    });
+    expect(JSON.stringify(reply)).not.toContain('@[');
+    await sendNow(session, turn('Shorter'), request);
+    expect(calls[1]!.body).toMatchObject({
+      readsMentionMarkers: true,
+      messages: [
+        { role: 'user', content: 'Ideas' },
+        { role: 'assistant', reply: 'With @[Sam Ridge].', postOptions: ['Out with @[Sam Ridge] and Nobody Here'] },
+        { role: 'user', content: 'Shorter' },
+      ],
+    });
+    session.use(reply.id, 0);
+    expect(apply).toHaveBeenCalledWith('p1', { text: 'Out with Sam Ridge and Nobody Here', mentions: sam(9) });
   });
 
   it("puts the user's turn and a loading reply in the chat before the context is read, and sends once it is", async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    let read: (value: ChatContext) => void = () => {};
-    const sending = session.send(turn('Write a caption'), () => new Promise((resolve) => (read = resolve)), request);
+    let resolveRead: (value: Awaited<ReturnType<ContextReader>>) => void = () => {};
+    const sending = session.send(
+      turn('Write a caption'),
+      () => new Promise((resolve) => (resolveRead = resolve)),
+      request,
+    );
     expect(session.getState()).toMatchObject({
       isSending: true,
       messages: [
@@ -95,7 +141,7 @@ describe('chatSessions', () => {
       ],
     });
     expect(request).not.toHaveBeenCalled();
-    read(context);
+    resolveRead(read);
     await flushTurns();
     expect(calls[0]!.body.context).toBe(context);
     calls[0]!.resolve(REPLY);
@@ -105,19 +151,19 @@ describe('chatSessions', () => {
   it('aborts the context read on New chat, and sends nothing for it', async () => {
     const { session } = open();
     const { request } = deferredRequest();
-    let read: (value: ChatContext) => void = () => {};
+    let resolveRead: (value: Awaited<ReturnType<ContextReader>>) => void = () => {};
     let readSignal: AbortSignal | undefined;
     const sending = session.send(
       turn('First'),
       (signal) => {
         readSignal = signal;
-        return new Promise((resolve) => (read = resolve));
+        return new Promise((resolve) => (resolveRead = resolve));
       },
       request,
     );
     session.reset();
     expect(readSignal?.aborted).toBe(true);
-    read(context);
+    resolveRead(read);
     await sending;
     expect(request).not.toHaveBeenCalled();
     expect(session.getState().messages).toEqual([]);
@@ -126,17 +172,17 @@ describe('chatSessions', () => {
   it("is waiting while the context waits for the photos' tags, and not once it is read", async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
-    let read: (value: ChatContext) => void = () => {};
+    let resolveRead: (value: Awaited<ReturnType<ContextReader>>) => void = () => {};
     const sending = session.send(
       turn('First'),
       (_signal, onWait) => {
         onWait();
-        return new Promise((resolve) => (read = resolve));
+        return new Promise((resolve) => (resolveRead = resolve));
       },
       request,
     );
     expect(session.getState().isWaiting).toBe(true);
-    read(context);
+    resolveRead(read);
     await flushTurns();
     expect(session.getState().isWaiting).toBe(false);
     calls[0]!.resolve(REPLY);
@@ -146,7 +192,7 @@ describe('chatSessions', () => {
   it('stops waiting at once on New chat, and the dropped read leaves the next one waiting', async () => {
     const { session } = open();
     const { request } = deferredRequest();
-    const reads: ((value: ChatContext) => void)[] = [];
+    const reads: ((value: Awaited<ReturnType<ContextReader>>) => void)[] = [];
     const waitingReader: ContextReader = (_signal, onWait) => {
       onWait();
       return new Promise((resolve) => reads.push(resolve));
@@ -155,7 +201,7 @@ describe('chatSessions', () => {
     session.reset();
     expect(session.getState().isWaiting).toBe(false);
     session.send(turn('Again'), waitingReader, request);
-    reads[0]!(context);
+    reads[0]!(read);
     await flushTurns();
     expect(session.getState().isWaiting).toBe(true);
   });
@@ -188,6 +234,15 @@ describe('chatSessions', () => {
     ]);
   });
 
+  it("sends a More like this turn's option with its chips as markers, and shows it plain", async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    const quoted = { text: 'Out with Sam Ridge', mentions: [{ contactId: 'sam', location: 9, name: 'Sam Ridge' }] };
+    await sendNow(session, turn(quoted.text, { kind: 'moreLikeThis', quoted }), request);
+    expect(session.getState().messages[0]).toMatchObject({ content: 'Out with Sam Ridge' });
+    expect(calls[0]!.body.messages).toEqual([{ role: 'user', content: 'Out with @[Sam Ridge]', moreLikeThis: true }]);
+  });
+
   it("reads the context of the turn's own post", async () => {
     const { session } = open();
     const { request } = deferredRequest();
@@ -197,7 +252,7 @@ describe('chatSessions', () => {
     expect(reader).toHaveBeenCalledWith(expect.any(AbortSignal), expect.any(Function), 'p2');
   });
 
-  it('puts a used option into the post its turn wrote for, and marks it used', async () => {
+  it('puts a used option into the post its turn wrote for, as a text with its mentions, and marks it used', async () => {
     const { session } = open();
     const { request, calls } = deferredRequest();
     const apply = vi.fn();
@@ -208,7 +263,7 @@ describe('chatSessions', () => {
     await sending;
     const reply = session.getState().messages[1]!;
     session.use(reply.id, 1);
-    expect(apply).toHaveBeenCalledWith('p2', 'two');
+    expect(apply).toHaveBeenCalledWith('p2', plain('two'));
     expect(session.getState().messages[1]).toMatchObject({ usedOption: 1 });
     expect(() => session.use(reply.id, 3)).toThrow();
   });
@@ -326,7 +381,7 @@ describe('chatSessions', () => {
     expect(session.getState().messages[1]).toMatchObject({ status: 'loading', error: null });
     calls[1]!.resolve(REPLY);
     await retrying;
-    expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...REPLY });
+    expect(session.getState().messages[1]).toMatchObject({ status: 'done', ...LANDED });
   });
 
   it('leaves out of later sends a turn the server refused as invalid', async () => {
@@ -376,18 +431,12 @@ describe('chatSessions', () => {
     expect(setTags).not.toHaveBeenCalled();
   });
 
-  it("holds the Mentions sheet's edits, a typed handle with its @", () => {
+  it("holds the Mentions sheet's edits as contact ids", () => {
     const { session } = open();
-    session.editMentions({ remove: ['@trailmike'], add: ['corn twee'] });
-    expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee'], removed: ['@trailmike'] });
-    session.editMentions({ add: ['@TrailMike'] });
-    expect(session.getState().mentionEdits).toEqual({ added: ['@corntwee', '@TrailMike'], removed: [] });
-  });
-
-  it('adds no handle for a bare @', () => {
-    const { session } = open();
-    session.editMentions({ add: ['@', ' '] });
-    expect(session.getState().mentionEdits.added).toEqual([]);
+    session.editMentions({ remove: ['maya'], add: ['sam'] });
+    expect(session.getState().mentionEdits).toEqual({ added: ['sam'], removed: ['maya'] });
+    session.editMentions({ add: ['maya'] });
+    expect(session.getState().mentionEdits).toEqual({ added: ['sam', 'maya'], removed: [] });
   });
 
   it('keeps the system message an ai_admin gets with a reply, and none without', async () => {

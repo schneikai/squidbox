@@ -1,5 +1,20 @@
 import { z } from 'zod';
 import { baseRecordSchema, defineCollection, int4Schema, textSchema, timestampSchema } from './define';
+import { CONTACT_LIMITS } from './contact';
+
+/** How much a post holds at most: mentions in its text; in a channel copy, posts and their assets. */
+export const POST_LIMITS = { mentions: 200, copyPosts: 100, copyAssets: 1000 } as const;
+
+/** A contact a post's text mentions: its id, where its name starts (UTF-16 offset) and that name. */
+export const postMentionSchema = z.object({
+  contactId: z.uuid(),
+  location: z.number().int().min(0),
+  name: textSchema.min(1).max(CONTACT_LIMITS.name),
+});
+export type PostMention = z.infer<typeof postMentionSchema>;
+
+/** A post's mentions: null when there is none, never []. */
+export const postMentionsSchema = z.array(postMentionSchema).max(POST_LIMITS.mentions).nullable();
 
 // `posts` collection (sync-design §10). Asset references live in the `post_assets` edge
 // collection. suggestRepostAt is a non-null number (defaults to createdAt in the app). Deletion
@@ -11,17 +26,17 @@ import { baseRecordSchema, defineCollection, int4Schema, textSchema, timestampSc
 // sees the following posts as ordinary posts. Readers show a thread as its first post; a following
 // post whose first post is deleted reads as a post of its own.
 //
-// Channels: `channelId` is the catalog id of the channel the post is on (channels.ts; null: none). A
-// post's other channels are posts of their own, each carrying `channelRootId` (the post they are
-// another channel of) and its own channelId, edges and thread. Both are optional and null while unset,
-// so a push from a build without them keeps the stored values, and an older build sees a post's other
-// channels as ordinary posts. Readers show a post as itself with its other channels; another channel
-// whose post is deleted reads as a post of its own.
+// Mentions: `mentions` lists the contacts the text mentions, each by its contact id, where its name
+// starts in `text` (`location`, a UTF-16 offset) and that name as written there (`name`). The text
+// keeps the name, so a reader of the text alone (search, the assistant, an older build) reads it as
+// it is; a mention counts only while the text still has its name at its location. Null when there is
+// none (never []). Optional, so a push from a build without it keeps the stored value; `text` and
+// `mentions` merge as one, so two devices never mix one's text with the other's mentions.
 //
-// A version (the post or another channel of it) can go to several channels: `extraChannelIds` are
-// the channels it also goes to besides `channelId`, in the order they were added. Null unless the
-// version has two or more channels (never []). Optional, so a push from a build without it keeps
-// the stored value; an older build shows the version under `channelId` only. The two merge as one.
+// Retired: `channelId`, `channelRootId` and `extraChannelIds` held a post's channel versions (builds up
+// to 20261114-e71be8cf). The app no longer reads or writes them; they stay, optional, for the installed
+// builds that still push and read them, until the last contract snapshot that has them is retired
+// (sync-design §10).
 export const postCollection = defineCollection({
   name: 'posts',
   schema: baseRecordSchema.extend({
@@ -37,8 +52,12 @@ export const postCollection = defineCollection({
     channelId: textSchema.max(40).nullable().optional(),
     channelRootId: z.string().uuid().nullable().optional(),
     extraChannelIds: z.array(textSchema.min(1).max(40)).max(50).nullable().optional(),
+    mentions: postMentionsSchema.optional(),
   }),
-  fieldGroups: [['channelId', 'extraChannelIds']],
+  fieldGroups: [
+    ['channelId', 'extraChannelIds'],
+    ['text', 'mentions'],
+  ],
 });
 
 export type PostRecord = z.infer<typeof postCollection.schema>;

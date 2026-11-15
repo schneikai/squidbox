@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text as RNText, View } from 'react-native';
 
+import type { MentionContact } from './mentionHandle';
 import mentionSuggestions, { mentionEntries, type MentionSuggestion } from './mentionSuggestions';
 
 import Divider from '@/components/Divider';
@@ -14,27 +15,24 @@ import listTextStyles from '@/styles/listTextStyles';
 
 type MentionSuggestionsProps = {
   query: string;
+  contactsById: ReadonlyMap<string, MentionContact>;
   assetIds: string[];
-  // The handles already there (with or without the @), left out.
-  taken?: readonly string[];
-  onPick: (handle: string) => void;
+  onPick: (contact: MentionContact) => void;
 };
 
 /**
- * The contacts the @handle being typed may mean (`query`, without the @; mentionSuggestions), those on
- * the post's photos (`assetIds`) first, none of those `taken`, each with its avatar, name, handle and networks; a tap hands
- * the handle to `onPick`. Only text: nothing is linked to the contact. Nothing shows while reading or when no contact matches.
+ * The contacts (`contactsById`) the @ being typed may mean (`query`, without the @;
+ * mentionSuggestions), those on the post's photos (`assetIds`) first, each with its avatar, name and
+ * handles; a tap hands the contact to `onPick`. Nothing shows while reading or when no contact matches.
  */
-export default function MentionSuggestions({ query, assetIds, taken, onPick }: MentionSuggestionsProps) {
-  const contacts = useContactRows({});
+export default function MentionSuggestions({ query, contactsById, assetIds, onPick }: MentionSuggestionsProps) {
   const onPhotos = useContactRows({ scope: { photoIds: assetIds } });
 
-  const entries = useMemo(() => contacts && mentionEntries(contacts), [contacts]);
+  const entries = useMemo(() => mentionEntries([...contactsById.values()]), [contactsById]);
   const onPhotoIds = useMemo(() => onPhotos && new Set(onPhotos.map(({ id }) => id)), [onPhotos]);
-  const takenKeys = useMemo(() => new Set(taken?.map((handle) => handle.replace(/^@/, '').toLowerCase())), [taken]);
   const suggestions = useMemo(
-    () => (entries && onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query, takenKeys) : []),
-    [entries, onPhotoIds, query, takenKeys],
+    () => (onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query) : []),
+    [entries, onPhotoIds, query],
   );
 
   if (suggestions.length === 0) return null;
@@ -42,7 +40,7 @@ export default function MentionSuggestions({ query, assetIds, taken, onPick }: M
   return (
     <View style={styles.list} testID="mention-suggestions" {...keepFocusOnPress}>
       {suggestions.map((suggestion, index) => (
-        <View key={suggestion.key}>
+        <View key={suggestion.contact.id}>
           {index > 0 && <Divider style={styles.divider} />}
           <SuggestionRow suggestion={suggestion} onPick={onPick} />
         </View>
@@ -51,23 +49,23 @@ export default function MentionSuggestions({ query, assetIds, taken, onPick }: M
   );
 }
 
-type SuggestionRowProps = { suggestion: MentionSuggestion; onPick: (handle: string) => void };
+type SuggestionRowProps = { suggestion: MentionSuggestion; onPick: (contact: MentionContact) => void };
 
-function SuggestionRow({ suggestion: { contact, handle, networks }, onPick }: SuggestionRowProps) {
+function SuggestionRow({ suggestion: { contact, handlesText }, onPick }: SuggestionRowProps) {
   return (
     <Pressable
       style={({ pressed }) => pressed && press.flat}
-      onPress={() => onPick(handle)}
+      onPress={() => onPick(contact)}
       accessibilityRole="button"
-      accessibilityLabel={`${contact.name}, @${handle} on ${networks.join(' and ')}`}
-      accessibilityHint="Adds the handle"
+      accessibilityLabel={`${contact.name}, ${handlesText}`}
+      accessibilityHint="Mentions the contact"
     >
       <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
         <Text variant="title" size="small" numberOfLines={1}>
           {contact.name}
         </Text>
         <RNText style={listTextStyles.subtitle} numberOfLines={1}>
-          @{handle} · {networks.join(', ')}
+          {handlesText}
         </RNText>
       </RowSlots>
     </Pressable>

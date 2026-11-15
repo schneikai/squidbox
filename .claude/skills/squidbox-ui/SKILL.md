@@ -98,8 +98,7 @@ always as the same parts: `TargetContactsSection`, `AssetAlbums` and `PostRows` 
 - **Content ends** (a post, a contact): sections below it.
 
 Contacts and albums go on photos only, so an album or a post shows the sum of its photos' and hides the
-sections when it has none. A post with channels shows the whole post's, below the channel card, never
-inside it.
+sections when it has none.
 
 ## Known conflicts: our decision wins
 

@@ -1,9 +1,10 @@
-import type { PostAssetRecord, PostRecord } from '@squidbox/shared';
+import type { PostAssetRecord, PostMention, PostRecord } from '@squidbox/shared';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
 import * as schema from './db/schema';
 import type { SyncDb } from './db/types';
 import { inJson } from './inJson';
+import { removeCopiesOf } from './postCopiesRepository';
 import * as posts from './postsRepository';
 
 // A post's thread (sync-design §10): its following posts are posts of their own, linked to the first
@@ -12,34 +13,29 @@ import * as posts from './postsRepository';
 
 // A post's photo as the editor holds it: the post-asset edge's id and its asset.
 export type AssetRef = Pick<PostAssetRecord, 'id' | 'assetId'>;
-/** One following post as the editor emits it: `id` null for a new one. */
-export type ThreadPart = { id: string | null; text: string; assetRefs: AssetRef[] };
-type NewPart = Pick<PostRecord, 'text' | 'postedAt'> & { threadRootId: string; threadIndex: number };
-
-/**
- * The live posts linked to `rootIds` by `root`: a thread's following posts (`threadRootId`), each
- * thread's in `(threadIndex, id)` order, or a post's other channels (`channelRootId`), in id order.
- */
-export function readChildPosts(tx: SyncDb, root: 'threadRootId' | 'channelRootId', rootIds: string[]) {
-  const p = schema.posts;
-  const order =
-    root === 'threadRootId' ? [asc(p.threadRootId), asc(p.threadIndex), asc(p.id)] : [asc(p.channelRootId), asc(p.id)];
-  return tx
-    .select()
-    .from(p)
-    .where(and(inJson(p[root], rootIds), isNull(p.deletedAt)))
-    .orderBy(...order);
-}
+/** One following post as the editor emits it: `id` null for a new one; `mentions` null for none. */
+export type ThreadPart = {
+  id: string | null;
+  text: string;
+  mentions: PostMention[] | null;
+  assetRefs: AssetRef[];
+};
+type NewPart = Pick<PostRecord, 'text' | 'mentions' | 'postedAt'> & { threadRootId: string; threadIndex: number };
 
 /** The live following posts of `rootIds`, each thread's in `(threadIndex, id)` order. */
 export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
-  return readChildPosts(tx, 'threadRootId', rootIds);
+  const p = schema.posts;
+  return tx
+    .select()
+    .from(p)
+    .where(and(inJson(p.threadRootId, rootIds), isNull(p.deletedAt)))
+    .orderBy(asc(p.threadRootId), asc(p.threadIndex), asc(p.id));
 }
 
 /**
  * Save an editor's following posts (`parts`) over the ones it was seeded with (`seedParts`; `[]` for
  * a new thread): a seed part the list no longer has is removed with its edges, a listed one gets its
- * changed text and photos, a new one (no id) is created by `newPart` after the thread's last, with
+ * changed text and mentions (one group) and photos, a new one (no id) is created by `newPart` after the thread's last, with
  * the first post's `postedAt` as it stands in `tx` (it may have changed since the editor opened). A
  * seed part deleted meanwhile (another device) is left as it is.
  */
@@ -59,11 +55,14 @@ export async function saveThreadPosts(
   let threadIndex = Math.max(0, ...live.map((post) => post.threadIndex ?? 0));
   for (const part of added) {
     threadIndex += 1;
-    const created = await posts.create(tx, newPart({ text: part.text, postedAt, threadRootId: rootId, threadIndex }));
+    const fields = { text: part.text, mentions: part.mentions, postedAt, threadRootId: rootId, threadIndex };
+    const created = await posts.create(tx, newPart(fields));
     await posts.postEdges.createFromRefs(tx, created.id, part.assetRefs);
   }
   for (const { id, part, seed } of kept) {
-    if (part.text !== seed.text) await posts.update(tx, id, { text: part.text });
+    if (part.text !== seed.text || !sameMentions(part.mentions, seed.mentions)) {
+      await posts.update(tx, id, { text: part.text, mentions: part.mentions });
+    }
     await posts.postEdges.setRefs(tx, id, part.assetRefs, seed.assetRefs); // writes only what changed
   }
 }
@@ -74,7 +73,7 @@ export async function saveThreadPosts(
  * listed (`removed`), the new parts in order (`added`), and the listed ones with their seed
  * (`kept`). A seed part deleted meanwhile (another device) is in neither.
  */
-export function splitParts<P extends { id: string | null }>(parts: P[], seedParts: P[], liveIds: Set<string>) {
+function splitParts<P extends { id: string | null }>(parts: P[], seedParts: P[], liveIds: Set<string>) {
   const listed = new Set(parts.map((part) => part.id));
   const seedById = new Map(seedParts.map((part) => [part.id, part]));
   return {
@@ -88,7 +87,7 @@ export function splitParts<P extends { id: string | null }>(parts: P[], seedPart
 }
 
 /** A post's Posted time as it stands in `tx` (null for none, or no such post). */
-export async function readPostedAt(tx: SyncDb, postId: string): Promise<number | null> {
+async function readPostedAt(tx: SyncDb, postId: string): Promise<number | null> {
   const [post] = await tx
     .select({ postedAt: schema.posts.postedAt })
     .from(schema.posts)
@@ -102,15 +101,21 @@ export async function setThreadsPostedAt(tx: SyncDb, rootIds: string[], postedAt
   if (ids.length > 0) await posts.updateAll(tx, ids, { postedAt });
 }
 
-/** Delete posts with their threads: tombstones the posts, their live following posts and all their edges. */
+/** Delete posts with their threads: tombstones the posts, their live following posts, all their edges and the posts' channel copies. */
 export async function removeThreads(tx: SyncDb, rootIds: string[]): Promise<void> {
   if (rootIds.length === 0) return;
   const following = (await readThreadPosts(tx, rootIds)).map((post) => post.id);
   await removePosts(tx, [...rootIds, ...following]);
+  await removeCopiesOf(tx, rootIds);
 }
 
 async function removePosts(tx: SyncDb, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   await posts.remove(tx, ids);
   await posts.postEdges.tombstoneParents(tx, ids);
+}
+
+/** Whether two mention lists are the same, in order (null and [] alike: none). */
+function sameMentions(a: PostMention[] | null | undefined, b: PostMention[] | null | undefined): boolean {
+  return JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
 }

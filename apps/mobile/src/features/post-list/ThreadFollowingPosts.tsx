@@ -16,6 +16,7 @@ import usePost from './usePost';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import ThreadParts from '@/components/ThreadParts';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import ThreadPost from '@/features/posts/ThreadPost';
 import { motion } from '@/styles/designTokens';
 import type { PostDetailRow } from '@/sync/queries/readPost';
@@ -58,11 +59,13 @@ export default function ThreadFollowingPosts({
   unfoldedPosts,
   roomStyle,
 }: ThreadFollowingPostsProps) {
-  const livePost = usePost(postId, { withChannels: false });
+  const livePost = usePost(postId);
   const [unfoldPartIds, setUnfoldPartIds] = useState<Set<string> | null>(null);
   const contentOpacity = useSharedValue(isUnfoldAnimated ? 0 : 1);
 
   const post = livePost ?? unfoldedPosts.get(postId);
+  // The list reads the contacts of its loaded posts; a thread's following posts read their own.
+  const { contactsById } = useMentionedContacts(post?.threadPosts);
   const isRead = Boolean(post);
   // The posts that come out of the stack: those of the first read.
   if (post && !unfoldPartIds) setUnfoldPartIds(new Set(post.threadPosts.map((part) => part.id)));
@@ -97,6 +100,7 @@ export default function ThreadFollowingPosts({
       renderPart={(part, index) => (
         <ThreadPost
           post={part}
+          contactsById={contactsById}
           entering={
             isUnfoldAnimated && hasCustomAnimations && unfoldPartIds?.has(part.id)
               ? stackOut(index, edgeCount)

@@ -386,7 +386,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
   devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
   `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`; albums and contacts have `isFavorite`,
-  `favoritedAt` too; posts have `channelId`, `extraChannelIds`.
+  `favoritedAt` too; posts have `channelId`, `extraChannelIds` (retired, §10).
 - **Whole-record pushes** (an app from before per-field merge, the dev client's library copy) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`
@@ -435,8 +435,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
     `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThreads`), and deleting
-    a post for every post of it on all its channels (`removePost`). Deleting or purging an asset does not touch its edges, so a restore puts
+    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThreads`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
     post still shows a deleted one (it can come back) but never a purged one, and ids that don't
     resolve are skipped.
@@ -942,46 +941,63 @@ a thread as its first post (lists, counts, searches, a photo's or an album's pos
 suggestions, the assistant's example posts) and a following post whose first post is deleted as a
 post of its own. Deleting a thread tombstones every post of it and their edges, in one transaction.
 
-A post can be on channels (Settings → Posts → Channels): `channelId` (optional, null | the catalog
-id of the channel it is on, `CHANNELS` in `packages/shared`; free text, so a build keeps a channel a
-newer build added) and `channelRootId` (optional, null | on another channel of a post: that post).
-A post's other channels are posts of their own, each with its own `channelId`, text, `post_assets`
-edges (the post's assets at first, its own list afterwards) and thread (`threadRootId` = its id),
-and the post's `postedAt` (changing the post's changes theirs and their threads'). Readers show a
-post as itself with its other channels (lists, counts, searches, a photo's or an album's posts, the
-assistant's example posts, a post screen's contacts and albums): `listedPostId` lists a following
-post of another channel as the post too; another channel whose post is deleted reads as a post of
-its own. Deleting a post tombstones it, its thread, its other channels and their threads with their
-edges (`removePost`). Like the thread fields, an older build sees another channel as an ordinary
-post (it lists, counts and offers it for a repost, and its Delete leaves it) until it is updated.
-Server 0039, app 0039.
+A post's text can mention contacts: `mentions` (optional, null | `[{ contactId, location, name }]`,
+never `[]`) lists them, each with where its name starts in `text` (a UTF-16 offset) and that name.
+The text keeps the name, so every reader of the text alone (search, the assistant's example posts,
+the chat) reads it unchanged; a mention counts only while `text.startsWith(name, location)`, so an
+edit that moved or removed the words drops it instead of drawing it over others. `text` and
+`mentions` are one field group (§7), so an older build's push of `text` alone keeps the stored
+mentions, and two devices never mix one's text with the other's mentions. An installed build without
+the field shows a mention as its name, and a text it edits may lose its chips (the names stay as
+plain text). Server 0041, app 0041.
 
-A version (the post or another channel of it: one tab in the channel bar) can go to several
-channels: `extraChannelIds` (optional, null | the channels it also goes to besides `channelId`, in
-the order they were added; null unless it has two or more, never `[]`, so a one-channel save of an
-older row writes nothing). Its channels are `[channelId, ...extraChannelIds]`, written only through
-`versionChannelFields`; `channelId` and `extraChannelIds` are one field group (§7), and an older
-build's push of `channelId` alone keeps the stored extras. Reads give each version `channelIds`
-(readPost): a version keeps its `channelId`, and an extra is dropped when it is any version's
-`channelId` or an earlier version's extra (an older build's "Change X to" or "Add channel X" can give
-another version a channel the shared one lists). The editor's Save first writes every live
-version's channels as the read gives them where the stored fields differ (`repairVersionChannels`;
-the others write nothing), before it saves the versions, so an extra the read hid is written away
-and can't come back once the version holding it goes. A shared version's counter and limits are its
-channels' strictest, and a repost goes to the reposted version's channels. Known limits of an older
-build with a shared version: it shows the version under its first channel only, its "Remove <first
-channel>" removes the version for all of its channels, and its Delete covers the whole post, as
-today. Server 0040, app 0040.
+The assistant works with contacts too: the chat's Mentions are contacts, and a turn sends their
+names (`context.mentions`, still `string[]`, so older builds keep sending handles). The assistant
+marks each contact it mentions with the name it was given, `@[Sam Ridge]` (`mentionMarkers` in
+`packages/shared`; the server tells it how in a fixed line after the Writing text, `MENTION_FORMAT`,
+while the post has people to mention, for a request with `readsMentionMarkers`; one without it gets
+"Write handles exactly as given." there), and the app makes each marker a chip when the reply lands (`markedText`): the
+chat keeps each answer and idea as a text with its mentions, the shape a post stores, so Use and Copy
+take it as it is and every channel gets the contact's own handle; nothing searches a text for names.
+A marker naming nobody the turn was told, a name two of its contacts share, or a broken one becomes
+plain text. The posts' own chips go to the model as markers too, and their contacts count for their
+names. Markers exist only on the wire: the chat is never saved, and a request without
+`readsMentionMarkers` (installed builds) gets the reply with them taken off by the server. A typed
+`@handle` in a saved text stays text: the chat's Mentions come from the sheet, the photos' contacts
+and the posts' chips, never from typed handles.
+
+Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and
+0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
+channel of a post was a post of its own, linked by `channelRootId`, and `channelId` with
+`extraChannelIds` (one field group, §7) named the channels a version went to. The app no longer
+reads or writes them (app 0041 drops their columns); they stay optional in the contract, in the
+server's table and in `readSamplePosts`, because those installed builds still push and read them: a
+push of a newer build leaves them out, so the server keeps what an older build stored, and a post an
+older build made on another channel reads as an ordinary post. They go once the last contract
+snapshot that has them (`20261114-e71be8cf`) is retired.
 
 **channels** (Settings → Posts → Channels: the user's channels, in their order). Synced:
 `channelId` (the catalog id) and `position` (a fractional-index key, the order by `(position, id)`),
 plus the base columns. One record per catalog channel, under the catalog's fixed `recordId`, so two
 devices adding the same channel write one record, adding a deleted one again revives its tombstone
 at the end, and a library merge copies a device's channel only when the account has no record of it
-(live or deleted). Deleting one is a tombstone; posts keep their `channelId` and `extraChannelIds`.
-The mock account has Bluesky, X and Instagram; its posts are on Bluesky, a few have an X or Instagram
-channel, and one is shared by Bluesky and X.
+(live or deleted). Deleting one is a tombstone. The mock account has Bluesky, X and Instagram.
 Server 0039, app 0039.
+
+**post_copies** (Send to channels: a post as it goes to one channel). Synced: `postId`, `channelId`
+(the catalog id, free text), `sentAt` (null | when it was sent; Send now and Send all set it, Mark as
+not sent clears it) and `posts` (the copy's posts in thread order, 1 to 100, each `{ text, mentions,
+assetIds }` with mentions as on a post and its assets in order), plus the base columns. A copy is
+saved whole by its composer, so `posts` merges as one value: two devices editing one copy keep the
+later save; a sent copy is locked until it is marked as not sent. Asset ids are a list, not edges: a
+purged asset is left out by the read (as a post leaves it out), a library merge re-points them like
+an edge and drops one the account won't have, and a photo only a copy holds does not count as in the
+post (a photo's posts, an album's posts). Deleting a post tombstones its copies (removeThreads); a post
+deleted on an installed build leaves its copies live, orphans that every read skips, since copies are
+read by their `postId`. A repost starts with
+the same copies, unsent, as its own records. An installed build syncs none of it (it has no table)
+and shows no copies. The mock account has a Bluesky copy (sent) and an Instagram copy of one post.
+Server 0041, app 0041.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
 columns. One record per album and asset.
@@ -1089,7 +1105,11 @@ lines; optional, server 0032, app 0032) and `moreIdeas` (what More after a set o
 ideas answered; optional, server 0037, app 0038), templates the server fills in, each that
 account's override or null for the app's default (the text published for every account in the
 server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
-`resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
+`resolveInstructions`), plus the base columns. A text says what to write; the server adds how to
+answer at its end, under `# Answer format` (the JSON its reply takes, fixed in
+`apps/server/src/ai/prompts.ts`), so its
+placeholders are data only, and a stored text that still holds the old format lines or `{fields}`
+keeps working. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
 `chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
 the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device

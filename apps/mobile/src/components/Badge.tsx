@@ -7,12 +7,13 @@ const TONES = {
   accent: { backgroundColor: colors.accent.light, color: colors.accent.base },
   success: { backgroundColor: colors.status.successLight, color: colors.status.success },
   info: { backgroundColor: colors.status.infoLight, color: colors.status.info },
+  warning: { backgroundColor: colors.background.note, color: colors.text.primary },
 };
 
 export type BadgeProps = { label: string; tone: keyof typeof TONES; style?: StyleProp<TextStyle> };
 
 // A small uppercase label on a list entry or a screen ("Archived", "Uncensored", "Verified"), in a
-// `tone`: danger | accent | success | info. The parent positions it through `style`.
+// `tone`: danger | accent | success | info | warning (a WarningNote's yellow). The parent positions it through `style`.
 export default function Badge({ label, tone, style }: BadgeProps) {
   return <Text style={[styles.badge, TONES[tone], style]}>{label}</Text>;
 }

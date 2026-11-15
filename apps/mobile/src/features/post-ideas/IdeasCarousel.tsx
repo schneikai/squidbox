@@ -1,3 +1,4 @@
+import type { Channel } from '@squidbox/shared';
 import { type ComponentRef, memo, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { interpolate, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
@@ -10,6 +11,8 @@ import OptionCard from '@/components/OptionCard';
 import Text from '@/components/Text';
 import ChatOptionCard from '@/features/post-chat/ChatOptionCard';
 import ReplyError from '@/features/post-chat/ReplyError';
+import MentionRuns from '@/features/post-mentions/MentionRuns';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import useBreath from '@/hooks/useBreath';
 import useTrayInset from '@/hooks/useTrayInset';
 import { colors, disabledOpacity, lineHeights, press, radii, sizes, space } from '@/styles/designTokens';
@@ -23,6 +26,10 @@ const SKELETON_LINES = ['100%', '94%', '97%', '58%'] as const;
 
 type IdeasCarouselProps = {
   run: IdeasRun;
+  // The contacts the ideas' chips may mention, by id: their names and avatars.
+  contactsById: ReadonlyMap<string, MentionContact>;
+  // The channel a copy's composer writes for (ChatOptionCard's).
+  channel?: Pick<Channel, 'handleField'>;
   onUse: ((replyId: string, index: number) => void) | null;
   onMore: () => void;
   onRetry: () => void;
@@ -36,9 +43,10 @@ type IdeasCarouselProps = {
  * More (`onMore`); while More is written, skeleton cards take its place and the carousel scrolls to
  * the first, and after a failure the error with Retry (`onRetry`, when the run's reply is the chat's
  * last) does. Three skeleton cards while its first reply is written. It shows the idea last used
- * (marked Used) as it is used, in the tray or the chat.
+ * (marked Used) as it is used, in the tray or the chat. Each idea's mentions are chips, of
+ * `contactsById` (the editor's).
  */
-function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
+function IdeasCarousel({ run, contactsById, channel, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const inset = useTrayInset();
   const breath = useBreath();
@@ -78,11 +86,18 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
     >
       {items.map((item) =>
         item.index === null ? (
-          <OptionCard key={`${item.replyId}:text`} text={item.text} textSize="small" style={styles.card} />
+          <OptionCard
+            key={`${item.replyId}:text`}
+            text={<MentionRuns value={item.value} contactsById={contactsById} channel={channel} />}
+            textSize="small"
+            style={styles.card}
+          />
         ) : (
           <ChatOptionCard
             key={`${item.replyId}:${item.index}`}
-            text={item.text}
+            value={item.value}
+            contactsById={contactsById}
+            channel={channel}
             replyId={item.replyId}
             index={item.index}
             onMoreLikeThis={null}

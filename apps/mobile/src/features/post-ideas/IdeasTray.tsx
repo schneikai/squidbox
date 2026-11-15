@@ -1,4 +1,4 @@
-import type { IdeasKind, IdeasSetting, NewPromptButton } from '@squidbox/shared';
+import type { Channel, IdeasKind, IdeasSetting, NewPromptButton } from '@squidbox/shared';
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
@@ -16,6 +16,7 @@ import { canUseFor } from '@/features/post-chat/chatSessions';
 import promptSeed from '@/features/post-chat/promptSeed';
 import useChatSends from '@/features/post-chat/useChatSends';
 import useChatSession, { type LiveChat } from '@/features/post-chat/useChatSession';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useHaptics from '@/hooks/useHaptics';
@@ -31,6 +32,10 @@ type IdeasTrayProps = {
   ideas: IdeasKind | null;
   // The user's ideas settings (useIdeaSettings'; undefined while reading).
   settings: Record<IdeasKind, IdeasSetting> | undefined;
+  // The editor's contacts, by id (useMentionContacts): the ideas' chips' names and avatars.
+  contactsById: ReadonlyMap<string, MentionContact>;
+  // The channel a copy's composer writes for: the ideas read and copy as it gets them.
+  channel?: Pick<Channel, 'handleField'>;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -58,7 +63,16 @@ export default function IdeasTray({ sessionId, ...props }: IdeasTrayProps) {
 type IdeasTraySectionProps = Omit<IdeasTrayProps, 'sessionId'> & { chat: LiveChat; sessionId: string };
 
 // The tray itself, once the assistant is available and the chat open.
-function IdeasTraySection({ chat, sessionId, target, ideas, settings, style }: IdeasTraySectionProps) {
+function IdeasTraySection({
+  chat,
+  sessionId,
+  target,
+  ideas,
+  settings,
+  contactsById,
+  channel,
+  style,
+}: IdeasTraySectionProps) {
   const buttons = usePromptButtons();
   const haptics = useHaptics();
   useSeedPromptButtons();
@@ -148,6 +162,8 @@ function IdeasTraySection({ chat, sessionId, target, ideas, settings, style }: I
     >
       <IdeasCarousel
         run={run}
+        contactsById={contactsById}
+        channel={channel}
         onUse={canUseFor(chat, target) ? handleUse : null}
         onMore={handleMore}
         onRetry={retry}

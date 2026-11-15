@@ -6,7 +6,8 @@ import Text from '@/components/Text';
 import { colors, space } from '@/styles/designTokens';
 
 export type OptionCardProps = {
-  text: string;
+  /** What stands in its text: a string, or inline nodes. */
+  text: ReactNode;
   textSize?: 'regular' | 'small';
   isUsed?: boolean;
   children?: ReactNode;
@@ -27,7 +28,7 @@ export default function OptionCard({ text, textSize = 'regular', isUsed = false,
 
   return (
     <Card padded hasControlRow={hasActions} style={[isUsed && styles.used, style]}>
-      <Text selectable={!hasActions} size={textSize}>
+      <Text selectable={!hasActions} size={textSize} hasInlineViews={typeof text !== 'string'}>
         {text}
       </Text>
       {hasActions && <View style={styles.actions}>{children}</View>}

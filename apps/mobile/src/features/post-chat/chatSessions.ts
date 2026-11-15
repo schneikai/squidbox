@@ -2,15 +2,17 @@ import {
   type AssetRecord,
   CHAT_LIMITS,
   type ChatContext,
-  type ChatReply,
   type ChatRequest,
   type ChatResponse,
   type ChatSubjectKind,
   type ChatTurn,
+  type ChatUserTurn,
 } from '@squidbox/shared';
 
 import withEdits, { type ListEdits } from './withEdits';
 
+import markedText, { type MentionCandidate } from '@/features/post-mentions/markedText';
+import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import createStore from '@/lib/createStore';
 import sameOrder from '@/lib/sameOrder';
 import type chatAsync from '@/utils/cloud-api/ai/chatAsync';
@@ -29,11 +31,18 @@ import type { TagsEdit } from '@/utils/tagsDifference';
 export type TurnKind = 'ideas' | 'prompt' | 'more' | 'moreLikeThis' | 'message';
 
 /**
- * The user's turn as `send` takes it: `content`, what is sent; `kind`; `target`, the key of the post
- * it writes for (one of the chat's `targets`); and `label`, a prompt button's or the ideas' name over
- * it in the bubble, or none for a typed message.
+ * The user's turn as `send` takes it: `content`, what is sent and shown; `kind`; `target`, the key of
+ * the post it writes for (one of the chat's `targets`); `label`, a prompt button's or the ideas' name
+ * over it in the bubble, or none for a typed message; and `quoted`, the option a More like this turn
+ * quotes (`content` its plain text), which is sent marked (markedText.write) so its chips go along.
  */
-export type UserTurn = { content: string; kind: TurnKind; target: string; label?: string | null };
+export type UserTurn = {
+  content: string;
+  kind: TurnKind;
+  target: string;
+  label?: string | null;
+  quoted?: MentionTextValue | null;
+};
 
 // What waits in the composer: a prompt button's turn (its name and prompt), or what was typed.
 export type ChatSeed = Pick<UserTurn, 'label' | 'content'>;
@@ -42,11 +51,14 @@ export type UserChatMessage = Required<UserTurn> & { id: string; role: 'user' };
 
 /**
  * A reply: `reply`, what the assistant says; `postOptions`, the options for the post, when the user
- * asked for posts; `systemMessage`, what the model was told, for an ai_admin, else null;
- * `errorStatus`, the failed request's HTTP status, if any; `usedOption`, the index of the option Use
- * put into the post, if any.
+ * asked for posts, each a text with its mentions (the shape a post stores: the assistant's mention
+ * markers made chips when the reply landed, markedText); `systemMessage`, what the model was told, for
+ * an ai_admin, else null; `errorStatus`, the failed request's HTTP status, if any; `usedOption`, the
+ * index of the option Use put into the post, if any.
  */
-export type AssistantChatMessage = ChatReply & {
+export type AssistantChatMessage = {
+  reply: MentionTextValue;
+  postOptions: MentionTextValue[];
   id: string;
   role: 'assistant';
   status: 'loading' | 'done' | 'error';
@@ -84,13 +96,13 @@ type ChatSessionState = {
   isClosed: boolean;
 };
 
-// One post of the chat's draft: its key (a target), its text and its assets (`asset` rows).
-export type ChatDraftPost = { key: string; text: string; assets: AssetRecord[] };
+// One post of the chat's draft: its key (a target), its text with its mentions and its assets (`asset` rows).
+export type ChatDraftPost = MentionTextValue & { key: string; assets: AssetRecord[] };
 
 type ChatDraft = { posts: ChatDraftPost[] };
 
-// How Use puts an option into a post: the post's key and the text.
-type TextApplier = (target: string, text: string) => void;
+/** How Use puts an option into a post: the post's key, and the option's text with its mentions, as they are. */
+export type TextApplier = (target: string, value: MentionTextValue) => void;
 
 type ChatRequester = typeof chatAsync;
 
@@ -98,13 +110,19 @@ export type ChatSession = ReturnType<typeof createSession>;
 
 /**
  * What the chat is about, read when the turn for the post `target` goes: it may wait for the photos'
- * tags, and calls `onWait()` when it does (the chat is `isWaiting` until the read ends). `signal`
- * aborts once the turn is dropped (New chat, or the chat closed); what it resolves to then is
- * ignored.
+ * tags, and calls `onWait()` when it does (the chat is `isWaiting` until the read ends). It resolves
+ * to the context and the contacts the reply's mention markers may name (`mentioned`, markedText).
+ * `signal` aborts once the turn is dropped (New chat, or the chat closed); what it resolves to then
+ * is ignored.
  */
-export type ContextReader = (signal: AbortSignal, onWait: () => void, target: string) => Promise<ChatContext>;
+export type ContextReader = (
+  signal: AbortSignal,
+  onWait: () => void,
+  target: string,
+) => Promise<{ context: ChatContext; mentioned: MentionCandidate[] }>;
 
 const NO_EDITS: ListEdits = Object.freeze({ added: [], removed: [] });
+const EMPTY: MentionTextValue = Object.freeze({ text: '', mentions: null });
 
 // The open assistant chats by id. A chat lives while its post's editor or screen is open and is never
 // saved: that screen and the chat screen (a route, whose params are plain data) share it by id.
@@ -136,27 +154,34 @@ export default chatSessions;
 // oldest first (a reply loading or failed is left out, and a turn the server refused as invalid with
 // its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them, starting
 // with a user turn (a reply the cut left first goes too). A reply goes as `{ reply, postOptions }`, as
-// it came.
+// the model wrote it: its mentions as markers (markedText.write), each cut to CHAT_LIMITS.message.
 function wireTurns(messages: ChatMessage[]): ChatTurn[] {
-  const turns = messages.flatMap((message, index): ChatTurn[] => {
+  const turns = messages.flatMap((message, index): (ChatUserTurn | AssistantChatMessage)[] => {
     if (message.role === 'user') {
       const reply = messages[index + 1];
       if (isReply(reply) && reply.status === 'error' && reply.errorStatus === 400) return [];
       return [
         {
           role: 'user',
-          content: message.content,
+          content: message.quoted ? markedText.write(message.quoted, CHAT_LIMITS.message) : message.content,
           ...(message.kind === 'moreLikeThis' && { moreLikeThis: true }),
           ...(message.kind === 'more' && { moreIdeas: true }),
         },
       ];
     }
-    return message.status === 'done'
-      ? [{ role: 'assistant', reply: message.reply, postOptions: message.postOptions }]
-      : [];
+    return message.status === 'done' ? [message] : [];
   });
   const newest = turns.slice(-CHAT_LIMITS.messages);
-  return newest[0]?.role === 'assistant' ? newest.slice(1) : newest;
+  return (newest[0]?.role === 'assistant' ? newest.slice(1) : newest).map((turn) =>
+    turn.role === 'user'
+      ? turn
+      : { role: 'assistant', reply: marked(turn.reply), postOptions: turn.postOptions.map(marked) },
+  );
+}
+
+// A reply's text as the server takes it back: marked, cut as the server cuts it.
+function marked(value: MentionTextValue): string {
+  return markedText.write(value, CHAT_LIMITS.message);
 }
 
 /**
@@ -169,7 +194,7 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
  * assets (`getDraft()`) change with every keystroke, so they are read when needed, not told; only a
  * post added or removed changes `targets`, and an asset added or removed `assets`. `tagEdits` is what the chat card changed in the post's tags (postTags): kept
  * here only, while the editor is open, never on the photos. `mentionEdits` is the same for the
- * handles it may mention (chatMentions), never on the posts.
+ * contacts it may mention (their ids: chatMentions), never on the posts.
  */
 function createSession(kind: ChatSubjectKind) {
   const store = createStore<ChatSessionState>({
@@ -233,16 +258,28 @@ function createSession(kind: ChatSubjectKind) {
       const onWait = () => {
         if (!signal.aborted) update({ isWaiting: true });
       };
-      const context = await readContext(signal, onWait, target).finally(() => {
+      const { context, mentioned } = await readContext(signal, onWait, target).finally(() => {
         // A dropped read leaves it to reset() or close(), and to the read after it.
         if (!signal.aborted && store.get().isWaiting) update({ isWaiting: false });
       });
       if (signal.aborted) return;
       const { messages } = store.get();
       const at = messages.findIndex((message) => message.id === replyId);
-      const body: ChatRequest = { chatId, context, messages: wireTurns(messages.slice(0, at)) };
-      const { reply, postOptions, systemMessage = null } = await request(body, { signal });
-      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions, systemMessage });
+      const body: ChatRequest = {
+        chatId,
+        context,
+        messages: wireTurns(messages.slice(0, at)),
+        readsMentionMarkers: true,
+      };
+      const { systemMessage = null, ...answer } = await request(body, { signal });
+      if (signal.aborted) return;
+      const read = markedText.reader(mentioned);
+      replaceMessage(replyId, {
+        status: 'done',
+        reply: read(answer.reply),
+        postOptions: answer.postOptions.map(read),
+        systemMessage,
+      });
     } catch (error) {
       if (!signal.aborted) {
         replaceMessage(replyId, {
@@ -302,9 +339,10 @@ function createSession(kind: ChatSubjectKind) {
       const at = messages.findIndex((message) => message.id === replyId);
       const reply = messages[at];
       const turn = messages[at - 1];
-      const text = isReply(reply) ? reply.postOptions[index] : undefined;
-      if (text === undefined || turn?.role !== 'user') throw new Error(`No option ${index} of the reply ${replyId}`);
-      applier?.(turn.target, text);
+      const value = isReply(reply) ? reply.postOptions[index] : undefined;
+      if (!isReply(reply) || value === undefined || turn?.role !== 'user')
+        throw new Error(`No option ${index} of the reply ${replyId}`);
+      applier?.(turn.target, value);
       // Marked and folded in one change, so the trays render once (read again: the applier ran).
       const { messages: current, foldedAt } = store.get();
       update({
@@ -316,18 +354,19 @@ function createSession(kind: ChatSubjectKind) {
     /**
      * Puts the user's turn and its loading reply in the chat, then sends it about the context
      * `readContext(signal)` resolves to (chatContextSchema) through `request(body, { signal })`, which
-     * resolves to the reply, `{ reply, postOptions }`. → the reply's promise, or null when nothing was
-     * sent (a reply is loading, or the chat was closed).
+     * resolves to the reply, `{ reply, postOptions }` with its mention markers, made chips as it lands
+     * (markedText.reader, over the context's `mentioned`). → the reply's promise, or null when nothing
+     * was sent (a reply is loading, or the chat was closed).
      */
-    send({ label = null, ...turn }: UserTurn, readContext: ContextReader, request: ChatRequester) {
+    send({ label = null, quoted = null, ...turn }: UserTurn, readContext: ContextReader, request: ChatRequester) {
       const { isSending, isClosed } = store.get();
       if (isSending || isClosed) return null;
-      const userMessage: UserChatMessage = { id: `m${++lastMessageId}`, role: 'user', label, ...turn };
+      const userMessage: UserChatMessage = { id: `m${++lastMessageId}`, role: 'user', label, quoted, ...turn };
       const reply: AssistantChatMessage = {
         id: `m${++lastMessageId}`,
         role: 'assistant',
         status: 'loading',
-        reply: '',
+        reply: EMPTY,
         postOptions: [],
         systemMessage: null,
         error: null,
@@ -353,10 +392,9 @@ function createSession(kind: ChatSubjectKind) {
       update({ tagEdits: editedLists(store.get().tagEdits, edit) });
     },
 
-    /** The Mentions sheet's change to the handles, as editedLists says. */
-    editMentions({ add = [], remove = [] }: Partial<TagsEdit>) {
-      const handles = add.map(asHandle).filter((handle) => handle.length > 1);
-      update({ mentionEdits: editedLists(store.get().mentionEdits, { add: handles, remove }) });
+    /** The Mentions sheet's change to the contacts (their ids), as editedLists says. */
+    editMentions(edit: Partial<TagsEdit>) {
+      update({ mentionEdits: editedLists(store.get().mentionEdits, edit) });
     },
 
     /** Folds the ideas on the tray of the post `target` into one row (`isFolded`), or unfolds them. */
@@ -431,10 +469,4 @@ function editedLists({ added, removed }: ListEdits, { add = [], remove = [] }: P
     added: withEdits(added, { added: add, removed: remove }),
     removed: withEdits(removed, { added: remove, removed: add }),
   };
-}
-
-// A handle as typed, with its @ and without spaces; a bare @ is none.
-function asHandle(text: string): string {
-  const handle = text.replace(/\s+/g, '');
-  return handle.startsWith('@') ? handle : `@${handle}`;
 }

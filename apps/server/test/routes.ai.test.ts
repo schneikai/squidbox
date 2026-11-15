@@ -86,7 +86,14 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { publishInstruction, readAppInstructions, readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
-import { CONTACT_FIELDS_FORMAT } from '../src/ai/prompts.js';
+import {
+  CHAT_FORMAT,
+  CONTACT_FIELDS_FORMAT,
+  FORMAT_HEADING,
+  MENTION_AS_GIVEN_FORMAT,
+  MENTION_FORMAT,
+  TAGS_FORMAT,
+} from '../src/ai/prompts.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
@@ -200,7 +207,7 @@ const chatRequest = {
     text: 'Fog on the trail',
     media: { photo: 2, video: 0 },
     tags: ['forest', 'morning fog'],
-    mentions: ['@ridgeline.bsky.social'],
+    mentions: ['Sam Ridge'],
   },
   messages: [{ role: 'user', content: 'Write a caption for these photos' }],
 };
@@ -476,8 +483,8 @@ describe('POST /api/v1/ai/compare/writing', () => {
   });
 });
 
-// The vision compare's line on the format, after the prompt box.
-const VISION_FORMAT = 'Answer in JSON, with the tags of this one photo.';
+// The vision compare's format, after the prompt box.
+const VISION_FORMAT = `${FORMAT_HEADING}\n${TAGS_FORMAT}\n\nOnly the tags of this one photo.`;
 
 describe('POST /api/v1/ai/compare/vision', () => {
   it('sends the prompt and the photo as a data URL and returns the tags per model', async () => {
@@ -557,20 +564,24 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
     const [body] = chatBodies();
     expect(body.messages[0]).toEqual({
       role: 'system',
-      content: DEFAULT_INSTRUCTIONS.contactScreenshot.replace('{fields}', CONTACT_FIELDS_FORMAT),
+      content: `${DEFAULT_INSTRUCTIONS.contactScreenshot}\n\n${FORMAT_HEADING}\n${CONTACT_FIELDS_FORMAT}`,
     });
     // The fields follow the contact's own: every handle is asked for.
     for (const { field } of CONTACT_HANDLES) expect(CONTACT_FIELDS_FORMAT).toContain(`"${field}"`);
   });
 
-  it('adds the fields to instructions written before they had {fields}', async () => {
-    veniceAnswers();
-    vi.mocked(readInstructions).mockResolvedValueOnce({
-      ...DEFAULT_INSTRUCTIONS,
-      contactScreenshot: 'Read the profile.',
-    });
-    expect((await call('POST', '/ai/contact-from-screenshot', tagRequest)).statusCode).toBe(200);
-    expect(chatBodies()[0].messages[0].content).toBe(`Read the profile.\n\n${CONTACT_FIELDS_FORMAT}`);
+  it('still reads with a text that holds {fields}: only the placeholder taken out, the fields at the end', async () => {
+    const texts = {
+      'Read the profile.\n\n{fields}\n\nEvery handle.': 'Read the profile.\n\nEvery handle.',
+      'Read the profile and return {fields}': 'Read the profile and return',
+      'Every handle. Answer like this:\n{fields}': 'Every handle. Answer like this:',
+    };
+    for (const [contactScreenshot, kept] of Object.entries(texts)) {
+      veniceAnswers();
+      vi.mocked(readInstructions).mockResolvedValueOnce({ ...DEFAULT_INSTRUCTIONS, contactScreenshot });
+      expect((await call('POST', '/ai/contact-from-screenshot', tagRequest)).statusCode).toBe(200);
+      expect(chatBodies().at(-1).messages[0].content).toBe(`${kept}\n\n${FORMAT_HEADING}\n${CONTACT_FIELDS_FORMAT}`);
+    }
   });
 
   it('502 ai_unavailable when the answer is not JSON', async () => {
@@ -609,20 +620,30 @@ describe('POST /api/v1/ai/contact-from-link', () => {
     expect(body.messages).toEqual([
       {
         role: 'user',
-        content: DEFAULT_INSTRUCTIONS.contactXProfile
-          .replace('{fields}', CONTACT_FIELDS_FORMAT)
-          .replace(
-            '{profile}',
-            [
-              'Handle: @MayaL',
-              'Name: Maya Lindqvist 🌲',
-              "Bio: Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
-              'Location: Squamish, BC',
-              'Website: https://onlyfans.com/mayal/c17',
-            ].join('\n'),
-          ),
+        content: `${DEFAULT_INSTRUCTIONS.contactXProfile.replace(
+          '{profile}',
+          [
+            'Handle: @MayaL',
+            'Name: Maya Lindqvist 🌲',
+            "Bio: Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
+            'Location: Squamish, BC',
+            'Website: https://onlyfans.com/mayal/c17',
+          ].join('\n'),
+        )}\n\n${FORMAT_HEADING}\n${CONTACT_FIELDS_FORMAT}`,
       },
     ]);
+  });
+
+  it('still reads with a From link text that holds {fields} before the profile, that line taken out', async () => {
+    veniceAnswers();
+    vi.mocked(readInstructions).mockResolvedValueOnce({
+      ...DEFAULT_INSTRUCTIONS,
+      contactXProfile: 'Read this profile.\n\n{fields}\n\n# The profile\n{profile}',
+    });
+    expect((await call('POST', '/ai/contact-from-link', { handle: 'MayaL' })).statusCode).toBe(200);
+    expect(chatBodies()[0].messages[0].content).toMatch(
+      /^Read this profile\.\n\n# The profile\nHandle: @MayaL\n[^]*\n\n# Answer format\nReturn only a JSON object/,
+    );
   });
 
   it("keeps the link's X handle, and only the handles the profile's text names", async () => {
@@ -725,7 +746,7 @@ describe('POST /api/v1/ai/tags', () => {
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
     expect(body.model).toBe('gemma-4-uncensored');
-    expect(body.messages[0]).toEqual({ role: 'system', content: mine });
+    expect(body.messages[0]).toEqual({ role: 'system', content: `${mine}\n\n${FORMAT_HEADING}\n${TAGS_FORMAT}` });
     expect(body.messages[1].content).toEqual([
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
@@ -841,7 +862,7 @@ describe('POST /api/v1/ai/chat', () => {
     const [system, ...turns] = body.messages;
     expect(system.role).toBe('system');
     expect(system.content).toContain("What's in the photos (from image recognition): forest, morning fog");
-    expect(system.content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
+    expect(system.content).toContain('People they may mention: Sam Ridge');
     expect(system.content).toContain('Their post so far: "Fog on the trail"');
     expect(system.content).not.toContain('{"tweets"');
     expect(turns).toEqual([
@@ -890,6 +911,36 @@ describe('POST /api/v1/ai/chat', () => {
     expect(res.json()).toMatchObject({ reply: 'Sounds like a good trip.', postOptions: [] });
   });
 
+  it('takes the mention markers off for a build that does not read them, and keeps them for one that does', async () => {
+    const marked = { reply: 'With @[Sam Ridge].', postOptions: ['Out with @[Sam Ridge]'] };
+    veniceAnswers({ chatReply: marked });
+    expect((await call('POST', '/ai/chat', chatRequest)).json()).toMatchObject({
+      reply: 'With Sam Ridge.',
+      postOptions: ['Out with Sam Ridge'],
+    });
+    expect((await call('POST', '/ai/chat', { ...chatRequest, readsMentionMarkers: true })).json()).toMatchObject(
+      marked,
+    );
+  });
+
+  it('tells the model how to write a mention only for a build that reads mention markers', async () => {
+    veniceAnswers();
+    await call('POST', '/ai/chat', chatRequest);
+    await call('POST', '/ai/chat', { ...chatRequest, readsMentionMarkers: true });
+    const [unflagged, flagged] = chatBodies().map((body) => body.messages[0].content as string);
+    expect(unflagged).not.toContain(MENTION_FORMAT);
+    expect(flagged!.endsWith(`\n\n${MENTION_FORMAT}`)).toBe(true);
+  });
+
+  it('502 ai_unavailable when nothing is left of the reply without its markers, for every build', async () => {
+    veniceAnswers({ chatReply: { reply: '@[]', postOptions: ['@[ ]'] } });
+    for (const request of [chatRequest, { ...chatRequest, readsMentionMarkers: true }]) {
+      const res = await call('POST', '/ai/chat', request);
+      expect(res.statusCode).toBe(502);
+      expect(res.json()).toEqual({ error: { code: 'ai_unavailable', message: 'Returned neither a reply nor posts' } });
+    }
+  });
+
   it("runs the chat on each model's own defaults: no reasoning or effort settings", async () => {
     veniceAnswers();
     for (const id of ['deepseek-v4-1-flash-uncensored', 'qwen-3-6-plus', 'venice-uncensored-1-2']) {
@@ -918,7 +969,9 @@ describe('POST /api/v1/ai/chat', () => {
     });
     expect((await call('POST', '/ai/chat', chatRequest)).statusCode).toBe(200);
     const [body] = chatBodies();
-    expect(body.messages[0].content).toBe('Post: "Fog on the trail"\nTags: forest, morning fog');
+    expect(body.messages[0].content).toBe(
+      `Post: "Fog on the trail"\nTags: forest, morning fog\n\nPeople they may mention: Sam Ridge\n\n${FORMAT_HEADING}\n${CHAT_FORMAT}\n\n${MENTION_AS_GIVEN_FORMAT}`,
+    );
   });
 
   it('502 ai_unavailable when the chosen model is gone, before any chat', async () => {
