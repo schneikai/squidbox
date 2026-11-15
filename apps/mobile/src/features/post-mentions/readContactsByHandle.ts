@@ -13,5 +13,8 @@ export default async function readContactsByHandle(db: SyncDb): Promise<{
   ofHandle: ReturnType<typeof contactsByHandle>;
 }> {
   const contacts = await contactQuery({}).summaries(db);
-  return { contactsById: new Map(contacts.map((contact) => [contact.id, contact])), ofHandle: contactsByHandle(contacts) };
+  return {
+    contactsById: new Map(contacts.map((contact) => [contact.id, contact])),
+    ofHandle: contactsByHandle(contacts),
+  };
 }

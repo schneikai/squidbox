@@ -1,7 +1,8 @@
 import type { Channel } from '@squidbox/shared';
-import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
+import { Text as RNText, StyleSheet, View } from 'react-native';
 
 import channelPayload from './channelPayload';
+import copySentText from './copySentText';
 
 import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
@@ -16,7 +17,6 @@ import threadLabel from '@/lib/threadLabel';
 import { layout, sizes } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import type { PostCopyWithAssets } from '@/sync/queries/readPostCopies';
-import dateToTimeAgo from '@/utils/date-time/dateToTimeAgo';
 
 type ChannelCopyCardProps = {
   copy: PostCopyWithAssets;
@@ -55,38 +55,36 @@ export default function ChannelCopyCard({
   const { missing } = channelPayload(channel, copy.posts, contactsById);
 
   return (
-    <Pressable onPress={onOpen}>
-      <PostRowCard asset={asset} moreCount={more.length}>
-        <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
-          <View style={styles.head}>
-            <View style={styles.channel}>
-              <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
-              <Text variant="label">{channel.name}</Text>
-            </View>
-            <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
-              {isSent ? (
-                <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
-              ) : (
-                <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
-              )}
-            </MenuButton>
+    <PostRowCard asset={asset} moreCount={more.length} onPress={onOpen}>
+      <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
+        <View style={styles.head}>
+          <View style={styles.channel}>
+            <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
+            <Text variant="label">{channel.name}</Text>
           </View>
-          {first && (
-            <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
-          )}
-          {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
-          {!isSent && <MissingHandleNote contacts={missing} channel={channel} />}
-          {isSent ? (
-            <Text variant="hint">Sent {dateToTimeAgo(copy.sentAt)}</Text>
-          ) : (
-            <View style={styles.actions}>
-              <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />
-              <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
-            </View>
-          )}
+          <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
+            {isSent ? (
+              <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
+            ) : (
+              <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
+            )}
+          </MenuButton>
         </View>
-      </PostRowCard>
-    </Pressable>
+        {first && (
+          <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
+        )}
+        {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
+        {!isSent && <MissingHandleNote contacts={missing} channel={channel} />}
+        {copy.sentAt !== null ? (
+          <Text variant="hint">{copySentText(copy.sentAt)}</Text>
+        ) : (
+          <View style={styles.actions}>
+            <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />
+            <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
+          </View>
+        )}
+      </View>
+    </PostRowCard>
   );
 }
 

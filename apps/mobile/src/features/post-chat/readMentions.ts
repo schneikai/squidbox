@@ -30,8 +30,7 @@ export default async function readMentions(
   // How many posts mention each contact, in the order first seen.
   const postCounts = new Map<string, number>();
   for (const post of posts) {
-    for (const id of mentionedContactIds(post, contactsById))
-      postCounts.set(id, (postCounts.get(id) ?? 0) + 1);
+    for (const id of mentionedContactIds(post, contactsById)) postCounts.set(id, (postCounts.get(id) ?? 0) + 1);
   }
   const ofPosts = [...postCounts].sort((a, b) => b[1] - a[1]).flatMap(([id]) => contactsById.get(id) ?? []);
   const added = mentionEdits.added.flatMap((id) => contactsById.get(id) ?? []);

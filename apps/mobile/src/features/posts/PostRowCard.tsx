@@ -4,7 +4,7 @@ import Animated from 'react-native-reanimated';
 
 import Card from '@/components/Card';
 import CoverImage from '@/components/CoverImage';
-import { layout, radii, sizes } from '@/styles/designTokens';
+import { layout, press, radii, sizes } from '@/styles/designTokens';
 
 const AnimatedCard = Animated.createAnimatedComponent(Card);
 
@@ -14,6 +14,7 @@ type PostRowCardProps = {
   asset?: ComponentProps<typeof CoverImage>['asset'];
   moreCount?: number;
   onPressAsset?: () => void;
+  onPress?: () => void;
   entering?: AnimatedViewProps['entering'];
   exiting?: AnimatedViewProps['exiting'];
   style?: StyleProp<ViewStyle>;
@@ -26,7 +27,8 @@ type PostRowCardProps = {
  * A post as a row card, on a post card's geometry (PostView's): its picture `asset` as a tile close
  * to the card's edge ("+N" for `moreCount` more), and `children` in a column inset so its text starts
  * at cardInset from every edge, like a post's text; without a picture the column fills the card.
- * With `onPressAsset` a tap on the tile opens it; without it the tile takes no touch. `entering` and
+ * With `onPressAsset` a tap on the tile opens it; without it the tile takes no touch. With `onPress`
+ * a tap elsewhere on the card opens what it stands for (the post, a copy), pressed like a row. `entering` and
  * `exiting` are Reanimated layout animations of the card, `contentStyle` and `contentExiting` an
  * animated style and exiting animation of what's in it (an unfolding thread's). style is for layout
  * only.
@@ -35,6 +37,7 @@ export default function PostRowCard({
   asset,
   moreCount = 0,
   onPressAsset,
+  onPress,
   entering,
   exiting,
   style,
@@ -44,13 +47,19 @@ export default function PostRowCard({
 }: PostRowCardProps) {
   const tile = asset && <CoverImage asset={asset} moreCount={moreCount} style={styles.tile} />;
 
-  return (
+  const card = (
     <AnimatedCard entering={entering} exiting={exiting} style={[styles.card, style]}>
       <Animated.View exiting={contentExiting} style={[styles.content, contentStyle]}>
         {tile && onPressAsset ? <Pressable onPress={onPressAsset}>{tile}</Pressable> : tile}
         <View style={styles.column}>{children}</View>
       </Animated.View>
     </AnimatedCard>
+  );
+  if (!onPress) return card;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && press.flat}>
+      {card}
+    </Pressable>
   );
 }
 

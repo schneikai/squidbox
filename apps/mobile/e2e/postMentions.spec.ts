@@ -36,4 +36,3 @@ test("a post of an album's photo mentions the album's contacts, and the Mentions
     .poll(() => assistant.chats.at(-1)?.context.mentions)
     .toEqual(expect.arrayContaining(['Lena Ortiz', 'Sam Ridge', 'Theo Park']));
 });
-
