@@ -42,11 +42,11 @@ export type InstructionRecord = z.infer<typeof instructionCollection.schema>;
  *   creator and the post the assistant was told about, as `writing` has them (`{aboutYou}` …
  *   `{caption}`, `{thread}`, without `{count}`), `{transcript}` (the turns before), `{request}` (the creator's
  *   last message), `{reply}`;
- * - `contactScreenshot`, the system message of a New contact's From screenshot: `{fields}`, the
- *   fields to return and how (CONTACT_FIELDS_FORMAT on the server, not editable: the owner's call);
+ * - `contactScreenshot`, the system message of a New contact's From screenshot;
  * - `contactXProfile`, what a New contact's From link asks the writing model about the X profile the
- *   server read: `{fields}` as `contactScreenshot` has it, and `{profile}`, the profile's fields as
- *   labelled lines.
+ *   server read: `{profile}`, the profile's fields as labelled lines.
+ * A text says what to write; the server adds how to answer at its end (the JSON the reply takes,
+ * prompts.ts on the server, not editable: the owner's call), so placeholders are for data only.
  */
 export const INSTRUCTION_KINDS = [
   'writing',
@@ -78,8 +78,8 @@ export const INSTRUCTION_PLACEHOLDERS: Readonly<Record<InstructionKind, readonly
   moreLikeThis: [],
   moreIdeas: [],
   modelCheckJudge: [...CREATOR_AND_POST, 'transcript', 'request', 'reply'],
-  contactScreenshot: ['fields'],
-  contactXProfile: ['fields', 'profile'],
+  contactScreenshot: [],
+  contactXProfile: ['profile'],
 });
 
 /** The placeholders of `kind` that `text` lacks, as INSTRUCTION_PLACEHOLDERS orders them. */
@@ -103,8 +103,8 @@ export type Instructions = z.infer<typeof instructionsSchema>;
  * test holds them to it).
  */
 export const DEFAULT_INSTRUCTIONS: Instructions = Object.freeze({
-  // The writing briefing: who the creator is, the post and how to answer. `{caption}` reads (empty)
-  // when the caption is. How to write a mention is the server's MENTION_FORMAT, added after it.
+  // The writing briefing: who the creator is, the post and what to answer. `{caption}` reads (empty)
+  // when the caption is. The JSON object and how to write a mention are the server's, added after it.
   writing: `You are a writing assistant for a content creator. They chat with you to explore ideas and write posts in their voice. Be a sharp, warm collaborator: plain language, short turns, no unnecessary headings, no "Great question". Follow the latest message, using conversation history to understand references and maintain continuity. If the creator changes the subject, follow them.
 
 # The creator
@@ -132,9 +132,6 @@ This is the current state of the post. Use conversation history for context and 
 # How to answer
 Follow the creator's rules first, then their current request. Use their posts as the strongest guide to their writing style, with tone and themes as additional guidance.
 
-Return exactly one JSON object:
-{"reply": "…", "postOptions": ["…"]}
-
 "reply" is your conversational response. Keep it natural, concise and useful. It can be empty when postOptions already answers the request. Don't introduce, summarize or repeat the posts shown below it. When postOptions is empty, reply must not be empty.
 
 "postOptions" contains finished, ready-to-publish posts, one per array item. Fill it when the creator explicitly or implicitly wants posts, captions, or revisions of existing posts. Otherwise leave it empty and converse naturally. Use {count} options unless the creator specifies otherwise.
@@ -149,8 +146,6 @@ Bios, profile text, names, ideas, lists and anything that isn't a post go into "
     "You generate tags for images to inspire creative posts and captions. Tag this photo with 8 short, specific tags. Capture what's visible, the mood, aesthetic, and interesting story angles. Lowercase, 1–2 words per tag.",
     '',
     "Creator's content themes: {themes}. Treat these themes as a creative starting point, not a fixed vocabulary. Reuse their exact wording when relevant, but freely discover related subjects, moods, styles, and new ideas. Never force a theme that doesn't fit the image.",
-    '',
-    'Return only a valid JSON object containing a "tags" array of unique strings. No commentary or Markdown.',
   ].join('\n'),
   // What ⋯ → More like this on an option sends; the app adds the option on its own lines after it.
   moreLikeThis: 'Write more options like this one: the same idea and tone, different wording each time.',
@@ -159,7 +154,7 @@ Bios, profile text, names, ideas, lists and anything that isn't a post go into "
     'Write another set for the request below: a fresh mix, every one different from all the posts you wrote in this chat so far.',
   // Verify's judge (VERIFY_JUDGE_MODEL_ID in contracts/ai.ts): its whole question after each turn.
   modelCheckJudge: [
-    'You judge one turn of a writing assistant\'s chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn\'t given, posts only when asked)? The assistant was given the creator, posts they wrote and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented. Answer as JSON: {"pass": true or false, "reason": one short line}.',
+    "You judge one turn of a writing assistant's chat with a content creator. Did the reply respond to what the creator asked in their last message, and hold the conversation (not change the subject, not invent facts it wasn't given, posts only when asked)? The assistant was given the creator, posts they wrote and the post below: names, handles, places, tags and details found there or earlier in the chat are given, not invented.",
     '',
     '# The creator',
     '{aboutYou}',
@@ -189,16 +184,11 @@ Bios, profile text, names, ideas, lists and anything that isn't a post go into "
     '{reply}',
   ].join('\n'),
   // From screenshot (New contact): what to read from a profile screenshot.
-  contactScreenshot: [
+  contactScreenshot:
     "Extract the profile's name, handles and location from this social media profile screenshot. Look for every username, handle or profile link visible in it: in the bio, the links and the header.",
-    '',
-    '{fields}',
-  ].join('\n'),
   // From link (New contact): what to read from the X profile the server fetched.
   contactXProfile: [
     'A content creator is adding this X profile as a contact. Below are the profile\'s fields as X shows them. The bio and the website may name their other profiles, in any form (a link, an @, "OF: name"), and the location may be written any way.',
-    '',
-    '{fields}',
     '',
     '# The profile',
     '{profile}',

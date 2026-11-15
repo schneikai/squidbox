@@ -86,7 +86,7 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { publishInstruction, readAppInstructions, readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
-import { CONTACT_FIELDS_FORMAT, MENTION_FORMAT } from '../src/ai/prompts.js';
+import { CHAT_FORMAT, CONTACT_FIELDS_FORMAT, MENTION_FORMAT, TAGS_FORMAT } from '../src/ai/prompts.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
@@ -476,8 +476,8 @@ describe('POST /api/v1/ai/compare/writing', () => {
   });
 });
 
-// The vision compare's line on the format, after the prompt box.
-const VISION_FORMAT = 'Answer in JSON, with the tags of this one photo.';
+// The vision compare's format, after the prompt box.
+const VISION_FORMAT = `${TAGS_FORMAT}\n\nOnly the tags of this one photo.`;
 
 describe('POST /api/v1/ai/compare/vision', () => {
   it('sends the prompt and the photo as a data URL and returns the tags per model', async () => {
@@ -557,20 +557,20 @@ describe('POST /api/v1/ai/contact-from-screenshot', () => {
     const [body] = chatBodies();
     expect(body.messages[0]).toEqual({
       role: 'system',
-      content: DEFAULT_INSTRUCTIONS.contactScreenshot.replace('{fields}', CONTACT_FIELDS_FORMAT),
+      content: `${DEFAULT_INSTRUCTIONS.contactScreenshot}\n\n${CONTACT_FIELDS_FORMAT}`,
     });
     // The fields follow the contact's own: every handle is asked for.
     for (const { field } of CONTACT_HANDLES) expect(CONTACT_FIELDS_FORMAT).toContain(`"${field}"`);
   });
 
-  it('adds the fields to instructions written before they had {fields}', async () => {
+  it('still reads with a text that holds {fields}: its line left out, the fields at the end', async () => {
     veniceAnswers();
     vi.mocked(readInstructions).mockResolvedValueOnce({
       ...DEFAULT_INSTRUCTIONS,
-      contactScreenshot: 'Read the profile.',
+      contactScreenshot: 'Read the profile.\n\n{fields}\n\nEvery handle.',
     });
     expect((await call('POST', '/ai/contact-from-screenshot', tagRequest)).statusCode).toBe(200);
-    expect(chatBodies()[0].messages[0].content).toBe(`Read the profile.\n\n${CONTACT_FIELDS_FORMAT}`);
+    expect(chatBodies()[0].messages[0].content).toBe(`Read the profile.\n\nEvery handle.\n\n${CONTACT_FIELDS_FORMAT}`);
   });
 
   it('502 ai_unavailable when the answer is not JSON', async () => {
@@ -609,18 +609,16 @@ describe('POST /api/v1/ai/contact-from-link', () => {
     expect(body.messages).toEqual([
       {
         role: 'user',
-        content: DEFAULT_INSTRUCTIONS.contactXProfile
-          .replace('{fields}', CONTACT_FIELDS_FORMAT)
-          .replace(
-            '{profile}',
-            [
-              'Handle: @MayaL',
-              'Name: Maya Lindqvist 🌲',
-              "Bio: Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
-              'Location: Squamish, BC',
-              'Website: https://onlyfans.com/mayal/c17',
-            ].join('\n'),
-          ),
+        content: `${DEFAULT_INSTRUCTIONS.contactXProfile.replace(
+          '{profile}',
+          [
+            'Handle: @MayaL',
+            'Name: Maya Lindqvist 🌲',
+            "Bio: Trail runs and tide pools <3 · Maya's camera roll https://bsky.app/profile/Maya.bsky.social",
+            'Location: Squamish, BC',
+            'Website: https://onlyfans.com/mayal/c17',
+          ].join('\n'),
+        )}\n\n${CONTACT_FIELDS_FORMAT}`,
       },
     ]);
   });
@@ -725,7 +723,7 @@ describe('POST /api/v1/ai/tags', () => {
     const [body, ...others] = chatBodies();
     expect(others).toHaveLength(0);
     expect(body.model).toBe('gemma-4-uncensored');
-    expect(body.messages[0]).toEqual({ role: 'system', content: mine });
+    expect(body.messages[0]).toEqual({ role: 'system', content: `${mine}\n\n${TAGS_FORMAT}` });
     expect(body.messages[1].content).toEqual([
       { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,AAAA' } },
     ]);
@@ -948,7 +946,7 @@ describe('POST /api/v1/ai/chat', () => {
     });
     expect((await call('POST', '/ai/chat', chatRequest)).statusCode).toBe(200);
     const [body] = chatBodies();
-    expect(body.messages[0].content).toBe('Post: "Fog on the trail"\nTags: forest, morning fog');
+    expect(body.messages[0].content).toBe(`Post: "Fog on the trail"\nTags: forest, morning fog\n\n${CHAT_FORMAT}`);
   });
 
   it('502 ai_unavailable when the chosen model is gone, before any chat', async () => {
