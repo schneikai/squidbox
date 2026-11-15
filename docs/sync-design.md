@@ -1104,7 +1104,10 @@ lines; optional, server 0032, app 0032) and `moreIdeas` (what More after a set o
 ideas answered; optional, server 0037, app 0038), templates the server fills in, each that
 account's override or null for the app's default (the text published for every account in the
 server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
-`resolveInstructions`), plus the base columns. Migrations 0022 (server) and 0024 (app) dropped the
+`resolveInstructions`), plus the base columns. A text says what to write; the server adds how to
+answer at its end (the JSON its reply takes, fixed in `apps/server/src/ai/prompts.ts`), so its
+placeholders are data only, and a stored text that still holds the old format lines or `{fields}`
+keeps working. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
 `chatContext`) and reset `writing` and `visionTagging` to the default, their meaning having changed;
 the server's reset carries a fresh clock for both fields and a new `server_seq`, so every device
