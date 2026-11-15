@@ -2,6 +2,7 @@ import { type PostMention, POST_LIMITS } from '@squidbox/shared';
 
 import type { MentionContact } from './mentionHandle';
 import mentionParts, { type MentionTextValue } from './mentionParts';
+import replaceWithMentions from './replaceWithMentions';
 
 /** A contact whose name in a text may become a mention: its id and name. */
 export type MentionCandidate = Pick<MentionContact, 'id' | 'name'>;
@@ -76,18 +77,13 @@ function isTaken(taken: readonly [number, number][], start: number, end: number)
 
 // The text without the @ right before each mention (`sorted` by location), the mentions moved back to
 // their names.
-function withoutAts(text: string, sorted: PostMention[]): MentionTextValue {
-  let result = '';
-  let from = 0;
-  const mentions = sorted.map((mention) => {
-    const hasAt = text[mention.location - 1] === '@';
-    const cut = hasAt ? mention.location - 1 : mention.location;
-    result += text.slice(from, cut);
-    const location = result.length;
-    result += mention.name;
-    from = mention.location + mention.name.length;
-    return { ...mention, location };
-  });
-  result += text.slice(from);
-  return { text: result, mentions: mentions.length > 0 ? mentions : null };
+function withoutAts(text: string, sorted: readonly PostMention[]): MentionTextValue {
+  return replaceWithMentions(
+    text,
+    sorted.map((mention) => ({
+      from: text[mention.location - 1] === '@' ? mention.location - 1 : mention.location,
+      to: mention.location + mention.name.length,
+      mention,
+    })),
+  );
 }

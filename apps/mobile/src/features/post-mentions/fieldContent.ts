@@ -1,6 +1,7 @@
 import type { PostMention } from '@squidbox/shared';
 
 import mentionParts, { type MentionTextValue } from './mentionParts';
+import replaceWithMentions, { type MentionRange } from './replaceWithMentions';
 
 /** The character a chip is in the mention field's text (MentionInput). */
 export const MENTION_CHIP = '￼';
@@ -38,18 +39,10 @@ export function toFieldContent(
  */
 export function fromFieldContent(content: FieldContent, nameOf: (mention: FieldMention) => string): MentionTextValue {
   const byLocation = new Map(content.mentions.map((mention) => [mention.location, mention]));
-  let text = '';
-  const mentions: PostMention[] = [];
-  let from = 0;
-  for (let at = content.text.indexOf(MENTION_CHIP); at !== -1; at = content.text.indexOf(MENTION_CHIP, from)) {
-    text += content.text.slice(from, at);
-    from = at + 1;
+  const ranges: MentionRange[] = [];
+  for (let at = content.text.indexOf(MENTION_CHIP); at !== -1; at = content.text.indexOf(MENTION_CHIP, at + 1)) {
     const chip = byLocation.get(at);
-    if (!chip) continue;
-    const name = nameOf(chip);
-    mentions.push({ contactId: chip.id, location: text.length, name });
-    text += name;
+    ranges.push({ from: at, to: at + 1, mention: chip ? { contactId: chip.id, name: nameOf(chip) } : null });
   }
-  text += content.text.slice(from);
-  return { text, mentions: mentions.length > 0 ? mentions : null };
+  return replaceWithMentions(content.text, ranges);
 }
