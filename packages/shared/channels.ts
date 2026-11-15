@@ -1,8 +1,9 @@
 import type { ContactHandleField } from './collections/contact';
 
-// The built-in channels a post can be sent to (Settings → Posts → Channels). `id` is what a `channels`
-// record's and a `post_copies` record's `channelId` hold; `recordId` is the fixed id of the user's
-// `channels` record for it, so two devices adding the same channel write one record and adding a
+// The built-in channels a post can be sent to (Settings → Posts → Channels): a place plus a way of
+// posting there, so OnlyFans (a post) and OnlyFans PPV (a pay-per-view message) are two. `id` is what
+// a `channels` record's and a `post_copies` record's `channelId` hold; `recordId` is the fixed id of
+// the user's `channels` record for it, so two devices adding the same channel write one record and adding a
 // deleted one again revives it. Both are stored data: never change them once shipped.
 //
 // The rules are the platform's published limits where one was found (the source beside each entry):
@@ -59,6 +60,16 @@ export const CHANNELS = [
     id: 'onlyfans',
     recordId: '513bced9-6176-4876-8b34-76d3fba361fc',
     name: 'OnlyFans',
+    maxMedia: 20,
+    maxTextLength: 1000,
+    hasThreads: false,
+    handleField: 'onlyFansHandle',
+  },
+  // The design's example values, unverified (no published limits found).
+  {
+    id: 'onlyfans-ppv',
+    recordId: '675abb2a-2693-4d8c-86df-de3b5251bec2',
+    name: 'OnlyFans PPV',
     maxMedia: 20,
     maxTextLength: 1000,
     hasThreads: false,
