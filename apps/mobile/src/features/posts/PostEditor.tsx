@@ -18,14 +18,13 @@ type PostEditorProps = {
   kind: Extract<ChatSubjectKind, 'draft' | 'edit'>;
   ideas: IdeasKind;
   post: PostEditorPost;
-  onSave: (post: EditedPost, seed: EditedPost) => Promise<unknown>;
+  onSave: (post: EditedPost) => Promise<unknown>;
 };
 
 // Edits a post and its thread, seeded once from `post` ({ text, postAssets, postedAt, threadPosts })
 // into its cards (cardsReducer), as a draft sheet of PostCards. Add (a new post, `kind` 'draft') or
 // Save (an edit) hands `onSave` the post the posts store takes (postData), allowed once every post
-// has text or a photo (and, for Save, something changed), and the seed in the same shape, so an edit
-// can save only what changed; a save that throws says so and keeps the editor open. A new post that
+// has text or a photo (and, for Save, something changed from `post`); a save that throws says so and keeps the editor open. A new post that
 // opens empty has the cursor in its text, keyboard up. × or a swipe down with changes asks first.
 // `kind` is also what the assistant's chat about the cards is about ('draft' a new post, 'edit' a
 // saved one), and `ideas` which ideas the first card's tray offers, started on their own for a new post.
@@ -56,7 +55,7 @@ export default function PostEditor({ kind, ideas, post, onSave }: PostEditorProp
         seedPostedAt: seed.postedAt,
         now: getTimestamp(),
       });
-      return onSave({ ...data, postedAt: savedAt }, seed);
+      return onSave({ ...data, postedAt: savedAt });
     },
     syncsItself: true,
   });

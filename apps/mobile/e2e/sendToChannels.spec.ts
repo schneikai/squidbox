@@ -75,6 +75,25 @@ test('a channel added with + gets a copy filled from the post, and Send all mark
   await expect(button(sheet, 'Send all')).toBeHidden();
 });
 
+test("Use on an idea in a copy's composer puts in the chip of a name the idea writes", async ({ page, assistant }) => {
+  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with Sam Ridge'] });
+  await fromPostMenu(page, CHIP_POST, 'Send to channels');
+  await button(sendSheet(page), 'Add channel').click();
+  await page.getByRole('menuitem', { name: 'X', exact: true }).click();
+  const editor = page.getByTestId('channel-copy-editor');
+  await button(editor, 'Post ideas').click();
+  await button(editor, 'Use').click();
+
+  await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();
+  // A chip, so the copy says Sam has no X handle.
+  await expect(editor.getByText('Sam Ridge has no X handle')).toBeVisible();
+  await withDialog(
+    page,
+    (dialog) => dialog.accept(),
+    () => button(editor, 'Close').click(),
+  );
+});
+
 test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent", async ({
   page,
 }) => {

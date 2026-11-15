@@ -2,7 +2,7 @@ import { DEFAULT_IDEA_PROMPTS } from '@squidbox/shared';
 import type { Page } from 'playwright/test';
 
 import { expect, STUB_TAGS, test } from './fixtures';
-import { button, expectPostText, openTab, pickFromSquidbox, postText, withDialog } from './helpers';
+import { assetCells, button, expectPostText, openTab, pickFromSquidbox, postText, withDialog } from './helpers';
 import { loadAppAsync } from '../scripts/webPreview.mjs';
 
 // The assistant's ideas in the post editor, on the stubbed assistant (fixtures): a new post's start
@@ -150,6 +150,34 @@ test('a posted post has no tray, and its editor starts no ideas', async ({ page,
   await expect(page.getByTestId('post-editor').getByText('Write with AI')).toBeVisible();
 
   expect(assistant.events).toEqual([]);
+});
+
+test("an idea's names of the chat's Mentions are contacts: Copy writes each channel's handle, Use puts the chip in", async ({
+  page,
+  context,
+  assistant,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const idea = 'Out on the ridge with Sam Ridge';
+  assistant.chatAnswer = () => ({ reply: '', postOptions: [idea] });
+  // A post of a Weekend walks photo: Sam Ridge is on one of its photos, so he is one of its Mentions.
+  await openTab(page, 'Albums');
+  await page.getByTestId('albums-screen').getByText('Weekend walks', { exact: true }).click();
+  await assetCells(page.getByTestId('album-screen')).first().click();
+  await button(page.getByTestId('asset-screen'), 'More options').click();
+  await page.getByRole('menuitem', { name: 'Create post' }).click();
+  const editor = page.getByTestId('post-editor');
+  await expect(editor.getByText(idea)).toBeVisible();
+  expect(assistant.chats[0]!.context.mentions).toContain('Sam Ridge');
+
+  await button(editor, 'Copy text').click();
+  await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe('Out on the ridge with @ridgeline.bsky.social');
+
+  await button(editor, 'Use').click();
+  await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();
 });
 
 test.describe('Post ideas settings', () => {
