@@ -15,6 +15,8 @@ type MentionChipProps = {
 
 // The system font's capitals for its size (UIFont.capHeight / pointSize).
 const CAP_HEIGHT = 0.7;
+// What is left after the two terms below, measured on a phone (the chip sat this much low), per point of text size.
+const IOS_LIFT = 0.08;
 
 // iOS sits an inline view's bottom on the line's own baseline, which is under the text's by half of
 // what the line is taller than the font (React Native lifts the text to the line's middle, not the
@@ -22,7 +24,7 @@ const CAP_HEIGHT = 0.7;
 // draws its chips (chipOffset in MentionInputView.swift). The web lines up the chip's label with
 // the text's baseline by itself.
 function iosDrop(chipHeight: number, fontSize: number, lineHeight: number) {
-  return (chipHeight - fontSize * CAP_HEIGHT) / 2 - (lineHeight - chipHeight) / 2;
+  return (chipHeight - fontSize * CAP_HEIGHT) / 2 - (lineHeight - chipHeight) / 2 - fontSize * IOS_LIFT;
 }
 
 /**
