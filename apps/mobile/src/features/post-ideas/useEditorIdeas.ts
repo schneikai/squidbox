@@ -5,7 +5,7 @@ import ideasTurns from './ideasTurns';
 import shouldStartIdeas from './shouldStartIdeas';
 import useIdeaSettings from './useIdeaSettings';
 
-import type { ChatDraftPost } from '@/features/post-chat/chatSessions';
+import type { ChatDraftPost, TextApplier } from '@/features/post-chat/chatSessions';
 import useChatSends from '@/features/post-chat/useChatSends';
 import useSubjectChat from '@/features/post-chat/useSubjectChat';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
@@ -16,7 +16,7 @@ type EditorIdeasOptions = {
   ideas: IdeasKind;
   posts: ChatDraftPost[];
   activeKey: string;
-  setText: (key: string, text: string) => void;
+  setText: TextApplier;
   startsOnItsOwn: boolean;
 };
 

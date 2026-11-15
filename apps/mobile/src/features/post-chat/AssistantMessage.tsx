@@ -41,6 +41,7 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse, usedNote }: A
           text={text}
           replyId={reply.id}
           index={index}
+          mentioned={reply.mentioned}
           onMoreLikeThis={onMoreLikeThis}
           onUse={onUse}
         />

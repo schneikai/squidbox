@@ -10,6 +10,7 @@ import nextCardKey from './draft/nextCardKey';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import WarningNote from '@/components/WarningNote';
+import type { TextApplier } from '@/features/post-chat/chatSessions';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
@@ -64,10 +65,11 @@ export default function PostCards({
     },
     [dispatch],
   );
-  // The assistant's text for a card (Use): its chips stay where their names still stand.
-  const setText = useCallback(
-    (key: string, text: string) => {
-      dispatch({ type: 'setCardText', key, text });
+  // The assistant's text for a card (Use): its chips stay where their names still stand, and the
+  // names of the contacts its turn was told become chips.
+  const setText = useCallback<TextApplier>(
+    (key, text, mentioned) => {
+      dispatch({ type: 'setCardText', key, text, mentioned });
       setActiveKey(key);
     },
     [dispatch],

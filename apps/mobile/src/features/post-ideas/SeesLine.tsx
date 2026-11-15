@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import ChatSubjectLines from '@/features/post-chat/ChatSubjectLines';
-import sentMentions from '@/features/post-chat/sentMentions';
 import type { LiveChat } from '@/features/post-chat/useChatSession';
 import useChatTags from '@/features/post-chat/useChatTags';
 import useMentions from '@/features/post-chat/useMentions';
@@ -24,9 +23,8 @@ export default function SeesLine({ chat }: SeesLineProps) {
   const { assets, mentionEdits } = chat;
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
   const tagging = useChatTags(assets);
-  const found = useMentions(assetIds);
+  const mentions = useMentions(assetIds, mentionEdits);
   const albums = useAssetAlbums({ assetIds }, { isLive: false });
-  const mentions = useMemo(() => found && { handles: sentMentions(found, mentionEdits) }, [found, mentionEdits]);
 
   return (
     <View style={styles.lines}>

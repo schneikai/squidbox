@@ -58,7 +58,7 @@ function SuggestionRow({ suggestion: { contact, handlesText }, onPick }: Suggest
       onPress={() => onPick(contact)}
       accessibilityRole="button"
       accessibilityLabel={`${contact.name}, ${handlesText}`}
-      accessibilityHint="Adds the contact to the text"
+      accessibilityHint="Mentions the contact"
     >
       <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
         <Text variant="title" size="small" numberOfLines={1}>

@@ -27,6 +27,7 @@ const reply = (options: string[], changes: Partial<AssistantChatMessage> = {}): 
   error: null,
   errorStatus: null,
   usedOption: null,
+  mentioned: [],
   ...changes,
 });
 const texts = (messages: ChatMessage[], target = 'p1', closedAt: string | null = null) =>

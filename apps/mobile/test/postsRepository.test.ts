@@ -2,11 +2,9 @@ import type { PostRecord } from '@squidbox/shared';
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 
-import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord, makePostRecord } from './helpers/factory';
+import { createPost, makeAlbumRecord, makeAssetRecord, makePostRecord } from './helpers/factory';
 import { makeTestDb } from './helpers/testDb';
-import readPostHandles from '../src/features/post-mentions/readPostHandles';
 import * as assets from '../src/sync/assetsRepository';
-import * as contacts from '../src/sync/contactsRepository';
 import * as schema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
@@ -85,16 +83,5 @@ describe('postsRepository', () => {
       expect(await texts(db, ['a1'])).toEqual([]);
       expect(await texts(db, [])).toEqual([]);
     });
-  });
-
-  it("lists a chip's contact's handles among the handles the posts mention", async () => {
-    const db = makeTestDb();
-    await contacts.create(db, makeContactRecord({ id: 'c1', name: 'Maya Lindqvist', xHandle: 'x.com/mayal' }));
-    const mention = { contactId: 'c1', location: 5, name: 'Maya Lindqvist' };
-    const posts = [
-      { text: 'and @ridge', mentions: null },
-      { text: 'With Maya Lindqvist', mentions: [mention] },
-    ];
-    expect(await readPostHandles(db, posts)).toEqual(['@ridge', '@mayal']);
   });
 });

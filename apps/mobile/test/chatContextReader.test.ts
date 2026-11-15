@@ -10,23 +10,23 @@ import type { MentionContact } from '../src/features/post-mentions/mentionHandle
 // The photos' rows as saved: none unless a test says so.
 const readLiveAssets = vi.hoisted(() => vi.fn(async (): Promise<{ id?: string; tags: string[] | null }[]> => []));
 vi.mock('../src/sync/aiStateRepository', () => ({ readLiveAssets }));
-// The posts the handles come from: none unless a test says so.
+// The posts the mentions come from: none unless a test says so.
 type MentionRow = { text: string; mentions: { contactId: string; location: number; name: string }[] | null };
 const readMentionTexts = vi.hoisted(() => vi.fn(async (): Promise<MentionRow[]> => []));
 vi.mock('../src/sync/postsRepository', () => ({ readMentionTexts }));
-// The contacts of the posts' chips: none unless a test says so.
-const readMentionContacts = vi.hoisted(() => vi.fn(async () => new Map<string, MentionContact>()));
-vi.mock('../src/features/post-mentions/readMentionContacts', () => ({ default: readMentionContacts }));
+// The contacts read by id (the sheet's added ones, the chips'): none unless a test says so.
+const summaries = vi.hoisted(() => vi.fn(async (): Promise<MentionContact[]> => []));
+vi.mock('../src/sync/queries/contactQuery', () => ({ default: () => ({ summaries }) }));
 // The contacts on the photos: none unless a test says so.
-const readPhotoAndAlbumContacts = vi.hoisted(() => vi.fn(async (): Promise<{ xHandle: string }[]> => []));
+const readPhotoAndAlbumContacts = vi.hoisted(() => vi.fn(async (): Promise<MentionContact[]> => []));
 vi.mock('../src/sync/contactsRepository', () => ({ readPhotoAndAlbumContacts }));
 vi.mock('../src/sync/db/client', () => ({ getDb: () => null }));
 vi.mock('../src/utils/assets/readVisionImageAsync', () => ({ default: vi.fn() }));
 vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }));
 
 const noTagging = { tagMissingAsync: async () => {} };
-const read = (reader: ReturnType<typeof chatContextReader>, target = 'p1'): Promise<ChatContext> =>
-  reader(new AbortController().signal, () => {}, target);
+const read = async (reader: ReturnType<typeof chatContextReader>, target = 'p1'): Promise<ChatContext> =>
+  (await reader(new AbortController().signal, () => {}, target)).context;
 const post = (key: string, text = '', assetIds: string[] = []): ChatDraftPost => ({
   key,
   text,
@@ -67,30 +67,41 @@ describe('chatContextReader', () => {
       expect(tagMissingAsync).toHaveBeenCalledWith(['meadow'], onWait);
       expect(onWait).toHaveBeenCalled();
       tagged();
-      expect((await reading).tags).toEqual(['meadow', 'tent']);
+      expect((await reading).context.tags).toEqual(['meadow', 'tent']);
       chatTags.tags.set({});
     }));
 
-  it("reads the handles of the photos as they are when the turn goes, with the Mentions sheet's edits", () =>
+  it("sends the names of the contacts it may mention as the turn goes, with the Mentions sheet's edits, and names the same contacts as mentioned", () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {
-      readMentionTexts.mockResolvedValueOnce([{ text: 'With @trailmike', mentions: null }]);
-      session.editMentions({ add: ['@corntwee'] });
-      expect((await read(chatContextReader(session, () => ({ tagging: noTagging })))).mentions).toEqual([
-        '@corntwee',
-        '@trailmike',
-      ]);
+      const sam = { id: 'sam', name: 'Sam Ridge' };
+      const maya = { id: 'maya', name: 'Maya Lindqvist' };
+      readPhotoAndAlbumContacts.mockResolvedValueOnce([maya]);
+      summaries.mockResolvedValueOnce([sam]);
+      session.editMentions({ add: ['sam'] });
+      const { context, mentioned } = await chatContextReader(session, () => ({ tagging: noTagging }))(
+        new AbortController().signal,
+        () => {},
+        'p1',
+      );
+      expect(context.mentions).toEqual(['Sam Ridge', 'Maya Lindqvist']);
+      expect(mentioned).toEqual([sam, maya]);
       expect(readMentionTexts).toHaveBeenLastCalledWith(null, ['ridge']);
     }));
 
-  it("lists the handles of a chip's contact among the handles of the photos' posts", () =>
+  it('sends a name two contacts share once, and names both as mentioned', () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {
-      const maya = { contactId: 'c1', location: 5, name: 'Maya Lindqvist' };
-      readMentionTexts.mockResolvedValueOnce([{ text: 'With Maya Lindqvist', mentions: [maya] }]);
-      readMentionContacts.mockResolvedValueOnce(
-        new Map([['c1', { id: 'c1', name: 'Maya Lindqvist', xHandle: '@mayal' }]]),
+      const sams = [
+        { id: 's1', name: 'Sam Ridge' },
+        { id: 's2', name: 'Sam Ridge' },
+      ];
+      readPhotoAndAlbumContacts.mockResolvedValueOnce(sams);
+      const { context, mentioned } = await chatContextReader(session, () => ({ tagging: noTagging }))(
+        new AbortController().signal,
+        () => {},
+        'p1',
       );
-      const context = await read(chatContextReader(session, () => ({ tagging: noTagging })));
-      expect(context.mentions).toEqual(['@mayal']);
+      expect(context.mentions).toEqual(['Sam Ridge']);
+      expect(mentioned).toEqual(sams);
     }));
 
   it("takes the tags as saved, not the last render's", () =>

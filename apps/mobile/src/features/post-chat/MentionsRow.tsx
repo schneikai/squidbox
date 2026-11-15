@@ -5,7 +5,7 @@ import EditableLine from './EditableLine';
 import type { LiveChat } from './useChatSession';
 import type { Mentions } from './useMentions';
 
-// The handles the card names; the sheet has them all.
+// The contacts the card names; the sheet has them all.
 const SHOWN = 5;
 
 type MentionsRowProps = {
@@ -19,23 +19,26 @@ type MentionsRowProps = {
 };
 
 /**
- * The handles the chat may mention (`mentions`, usePostChat's), as a grey line on its card, "from"
- * where they come (`from`); a tap opens ChatMentionsSheet to edit them (`onEditMentions`).
+ * The contacts the chat may mention (`mentions`, usePostChat's), by name, as a grey line on its card,
+ * "from" where they come (`from`); a tap opens ChatMentionsSheet to edit them (`onEditMentions`).
  */
 export default function MentionsRow({ mentions, assetIds, from, onEditMentions, tone }: MentionsRowProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  const { handles } = mentions;
-
   return (
     <>
       <EditableLine label="Mentions" editHint="Edits the mentions" onPress={() => setIsEditing(true)} tone={tone}>
-        {handles.length > 0 ? `${handles.slice(0, SHOWN).join(', ')} from ${from}` : 'none'}
+        {mentions.length > 0
+          ? `${mentions
+              .slice(0, SHOWN)
+              .map((contact) => contact.name)
+              .join(', ')} from ${from}`
+          : 'none'}
       </EditableLine>
       <ChatMentionsSheet
         isVisible={isEditing}
         onClose={() => setIsEditing(false)}
-        handles={handles}
+        mentions={mentions}
         assetIds={assetIds}
         onEditMentions={onEditMentions}
       />

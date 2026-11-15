@@ -59,17 +59,17 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
 // The posts the chat reads its mentions from, at most.
 const MENTION_POSTS = 100;
 
-// The mention read takes a thread's following posts too: a handle the user wrote in one is still a
-// handle they mentioned. It gives a post's text and its mentions (its chips), whose contacts' handles
-// count too (postHandles).
+// The mention read takes a thread's following posts too: a contact the user mentioned in one is still
+// a contact they mentioned. It gives a post's text and its mentions (its chips), and the chat finds
+// the contacts of both (mentionedContactIds).
 
 /** A post's text and mentions, as the mention reads give them. */
 export type MentionTextRow = { text: string; mentions: schema.PostRow['mentions'] };
 
 /**
  * The texts and mentions of the live posts whose assets share a live album with `assetIds` (through
- * live edges), newest post date first, at most MENTION_POSTS: where the chat finds the handles the user
- * mentions in posts like the one they write. None without an album or one never posted from: the
+ * live edges), newest post date first, at most MENTION_POSTS: where the chat finds the contacts the
+ * user mentions in posts like the one they write. None without an album or one never posted from: the
  * library's other posts are about other people.
  */
 export async function readMentionTexts(db: SyncDb, assetIds: string[]): Promise<MentionTextRow[]> {

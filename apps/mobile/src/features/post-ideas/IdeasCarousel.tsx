@@ -85,6 +85,7 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
             text={item.text}
             replyId={item.replyId}
             index={item.index}
+            mentioned={item.mentioned}
             onMoreLikeThis={null}
             onUse={onUse}
             isUsed={item.isUsed}

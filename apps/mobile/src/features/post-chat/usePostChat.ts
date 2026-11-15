@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 
-import sentMentions from './sentMentions';
 import useChatSends from './useChatSends';
 import useChatSession from './useChatSession';
 import useChatTags from './useChatTags';
@@ -14,7 +13,7 @@ type PostChatOptions = {
 /**
  * The assistant chat about a post and its thread (`sessionId`, chatSessions'), for the chat screen:
  * the chat (useChatSession; null once closed), the `assets` of all its posts, their `tagging`
- * (useChatTags, with `tagsOnOpen`), the `mentions` (those it sends, useMentions' with the chat's
+ * (useChatTags, with `tagsOnOpen`), the `mentions` (the contacts it sends, useMentions' with the chat's
  * mentionEdits) and its sends (useChatSends: `send(turn)`, `moreLikeThis(text, target)`, `retry()`).
  */
 export default function usePostChat(sessionId: string | null, { tagsOnOpen = false }: PostChatOptions = {}) {
@@ -22,13 +21,7 @@ export default function usePostChat(sessionId: string | null, { tagsOnOpen = fal
   const assets = useMemo(() => chat?.assets ?? [], [chat?.assets]);
   const assetIds = useMemo(() => assets.map((asset) => asset.id), [assets]);
   const tagging = useChatTags(assets, { tagsOnOpen });
-  const found = useMentions(assetIds);
-  const mentionEdits = chat?.mentionEdits;
-  // The handles the chat may mention and sends: sentMentions'.
-  const mentions = useMemo(
-    () => found && mentionEdits && { handles: sentMentions(found, mentionEdits) },
-    [found, mentionEdits],
-  );
+  const mentions = useMentions(assetIds, chat?.mentionEdits);
   const { send, moreLikeThis, retry } = useChatSends(sessionId);
 
   return { chat, assets, tagging, mentions, send, moreLikeThis, retry };

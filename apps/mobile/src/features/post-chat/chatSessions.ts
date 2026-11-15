@@ -11,6 +11,7 @@ import {
 
 import withEdits, { type ListEdits } from './withEdits';
 
+import type { MentionCandidate } from '@/features/post-mentions/relinkMentions';
 import createStore from '@/lib/createStore';
 import sameOrder from '@/lib/sameOrder';
 import type chatAsync from '@/utils/cloud-api/ai/chatAsync';
@@ -44,7 +45,8 @@ export type UserChatMessage = Required<UserTurn> & { id: string; role: 'user' };
  * A reply: `reply`, what the assistant says; `postOptions`, the options for the post, when the user
  * asked for posts; `systemMessage`, what the model was told, for an ai_admin, else null;
  * `errorStatus`, the failed request's HTTP status, if any; `usedOption`, the index of the option Use
- * put into the post, if any.
+ * put into the post, if any; `mentioned`, the contacts its turn was told it may mention (empty until
+ * its context was read), whose names Use and Copy link in its options.
  */
 export type AssistantChatMessage = ChatReply & {
   id: string;
@@ -54,6 +56,7 @@ export type AssistantChatMessage = ChatReply & {
   error: string | null;
   errorStatus: number | null;
   usedOption: number | null;
+  mentioned: MentionCandidate[];
 };
 
 // A message narrows by its `role`: only a reply has a status.
@@ -89,8 +92,11 @@ export type ChatDraftPost = { key: string; text: string; assets: AssetRecord[] }
 
 type ChatDraft = { posts: ChatDraftPost[] };
 
-// How Use puts an option into a post: the post's key and the text.
-type TextApplier = (target: string, text: string) => void;
+/**
+ * How Use puts an option into a post: the post's key, the text, and the contacts its turn was told it
+ * may mention (`mentioned`, the reply's), whose names in the text become mentions (relinkMentions).
+ */
+export type TextApplier = (target: string, text: string, mentioned: readonly MentionCandidate[]) => void;
 
 type ChatRequester = typeof chatAsync;
 
@@ -98,11 +104,15 @@ export type ChatSession = ReturnType<typeof createSession>;
 
 /**
  * What the chat is about, read when the turn for the post `target` goes: it may wait for the photos'
- * tags, and calls `onWait()` when it does (the chat is `isWaiting` until the read ends). `signal`
- * aborts once the turn is dropped (New chat, or the chat closed); what it resolves to then is
- * ignored.
+ * tags, and calls `onWait()` when it does (the chat is `isWaiting` until the read ends). It resolves
+ * to the context and the contacts it names as mentions (`mentioned`). `signal` aborts once the turn is
+ * dropped (New chat, or the chat closed); what it resolves to then is ignored.
  */
-export type ContextReader = (signal: AbortSignal, onWait: () => void, target: string) => Promise<ChatContext>;
+export type ContextReader = (
+  signal: AbortSignal,
+  onWait: () => void,
+  target: string,
+) => Promise<{ context: ChatContext; mentioned: MentionCandidate[] }>;
 
 const NO_EDITS: ListEdits = Object.freeze({ added: [], removed: [] });
 
@@ -169,7 +179,7 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
  * assets (`getDraft()`) change with every keystroke, so they are read when needed, not told; only a
  * post added or removed changes `targets`, and an asset added or removed `assets`. `tagEdits` is what the chat card changed in the post's tags (postTags): kept
  * here only, while the editor is open, never on the photos. `mentionEdits` is the same for the
- * handles it may mention (chatMentions), never on the posts.
+ * contacts it may mention (their ids: chatMentions), never on the posts.
  */
 function createSession(kind: ChatSubjectKind) {
   const store = createStore<ChatSessionState>({
@@ -233,11 +243,12 @@ function createSession(kind: ChatSubjectKind) {
       const onWait = () => {
         if (!signal.aborted) update({ isWaiting: true });
       };
-      const context = await readContext(signal, onWait, target).finally(() => {
+      const { context, mentioned } = await readContext(signal, onWait, target).finally(() => {
         // A dropped read leaves it to reset() or close(), and to the read after it.
         if (!signal.aborted && store.get().isWaiting) update({ isWaiting: false });
       });
       if (signal.aborted) return;
+      replaceMessage(replyId, { mentioned });
       const { messages } = store.get();
       const at = messages.findIndex((message) => message.id === replyId);
       const body: ChatRequest = { chatId, context, messages: wireTurns(messages.slice(0, at)) };
@@ -303,8 +314,9 @@ function createSession(kind: ChatSubjectKind) {
       const reply = messages[at];
       const turn = messages[at - 1];
       const text = isReply(reply) ? reply.postOptions[index] : undefined;
-      if (text === undefined || turn?.role !== 'user') throw new Error(`No option ${index} of the reply ${replyId}`);
-      applier?.(turn.target, text);
+      if (!isReply(reply) || text === undefined || turn?.role !== 'user')
+        throw new Error(`No option ${index} of the reply ${replyId}`);
+      applier?.(turn.target, text, reply.mentioned);
       // Marked and folded in one change, so the trays render once (read again: the applier ran).
       const { messages: current, foldedAt } = store.get();
       update({
@@ -333,6 +345,7 @@ function createSession(kind: ChatSubjectKind) {
         error: null,
         errorStatus: null,
         usedOption: null,
+        mentioned: [],
       };
       update({ messages: [...store.get().messages, userMessage, reply] });
       return requestReply(reply.id, userMessage.target, readContext, request);
@@ -344,7 +357,7 @@ function createSession(kind: ChatSubjectKind) {
       const last = messages[messages.length - 1];
       const turn = messages[messages.length - 2];
       if (isSending || isClosed || !isReply(last) || last.status !== 'error' || turn?.role !== 'user') return null;
-      replaceMessage(last.id, { status: 'loading', error: null, errorStatus: null });
+      replaceMessage(last.id, { status: 'loading', error: null, errorStatus: null, mentioned: [] });
       return requestReply(last.id, turn.target, readContext, request);
     },
 
@@ -353,10 +366,9 @@ function createSession(kind: ChatSubjectKind) {
       update({ tagEdits: editedLists(store.get().tagEdits, edit) });
     },
 
-    /** The Mentions sheet's change to the handles, as editedLists says. */
-    editMentions({ add = [], remove = [] }: Partial<TagsEdit>) {
-      const handles = add.map(asHandle).filter((handle) => handle.length > 1);
-      update({ mentionEdits: editedLists(store.get().mentionEdits, { add: handles, remove }) });
+    /** The Mentions sheet's change to the contacts (their ids), as editedLists says. */
+    editMentions(edit: Partial<TagsEdit>) {
+      update({ mentionEdits: editedLists(store.get().mentionEdits, edit) });
     },
 
     /** Folds the ideas on the tray of the post `target` into one row (`isFolded`), or unfolds them. */
@@ -431,10 +443,4 @@ function editedLists({ added, removed }: ListEdits, { add = [], remove = [] }: P
     added: withEdits(added, { added: add, removed: remove }),
     removed: withEdits(removed, { added: remove, removed: add }),
   };
-}
-
-// A handle as typed, with its @ and without spaces; a bare @ is none.
-function asHandle(text: string): string {
-  const handle = text.replace(/\s+/g, '');
-  return handle.startsWith('@') ? handle : `@${handle}`;
 }

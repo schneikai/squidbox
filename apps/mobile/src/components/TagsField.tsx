@@ -12,6 +12,9 @@ import tagKey from '@/utils/tagKey';
 // Tags on only some of the items (an album's photos), and what a tap on one does.
 type MixedTags = { tags: readonly string[]; onPress: (tag: string) => void };
 
+// What an item's chip shows: its label, and a node leading it (Chip's `leading`: a contact's avatar).
+type ItemChip = { label: string; leading?: ReactNode };
+
 export type TagsFieldProps = {
   tags: string[];
   onChange: (tags: string[]) => void;
@@ -24,6 +27,8 @@ export type TagsFieldProps = {
   isFlush?: boolean;
   mixed?: MixedTags;
   renderSuggestions?: (text: string, add: (tag: string) => void) => ReactNode;
+  chipOf?: (tag: string) => ItemChip;
+  isPickOnly?: boolean;
 };
 
 /**
@@ -40,6 +45,10 @@ export type TagsFieldProps = {
  * dragged something else (useDetailsPanelDrag's); a return or a blur in the input isn't a press.
  * `renderSuggestions(text, add)` (optional) shows what the text being typed may mean under the
  * field while Add is open; `add(tag)` adds one as a return would and clears the input.
+ * `chipOf(tag)` (optional) says what an item's chip shows (its label and a `leading` node), for items
+ * that are no text of their own (a contact's id: its name and avatar); the item itself by default.
+ * `isPickOnly` makes the input a search only: a return or a blur adds nothing, only a suggestion's
+ * `add` does.
  */
 function TagsField({
   tags,
@@ -53,6 +62,8 @@ function TagsField({
   isFlush = false,
   mixed,
   renderSuggestions,
+  chipOf = asChip,
+  isPickOnly = false,
 }: TagsFieldProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [text, setText] = useState('');
@@ -77,8 +88,13 @@ function TagsField({
     if (next.length >= maxTags) setIsAdding(false);
   }
 
+  function handleSubmit() {
+    if (!isPickOnly) addTag(text);
+  }
+
   function handleBlur() {
-    addTag(text);
+    if (isPickOnly) setText('');
+    else addTag(text);
     setIsAdding(false);
   }
 
@@ -88,15 +104,17 @@ function TagsField({
     <Surface style={[styles.field, !isFlush && styles.card]}>
       {tags.map((tag) => {
         const isMixed = !!mixed && mixedKeys.has(tagKey(tag));
+        const { label, leading } = chipOf(tag);
         return (
           <Chip
             key={tag}
-            label={tag}
+            label={label}
+            leading={leading}
             variant={isMixed ? 'mixed' : 'tag'}
             onPress={isMixed && !disabled ? guardPress(() => mixed.onPress(tag)) : undefined}
             accessibilityHint={isMixed ? 'Puts it on all' : undefined}
             onRemove={disabled ? undefined : guardPress(() => onChange(tags.filter((each) => each !== tag)))}
-            removeLabel={`Remove ${tag}`}
+            removeLabel={`Remove ${label}`}
           />
         );
       })}
@@ -104,7 +122,7 @@ function TagsField({
         <TagInput
           value={text}
           onChangeText={setText}
-          onSubmit={() => addTag(text)}
+          onSubmit={handleSubmit}
           onBlur={handleBlur}
           maxLength={maxTagLength}
           placeholder={itemName.charAt(0).toUpperCase() + itemName.slice(1)}
@@ -133,6 +151,10 @@ function TagsField({
 }
 
 export default memo(TagsField);
+
+function asChip(tag: string): ItemChip {
+  return { label: tag };
+}
 
 const styles = StyleSheet.create({
   field: {

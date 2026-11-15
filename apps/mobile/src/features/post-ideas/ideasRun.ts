@@ -2,9 +2,15 @@ import { type AssistantChatMessage, type ChatMessage, isReply } from '@/features
 
 /**
  * One item of a run's carousel: the option `index` of the reply `replyId`, or with `index` null a
- * reply's text alone (the assistant answered without options); `isUsed` once Use put it in the post.
+ * reply's text alone (the assistant answered without options); `isUsed` once Use put it in the post;
+ * `mentioned`, the reply's (whose names its Copy links).
  */
-export type IdeaItem = { replyId: string; index: number | null; text: string; isUsed: boolean };
+export type IdeaItem = Pick<AssistantChatMessage, 'mentioned'> & {
+  replyId: string;
+  index: number | null;
+  text: string;
+  isUsed: boolean;
+};
 
 /**
  * What the tray shows for one post: `name` and `prompt`, the label and content of the turn that
@@ -61,10 +67,16 @@ export default function ideasRun(
     if (reply.status !== 'done') continue;
     if (reply.postOptions.length > 0) {
       reply.postOptions.forEach((text, optionIndex) =>
-        items.push({ replyId: reply.id, index: optionIndex, text, isUsed: reply.usedOption === optionIndex }),
+        items.push({
+          replyId: reply.id,
+          index: optionIndex,
+          text,
+          isUsed: reply.usedOption === optionIndex,
+          mentioned: reply.mentioned,
+        }),
       );
     } else if (reply.reply) {
-      items.push({ replyId: reply.id, index: null, text: reply.reply, isUsed: false });
+      items.push({ replyId: reply.id, index: null, text: reply.reply, isUsed: false, mentioned: reply.mentioned });
     }
   }
 

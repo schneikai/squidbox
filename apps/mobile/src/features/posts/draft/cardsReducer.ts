@@ -1,6 +1,6 @@
 import nextCardKey from './nextCardKey';
 
-import relinkMentions from '@/features/post-mentions/relinkMentions';
+import relinkMentions, { type MentionCandidate } from '@/features/post-mentions/relinkMentions';
 import type { PostCardChange, PostCardData } from '@/features/posts/PostCard';
 
 /**
@@ -14,14 +14,14 @@ export type CardsDraft = {
 
 export type CardsAction =
   | { type: 'updateCard'; key: string; changes: PostCardChange }
-  | { type: 'setCardText'; key: string; text: string }
+  | { type: 'setCardText'; key: string; text: string; mentioned?: readonly MentionCandidate[] }
   | { type: 'addCard' }
   | { type: 'removeCard'; key: string };
 
 /**
  * Edits a post's cards: one card's text, mentions or photos; a card's text written over from
- * elsewhere (`setCardText`, the assistant's Use), its chips kept where their names still stand
- * (relinkMentions); a new card at the end; a following card removed.
+ * elsewhere (`setCardText`, the assistant's Use), its chips kept where their names still stand and
+ * the names of the contacts its turn was told (`mentioned`) made mentions (relinkMentions); a new card at the end; a following card removed.
  */
 export default function cardsReducer(draft: CardsDraft, action: CardsAction): CardsDraft {
   switch (action.type) {
@@ -34,7 +34,7 @@ export default function cardsReducer(draft: CardsDraft, action: CardsAction): Ca
       return {
         ...draft,
         cards: draft.cards.map((card) =>
-          card.key === action.key ? { ...card, text: action.text, mentions: relinkMentions(card, action.text) } : card,
+          card.key === action.key ? { ...card, ...relinkMentions(card, action.text, action.mentioned) } : card,
         ),
       };
     case 'addCard':

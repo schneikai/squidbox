@@ -1,13 +1,17 @@
 import readMentions from './readMentions';
+import type { ListEdits } from './withEdits';
 
 import { MIN_REREAD_INTERVAL } from '@/constants';
 import { schema } from '@/sync/db/client';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
-/** The @handles a post of these assets may mention (readMentions), live; undefined while reading. */
-export default function useMentions(assetIds: string[]) {
+/**
+ * The contacts the chat about these assets may mention, with the Mentions sheet's edits
+ * (`mentionEdits`; readMentions), live; undefined while reading.
+ */
+export default function useMentions(assetIds: string[], mentionEdits: ListEdits | undefined) {
   return useLiveQuery(
-    (db) => readMentions(db, assetIds),
+    async (db) => (mentionEdits ? readMentions(db, assetIds, mentionEdits) : undefined),
     [
       schema.posts,
       schema.postAssets,
@@ -17,7 +21,7 @@ export default function useMentions(assetIds: string[]) {
       schema.contactLinks,
       schema.assets,
     ],
-    [assetIds],
+    [assetIds, mentionEdits],
     { minInterval: MIN_REREAD_INTERVAL },
   );
 }

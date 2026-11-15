@@ -42,17 +42,25 @@ describe('cardsReducer', () => {
     expect(changed.cards.map((card) => card.text)).toEqual(['Sunrise on the ridge', 'Edited']);
   });
 
-  it("relinks a card's chips to a text written over it", () => {
+  it("relinks a card's chips to a text written over it, and links the names its turn was told", () => {
     const draft = draftFromPost({
       ...post,
       text: 'With Maya Lindqvist',
       mentions: [{ contactId: 'maya', location: 5, name: 'Maya Lindqvist' }],
     });
     const key = draft.cards[0]!.key;
-    const next = cardsReducer(draft, { type: 'setCardText', key, text: 'Up the ridge with Maya Lindqvist' });
+    const next = cardsReducer(draft, {
+      type: 'setCardText',
+      key,
+      text: 'Up the ridge with Maya Lindqvist and @Sam Ridge',
+      mentioned: [{ id: 'sam', name: 'Sam Ridge' }],
+    });
     expect(next.cards[0]).toMatchObject({
-      text: 'Up the ridge with Maya Lindqvist',
-      mentions: [{ contactId: 'maya', location: 18, name: 'Maya Lindqvist' }],
+      text: 'Up the ridge with Maya Lindqvist and Sam Ridge',
+      mentions: [
+        { contactId: 'maya', location: 18, name: 'Maya Lindqvist' },
+        { contactId: 'sam', location: 37, name: 'Sam Ridge' },
+      ],
     });
   });
 });
