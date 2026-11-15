@@ -115,6 +115,8 @@ export default function MentionInput({
     selection.removeAllRanges();
     selection.addRange(range);
     root.normalize();
+    // A last line break shows its empty line only with something after it (draw's <br>).
+    if (read(root).text.endsWith('\n') && root.lastChild?.nodeName !== 'BR') root.append(document.createElement('br'));
     changed(root);
   }
 
