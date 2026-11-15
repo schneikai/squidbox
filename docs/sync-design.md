@@ -955,7 +955,8 @@ The assistant works with contacts too: the chat's Mentions are contacts, and a t
 names (`context.mentions`, still `string[]`, so older builds keep sending handles). The assistant
 marks each contact it mentions with the name it was given, `@[Sam Ridge]` (`mentionMarkers` in
 `packages/shared`; the server tells it how in a fixed line after the Writing text, `MENTION_FORMAT`,
-for a request with `readsMentionMarkers` only), and the app makes each marker a chip when the reply lands (`markedText`): the
+while the post has people to mention, for a request with `readsMentionMarkers`; one without it gets
+"Write handles exactly as given." there), and the app makes each marker a chip when the reply lands (`markedText`): the
 chat keeps each answer and idea as a text with its mentions, the shape a post stores, so Use and Copy
 take it as it is and every channel gets the contact's own handle; nothing searches a text for names.
 A marker naming nobody the turn was told, a name two of its contacts share, or a broken one becomes
@@ -1105,7 +1106,8 @@ ideas answered; optional, server 0037, app 0038), templates the server fills in,
 account's override or null for the app's default (the text published for every account in the
 server's `app_instructions`, §12, else `DEFAULT_INSTRUCTIONS` in `packages/shared`; resolved by
 `resolveInstructions`), plus the base columns. A text says what to write; the server adds how to
-answer at its end (the JSON its reply takes, fixed in `apps/server/src/ai/prompts.ts`), so its
+answer at its end, under `# Answer format` (the JSON its reply takes, fixed in
+`apps/server/src/ai/prompts.ts`), so its
 placeholders are data only, and a stored text that still holds the old format lines or `{fields}`
 keeps working. Migrations 0022 (server) and 0024 (app) dropped the
 earlier app prompts (`writingFormat`, `tagsSystem`, `themesContext`, `personaFraming`,
