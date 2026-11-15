@@ -25,14 +25,9 @@ const sendSheet = (page: Page) => page.getByTestId('send-to-channels-sheet');
 const copyCard = (sheet: Locator, channel: string) => sheet.getByLabel(`${channel} copy`, { exact: true });
 const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
 
-test("Copy text asks for which channel, and copies the chip as the contact's handle there", async ({ page }) => {
-  await fromPostMenu(page, CHIP_POST, 'Copy text');
-  await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
-
-  await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @ridgeline.bsky.social 🌲');
-});
-
-test("a post card's copy icon asks like Copy text, and names a contact without a handle there", async ({ page }) => {
+test("a post card's copy icon asks for which channel, names a contact without a handle there, and copies the chip as the contact's handle", async ({
+  page,
+}) => {
   await openTab(page, 'Posts');
   await postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST }).first().click();
   await button(page.getByTestId('post-screen'), 'Copy text').click();

@@ -20,15 +20,17 @@ export type MoreActionProps = {
   post: Pick<PostListRow, 'id' | 'postAssets' | 'threadCount'>;
   beforeDelete?: () => void;
   trigger?: MenuButtonProps['trigger'];
+  // The screen shows the post's card with its copy icon (CopyPostTextButton): the menu leaves Copy text to it.
+  hasCopyIcon?: boolean;
 };
 
 // The post's menu: Share (where canShareFiles, when the post or its thread has photos), Copy text
-// (useCopyPostText), Send to channels (not inside a sheet, where it would open a sheet on a sheet),
+// (useCopyPostText; not where the screen has the card's copy icon, `hasCopyIcon`), Send to channels (not inside a sheet, where it would open a sheet on a sheet),
 // Edit, Repost and Delete (all of a thread's posts and its channel copies), after `beforeDelete` (leaving the screen first, so no screen
 // is open on the post when it goes: none says "This post was deleted"). Its ⋯ on the post screen, or
 // `trigger` (MenuButton's): its card in a list of posts, on a long press. Share reads a thread's
 // following posts when tapped.
-export default function MoreAction({ post, beforeDelete, trigger }: MoreActionProps) {
+export default function MoreAction({ post, beforeDelete, trigger, hasCopyIcon = false }: MoreActionProps) {
   const { deletePost } = usePosts();
   const shareAssetsAsync = useShareAssets();
   const { copyPostText, sheet } = useCopyPostText();
@@ -72,7 +74,7 @@ export default function MoreAction({ post, beforeDelete, trigger }: MoreActionPr
     <>
       <MenuButton accessibilityLabel="Post options" trigger={trigger}>
         {canShareFiles && hasAssets && <MenuOption label="Share" icon="share" onPress={handleShare} />}
-        <MenuOption label="Copy text" icon="copy" onPress={handleCopyText} />
+        {!hasCopyIcon && <MenuOption label="Copy text" icon="copy" onPress={handleCopyText} />}
         {!isInSheet && <MenuOption label="Send to channels" icon="send" onPress={handleSendToChannels} />}
         <MenuOption label="Edit" icon="edit" onPress={handleEditPost} />
         <MenuOption label="Repost" icon="repeat" onPress={handleRepost} />
