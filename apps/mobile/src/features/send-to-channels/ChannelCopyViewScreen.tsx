@@ -1,4 +1,3 @@
-import { channelById } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
@@ -28,12 +27,11 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 export default function ChannelCopyViewScreen() {
   const navigation = useNavigation();
   const { postId, copyId } = useLocalSearchParams<{ postId: string; copyId: string }>();
-  const copy = useLiveQuery((db) => readChannelCopy(db, postId, copyId), channelCopiesTables(postId), [postId, copyId]);
+  const copy = useLiveQuery((db) => readChannelCopy(db, postId, copyId), channelCopiesTables, [postId, copyId]);
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(copy?.posts);
   const { onPressMention, sheet } = useMentionSheet(contactsById);
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
-  const channel = channelById(copy?.channelId);
-  useCloseWhenGone(copy && !channel ? null : copy, 'This copy was deleted');
+  useCloseWhenGone(copy, 'This copy was deleted');
 
   // The parts' ids only key the cards.
   const post = useMemo(() => {
@@ -43,7 +41,8 @@ export default function ChannelCopyViewScreen() {
     return { ...asPost, id: '0', postedAt: null, threadPosts };
   }, [copy]);
 
-  if (!copy || !channel || !areContactsRead) return null;
+  if (!copy || !areContactsRead) return null;
+  const { channel } = copy;
 
   return (
     <Page testID="channel-copy-screen">

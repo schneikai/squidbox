@@ -3,8 +3,8 @@ import type { BrowserContext, Locator, Page } from 'playwright/test';
 import { expect, test } from './fixtures';
 import { allowClipboard, button, clipboard, openPost, postCards, postText, withDialog } from './helpers';
 
-// The mock post that mentions Sam Ridge by chip, with a sent Bluesky copy of its own, an unsent
-// Instagram one that says what the post says (Sam has no Instagram handle) and an untouched X card.
+// The mock post that mentions Sam Ridge by chip, with a sent Bluesky copy he saved, an unsent
+// Instagram one he never saved (Sam has no Instagram handle) and an untouched X card: both follow the post.
 const CHIP_POST = 'Lost in the forest for a day with';
 
 test.beforeEach(async ({ context }: { context: BrowserContext }) => {
@@ -164,7 +164,7 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await expect(button(card, 'Send now')).toBeVisible();
 });
 
-test("a repost starts with the post's changed copies, unsent, and a card for every other channel", async ({ page }) => {
+test("a repost starts with the post's saved copies, unsent, and a card for every other channel", async ({ page }) => {
   const cards = postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST });
   const post = await fromPostMenu(page, CHIP_POST, 'Repost');
   const shown = await cards.count();
@@ -178,7 +178,7 @@ test("a repost starts with the post's changed copies, unsent, and a card for eve
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   const sheet = sendSheet(page);
   for (const channel of CHANNELS) await expect(button(copyCard(sheet, channel), 'Send now')).toBeVisible();
-  // The Bluesky copy has its own text; the Instagram one said what the post says, so it follows the repost.
+  // The Bluesky copy was saved, so the repost starts with its text; the Instagram one follows the repost.
   await expect(copyCard(sheet, 'Bluesky').getByText('A whole day under the trees', { exact: false })).toBeVisible();
   await expect(button(sheet, 'Send all')).toBeVisible();
 });

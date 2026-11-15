@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a64e434f-1e1b-49d3-b4c1-03eae27673bd",
+  "id": "2cff2545-5e0d-432e-8bee-4cbaee2d280c",
   "prevId": "1f49c44c-131e-46f2-bb06-df55122878c7",
   "tables": {
     "ai_kinds": {
@@ -1625,6 +1625,20 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "edited_at": {
+          "name": "edited_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "removed_at": {
+          "name": "removed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -1635,7 +1649,8 @@
             "created_at",
             "id"
           ],
-          "isUnique": false
+          "isUnique": false,
+          "where": "\"post_copies\".\"deleted_at\" is null"
         }
       },
       "foreignKeys": {},

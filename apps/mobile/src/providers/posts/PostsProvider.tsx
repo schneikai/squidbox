@@ -4,7 +4,8 @@ import { type ReactNode, useMemo } from 'react';
 import PostsContext, { type PostsContextValue } from './PostsContext';
 
 import { getDb } from '@/sync/db/client';
-import { addCopyFromPost, createCopy, removeCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
+import type { SyncDb } from '@/sync/db/types';
+import { createCopy, removeCopies, restoreCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
 import { removeThreads, saveThreadPosts, setThreadsPostedAt } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
 import { requestSync } from '@/sync/worker';
@@ -22,6 +23,11 @@ export default function PostsProvider({ children }: PostsProviderProps) {
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo<PostsContextValue>(() => {
     const db = getDb();
+    // One write in a transaction, then a sync.
+    async function written(write: (tx: SyncDb) => Promise<void>): Promise<void> {
+      await db.transaction(write);
+      requestSync();
+    }
     return {
       addPost: async ({ assetRefs: refs = [], threadPosts = [], copies = [], ...fields }) => {
         const post = await db.transaction(async (tx) => {
@@ -53,23 +59,11 @@ export default function PostsProvider({ children }: PostsProviderProps) {
         await db.transaction((tx) => removeThreads(tx, [id]));
         requestSync();
       },
-      // Send to channels' cards, an untouched one stored first as it shows (postCopiesRepository).
-      addPostCopy: async (postId, channelId) => {
-        await db.transaction((tx) => addCopyFromPost(tx, postId, channelId));
-        requestSync();
-      },
-      savePostCopy: async (copy, posts) => {
-        await db.transaction((tx) => updateCopyPosts(tx, copy, posts));
-        requestSync();
-      },
-      removePostCopy: async (copy) => {
-        await db.transaction((tx) => removeCopies(tx, [copy]));
-        requestSync();
-      },
-      setPostCopiesSent: async (copies, sentAt) => {
-        await db.transaction((tx) => setCopiesSent(tx, copies, sentAt));
-        requestSync();
-      },
+      // Send to channels' cards, an untouched one stored with the write (postCopiesRepository).
+      addPostCopy: (postId, channelId) => written((tx) => restoreCopies(tx, postId, channelId)),
+      savePostCopy: (copy, posts) => written((tx) => updateCopyPosts(tx, copy, posts)),
+      removePostCopy: (copy) => written((tx) => removeCopies(tx, [copy])),
+      setPostCopiesSent: (copies, sentAt) => written((tx) => setCopiesSent(tx, copies, sentAt)),
     };
   }, []);
 

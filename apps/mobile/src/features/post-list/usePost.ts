@@ -1,5 +1,4 @@
-import postQuery from '@/sync/queries/postQuery';
-import readPost from '@/sync/queries/readPost';
+import readPost, { readPostTables } from '@/sync/queries/readPost';
 import { useLiveQuery } from '@/sync/useLiveQuery';
 
 /**
@@ -7,5 +6,5 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * read, `null` when it doesn't exist.
  */
 export default function usePost(postId: string) {
-  return useLiveQuery((db) => readPost(db, postId), postQuery({ scope: { postId } }).tables, [postId]);
+  return useLiveQuery((db) => readPost(db, postId), readPostTables, [postId]);
 }

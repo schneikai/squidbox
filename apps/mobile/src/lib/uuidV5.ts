@@ -1,7 +1,8 @@
 /**
  * The RFC 4122 §4.3 name-based uuid (version 5) of `name` (UTF-8) under `namespace` (a uuid): the
  * same name and namespace give the same id on every device. Stored data can depend on it, so it must
- * stay the RFC value (pinned by the RFC's example in the tests).
+ * stay the RFC value (pinned by RFC 9562's example in test/uuidV5.test.ts). Not react-native-uuid's
+ * `v5`, which is in the app's dependencies: it gets the vectors pinned there wrong.
  */
 export default function uuidV5(name: string, namespace: string): string {
   const namespaceHex = namespace.replace(/-/g, '');

@@ -211,7 +211,8 @@ export const channels = sqliteTable('channels', {
 export type ChannelRow = typeof channels.$inferSelect;
 
 // A post as it goes to one channel (mirror @squidbox/shared post_copies): its posts in thread order,
-// JSON text (`{ text, mentions, assetIds }`s) that merges as one value, and when it was sent.
+// JSON text (`{ text, mentions, assetIds }`s) that merges as one value, when it was sent, when the
+// user last saved it (`editedAt`) and when they took the channel off the post (`removedAt`).
 export const postCopies = sqliteTable(
   'post_copies',
   {
@@ -223,11 +224,14 @@ export const postCopies = sqliteTable(
     channelId: text('channel_id').notNull(),
     sentAt: integer('sent_at'),
     posts: text('posts', { mode: 'json' }).$type<PostCopyPost[]>().notNull(),
+    editedAt: integer('edited_at'),
+    removedAt: integer('removed_at'),
   },
   (t) => [
-    // A post's copies, live and removed (readPostCopies, readRemovedChannelIds, removeCopiesOf): over
-    // every row, since a removed copy is a removed channel the sheet reads too.
-    index('post_copies_post_idx').on(t.postId, t.createdAt, t.id),
+    // A post's copies (readPostCopies, removeCopiesOf).
+    index('post_copies_post_idx')
+      .on(t.postId, t.createdAt, t.id)
+      .where(sql`${t.deletedAt} is null`),
   ],
 );
 export type PostCopyRow = typeof postCopies.$inferSelect;

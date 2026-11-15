@@ -1,4 +1,3 @@
-import type { Channel } from '@squidbox/shared';
 import { Text as RNText, StyleSheet, View } from 'react-native';
 
 import channelPayload from './channelPayload';
@@ -20,7 +19,6 @@ import type { ChannelCopy } from '@/sync/queries/readChannelCopies';
 
 type ChannelCopyCardProps = {
   copy: ChannelCopy;
-  channel: Pick<Channel, 'id' | 'name' | 'handleField'>;
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention: (contactId: string) => void;
   onOpen: () => void;
@@ -40,7 +38,6 @@ type ChannelCopyCardProps = {
  */
 export default function ChannelCopyCard({
   copy,
-  channel,
   contactsById,
   onPressMention,
   onOpen,
@@ -49,6 +46,7 @@ export default function ChannelCopyCard({
   onRemove,
   onMarkNotSent,
 }: ChannelCopyCardProps) {
+  const { channel } = copy;
   const [first] = copy.posts;
   const [asset, ...more] = first?.assets ?? [];
   const isSent = copy.sentAt !== null;

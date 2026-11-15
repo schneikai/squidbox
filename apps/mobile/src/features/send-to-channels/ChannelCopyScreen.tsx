@@ -1,4 +1,3 @@
-import { channelById, type Channel, type PostCopyPost } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useReducer } from 'react';
 
@@ -6,7 +5,7 @@ import copyAsPost from './copyAsPost';
 
 import EditSheet from '@/components/EditSheet';
 import PostCards from '@/features/posts/PostCards';
-import cardsReducer, { type CardsDraft } from '@/features/posts/draft/cardsReducer';
+import cardsReducer from '@/features/posts/draft/cardsReducer';
 import draftFromPost, { type CardsSeed } from '@/features/posts/draft/draftFromPost';
 import hasCardContent from '@/features/posts/draft/hasCardContent';
 import useEditSheet from '@/hooks/useEditSheet';
@@ -14,16 +13,17 @@ import useSeedOrClose from '@/hooks/useSeedOrClose';
 import usePosts from '@/providers/posts/usePosts';
 import type { SyncDb } from '@/sync/db/types';
 import { readChannelCopy, type ChannelCopy } from '@/sync/queries/readChannelCopies';
+import postAsCopyPosts from '@/utils/posts/postAsCopyPosts';
 
-// What the composer opens on: the card's channel, its posts as cards, and the card itself.
-type CopySeed = { channel: Channel; post: CardsSeed; copy: ChannelCopy };
+// What the composer opens on: the card, and its posts as cards.
+type CopySeed = { copy: ChannelCopy; post: CardsSeed };
 
 /**
  * A channel copy's composer, pushed in the Send to channels sheet: the post composer's cards
  * (PostCards) with the channel's limits and handles, Add to thread only where the channel has
- * threads. It opens on the card as it shows (an untouched card shows the post and its thread). Save
- * stores it as the channel's own copy and goes back to the list, a sent or removed copy refusing the
- * save with its reason.
+ * threads. It opens on the card as it shows (one that follows the post shows the post and its
+ * thread). Save stores it as the channel's own copy and goes back to the list, a sent or removed copy
+ * refusing the save with its reason.
  */
 export default function ChannelCopyScreen() {
   const { postId, copyId } = useLocalSearchParams<{ postId: string; copyId: string }>();
@@ -39,10 +39,11 @@ type CopyComposerProps = { seed: CopySeed };
 function CopyComposer({ seed }: CopyComposerProps) {
   const { savePostCopy } = usePosts();
   const [draft, dispatch] = useReducer(cardsReducer, seed.post, draftFromPost);
-  const { channel, copy } = seed;
-  const seedPosts = useMemo(() => JSON.stringify(copyPosts(draftFromPost(seed.post))), [seed.post]);
+  const { copy } = seed;
+  const { channel } = copy;
+  const seedPosts = useMemo(() => JSON.stringify(postAsCopyPosts(draftFromPost(seed.post).cards)), [seed.post]);
   // Worked out once per change of the cards, not on every render.
-  const posts = useMemo(() => copyPosts(draft), [draft]);
+  const posts = useMemo(() => postAsCopyPosts(draft.cards), [draft]);
   const isDirty = useMemo(() => JSON.stringify(posts) !== seedPosts, [posts, seedPosts]);
 
   const { sheetProps } = useEditSheet({
@@ -65,19 +66,8 @@ function CopyComposer({ seed }: CopyComposerProps) {
   );
 }
 
-// The copy's posts as the record holds them, from its cards.
-function copyPosts({ cards }: Pick<CardsDraft, 'cards'>): PostCopyPost[] {
-  return cards.map(({ text, mentions, postAssets }) => ({
-    text,
-    mentions,
-    assetIds: postAssets.map((postAsset) => postAsset.asset.id),
-  }));
-}
-
 async function readSeed(db: SyncDb, postId: string, copyId: string): Promise<CopySeed | null> {
   const copy = await readChannelCopy(db, postId, copyId);
-  const channel = channelById(copy?.channelId);
-  if (!copy || !channel) return null;
-  const post = copyAsPost(copy);
-  return post && { channel, copy, post };
+  const post = copy && copyAsPost(copy);
+  return post ? { copy, post } : null;
 }

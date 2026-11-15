@@ -7,8 +7,6 @@ import { inJson } from './inJson';
 import { removeCopiesOf } from './postCopiesRepository';
 import * as posts from './postsRepository';
 
-import sameMentions from '@/utils/posts/sameMentions';
-
 // A post's thread (sync-design §10): its following posts are posts of their own, linked to the first
 // post by `threadRootId` and ordered by `(threadIndex, id)`. Every function writes inside the caller's
 // transaction, so a user action commits the first post and its following posts at once.
@@ -115,4 +113,9 @@ async function removePosts(tx: SyncDb, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   await posts.remove(tx, ids);
   await posts.postEdges.tombstoneParents(tx, ids);
+}
+
+/** Whether two mention lists are the same, in order (null and [] alike: none). */
+function sameMentions(a: PostMention[] | null | undefined, b: PostMention[] | null | undefined): boolean {
+  return JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
 }

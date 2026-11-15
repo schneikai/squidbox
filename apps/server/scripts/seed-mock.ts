@@ -5,8 +5,8 @@
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky (his channels: Bluesky, then X and
  * Instagram, each with a card on every post in Send to channels; two posts mention a friend by chip, no
- * post types a handle, and the forest post has its own copies for Bluesky, sent, and Instagram, and
- * follows the post on X), the people he shoots and
+ * post types a handle, and the forest post has his own Bluesky copy, sent, and an unsent Instagram copy
+ * and an X card that follow the post), the people he shoots and
  * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
@@ -49,7 +49,6 @@ import {
   type PushResponse,
 } from '@squidbox/shared';
 import { MOCK_PERSONA, PROFILE_LINK } from '../src/ai/mockPersona.js';
-import { mockCopyResets } from './mockCopyResets.js';
 
 const API_URL = process.env.MOCK_API_URL ?? `http://localhost:${process.env.PORT ?? 3100}/api/v1`;
 const email = process.env.SEED_USER_EMAIL;
@@ -134,8 +133,14 @@ const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
 // `thread`: the posts that follow this one in its thread, each with its own text and photos.
 // `mention`: the contact (CONTACTS index) whose name in the text is a chip.
 type MockPostPart = { text: string; media: number[]; mention?: number; thread?: { text: string; media: number[] }[] };
-// A post's copy for one of his channels, `sentDaysAgo` null while unsent; its posts in thread order.
-type MockCopy = { channelId: string; sentDaysAgo: number | null; posts: { text: string; media: number[] }[] };
+// A post's copy for one of his channels, `sentDaysAgo` null while unsent, `edited` when he saved it in
+// its composer; its posts in thread order.
+type MockCopy = {
+  channelId: string;
+  sentDaysAgo: number | null;
+  edited?: boolean;
+  posts: { text: string; media: number[] }[];
+};
 const POSTS: (MockPostPart & {
   postedDaysAgo: number | null;
   isFavorite?: boolean;
@@ -156,6 +161,7 @@ const POSTS: (MockPostPart & {
       {
         channelId: 'bluesky',
         sentDaysAgo: 32,
+        edited: true,
         posts: [
           { text: 'A whole day under the trees with Sam Ridge. Best shots below 🌲', media: [14, 15] },
           { text: 'And the light on the way out.', media: [17, 32] },
@@ -438,12 +444,14 @@ const postAssets: PostAssetRecord[] = [
   }));
 });
 
-// The posts' own copies for his channels (a card without one follows the post), each post with the
-// parent's chip where its name stands. They keep their mock ids; the app's copies of a mock post are
-// put back to untouched cards by mockCopyResets.
+// The posts' copies for his channels (a channel without one gets a card that follows the post), each
+// post with the parent's chip where its name stands: one he saved in its composer (`edited`) is his
+// own, an unsent one he didn't follows the post.
 const postCopies: PostCopyRecord[] = POSTS.flatMap(({ copies = [], mention }, index) =>
-  copies.map(({ channelId, sentDaysAgo, posts: parts }, j) => ({
+  copies.map(({ channelId, sentDaysAgo, edited = false, posts: parts }, j) => ({
     ...baseRecord(`post:${index}:copy:${channelId}`, posts[index]!.createdAt + j),
+    editedAt: edited ? posts[index]!.createdAt + j : null,
+    removedAt: null,
     postId: posts[index]!.id,
     channelId,
     sentAt: sentDaysAgo === null ? null : now - sentDaysAgo * DAY,
@@ -690,9 +698,7 @@ function toMutations(recordsByCollection: Record<string, object[]>): PushMutatio
 
 async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>): Promise<PushMutation[]> {
   const keepIds = new Set(Object.values(keep).flatMap((records) => records.map((r) => r.id)));
-  const keptPostIds = new Set((keep.posts ?? []).map((post) => post.id));
   const tombstones: PushMutation[] = [];
-  const copies: Parameters<typeof mockCopyResets>[0] = [];
   let cursor = 0;
   let hasMore = true;
   while (hasMore) {
@@ -701,11 +707,6 @@ async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>)
       // Only the collections the mock data set makes: any other stays as it is.
       if (!(collection in keep)) continue;
       for (const record of records) {
-        // A mock post's copies are reset by mockCopyResets.
-        if (collection === 'post_copies' && keptPostIds.has(record.postId as string)) {
-          copies.push(record as (typeof copies)[number]);
-          continue;
-        }
         if (keepIds.has(record.id as string) || record.deletedAt) continue;
         tombstones.push({ collection, record: { ...record, deletedAt: now, updatedAt: now } });
       }
@@ -713,7 +714,7 @@ async function tombstonesForOtherRecords(keep: Record<string, { id: string }[]>)
     cursor = page.cursor;
     hasMore = page.hasMore;
   }
-  return [...tombstones, ...mockCopyResets(copies, keepIds, keptPostIds, now)];
+  return tombstones;
 }
 
 async function push(mutations: PushMutation[]): Promise<void> {

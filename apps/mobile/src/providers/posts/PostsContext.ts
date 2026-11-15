@@ -14,8 +14,8 @@ export type PostFields = Partial<PostRecord> & {
 // The post an editor was seeded with: what a changed photo list or thread is saved over.
 export type PostSeed = Pick<PostFields, 'assetRefs' | 'threadPosts'>;
 
-// A channel copy as a repost starts with it (post_copies): its channel and its posts.
-export type PostCopyFields = Pick<PostCopyRecord, 'channelId' | 'posts'>;
+// A channel copy as a repost starts with it (post_copies): its channel, its posts and when it was saved.
+export type PostCopyFields = Pick<PostCopyRecord, 'channelId' | 'posts' | 'editedAt'>;
 
 export type PostsContextValue = {
   addPost: (fields: PostFields & { copies?: PostCopyFields[] }) => Promise<PostRecord & { assetRefs: AssetRef[] }>;
