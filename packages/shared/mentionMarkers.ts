@@ -29,11 +29,16 @@ function key(name: string): string {
  * each: when a `]` follows with no `[` or line break before it, at most CONTACT_LIMITS.name on, and
  * its key is one of `names`, that name as given stands there with a mark (an added @ goes with it);
  * with no such name the inner text, trimmed, stays as plain text; a broken one loses only its `@[`.
- * Any other `@[` stays as written. Marks are at their places in the returned text.
+ * Any other `@[` stays as written. Marks are at their places in the returned text; `unmatched` holds
+ * the inner text of each whole marker that named nobody given.
  */
-function read(text: string, names: ReadonlyMap<string, string>): { text: string; marks: MentionMark[] } {
+function read(
+  text: string,
+  names: ReadonlyMap<string, string>,
+): { text: string; marks: MentionMark[]; unmatched: string[] } {
   let result = '';
   const marks: MentionMark[] = [];
+  const unmatched: string[] = [];
   let at = 0;
   for (let open = text.indexOf(OPEN); open >= 0; open = text.indexOf(OPEN, Math.max(at, open + 1))) {
     const hasAddedAt = text[open - 1] === '@' && !IN_WORD.test(text[open - 2] ?? '');
@@ -53,10 +58,11 @@ function read(text: string, names: ReadonlyMap<string, string>): { text: string;
       result += name;
     } else {
       result += inner.trim();
+      unmatched.push(inner);
     }
     at = close + CLOSE.length;
   }
-  return { text: result + text.slice(at), marks };
+  return { text: result + text.slice(at), marks, unmatched };
 }
 
 // Where the marker opened at `start` closes: the first `]`, when nothing a name never holds comes

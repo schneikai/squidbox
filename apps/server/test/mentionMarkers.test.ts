@@ -11,13 +11,15 @@ describe('mentionMarkers', () => {
         { location: 5, name: 'Sam Ridge' },
         { location: 19, name: 'Maya' },
       ],
+      unmatched: [],
     });
   });
 
-  it('leaves a marker of a name not given as plain text, with no mark', () => {
+  it('leaves a marker of a name not given as plain text, with no mark, and says it named nobody', () => {
     expect(mentionMarkers.read('With @[ Nobody Here ] today', NAMES)).toEqual({
       text: 'With Nobody Here today',
       marks: [],
+      unmatched: [' Nobody Here '],
     });
   });
 
@@ -25,6 +27,7 @@ describe('mentionMarkers', () => {
     expect(mentionMarkers.read('With @[Sam Ridge\nand] more', NAMES)).toEqual({
       text: 'With Sam Ridge\nand] more',
       marks: [],
+      unmatched: [],
     });
   });
 
@@ -32,6 +35,7 @@ describe('mentionMarkers', () => {
     expect(mentionMarkers.read('With @[Sam and [later] on', NAMES)).toEqual({
       text: 'With Sam and [later] on',
       marks: [],
+      unmatched: [],
     });
   });
 
@@ -39,11 +43,12 @@ describe('mentionMarkers', () => {
     expect(mentionMarkers.read('with @[sam   ridge]', NAMES)).toEqual({
       text: 'with Sam Ridge',
       marks: [{ location: 5, name: 'Sam Ridge' }],
+      unmatched: [],
     });
   });
 
   it('takes an @ written before a marker or inside it as part of it', () => {
-    const chip = { text: 'With Sam Ridge', marks: [{ location: 5, name: 'Sam Ridge' }] };
+    const chip = { text: 'With Sam Ridge', marks: [{ location: 5, name: 'Sam Ridge' }], unmatched: [] };
     expect(mentionMarkers.read('With @@[Sam Ridge]', NAMES)).toEqual(chip);
     expect(mentionMarkers.read('With @[@Sam Ridge]', NAMES)).toEqual(chip);
   });
@@ -52,6 +57,7 @@ describe('mentionMarkers', () => {
     expect(mentionMarkers.read('frames@[3] and a@@[Maya]', NAMES)).toEqual({
       text: 'frames@[3] and a@@[Maya]',
       marks: [],
+      unmatched: [],
     });
     expect(mentionMarkers.strip('frames@[3]')).toBe('frames@[3]');
   });
