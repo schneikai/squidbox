@@ -60,15 +60,15 @@ export async function readNewestRepostDate(db: SyncDb): Promise<number> {
 const MENTION_POSTS = 100;
 
 // The mention read takes a thread's following posts too: a contact the user mentioned in one is still
-// a contact they mentioned. It gives a post's text and its mentions (its chips), and the chat finds
-// the contacts of both (mentionedContactIds).
+// a contact they mentioned. It reads only posts with mentions (chips), and gives each one's text and
+// mentions: the chat finds the contacts of its chips (mentionedContactIds); a typed @handle is text.
 
 /** A post's text and mentions, as the mention reads give them. */
 export type MentionTextRow = { text: string; mentions: schema.PostRow['mentions'] };
 
 /**
- * The texts and mentions of the live posts whose assets share a live album with `assetIds` (through
- * live edges), newest post date first, at most MENTION_POSTS: where the chat finds the contacts the
+ * The texts and mentions of the live posts with mentions whose assets share a live album with
+ * `assetIds` (through live edges), newest post date first, at most MENTION_POSTS: where the chat finds the contacts the
  * user mentions in posts like the one they write. None without an album or one never posted from: the
  * library's other posts are about other people.
  */
@@ -79,7 +79,7 @@ export async function readMentionTexts(db: SyncDb, assetIds: string[]): Promise<
     .select({ text: p.text, mentions: p.mentions })
     .from(p)
     .where(
-      sql`${p.deletedAt} is null and ${p.id} in (select pe.post_id from post_assets pe
+      sql`${p.deletedAt} is null and ${p.mentions} is not null and ${p.id} in (select pe.post_id from post_assets pe
         where pe.deleted_at is null and pe.asset_id in ${albumAssetIdsOf(assetIds)})`,
     )
     .orderBy(sql`${p.postedAt} desc, ${p.id} desc`)

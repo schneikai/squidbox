@@ -42,6 +42,9 @@ describe('postsRepository', () => {
   describe('readMentionTexts', () => {
     const texts = async (db: SyncDb, assetIds: string[]) =>
       (await readMentionTexts(db, assetIds)).map((row) => row.text);
+    // A post with one chip, on `assetIds`.
+    const chipPost = (db: SyncDb, over: Partial<PostRecord>, assetIds: string[]) =>
+      createPost(db, { mentions: [{ contactId: 'sam', location: 0, name: 'Sam' }], ...over }, assetIds);
 
     // Album "walks" holds a1 (the draft's photo) and a2; a3 is in no album.
     async function library() {
@@ -56,29 +59,38 @@ describe('postsRepository', () => {
       return db;
     }
 
-    it("reads the posts of the assets' albums, newest first", async () => {
+    it("reads the posts with chips of the assets' albums, newest first", async () => {
       const db = await library();
-      await createPost(db, { id: 'p1', text: 'older, with @ridge', postedAt: 10 }, ['a2']);
-      await createPost(db, { id: 'p2', text: 'newer', postedAt: 20 }, ['a1']);
-      await createPost(db, { id: 'p3', text: 'not in the album', postedAt: 30 }, ['a3']);
-      await createPost(db, { id: 'p4', text: 'deleted', postedAt: 40, deletedAt: 41 }, ['a2']);
-      await createPost(db, { id: 'p5', text: 'only in a deleted album', postedAt: 50 }, ['a4']);
-      expect(await texts(db, ['a1'])).toEqual(['newer', 'older, with @ridge']);
+      await chipPost(db, { id: 'p1', text: 'Sam, older', postedAt: 10 }, ['a2']);
+      await chipPost(db, { id: 'p2', text: 'Sam, newer', postedAt: 20 }, ['a1']);
+      await createPost(db, { id: 'p6', text: 'no chip, with @ridge', postedAt: 25 }, ['a1']);
+      await chipPost(db, { id: 'p3', text: 'not in the album', postedAt: 30 }, ['a3']);
+      await chipPost(db, { id: 'p4', text: 'deleted', postedAt: 40, deletedAt: 41 }, ['a2']);
+      await chipPost(db, { id: 'p5', text: 'only in a deleted album', postedAt: 50 }, ['a4']);
+      expect(await texts(db, ['a1'])).toEqual(['Sam, newer', 'Sam, older']);
     });
 
     it('skips a post whose edge to the album asset was removed, and an asset taken out of the album', async () => {
       const db = await library();
-      await createPost(db, { id: 'p1', text: 'edge removed', postedAt: 10 }, ['a2']);
+      await chipPost(db, { id: 'p1', text: 'edge removed', postedAt: 10 }, ['a2']);
       await db.update(schema.postAssets).set({ deletedAt: 5 });
-      await createPost(db, { id: 'p2', text: 'asset left the album', postedAt: 20 }, ['a1']);
+      await chipPost(db, { id: 'p2', text: 'asset left the album', postedAt: 20 }, ['a1']);
       await db.update(schema.albumAssets).set({ deletedAt: 5 });
       expect(await texts(db, ['a1'])).toEqual([]);
     });
 
+    it('finds a chip post behind more newer posts without chips than it reads', async () => {
+      const db = await library();
+      await chipPost(db, { id: 'p0', text: 'Sam, long ago', postedAt: 1 }, ['a2']);
+      // MENTION_POSTS newer posts without a chip.
+      for (let i = 1; i <= 100; i++) await createPost(db, { id: `p${i}`, text: 'no chip', postedAt: 10 + i }, ['a2']);
+      expect(await texts(db, ['a1'])).toEqual(['Sam, long ago']);
+    });
+
     it("reads no posts without an album posted from: the library's others are about other people", async () => {
       const db = await library();
-      await createPost(db, { id: 'p1', text: 'with @other', postedAt: 10 }, ['a3']);
-      await createPost(db, { id: 'p2', text: 'with @someone', postedAt: 20 });
+      await chipPost(db, { id: 'p1', text: 'with @other', postedAt: 10 }, ['a3']);
+      await chipPost(db, { id: 'p2', text: 'with @someone', postedAt: 20 }, []);
       expect(await texts(db, ['a3'])).toEqual([]);
       expect(await texts(db, ['a1'])).toEqual([]);
       expect(await texts(db, [])).toEqual([]);
