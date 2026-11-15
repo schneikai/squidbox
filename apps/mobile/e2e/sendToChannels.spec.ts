@@ -79,12 +79,16 @@ test("a copy warns about a contact without a handle there until Add handle, and 
 });
 
 test("a repost starts with the post's copies, unsent", async ({ page }) => {
+  const cards = postCards(page.getByTestId('posts-screen')).filter({ hasText: CHIP_POST });
   const post = await fromPostMenu(page, CHIP_POST, 'Repost');
+  const shown = await cards.count();
   const editor = page.getByTestId('post-editor');
   await button(editor, 'Add').click();
   await expect(editor).toBeHidden();
   await button(post, 'Back').click();
 
+  // The repost is in the list (the newest) before it is opened.
+  await expect(cards).toHaveCount(shown + 1);
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   const sheet = sendSheet(page);
   for (const channel of ['Bluesky', 'Instagram']) {
