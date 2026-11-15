@@ -12,8 +12,6 @@ type MentionRunsProps = {
   channel?: Pick<Channel, 'handleField'>;
   /** A tap on a live contact's chip; without it chips take none. */
   onPressMention?: (contactId: string) => void;
-  /** The size of the text the runs stand in (MentionChip's). */
-  size?: 'regular' | 'small';
 };
 
 /**
@@ -22,7 +20,7 @@ type MentionRunsProps = {
  * shows its stored name and takes no tap. MentionText wraps them in reading text; a card or bubble
  * puts them in its own.
  */
-export default function MentionRuns({ value, contactsById, channel, onPressMention, size }: MentionRunsProps) {
+export default function MentionRuns({ value, contactsById, channel, onPressMention }: MentionRunsProps) {
   const parts = mentionParts(value.text, value.mentions);
 
   return (
@@ -36,7 +34,6 @@ export default function MentionRuns({ value, contactsById, channel, onPressMenti
             label={mentionLabel(part.mention, contactsById, channel)}
             contact={contact ?? { name: part.mention.name }}
             onPress={contact && onPressMention ? () => onPressMention(contact.id) : undefined}
-            size={size}
           />
         );
       })}

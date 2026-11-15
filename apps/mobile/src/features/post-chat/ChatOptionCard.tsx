@@ -28,10 +28,10 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
 
 /**
  * The option `index` of the reply `replyId`: its text with its mentions (`value`, each a chip that
- * takes no tap: the card has its own buttons) with a copy icon (CopyPostTextButton), ⋯ → More like this (`onMoreLikeThis(text)`, its plain text, when given: the
- * chat's, not the tray's), and Use (`onUse(replyId,
- * index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and the
- * card outlined. style is for layout only.
+ * takes no tap: the card has its own buttons) with a copy icon (CopyPostTextButton), ⋯ → More like
+ * this (`onMoreLikeThis(text)`, its plain text, when given: the chat's, not the tray's), and Use
+ * (`onUse(replyId, index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and
+ * the card outlined. style is for layout only.
  */
 function ChatOptionCard({
   value,
@@ -46,7 +46,7 @@ function ChatOptionCard({
 }: ChatOptionCardProps) {
   return (
     <OptionCard
-      text={<MentionRuns value={value} contactsById={contactsById} size={textSize} />}
+      text={<MentionRuns value={value} contactsById={contactsById} />}
       textSize={textSize}
       isUsed={isUsed}
       style={style}

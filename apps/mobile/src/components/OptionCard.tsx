@@ -6,7 +6,7 @@ import Text from '@/components/Text';
 import { colors, space } from '@/styles/designTokens';
 
 export type OptionCardProps = {
-  /** What stands in its text: a string, or runs with chips (MentionRuns). */
+  /** What stands in its text: a string, or inline nodes. */
   text: ReactNode;
   textSize?: 'regular' | 'small';
   isUsed?: boolean;

@@ -123,6 +123,7 @@ export default function PostCards({
                       target={card.key}
                       ideas={index === 0 ? ideas : null}
                       settings={settings}
+                      contactsById={contactsById}
                       style={style}
                     />
                   )

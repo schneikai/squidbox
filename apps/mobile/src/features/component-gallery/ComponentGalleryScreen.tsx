@@ -62,6 +62,8 @@ const CATEGORIES = ['Toolbars', 'Buttons', 'Surfaces', 'Lists', 'Inputs', 'Text'
 type Category = (typeof CATEGORIES)[number];
 
 const noop = () => {};
+// The ideas' chips mention no live contact: each draws its stored name.
+const NO_CONTACTS = new Map();
 
 // Tags a viewer can take off one by one; Add brings them back.
 const GALLERY_TAGS = ['Hiking', 'Sunrise', 'Coast'];
@@ -84,7 +86,7 @@ const WRITING_RUN: IdeasRun = {
 const IDEAS_RUN: IdeasRun = {
   ...WRITING_RUN,
   isWriting: false,
-  // One idea mentions a contact: a chip of no live contact draws its stored name.
+  // One idea mentions a contact.
   items: [
     { text: 'Golden hour on the ridge. Worth the 5 am start, every single time.', mentions: null },
     {
@@ -264,12 +266,26 @@ export default function ComponentGalleryScreen() {
         </Specimen>
         <Specimen name="AssistantTray: writing">
           <AssistantTray title="Writing ideas…" isWorking trailing={CHAT_CHIP} style={styles.fill}>
-            <IdeasCarousel run={WRITING_RUN} onUse={null} onMore={noop} onRetry={noop} isBusy />
+            <IdeasCarousel
+              run={WRITING_RUN}
+              contactsById={NO_CONTACTS}
+              onUse={null}
+              onMore={noop}
+              onRetry={noop}
+              isBusy
+            />
           </AssistantTray>
         </Specimen>
         <Specimen name="AssistantTray: ideas">
           <AssistantTray title="Ideas" trailing={CHAT_CHIP} style={styles.fill}>
-            <IdeasCarousel run={IDEAS_RUN} onUse={noop} onMore={noop} onRetry={noop} isBusy={false} />
+            <IdeasCarousel
+              run={IDEAS_RUN}
+              contactsById={NO_CONTACTS}
+              onUse={noop}
+              onMore={noop}
+              onRetry={noop}
+              isBusy={false}
+            />
           </AssistantTray>
         </Specimen>
         <Specimen name="OptionCard">

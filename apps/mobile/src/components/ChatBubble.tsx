@@ -8,9 +8,9 @@ import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
 export type ChatBubbleProps = {
   side: 'user' | 'assistant';
   label?: string | null;
-  /** What stands in its text: a string, or runs with chips (MentionRuns). */
+  /** What stands in its text: a string, or inline nodes. */
   text: ReactNode;
-  /** Its copy icon (CopyTextButton, CopyPostTextButton), under it. */
+  /** Its copy button, under it. */
   copy?: ReactNode;
   children?: ReactNode;
 };

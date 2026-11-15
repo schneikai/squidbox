@@ -80,11 +80,9 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   const bottomInset = useKeyboardInset();
   const { messages, targets, activeTarget } = chat;
   // The contacts the replies' chips mention, read once for all of them.
-  const replyTexts = useMemo(
-    () => messages.flatMap((message) => (isReply(message) ? [message.reply, ...message.postOptions] : [])),
-    [messages],
+  const { contactsById } = useMentionedContacts(
+    messages.flatMap((message) => (isReply(message) ? [message.reply, ...message.postOptions] : [])),
   );
-  const { contactsById } = useMentionedContacts(replyTexts);
 
   // A new turn or a reply that landed: show the end of the chat once it's laid out.
   useEffect(() => {

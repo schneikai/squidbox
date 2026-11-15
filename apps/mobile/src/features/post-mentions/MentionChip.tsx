@@ -1,9 +1,11 @@
+import { useContext } from 'react';
 import { Platform, Pressable, Text as RNText, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { mentionChipBox } from './mentionChipStyle';
 
+import TextMetricsContext from '@/components/TextMetricsContext';
 import ContactAvatar, { type ContactAvatarProps } from '@/features/contact-avatar/ContactAvatar';
-import { colors, press, textStyles } from '@/styles/designTokens';
+import { colors, press } from '@/styles/designTokens';
 
 type MentionChipProps = {
   label: string;
@@ -11,8 +13,6 @@ type MentionChipProps = {
   contact: ContactAvatarProps['contact'];
   /** Without it the chip takes no tap (a list row's card is the press target, a deleted contact). */
   onPress?: () => void;
-  /** The size of the text it sits in: `reading` text, or its small size (subheadline, an idea's card). */
-  size?: 'regular' | 'small';
 };
 
 // The system font's capitals for its size (UIFont.capHeight / pointSize).
@@ -29,21 +29,18 @@ function iosDrop(chipHeight: number, fontSize: number, lineHeight: number) {
   return (chipHeight - fontSize * CAP_HEIGHT) / 2 - (lineHeight - chipHeight) / 2 - fontSize * IOS_LIFT;
 }
 
-// The text style a chip of each size sits in.
-const TEXT_STYLES = { regular: textStyles.reading, small: textStyles.subheadline };
-
 /**
  * A mention in read-only text (MentionText, MentionRuns): the contact's round avatar (ContactAvatar)
  * and the label on a muted pill, the look and measures of the native field's chips
- * (mentionChipStyle), so a text reads the same written and shown. It sits in a line of text of its
- * `size`.
+ * (mentionChipStyle), so a text reads the same written and shown. It sits in a line of text, sized by
+ * it (TextMetricsContext).
  */
-export default function MentionChip({ label, contact, onPress, size = 'regular' }: MentionChipProps) {
+export default function MentionChip({ label, contact, onPress }: MentionChipProps) {
   // The text around the chip grows with the phone's text size setting, so the chip does too.
   const { fontScale } = useWindowDimensions();
+  const textMetrics = useContext(TextMetricsContext);
 
-  const textStyle = TEXT_STYLES[size];
-  const fontSize = textStyle.fontSize * fontScale;
+  const fontSize = textMetrics.fontSize * fontScale;
   const box = mentionChipBox(fontSize);
   const boxStyle = {
     height: box.height,
@@ -53,7 +50,7 @@ export default function MentionChip({ label, contact, onPress, size = 'regular' 
     borderRadius: box.radius,
     transform:
       Platform.OS === 'ios'
-        ? [{ translateY: iosDrop(box.height, fontSize, textStyle.lineHeight * fontScale) }]
+        ? [{ translateY: iosDrop(box.height, fontSize, textMetrics.lineHeight * fontScale) }]
         : undefined,
   };
 
@@ -67,7 +64,7 @@ export default function MentionChip({ label, contact, onPress, size = 'regular' 
     >
       {/* The chip is read as its label: the avatar says nothing of its own. */}
       <ContactAvatar contact={contact} size={box.avatar} isDecorative />
-      <RNText style={[styles.label, size === 'small' && styles.smallLabel]} numberOfLines={1}>
+      <RNText style={[styles.label, { fontSize: textMetrics.fontSize }]} numberOfLines={1}>
         {label}
       </RNText>
     </Pressable>
@@ -80,12 +77,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background.muted,
   },
-  // Its size grows with the text size setting by itself, as the text around it.
+  // Its size (the text's) grows with the text size setting by itself, as the text around it.
   label: {
-    fontSize: textStyles.reading.fontSize,
     color: colors.text.primary,
-  },
-  smallLabel: {
-    fontSize: textStyles.subheadline.fontSize,
   },
 });
