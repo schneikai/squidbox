@@ -24,7 +24,7 @@ type CopyTextSheetProps = {
 export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextSheetProps) {
   return (
     <BottomSheet isVisible onClose={onClose} title="Copy text for">
-      <Section isFlat>
+      <Section>
         {choices.map((choice) => (
           <Row
             key={choice.channel.id}

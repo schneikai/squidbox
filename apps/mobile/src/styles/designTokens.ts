@@ -152,6 +152,10 @@ function litEdge(light: string, shade: string) {
 }
 
 export const shadows = {
+  // No shadow: a card on a sheet's white surface (Card inside a BottomSheet).
+  none: {
+    boxShadow: 'none',
+  },
   // Floating UI (toolbars, popovers): a wide, very soft shadow, as if lit softly from above
   floating: {
     boxShadow: `0 16px 56px ${alpha(palette.black, 0.12)}, 0 2px 12px ${alpha(palette.black, 0.06)}`,

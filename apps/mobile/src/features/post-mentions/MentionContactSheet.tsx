@@ -29,14 +29,14 @@ export default function MentionContactSheet({ contact, onClose, onOpenContact }:
           <View style={styles.avatar}>
             <ContactAvatar contact={contact} size="hero" />
           </View>
-          <Section isFlat>
+          <Section>
             {CONTACT_HANDLES.map(({ field, label }) => {
               const handle = mentionHandle(contact, field);
               return <Row key={field} label={label} value={handle ? `@${handle}` : 'No handle'} />;
             })}
           </Section>
           {onOpenContact && (
-            <Section isFlat>
+            <Section>
               <Row label="Open contact" hasChevron onPress={() => onOpenContact(contact.id)} />
             </Section>
           )}
