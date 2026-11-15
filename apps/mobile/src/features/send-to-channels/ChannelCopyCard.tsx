@@ -1,7 +1,6 @@
 import type { Channel } from '@squidbox/shared';
 import { Pressable, Text as RNText, StyleSheet, View } from 'react-native';
 
-import AddHandleButton from './AddHandleButton';
 import channelPayload from './channelPayload';
 
 import Button from '@/components/Button';
@@ -35,7 +34,7 @@ type ChannelCopyCardProps = {
  * A post's copy for one channel, as a row card: its first post's first picture, the channel's logo
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
- * names go out as plain text) and has Send now, Edit and Add handle, and Remove in its ⋯; sent, it
+ * names go out as plain text, with Add handle: MissingHandleNote) and has Send now and Edit, and Remove in its ⋯; sent, it
  * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
  * (`onOpen`: all of its posts and pictures).
  */
@@ -83,7 +82,6 @@ export default function ChannelCopyCard({
             <View style={styles.actions}>
               <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />
               <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
-              {missing.length > 0 && <AddHandleButton contacts={missing} channel={channel} />}
             </View>
           )}
         </View>

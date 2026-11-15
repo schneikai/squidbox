@@ -103,6 +103,8 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await button(card, 'Edit').click();
   const editor = page.getByTestId('channel-copy-editor');
   await expect(editor.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
+  // The note's own Add handle, as on the card.
+  await expect(button(editor, 'Add handle')).toBeVisible();
   await button(editor, 'Close').click();
 
   await withDialog(
