@@ -65,11 +65,10 @@ export default function PostCards({
     },
     [dispatch],
   );
-  // The assistant's text for a card (Use): its chips stay where their names still stand, and the
-  // names of the contacts its turn was told become chips.
+  // The assistant's text for a card (Use), with its chips.
   const setText = useCallback<TextApplier>(
-    (key, text, mentioned) => {
-      dispatch({ type: 'setCardText', key, text, mentioned });
+    (key, value) => {
+      dispatch({ type: 'setCardText', key, value });
       setActiveKey(key);
     },
     [dispatch],

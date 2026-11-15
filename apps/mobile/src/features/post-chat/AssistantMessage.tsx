@@ -34,14 +34,13 @@ function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse, usedNote }: A
 
   return (
     <View style={styles.reply}>
-      {!!reply.reply && <AssistantBubble text={reply.reply} />}
-      {reply.postOptions.map((text, index) => (
+      {!!reply.reply.text && <AssistantBubble text={reply.reply.text} />}
+      {reply.postOptions.map((value, index) => (
         <ChatOptionCard
-          key={`${index}:${text}`}
-          text={text}
+          key={`${index}:${value.text}`}
+          value={value}
           replyId={reply.id}
           index={index}
-          mentioned={reply.mentioned}
           onMoreLikeThis={onMoreLikeThis}
           onUse={onUse}
         />

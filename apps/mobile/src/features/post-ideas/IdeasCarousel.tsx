@@ -78,14 +78,13 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
     >
       {items.map((item) =>
         item.index === null ? (
-          <OptionCard key={`${item.replyId}:text`} text={item.text} textSize="small" style={styles.card} />
+          <OptionCard key={`${item.replyId}:text`} text={item.value.text} textSize="small" style={styles.card} />
         ) : (
           <ChatOptionCard
             key={`${item.replyId}:${item.index}`}
-            text={item.text}
+            value={item.value}
             replyId={item.replyId}
             index={item.index}
-            mentioned={item.mentioned}
             onMoreLikeThis={null}
             onUse={onUse}
             isUsed={item.isUsed}

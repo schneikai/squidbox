@@ -42,7 +42,8 @@ export default function useChatSends(sessionId: string | null) {
 
     return {
       send,
-      // The server puts the user's More like this instruction before the option.
+      // The server puts the user's More like this instruction before the option: its plain text (the
+      // card's `value.text`), which the user's bubble shows.
       moreLikeThis: (text: string, target: string) =>
         send({ label: MORE_LIKE_THIS, content: text, kind: 'moreLikeThis', target }),
       retry: () => session.retry(readContext, chatAsync) !== null,

@@ -2,7 +2,6 @@ import {
   type AssetRecord,
   CHAT_LIMITS,
   type ChatContext,
-  type ChatReply,
   type ChatRequest,
   type ChatResponse,
   type ChatSubjectKind,
@@ -11,7 +10,8 @@ import {
 
 import withEdits, { type ListEdits } from './withEdits';
 
-import type { MentionCandidate } from '@/features/post-mentions/relinkMentions';
+import markedText, { type MentionCandidate } from '@/features/post-mentions/markedText';
+import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import createStore from '@/lib/createStore';
 import sameOrder from '@/lib/sameOrder';
 import type chatAsync from '@/utils/cloud-api/ai/chatAsync';
@@ -43,12 +43,14 @@ export type UserChatMessage = Required<UserTurn> & { id: string; role: 'user' };
 
 /**
  * A reply: `reply`, what the assistant says; `postOptions`, the options for the post, when the user
- * asked for posts; `systemMessage`, what the model was told, for an ai_admin, else null;
- * `errorStatus`, the failed request's HTTP status, if any; `usedOption`, the index of the option Use
- * put into the post, if any; `mentioned`, the contacts its turn was told it may mention (empty until
- * its context was read), whose names Use and Copy link in its options.
+ * asked for posts, each a text with its mentions (the shape a post stores: the assistant's mention
+ * markers made chips when the reply landed, markedText); `systemMessage`, what the model was told, for
+ * an ai_admin, else null; `errorStatus`, the failed request's HTTP status, if any; `usedOption`, the
+ * index of the option Use put into the post, if any.
  */
-export type AssistantChatMessage = ChatReply & {
+export type AssistantChatMessage = {
+  reply: MentionTextValue;
+  postOptions: MentionTextValue[];
   id: string;
   role: 'assistant';
   status: 'loading' | 'done' | 'error';
@@ -56,7 +58,6 @@ export type AssistantChatMessage = ChatReply & {
   error: string | null;
   errorStatus: number | null;
   usedOption: number | null;
-  mentioned: MentionCandidate[];
 };
 
 // A message narrows by its `role`: only a reply has a status.
@@ -87,16 +88,13 @@ type ChatSessionState = {
   isClosed: boolean;
 };
 
-// One post of the chat's draft: its key (a target), its text and its assets (`asset` rows).
-export type ChatDraftPost = { key: string; text: string; assets: AssetRecord[] };
+// One post of the chat's draft: its key (a target), its text with its mentions and its assets (`asset` rows).
+export type ChatDraftPost = MentionTextValue & { key: string; assets: AssetRecord[] };
 
 type ChatDraft = { posts: ChatDraftPost[] };
 
-/**
- * How Use puts an option into a post: the post's key, the text, and the contacts its turn was told it
- * may mention (`mentioned`, the reply's), whose names in the text become mentions (relinkMentions).
- */
-export type TextApplier = (target: string, text: string, mentioned: readonly MentionCandidate[]) => void;
+/** How Use puts an option into a post: the post's key, and the option's text with its mentions, as they are. */
+export type TextApplier = (target: string, value: MentionTextValue) => void;
 
 type ChatRequester = typeof chatAsync;
 
@@ -105,7 +103,7 @@ export type ChatSession = ReturnType<typeof createSession>;
 /**
  * What the chat is about, read when the turn for the post `target` goes: it may wait for the photos'
  * tags, and calls `onWait()` when it does (the chat is `isWaiting` until the read ends). It resolves
- * to the context and the contacts it names as mentions (`mentioned`). `signal` aborts once the turn is
+ * to the context and the contacts the reply's mention markers may name (`mentioned`, markedText). `signal` aborts once the turn is
  * dropped (New chat, or the chat closed); what it resolves to then is ignored.
  */
 export type ContextReader = (
@@ -115,6 +113,9 @@ export type ContextReader = (
 ) => Promise<{ context: ChatContext; mentioned: MentionCandidate[] }>;
 
 const NO_EDITS: ListEdits = Object.freeze({ added: [], removed: [] });
+const EMPTY: MentionTextValue = Object.freeze({ text: '', mentions: null });
+// A reply nothing is left of once its markers are read: the server's words for an empty reply.
+const NOTHING_LEFT = 'Returned neither a reply nor posts';
 
 // The open assistant chats by id. A chat lives while its post's editor or screen is open and is never
 // saved: that screen and the chat screen (a route, whose params are plain data) share it by id.
@@ -146,7 +147,7 @@ export default chatSessions;
 // oldest first (a reply loading or failed is left out, and a turn the server refused as invalid with
 // its reply, so it doesn't fail every later send), the newest CHAT_LIMITS.messages of them, starting
 // with a user turn (a reply the cut left first goes too). A reply goes as `{ reply, postOptions }`, as
-// it came.
+// the model wrote it: its mentions as markers (markedText.write), each cut to CHAT_LIMITS.message.
 function wireTurns(messages: ChatMessage[]): ChatTurn[] {
   const turns = messages.flatMap((message, index): ChatTurn[] => {
     if (message.role === 'user') {
@@ -162,11 +163,29 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
       ];
     }
     return message.status === 'done'
-      ? [{ role: 'assistant', reply: message.reply, postOptions: message.postOptions }]
+      ? [{ role: 'assistant', reply: marked(message.reply), postOptions: message.postOptions.map(marked) }]
       : [];
   });
   const newest = turns.slice(-CHAT_LIMITS.messages);
   return newest[0]?.role === 'assistant' ? newest.slice(1) : newest;
+}
+
+// A reply's text as the server takes it back: marked, cut as the server cuts it.
+function marked(value: MentionTextValue): string {
+  return markedText.write(value).slice(0, CHAT_LIMITS.message);
+}
+
+// What a reply holds once its markers are read against `mentioned`: its options left empty dropped.
+// Null when nothing is left (a useless reply, as the server says of one).
+function landedReply(
+  { reply, postOptions }: { reply: string; postOptions: string[] },
+  mentioned: readonly MentionCandidate[],
+): Pick<AssistantChatMessage, 'reply' | 'postOptions'> | null {
+  const text = markedText.read(reply, mentioned);
+  const options = postOptions
+    .map((option) => markedText.read(option, mentioned))
+    .filter((option) => option.text.trim());
+  return text.text.trim() || options.length > 0 ? { reply: text, postOptions: options } : null;
 }
 
 /**
@@ -248,12 +267,23 @@ function createSession(kind: ChatSubjectKind) {
         if (!signal.aborted && store.get().isWaiting) update({ isWaiting: false });
       });
       if (signal.aborted) return;
-      replaceMessage(replyId, { mentioned });
       const { messages } = store.get();
       const at = messages.findIndex((message) => message.id === replyId);
-      const body: ChatRequest = { chatId, context, messages: wireTurns(messages.slice(0, at)) };
-      const { reply, postOptions, systemMessage = null } = await request(body, { signal });
-      if (!signal.aborted) replaceMessage(replyId, { status: 'done', reply, postOptions, systemMessage });
+      const body: ChatRequest = {
+        chatId,
+        context,
+        messages: wireTurns(messages.slice(0, at)),
+        readsMentionMarkers: true,
+      };
+      const { systemMessage = null, ...answer } = await request(body, { signal });
+      if (signal.aborted) return;
+      const landed = landedReply(answer, mentioned);
+      replaceMessage(
+        replyId,
+        landed
+          ? { status: 'done', ...landed, systemMessage }
+          : { status: 'error', error: NOTHING_LEFT, errorStatus: null, systemMessage },
+      );
     } catch (error) {
       if (!signal.aborted) {
         replaceMessage(replyId, {
@@ -313,10 +343,10 @@ function createSession(kind: ChatSubjectKind) {
       const at = messages.findIndex((message) => message.id === replyId);
       const reply = messages[at];
       const turn = messages[at - 1];
-      const text = isReply(reply) ? reply.postOptions[index] : undefined;
-      if (!isReply(reply) || text === undefined || turn?.role !== 'user')
+      const value = isReply(reply) ? reply.postOptions[index] : undefined;
+      if (!isReply(reply) || value === undefined || turn?.role !== 'user')
         throw new Error(`No option ${index} of the reply ${replyId}`);
-      applier?.(turn.target, text, reply.mentioned);
+      applier?.(turn.target, value);
       // Marked and folded in one change, so the trays render once (read again: the applier ran).
       const { messages: current, foldedAt } = store.get();
       update({
@@ -328,8 +358,10 @@ function createSession(kind: ChatSubjectKind) {
     /**
      * Puts the user's turn and its loading reply in the chat, then sends it about the context
      * `readContext(signal)` resolves to (chatContextSchema) through `request(body, { signal })`, which
-     * resolves to the reply, `{ reply, postOptions }`. → the reply's promise, or null when nothing was
-     * sent (a reply is loading, or the chat was closed).
+     * resolves to the reply, `{ reply, postOptions }` with its mention markers, made chips as it lands
+     * (markedText.read, against the context's `mentioned`; a reply nothing is left of then is an
+     * error with Retry). → the reply's promise, or null when nothing was sent (a reply is loading, or
+     * the chat was closed).
      */
     send({ label = null, ...turn }: UserTurn, readContext: ContextReader, request: ChatRequester) {
       const { isSending, isClosed } = store.get();
@@ -339,13 +371,12 @@ function createSession(kind: ChatSubjectKind) {
         id: `m${++lastMessageId}`,
         role: 'assistant',
         status: 'loading',
-        reply: '',
+        reply: EMPTY,
         postOptions: [],
         systemMessage: null,
         error: null,
         errorStatus: null,
         usedOption: null,
-        mentioned: [],
       };
       update({ messages: [...store.get().messages, userMessage, reply] });
       return requestReply(reply.id, userMessage.target, readContext, request);
@@ -357,7 +388,7 @@ function createSession(kind: ChatSubjectKind) {
       const last = messages[messages.length - 1];
       const turn = messages[messages.length - 2];
       if (isSending || isClosed || !isReply(last) || last.status !== 'error' || turn?.role !== 'user') return null;
-      replaceMessage(last.id, { status: 'loading', error: null, errorStatus: null, mentioned: [] });
+      replaceMessage(last.id, { status: 'loading', error: null, errorStatus: null });
       return requestReply(last.id, turn.target, readContext, request);
     },
 

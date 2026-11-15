@@ -1,16 +1,16 @@
 import { type AssistantChatMessage, type ChatMessage, isReply } from '@/features/post-chat/chatSessions';
+import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 
 /**
  * One item of a run's carousel: the option `index` of the reply `replyId`, or with `index` null a
- * reply's text alone (the assistant answered without options); `isUsed` once Use put it in the post;
- * `mentioned`, the reply's (whose names its Copy links).
+ * reply's text alone (the assistant answered without options), each a text with its mentions
+ * (`value`); `isUsed` once Use put it in the post.
  */
 export type IdeaItem = {
   replyId: string;
   index: number | null;
-  text: string;
+  value: MentionTextValue;
   isUsed: boolean;
-  mentioned: AssistantChatMessage['mentioned'];
 };
 
 /**
@@ -67,17 +67,11 @@ export default function ideasRun(
     last = reply;
     if (reply.status !== 'done') continue;
     if (reply.postOptions.length > 0) {
-      reply.postOptions.forEach((text, optionIndex) =>
-        items.push({
-          replyId: reply.id,
-          index: optionIndex,
-          text,
-          isUsed: reply.usedOption === optionIndex,
-          mentioned: reply.mentioned,
-        }),
+      reply.postOptions.forEach((value, optionIndex) =>
+        items.push({ replyId: reply.id, index: optionIndex, value, isUsed: reply.usedOption === optionIndex }),
       );
-    } else if (reply.reply) {
-      items.push({ replyId: reply.id, index: null, text: reply.reply, isUsed: false, mentioned: reply.mentioned });
+    } else if (reply.reply.text) {
+      items.push({ replyId: reply.id, index: null, value: reply.reply, isUsed: false });
     }
   }
 

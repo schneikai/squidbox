@@ -13,8 +13,8 @@ type SubjectChatOptions = {
 /**
  * The one assistant chat about a post and its thread (`kind`, chatSubjectKindSchema): opened with the
  * screen that shows it (its editor, or a posted post) and closed with it, told the posts (`posts`,
- * `{ key, text, assets }` in the thread's order) and the one being edited (`activeKey`) as they
- * change, and given `setText(key, text, mentioned)` for Use (TextApplier; none for a posted post: its
+ * `{ key, text, mentions, assets }` in the thread's order) and the one being edited (`activeKey`) as
+ * they change, and given `setText(key, value)` for Use (TextApplier; none for a posted post: its
  * options have Copy).
  * → the chat's id, null until it is open.
  */

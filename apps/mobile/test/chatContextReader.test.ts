@@ -27,9 +27,15 @@ vi.mock('../src/utils/cloud-api/ai/tagPhotoAsync', () => ({ default: vi.fn() }))
 const noTagging = { tagMissingAsync: async () => {} };
 const read = async (reader: ReturnType<typeof chatContextReader>, target = 'p1'): Promise<ChatContext> =>
   (await reader(new AbortController().signal, () => {}, target)).context;
-const post = (key: string, text = '', assetIds: string[] = []): ChatDraftPost => ({
+const post = (
+  key: string,
+  text = '',
+  assetIds: string[] = [],
+  mentions: ChatDraftPost['mentions'] = null,
+): ChatDraftPost => ({
   key,
   text,
+  mentions,
   assets: assetIds.map((id) => makeAssetRecord({ id })),
 });
 
@@ -103,6 +109,28 @@ describe('chatContextReader', () => {
       expect(context.mentions).toEqual(['Sam Ridge']);
       expect(mentioned).toEqual(sams);
     }));
+
+  it("sends the post's and the thread's chips as markers, and their contacts as mentioned", () =>
+    withChat(
+      [
+        post('p1', 'With Maya', [], [{ contactId: 'maya', location: 5, name: 'Maya' }]),
+        post('p2', 'Then Sam Ridge', [], [{ contactId: 'sam', location: 5, name: 'Sam Ridge' }]),
+      ],
+      async (session) => {
+        const { context, mentioned } = await chatContextReader(session, () => ({ tagging: noTagging }))(
+          new AbortController().signal,
+          () => {},
+          'p2',
+        );
+        expect(context.text).toBe('Then @[Sam Ridge]');
+        expect(context.thread!.posts).toEqual(['With @[Maya]', 'Then @[Sam Ridge]']);
+        expect(context.mentions).toEqual([]);
+        expect(mentioned).toEqual([
+          { id: 'maya', name: 'Maya', isInDraft: true },
+          { id: 'sam', name: 'Sam Ridge', isInDraft: true },
+        ]);
+      },
+    ));
 
   it("takes the tags as saved, not the last render's", () =>
     withChat([post('p1', '', ['ridge'])], async (session) => {

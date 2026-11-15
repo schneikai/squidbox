@@ -77,8 +77,8 @@ test('a channel added with + gets a copy filled from the post, and Send all mark
   await expect(button(sheet, 'Send all')).toBeHidden();
 });
 
-test("Use on an idea in a copy's composer puts in the chip of a name the idea writes", async ({ page, assistant }) => {
-  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with Sam Ridge'] });
+test("Use on an idea in a copy's composer puts in the chip of a name the idea marks", async ({ page, assistant }) => {
+  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Back in the forest with @[Sam Ridge]'] });
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   await button(sendSheet(page), 'Add channel').click();
   await page.getByRole('menuitem', { name: 'X', exact: true }).click();

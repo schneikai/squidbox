@@ -162,14 +162,14 @@ test('a posted post has no tray, and its editor starts no ideas', async ({ page,
   expect(assistant.events).toEqual([]);
 });
 
-test("an idea's names of the chat's Mentions are contacts: Copy writes each channel's handle, Use puts the chip in", async ({
+test("an idea's marked names of the chat's Mentions are contacts: Copy writes each channel's handle, Use puts the chip in", async ({
   page,
   context,
   assistant,
 }) => {
   await allowClipboard(context);
   const idea = 'Out on the ridge with Sam Ridge';
-  assistant.chatAnswer = () => ({ reply: '', postOptions: [idea] });
+  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Out on the ridge with @[Sam Ridge]'] });
   // A post of a Weekend walks photo: Sam Ridge is on one of its photos, so he is one of its Mentions.
   await openTab(page, 'Albums');
   await page.getByTestId('albums-screen').getByText('Weekend walks', { exact: true }).click();
