@@ -28,7 +28,9 @@ export default function PostsProvider({ children }: PostsProviderProps) {
           const created = await repo.create(tx, newRecord(postCollection, postDefaults, fields));
           await repo.postEdges.createFromRefs(tx, created.id, refs);
           await saveThreadPosts(tx, created.id, threadPosts, [], newPart);
-          for (const copy of copies) await createCopy(tx, { postId: created.id, ...copy });
+          // A repost's copies keep the reposted post's order: one millisecond apart.
+          for (const [index, copy] of copies.entries())
+            await createCopy(tx, { postId: created.id, ...copy, createdAt: created.createdAt + index });
           return created;
         });
         requestSync();

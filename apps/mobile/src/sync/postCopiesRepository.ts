@@ -14,12 +14,24 @@ import newRecord from '@/utils/newRecord';
 
 const repository = makeRepository('post_copies', schema.postCopies);
 
-/** A new copy of `postId` for `channelId`, unsent. Its posts over a limit throw the schema's message. */
+/**
+ * A new copy of `postId` for `channelId`, unsent. Its posts over a limit throw the schema's message.
+ * `createdAt` (now without it) is its place among the post's copies: copies made together pass one
+ * each, in order, so they list in that order.
+ */
 export function createCopy(
   tx: SyncDb,
-  { postId, channelId, posts }: Pick<PostCopyRecord, 'postId' | 'channelId' | 'posts'>,
+  {
+    postId,
+    channelId,
+    posts,
+    createdAt,
+  }: Pick<PostCopyRecord, 'postId' | 'channelId' | 'posts'> & { createdAt?: number },
 ): Promise<PostCopyRecord> {
-  return repository.create(tx, newRecord(postCopyCollection, {}, { postId, channelId, posts, sentAt: null }));
+  return repository.create(
+    tx,
+    newRecord(postCopyCollection, {}, { postId, channelId, posts, sentAt: null, createdAt, updatedAt: createdAt }),
+  );
 }
 
 /** Save a copy's posts (its composer's Save). A sent or deleted copy is locked: it throws. */

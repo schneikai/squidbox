@@ -33,6 +33,15 @@ describe('postCopiesRepository', () => {
     expect((await read(db))[0]!.posts.map((post) => post.text)).toEqual(['Ridge at dawn', 'More from the trail']);
   });
 
+  it('lists copies made together in the order of their createdAt', async () => {
+    const { db } = await setup();
+    await db.transaction(async (tx) => {
+      await createCopy(tx, { postId: P1, channelId: 'x', posts: [ridge], createdAt: 2 });
+      await createCopy(tx, { postId: P1, channelId: 'instagram', posts: [ridge], createdAt: 1 });
+    });
+    expect((await read(db)).map((copy) => copy.channelId)).toEqual(['instagram', 'x', 'bluesky']);
+  });
+
   it('refuses to edit a sent copy, until it is marked as not sent', async () => {
     const { db, copy } = await setup();
     await db.transaction((tx) => setCopiesSent(tx, [copy.id], 50));
