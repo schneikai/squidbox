@@ -14,7 +14,7 @@ type PostChatOptions = {
  * The assistant chat about a post and its thread (`sessionId`, chatSessions'), for the chat screen:
  * the chat (useChatSession; null once closed), the `assets` of all its posts, their `tagging`
  * (useChatTags, with `tagsOnOpen`), the `mentions` (the contacts it sends, useMentions' with the chat's
- * mentionEdits) and its sends (useChatSends: `send(turn)`, `moreLikeThis(text, target)`, `retry()`).
+ * mentionEdits) and its sends (useChatSends: `send(turn)`, `moreLikeThis(value, target)`, `retry()`).
  */
 export default function usePostChat(sessionId: string | null, { tagsOnOpen = false }: PostChatOptions = {}) {
   const chat = useChatSession(sessionId);

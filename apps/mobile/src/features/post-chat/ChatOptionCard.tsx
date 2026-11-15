@@ -22,14 +22,14 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
   contactsById: ReadonlyMap<string, MentionContact>;
   replyId: string;
   index: number;
-  onMoreLikeThis: ((text: string) => void) | null;
+  onMoreLikeThis: ((value: MentionTextValue) => void) | null;
   onUse: ((replyId: string, index: number) => void) | null;
 };
 
 /**
  * The option `index` of the reply `replyId`: its text with its mentions (`value`, each a chip that
  * takes no tap: the card has its own buttons) with a copy icon (CopyPostTextButton), ⋯ → More like
- * this (`onMoreLikeThis(text)`, its plain text, when given: the chat's, not the tray's), and Use
+ * this (`onMoreLikeThis(value)`, when given: the chat's, not the tray's), and Use
  * (`onUse(replyId, index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and
  * the card outlined. style is for layout only.
  */
@@ -54,7 +54,7 @@ function ChatOptionCard({
       <CopyPostTextButton post={value} />
       {onMoreLikeThis && (
         <MenuButton accessibilityLabel="More for this idea">
-          <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(value.text)} />
+          <MenuOption label="More like this" icon="repeat" onPress={() => onMoreLikeThis(value)} />
         </MenuButton>
       )}
       <View style={styles.action}>

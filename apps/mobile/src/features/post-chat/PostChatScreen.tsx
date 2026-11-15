@@ -24,6 +24,7 @@ import ModalSheet from '@/components/ModalSheet';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
+import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
@@ -116,9 +117,9 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   // More like this writes for the post the option was written for: one callback per post, so the
   // replies keep theirs (memo).
   const moreLikeThisFor = useMemo(() => {
-    const byTarget = new Map<string, (text: string) => void>();
+    const byTarget = new Map<string, (value: MentionTextValue) => void>();
     return (target: string) => {
-      if (!byTarget.has(target)) byTarget.set(target, (text) => moreLikeThis(text, target));
+      if (!byTarget.has(target)) byTarget.set(target, (value) => moreLikeThis(value, target));
       return byTarget.get(target)!;
     };
   }, [moreLikeThis]);

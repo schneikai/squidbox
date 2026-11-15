@@ -234,6 +234,15 @@ describe('chatSessions', () => {
     ]);
   });
 
+  it("sends a More like this turn's option with its chips as markers, and shows it plain", async () => {
+    const { session } = open();
+    const { request, calls } = deferredRequest();
+    const quoted = { text: 'Out with Sam Ridge', mentions: [{ contactId: 'sam', location: 9, name: 'Sam Ridge' }] };
+    await sendNow(session, turn(quoted.text, { kind: 'moreLikeThis', quoted }), request);
+    expect(session.getState().messages[0]).toMatchObject({ content: 'Out with Sam Ridge' });
+    expect(calls[0]!.body.messages).toEqual([{ role: 'user', content: 'Out with @[Sam Ridge]', moreLikeThis: true }]);
+  });
+
   it("reads the context of the turn's own post", async () => {
     const { session } = open();
     const { request } = deferredRequest();

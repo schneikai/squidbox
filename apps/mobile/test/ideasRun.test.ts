@@ -16,6 +16,7 @@ const user = (kind: TurnKind, target = 'p1', content = `${kind} prompt`): UserCh
   target,
   content,
   label: kind === 'ideas' ? 'Post ideas' : kind,
+  quoted: null,
 });
 const plain = (text: string) => ({ text, mentions: null });
 const reply = (

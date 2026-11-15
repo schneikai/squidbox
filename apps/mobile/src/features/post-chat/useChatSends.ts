@@ -5,6 +5,7 @@ import chatContextReader from './chatContextReader';
 import chatSessions, { type UserTurn } from './chatSessions';
 import chatTags from './chatTags';
 
+import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import useIsAssistantAvailable from '@/hooks/useIsAssistantAvailable';
 import useLatestRef from '@/hooks/useLatestRef';
 import useVisionImageDeps from '@/hooks/useVisionImageDeps';
@@ -18,7 +19,7 @@ const MORE_LIKE_THIS = 'More like this';
  * turn (cut to CHAT_LIMITS.message) in the chat at once and returns whether it went (false: a reply
  * loads, the chat is closed, or there is none yet); the context is read then (chatContextReader),
  * with the posts as they are then, after tagging their photos (chatTags.tagMissingAsync; the chat's
- * `isWaiting` meanwhile). `moreLikeThis(text, target)` and `retry()` (the last reply, after it
+ * `isWaiting` meanwhile). `moreLikeThis(value, target)` and `retry()` (the last reply, after it
  * failed) do the same. They keep their identity all chat long.
  */
 export default function useChatSends(sessionId: string | null) {
@@ -42,10 +43,10 @@ export default function useChatSends(sessionId: string | null) {
 
     return {
       send,
-      // The server puts the user's More like this instruction before the option: its plain text (the
-      // card's `value.text`), which the user's bubble shows.
-      moreLikeThis: (text: string, target: string) =>
-        send({ label: MORE_LIKE_THIS, content: text, kind: 'moreLikeThis', target }),
+      // The server puts the user's More like this instruction before the option: sent marked, shown
+      // as its plain text in the user's bubble.
+      moreLikeThis: (value: MentionTextValue, target: string) =>
+        send({ label: MORE_LIKE_THIS, content: value.text, quoted: value, kind: 'moreLikeThis', target }),
       retry: () => session.retry(readContext, chatAsync) !== null,
     };
   }, [session, latest]);

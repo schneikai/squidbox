@@ -31,11 +31,18 @@ import type { TagsEdit } from '@/utils/tagsDifference';
 export type TurnKind = 'ideas' | 'prompt' | 'more' | 'moreLikeThis' | 'message';
 
 /**
- * The user's turn as `send` takes it: `content`, what is sent; `kind`; `target`, the key of the post
- * it writes for (one of the chat's `targets`); and `label`, a prompt button's or the ideas' name over
- * it in the bubble, or none for a typed message.
+ * The user's turn as `send` takes it: `content`, what is sent and shown; `kind`; `target`, the key of
+ * the post it writes for (one of the chat's `targets`); `label`, a prompt button's or the ideas' name
+ * over it in the bubble, or none for a typed message; and `quoted`, the option a More like this turn
+ * quotes (`content` its plain text), which is sent marked (markedText.write) so its chips go along.
  */
-export type UserTurn = { content: string; kind: TurnKind; target: string; label?: string | null };
+export type UserTurn = {
+  content: string;
+  kind: TurnKind;
+  target: string;
+  label?: string | null;
+  quoted?: MentionTextValue | null;
+};
 
 // What waits in the composer: a prompt button's turn (its name and prompt), or what was typed.
 export type ChatSeed = Pick<UserTurn, 'label' | 'content'>;
@@ -156,7 +163,7 @@ function wireTurns(messages: ChatMessage[]): ChatTurn[] {
       return [
         {
           role: 'user',
-          content: message.content,
+          content: message.quoted ? markedText.write(message.quoted, CHAT_LIMITS.message) : message.content,
           ...(message.kind === 'moreLikeThis' && { moreLikeThis: true }),
           ...(message.kind === 'more' && { moreIdeas: true }),
         },
@@ -351,10 +358,10 @@ function createSession(kind: ChatSubjectKind) {
      * (markedText.reader, over the context's `mentioned`). → the reply's promise, or null when nothing
      * was sent (a reply is loading, or the chat was closed).
      */
-    send({ label = null, ...turn }: UserTurn, readContext: ContextReader, request: ChatRequester) {
+    send({ label = null, quoted = null, ...turn }: UserTurn, readContext: ContextReader, request: ChatRequester) {
       const { isSending, isClosed } = store.get();
       if (isSending || isClosed) return null;
-      const userMessage: UserChatMessage = { id: `m${++lastMessageId}`, role: 'user', label, ...turn };
+      const userMessage: UserChatMessage = { id: `m${++lastMessageId}`, role: 'user', label, quoted, ...turn };
       const reply: AssistantChatMessage = {
         id: `m${++lastMessageId}`,
         role: 'assistant',
