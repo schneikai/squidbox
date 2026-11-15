@@ -1,12 +1,11 @@
 import { CONTACT_HANDLES, type ContactHandleField } from '@squidbox/shared';
 import { useNavigation } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { EnrichedTextInput, type EnrichedTextInputInstance } from 'react-native-enriched-html';
+import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+
+import MentionInput, { type MentionInputContent, type MentionInputHandle } from './MentionInput';
 
 import Card from '@/components/Card';
-import Chip from '@/components/Chip';
-import ChipRow from '@/components/ChipRow';
 import DetailScrollView from '@/components/DetailScrollView';
 import Divider from '@/components/Divider';
 import Page from '@/components/Page';
@@ -18,18 +17,12 @@ import { Row, Section, SectionFooter } from '@/components/settings-list/Settings
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
 import useOpenLibrary from '@/library/useOpenLibrary';
-import { colors, press, radii, scale, space, textStyles } from '@/styles/designTokens';
+import { colors, press, radii, space } from '@/styles/designTokens';
 import { getAvatarUri } from '@/utils/assets/assetStorage';
 
 const MAX_SUGGESTIONS = 4;
-const AVATAR_SIZE = 22;
-const WEB_KEEP_FOCUS =
-  Platform.OS === 'web'
-    ? ({ onMouseDown: (event: { preventDefault: () => void }) => event.preventDefault() } as object)
-    : null;
-// <mention ... id="…" ...>@Name</mention>, as the editor writes a mention into its HTML.
-const MENTION = /<mention\b([^>]*)>(.*?)<\/mention>/g;
-const ID = /\bid="([^"]*)"/;
+// The character a chip is in the field's text.
+const CHIP = '\uFFFC';
 // The channels the spike shows what goes out on, each with the contact handle it uses.
 const CHANNELS: { name: string; field: ContactHandleField }[] = [
   { name: 'X', field: 'xHandle' },
@@ -39,123 +32,92 @@ const CHANNELS: { name: string; field: ContactHandleField }[] = [
 ];
 
 /**
- * SPIKE (Settings → Developer): a post text field built on react-native-enriched-html, to try on a
- * device how mentions linked to contacts feel. Typing @ lists the contacts by name; picking one
- * writes a mention that carries the contact's id, is tinted, and is deleted as one unit. Under the
- * field: the mentioned contacts as chips, the text as each channel would get it (the contact's
- * handle there, or the name without one), and the HTML the editor holds.
+ * SPIKE (Settings → Developer): our own native text field (MentionInput, iOS) to try on a device how
+ * mentions as chips inside the text feel. Typing @ lists the contacts by name; picking one puts the
+ * contact's chip into the text. Under the field: the text as each channel would get it (the contact's
+ * handle there, or the name without one), and what the field holds.
  */
 export default function MentionSpikeScreen() {
   const navigation = useNavigation();
-  const inputRef = useRef<EnrichedTextInputInstance>(null);
+  const inputRef = useRef<MentionInputHandle>(null);
   const contacts = useContactRows({});
-  const [query, setQuery] = useState<string | null>(null);
-  const [html, setHtml] = useState('');
   const { paths: library } = useOpenLibrary();
-  // Where the cursor is, to find where the mention being typed starts.
-  const cursorRef = useRef(0);
-
-  // The mention, then the contact's picture before it: the closest this editor gets to a chip.
-  function pick(contact: NonNullable<typeof contacts>[number]) {
-    const input = inputRef.current;
-    if (!input) return;
-    const start = cursorRef.current - ((query ?? '').length + 1);
-    const shown = `@${contact.name}`;
-    input.setMention('@', shown, { id: contact.id });
-    const uri = contact.avatarFilename ? getAvatarUri(contact.avatarFilename, library) : null;
-    if (!uri || start < 0) return;
-    setTimeout(() => {
-      input.setSelection(start, start);
-      input.setImage(uri, AVATAR_SIZE, AVATAR_SIZE);
-      // Past the picture, the mention and the space after it.
-      const end = start + 1 + shown.length + 1;
-      setTimeout(() => input.setSelection(end, end), 60);
-    }, 60);
-  }
+  const [query, setQuery] = useState<string | null>(null);
+  const [content, setContent] = useState<MentionInputContent>({ text: '', mentions: [] });
 
   const suggestions = useMemo(() => {
     if (query == null || !contacts) return [];
     const needle = query.toLowerCase();
     return contacts.filter((contact) => contact.name.toLowerCase().includes(needle)).slice(0, MAX_SUGGESTIONS);
   }, [contacts, query]);
-  const mentionedIds = useMemo(
-    () => [...new Set([...html.matchAll(MENTION)].map((match) => ID.exec(match[1] ?? '')?.[1]))],
-    [html],
-  );
-  const mentioned = (contacts ?? []).filter((contact) => mentionedIds.includes(contact.id));
 
+  function pick(contact: NonNullable<typeof contacts>[number]) {
+    const uri = contact.avatarFilename ? getAvatarUri(contact.avatarFilename, library) : null;
+    inputRef.current?.insertMention(contact.id, contact.name, uri).catch(console.error);
+  }
+
+  function handleMentionPress(id: string) {
+    const contact = contacts?.find((each) => each.id === id);
+    if (contact) Alert.alert(contact.name, handlesText(contact) || 'No handles');
+  }
+
+  // The text with each chip written as the contact's handle on the channel, or the name without one.
   function textFor(field: ContactHandleField) {
-    const withHandles = html.replace(MENTION, (_, attributes: string, shown: string) => {
-      const contact = contacts?.find(({ id }) => id === ID.exec(attributes)?.[1]);
-      const handle = contact?.[field];
-      return handle ? `@${handle}` : (contact?.name ?? shown);
-    });
-    return plainText(withHandles);
+    const byLocation = new Map(content.mentions.map((mention) => [mention.location, mention]));
+    return [...content.text]
+      .map((character, index) => {
+        const mention = character === CHIP ? byLocation.get(index) : undefined;
+        if (!mention) return character;
+        const handle = contacts?.find(({ id }) => id === mention.id)?.[field];
+        return handle ? `@${handle}` : mention.label;
+      })
+      .join('')
+      .trim();
   }
 
   return (
     <Page testID="mention-spike">
       <FloatingDetailHeader title="Mention editor" onBack={() => navigation.goBack()} />
       <DetailScrollView keyboardShouldPersistTaps="handled">
-        <Card padded>
-          <EnrichedTextInput
-            ref={inputRef}
-            placeholder="What's new?"
-            placeholderTextColor={colors.text.tertiary}
-            mentionIndicators={['@']}
-            style={styles.input}
-            htmlStyle={{
-              mention: {
-                color: colors.text.primary,
-                backgroundColor: colors.background.muted,
-                textDecorationLine: 'none',
-              },
-            }}
-            onStartMention={() => setQuery('')}
-            onChangeMention={({ text }) => setQuery(text)}
-            onEndMention={() => setQuery(null)}
-            onChangeSelection={(event) => (cursorRef.current = event.nativeEvent.start)}
-            onChangeHtml={(event) => setHtml(event.nativeEvent.value)}
-          />
-          {suggestions.length > 0 && (
-            <View style={styles.suggestions}>
-              {suggestions.map((contact, index) => (
-                // On web a click would take the focus, and with it the mention being typed.
-                <View key={contact.id} {...WEB_KEEP_FOCUS}>
-                  {index > 0 && <Divider />}
-                  <Pressable
-                    style={({ pressed }) => pressed && press.flat}
-                    accessibilityRole="button"
-                    onPress={() => pick(contact)}
-                  >
-                    <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
-                      <Text variant="title" size="small" numberOfLines={1}>
-                        {contact.name}
-                      </Text>
-                      <Text variant="hint" numberOfLines={1}>
-                        {handlesText(contact) || 'No handles'}
-                      </Text>
-                    </RowSlots>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-          {mentioned.length > 0 && (
-            <View style={styles.chips}>
-              <ChipRow>
-                {mentioned.map((contact) => (
-                  <Chip
-                    key={contact.id}
-                    label={contact.name}
-                    leading={<ContactAvatar contact={contact} size="chip" />}
-                  />
+        {Platform.OS === 'ios' ? (
+          <Card padded>
+            <MentionInput
+              ref={inputRef}
+              placeholder="What's new?"
+              onChangeContent={setContent}
+              onMentionQuery={setQuery}
+              onMentionPress={handleMentionPress}
+            />
+            {suggestions.length > 0 && (
+              <View style={styles.suggestions}>
+                {suggestions.map((contact, index) => (
+                  <View key={contact.id}>
+                    {index > 0 && <Divider />}
+                    <Pressable
+                      style={({ pressed }) => pressed && press.flat}
+                      accessibilityRole="button"
+                      onPress={() => pick(contact)}
+                    >
+                      <RowSlots size="small" leading={<ContactAvatar contact={contact} size="chip" />}>
+                        <Text variant="title" size="small" numberOfLines={1}>
+                          {contact.name}
+                        </Text>
+                        <Text variant="hint" numberOfLines={1}>
+                          {handlesText(contact) || 'No handles'}
+                        </Text>
+                      </RowSlots>
+                    </Pressable>
+                  </View>
                 ))}
-              </ChipRow>
-            </View>
-          )}
-        </Card>
-        <SectionFooter>Type @ and a name. A mention is one unit: delete into it and it goes whole.</SectionFooter>
+              </View>
+            )}
+          </Card>
+        ) : (
+          <Card padded>
+            <Text variant="hint">The mention field is native iOS code: try it in the dev client.</Text>
+          </Card>
+        )}
+        <SectionFooter>Type @ and a name, pick a contact. Tap a chip to see whose it is.</SectionFooter>
 
         <ScreenSectionHeader title="What goes out" />
         <Section>
@@ -164,10 +126,10 @@ export default function MentionSpikeScreen() {
           ))}
         </Section>
 
-        <ScreenSectionHeader title="What the editor holds" />
+        <ScreenSectionHeader title="What the field holds" />
         <Card padded>
           <Text variant="hint" selectable>
-            {html || 'Nothing yet'}
+            {JSON.stringify(content)}
           </Text>
         </Card>
       </DetailScrollView>
@@ -182,33 +144,10 @@ function handlesText(contact: Partial<Record<ContactHandleField, string | null>>
     .join(' · ');
 }
 
-/** The editor's HTML as plain text: paragraphs and breaks as new lines, tags dropped, entities read. */
-function plainText(html: string) {
-  return html
-    .replace(/<\/p>\s*<p>|<br\s*\/?>/g, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .trim();
-}
-
 const styles = StyleSheet.create({
-  input: {
-    minHeight: scale(84),
-    fontSize: textStyles.reading.fontSize,
-    lineHeight: textStyles.reading.lineHeight,
-    color: colors.text.primary,
-  },
   suggestions: {
     marginTop: space.sm,
     borderRadius: radii.cover,
     backgroundColor: colors.background.muted,
-  },
-  chips: {
-    marginTop: space.md,
   },
 });
