@@ -61,6 +61,7 @@ Decide this before the app stores anything new:
 
 - Every prompt the app sends to the AI is editable by an `ai_admin` account (Settings → Assistant → Admin → Instructions): an edit is an override only that account uses, to try it in the app; Apply changes for everyone publishes it as the app's text for every account (`app_instructions`, served with the catalog). Give new prompts the same treatment
 - The built-in texts in `packages/shared` are the fallback for a kind nothing was published for. Change one only in a PR, after the new text was tried as an override
+- An instruction says what to write; how to answer (the reply's JSON shape, how a mention is marked) is the server's fixed block after it (`withFormat` in `apps/server/src/ai/prompts.ts`), never part of an editable text, so an edit can't break what the app reads. Placeholders are for data only
 
 ## TODO list
 

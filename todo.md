@@ -196,10 +196,11 @@ the device" to "synced" in CLAUDE.md's "Where data is saved". Needs a server dep
 
 ### [ ] Make Compare's fixed lines editable
 
-Later, the owner's call. Compare sends four fixed texts that no ai_admin can edit, unlike every
-other prompt (CLAUDE.md "AI prompts"): the format lines and "Write different ones." / "Give
-different tags." (`COMPARE_*` in `apps/server/src/ai/prompts.ts`). Give them instruction kinds
-so a better wording can be tried and published.
+Later, the owner's call. Compare sends three fixed texts that say what to write and that no
+ai_admin can edit: "Write different ones.", "Give different tags." and "Only the tags of this one
+photo." (`COMPARE_*` in `apps/server/src/ai/prompts.ts`). Give them instruction kinds so a better
+wording can be tried and published. The answer format lines stay the server's (CLAUDE.md "AI
+prompts").
 
 ### [ ] Import photos from Ente
 
