@@ -25,8 +25,8 @@ export default function MissingHandleNote({ contacts, channel, style }: MissingH
   return (
     <WarningNote style={style}>
       {contacts.length === 1
-        ? `${names} has no ${channel.name} handle, so the name goes out as plain text.`
-        : `${names} have no ${channel.name} handle, so their names go out as plain text.`}
+        ? `${names} has no ${channel.name} handle. Using the name instead.`
+        : `${names} have no ${channel.name} handle. Using their names instead.`}
     </WarningNote>
   );
 }

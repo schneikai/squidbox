@@ -21,13 +21,14 @@ import { colors, layout, press, space, textStyles } from '@/styles/designTokens'
 // iOS-style grouped-list building blocks shared by the Settings screen and its detail screens
 // (Backup, Sync), so they all look and behave the same.
 
-export type SectionProps = { children: ReactNode; isHeaderless?: boolean };
+export type SectionProps = { children: ReactNode; isHeaderless?: boolean; isFlat?: boolean };
 
 // `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
-export function Section({ children, isHeaderless = false }: SectionProps) {
+// `isFlat`: on a white surface (a BottomSheet), where a card's shadow would draw a second sheet: none.
+export function Section({ children, isHeaderless = false, isFlat = false }: SectionProps) {
   const kids = Children.toArray(children);
   return (
-    <Card style={[styles.section, isHeaderless && styles.headerless]}>
+    <Card style={[styles.section, isHeaderless && styles.headerless, isFlat && styles.flat]}>
       {kids.map((child, i) => (
         // A text child has no key.
         <View key={(isValidElement(child) ? child.key : null) ?? i}>
@@ -146,6 +147,9 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: space.xs,
+  },
+  flat: {
+    boxShadow: 'none',
   },
   rowLabel: {
     ...textStyles.body,

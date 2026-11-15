@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import Badge from '@/components/Badge';
 import BottomSheet from '@/components/BottomSheet';
 import Text from '@/components/Text';
-import { Row, Section } from '@/components/settings-list/SettingsList';
+import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import { space } from '@/styles/designTokens';
 
@@ -24,7 +24,7 @@ type CopyTextSheetProps = {
 export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextSheetProps) {
   return (
     <BottomSheet isVisible onClose={onClose} title="Copy text for">
-      <Section>
+      <Section isFlat>
         {choices.map((choice) => (
           <Row
             key={choice.channel.id}
@@ -33,12 +33,13 @@ export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextShee
             onPress={() => onPick(choice)}
           >
             <View style={styles.copied}>
-              {choice.hasNoHandle && <Badge label="No handle. Using name." tone="warning" />}
+              {choice.hasNoHandle && <Badge label="No handle" tone="warning" />}
               <Text variant="status">{choice.mentions}</Text>
             </View>
           </Row>
         ))}
       </Section>
+      <SectionFooter>Without a handle there, the contact&apos;s name is used.</SectionFooter>
     </BottomSheet>
   );
 }
