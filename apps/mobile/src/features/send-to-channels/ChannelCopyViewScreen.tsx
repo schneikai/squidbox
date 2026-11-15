@@ -1,7 +1,9 @@
 import { channelById } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
+import copyAsPost from './copyAsPost';
 import copySentText from './copySentText';
 
 import Page from '@/components/Page';
@@ -35,14 +37,15 @@ export default function ChannelCopyViewScreen() {
   const channel = channelById(copy?.channelId);
   useCloseWhenGone(copy && !channel ? null : copy, 'This copy was deleted');
 
-  if (!copy || !channel || !areContactsRead) return null;
+  // The parts' ids only key the cards.
+  const post = useMemo(() => {
+    const asPost = copy && copyAsPost(copy);
+    if (!asPost) return null;
+    const threadPosts = asPost.threadPosts.map((part, index) => ({ ...part, id: String(index + 1) }));
+    return { ...asPost, id: '0', postedAt: null, threadPosts };
+  }, [copy]);
 
-  const [first, ...following] = copy.posts.map(({ text, mentions, assets }, index) => ({
-    id: String(index),
-    text,
-    mentions,
-    postAssets: assets.map((asset) => ({ id: asset.id, asset })),
-  }));
+  if (!copy || !channel || !areContactsRead) return null;
 
   return (
     <Page testID="channel-copy-screen">
@@ -52,9 +55,9 @@ export default function ChannelCopyViewScreen() {
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop, paddingBottom }]}>
-        {first && (
+        {post && (
           <PostThreadCards
-            post={{ ...first, postedAt: null, threadPosts: following }}
+            post={post}
             contactsById={contactsById}
             channel={channel}
             onPressMention={onPressMention}

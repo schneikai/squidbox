@@ -2,6 +2,8 @@ import { channelById, type Channel, type PostCopyPost } from '@squidbox/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useReducer } from 'react';
 
+import copyAsPost from './copyAsPost';
+
 import EditSheet from '@/components/EditSheet';
 import PostCards from '@/features/posts/PostCards';
 import cardsReducer, { type CardsDraft } from '@/features/posts/draft/cardsReducer';
@@ -13,7 +15,6 @@ import usePosts from '@/providers/posts/usePosts';
 import type { SyncDb } from '@/sync/db/types';
 import readPost from '@/sync/queries/readPost';
 import readPostCopies from '@/sync/queries/readPostCopies';
-import buildPostAssets from '@/utils/posts/buildPostAssets';
 import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 // What the composer opens on: the copy's channel, its posts as cards, and the saved copy's id.
@@ -83,16 +84,8 @@ async function readSeed(
     const [copy] = await readPostCopies(db, postId, { copyId });
     const channel = channelById(copy?.channelId);
     if (!copy || !channel) return null;
-    const [first, ...following] = copy.posts.map(({ text, mentions, assets }) => ({
-      text,
-      mentions,
-      postAssets: buildPostAssets(assets),
-    }));
-    return {
-      channel,
-      copyId,
-      post: { ...first!, threadPosts: following.map((part) => ({ ...part, id: null })) },
-    };
+    const post = copyAsPost(copy);
+    return post && { channel, copyId, post };
   }
   const post = await readPost(db, postId);
   const channel = channelById(channelId);
