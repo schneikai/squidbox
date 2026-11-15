@@ -33,7 +33,7 @@ export default function Post({ post, contentPaddingTop = 0, contentPaddingBottom
     () => [...new Set(thread.flatMap((each) => each.postAssets.map(({ asset }) => asset.id)))],
     [thread],
   );
-  const contactsById = useMentionedContacts(thread);
+  const { contactsById } = useMentionedContacts(thread);
   const { onPressMention, sheet } = useMentionSheet(contactsById);
 
   return (

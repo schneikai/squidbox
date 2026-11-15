@@ -41,9 +41,9 @@ export default function SendToChannelsScreen() {
   const post = usePost(postId);
   const copies = useLiveQuery((db) => readPostCopies(db, postId), postCopiesTables, [postId]);
   const channels = useChannels();
-  const contactsById = useMentionedContacts(copies?.flatMap((copy) => copy.posts));
+  const { contactsById, isRead: areContactsRead } = useMentionedContacts(copies?.flatMap((copy) => copy.posts));
   const { onPressMention, sheet } = useMentionSheet(contactsById);
-  const { sendNow, sendAll } = useSendCopies(contactsById);
+  const { sendNow, sendAll } = useSendCopies();
   const { removePostCopy, setPostCopiesSent } = usePosts();
   const padding = useScreenPadding('sheet');
   const actionPadding = useFloatingPrimaryActionPadding();
@@ -70,7 +70,8 @@ export default function SendToChannelsScreen() {
     if (await confirmRemoveAsync(`this ${channel.name} copy`)) await removePostCopy(copy.id);
   }
 
-  if (!post || !copies) return null;
+  // The copies show once their chips' contacts are read: their handles and warnings don't move in.
+  if (!post || !copies || !areContactsRead) return null;
 
   const bottomAction =
     unsent.length > 1 ? (

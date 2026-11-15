@@ -46,7 +46,7 @@ export default function PostList({
 }: PostListProps) {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
   // The contacts the loaded posts' chips show, read once for the list.
-  const contactsById = useMentionedContacts(rows);
+  const { contactsById } = useMentionedContacts(rows);
 
   // More is asked for only once the first page landed: a load-more asked before would read a second
   // page at once.

@@ -65,7 +65,7 @@ export default function ThreadFollowingPosts({
 
   const post = livePost ?? unfoldedPosts.get(postId);
   // The list reads the contacts of its loaded posts; a thread's following posts read their own.
-  const contactsById = useMentionedContacts(post?.threadPosts);
+  const { contactsById } = useMentionedContacts(post?.threadPosts);
   const isRead = Boolean(post);
   // The posts that come out of the stack: those of the first read.
   if (post && !unfoldPartIds) setUnfoldPartIds(new Set(post.threadPosts.map((part) => part.id)));

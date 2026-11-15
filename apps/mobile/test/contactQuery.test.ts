@@ -201,6 +201,11 @@ describe('contactQuery', () => {
     expect(await ids(contactQuery({ scope: { listId: 'l1' } }))).toEqual(['maya']);
   });
 
+  it("an ids scope is those contacts still live (a post's chips)", async () => {
+    await contacts.remove(db, ['ben']);
+    expect(await ids(contactQuery({ scope: { ids: ['maya', 'ben'] } }))).toEqual(['maya']);
+  });
+
   it('a deleted contact leaves the photo it was on', async () => {
     await contactLinks.add(db, { targetType: 'asset', targetId: 'a1' }, ['maya', 'ana'], newId);
     await contacts.remove(db, ['maya']);

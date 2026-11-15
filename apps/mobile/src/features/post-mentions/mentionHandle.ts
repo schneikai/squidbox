@@ -1,9 +1,10 @@
-import { parseHandle, type ContactHandleField, type ContactRecord } from '@squidbox/shared';
+import { parseHandle, type ContactHandleField } from '@squidbox/shared';
 
-/** What the mention rules read of a contact: its name, avatar and handles. */
-export type MentionContact = Pick<ContactRecord, 'id' | 'name'> &
-  Partial<Pick<ContactRecord, 'avatarFilename' | 'isFavorite'>> &
-  Partial<Record<ContactHandleField, string | null>>;
+import type { ContactSummary } from '@/sync/queries/contactQuery';
+
+/** What the mention rules read of a contact (of what a chip shows, ContactSummary): its name, avatar and handles. */
+export type MentionContact = Pick<ContactSummary, 'id' | 'name'> &
+  Partial<Pick<ContactSummary, 'avatarFilename' | 'isFavorite' | ContactHandleField>>;
 
 /**
  * A contact's handle in `field`, bare (no @), as a mention writes it: the handle typed, or a stored
