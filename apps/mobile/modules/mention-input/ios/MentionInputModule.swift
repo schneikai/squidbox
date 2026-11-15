@@ -17,6 +17,10 @@ public final class MentionInputModule: Module {
         view.setFontSize(CGFloat(fontSize ?? 17))
       }
 
+      Prop("lineHeight") { (view, lineHeight: Double?) in
+        view.setLineHeight(CGFloat(lineHeight ?? 0))
+      }
+
       Prop("textColor") { (view, color: UIColor?) in
         view.setTextColor(color ?? UIColor.label)
       }

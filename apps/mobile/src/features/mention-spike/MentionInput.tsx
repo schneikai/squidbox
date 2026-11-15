@@ -17,6 +17,7 @@ type NativeProps = ViewProps & {
   ref?: Ref<MentionInputHandle>;
   placeholder?: string;
   fontSize?: number;
+  lineHeight?: number;
   textColor?: string;
   placeholderColor?: string;
   chipColor?: string;
@@ -58,6 +59,7 @@ export default function MentionInput({
       ref={ref}
       placeholder={placeholder}
       fontSize={textStyles.reading.fontSize}
+      lineHeight={textStyles.reading.lineHeight}
       textColor={colors.text.primary}
       placeholderColor={colors.text.tertiary}
       chipColor={colors.background.muted}

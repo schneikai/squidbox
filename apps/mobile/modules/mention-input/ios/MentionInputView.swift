@@ -20,6 +20,9 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   private let textView = UITextView()
   private let placeholderLabel = UILabel()
   private var font = UIFont.systemFont(ofSize: 17)
+  private var fontSize: CGFloat = 17
+  // The line's height as the app sets it (0: the font's own), before the text size setting.
+  private var lineHeight: CGFloat = 0
   private var textColor = UIColor.label
   private var chipColor = UIColor.secondarySystemFill
   private var reportedHeight: CGFloat = -1
@@ -56,7 +59,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   public override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
-    placeholderLabel.frame = CGRect(x: 0, y: 0, width: bounds.width, height: ceil(font.lineHeight))
+    placeholderLabel.frame = CGRect(x: 0, y: 0, width: bounds.width, height: ceil(lineBox()))
     reportHeight()
   }
 
@@ -67,11 +70,45 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   }
 
   func setFontSize(_ size: CGFloat) {
-    font = UIFont.systemFont(ofSize: size)
+    fontSize = size
+    applyFont()
+  }
+
+  func setLineHeight(_ height: CGFloat) {
+    lineHeight = height
+    applyFont()
+  }
+
+  // The size grows with the phone's text size setting, by the factors React Native's own texts
+  // use, so the field matches the inputs around it.
+  private func applyFont() {
+    font = UIFont.systemFont(ofSize: fontSize * textSizeFactor())
     textView.font = font
     placeholderLabel.font = font
     applyTypingAttributes()
     setNeedsLayout()
+  }
+
+  private func textSizeFactor() -> CGFloat {
+    switch UIApplication.shared.preferredContentSizeCategory {
+    case UIContentSizeCategory.extraSmall: return 0.823
+    case UIContentSizeCategory.small: return 0.882
+    case UIContentSizeCategory.medium: return 0.941
+    case UIContentSizeCategory.extraLarge: return 1.118
+    case UIContentSizeCategory.extraExtraLarge: return 1.235
+    case UIContentSizeCategory.extraExtraExtraLarge: return 1.353
+    case UIContentSizeCategory.accessibilityMedium: return 1.786
+    case UIContentSizeCategory.accessibilityLarge: return 2.143
+    case UIContentSizeCategory.accessibilityExtraLarge: return 2.643
+    case UIContentSizeCategory.accessibilityExtraExtraLarge: return 3.143
+    case UIContentSizeCategory.accessibilityExtraExtraExtraLarge: return 3.571
+    default: return 1
+    }
+  }
+
+  // A line's height: the app's line height with the text size setting, never under the font's own.
+  private func lineBox() -> CGFloat {
+    return max(lineHeight * textSizeFactor(), font.lineHeight)
   }
 
   func setTextColor(_ color: UIColor) {
@@ -106,8 +143,8 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     attachment.mentionLabel = label
     let image = chipImage(label: label, avatar: loadAvatar(avatarUri))
     attachment.image = image
-    // On the line: from the descender up, as tall as the line, so the cursor keeps its height.
-    attachment.bounds = CGRect(x: 0, y: font.descender, width: image.size.width, height: image.size.height)
+    // Its middle on the middle of the capitals, so it sits centered on the text beside it.
+    attachment.bounds = CGRect(x: 0, y: chipOffset(image.size.height), width: image.size.width, height: image.size.height)
 
     let attributes = typingAttributes()
     let inserted = NSMutableAttributedString(attachment: attachment)
@@ -142,7 +179,22 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   // MARK: - Private
 
   private func typingAttributes() -> [NSAttributedString.Key: Any] {
-    return [NSAttributedString.Key.font: font, NSAttributedString.Key.foregroundColor: textColor]
+    let box = lineBox()
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.minimumLineHeight = box
+    paragraph.maximumLineHeight = box
+    return [
+      NSAttributedString.Key.font: font,
+      NSAttributedString.Key.foregroundColor: textColor,
+      NSAttributedString.Key.paragraphStyle: paragraph,
+      // A taller line puts its text at the bottom: lift it to the middle, as React Native does.
+      NSAttributedString.Key.baselineOffset: (box - font.lineHeight) / 2
+    ]
+  }
+
+  // How far under the baseline the chip starts.
+  private func chipOffset(_ height: CGFloat) -> CGFloat {
+    return (font.capHeight - height) / 2
   }
 
   // Text typed after a chip must not take the attachment's attributes.
@@ -244,7 +296,7 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     let gap: CGFloat = 5
     let trailing: CGFloat = 9
     let labelAttributes: [NSAttributedString.Key: Any] = [
-      NSAttributedString.Key.font: UIFont.systemFont(ofSize: font.pointSize - 1),
+      NSAttributedString.Key.font: font,
       NSAttributedString.Key.foregroundColor: textColor
     ]
     let labelSize = (label as NSString).size(withAttributes: labelAttributes)
@@ -277,7 +329,8 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
       context.cgContext.restoreGState()
 
       (label as NSString).draw(
-        at: CGPoint(x: avatarRect.maxX + gap, y: (height - labelSize.height) / 2),
+        // On the baseline of the text beside the chip.
+        at: CGPoint(x: avatarRect.maxX + gap, y: height + chipOffset(height) - font.ascender),
         withAttributes: labelAttributes
       )
     }
