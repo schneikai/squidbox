@@ -1,6 +1,6 @@
 import { Platform, Pressable, Text as RNText, StyleSheet } from 'react-native';
 
-import { mentionChipBox, mentionChipStyle } from './mentionChipStyle';
+import { mentionChipBox } from './mentionChipStyle';
 
 import ContactAvatar, { type ContactAvatarProps } from '@/features/contact-avatar/ContactAvatar';
 import { colors, press, textStyles } from '@/styles/designTokens';
@@ -19,7 +19,7 @@ const CAP_HEIGHT = 0.7;
 // iOS sits an inline view on the baseline: down by this, its middle is on the middle of the
 // capitals, as the native field draws its chips (chipOffset in MentionInputView.swift). The web lines
 // up the chip's label with the text's baseline by itself.
-const IOS_DROP = (BOX.height - textStyles.reading.fontSize * CAP_HEIGHT) / 2 - mentionChipStyle.offsetY;
+const IOS_DROP = (BOX.height - textStyles.reading.fontSize * CAP_HEIGHT) / 2;
 
 /**
  * A mention in read-only text (MentionText): the contact's round avatar (ContactAvatar) and the label on a muted
