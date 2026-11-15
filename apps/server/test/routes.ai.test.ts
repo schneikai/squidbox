@@ -86,7 +86,7 @@ import { clearCatalogCache } from '../src/ai/catalog.js';
 import { publishInstruction, readAppInstructions, readInstructions } from '../src/ai/instructions.js';
 import { readChosenModelId } from '../src/ai/modelChoices.js';
 import { CHAT_PLAN } from '../src/ai/chatVerify.js';
-import { CONTACT_FIELDS_FORMAT } from '../src/ai/prompts.js';
+import { CONTACT_FIELDS_FORMAT, MENTION_FORMAT } from '../src/ai/prompts.js';
 import { PHOTO_FILES } from '../src/ai/tagVerify.js';
 import { readLatestRun, runVerify, startRun } from '../src/ai/verifyRuns.js';
 import { setModelDefaults, setUncensored, setVerification } from '../src/ai/verification.js';
@@ -200,7 +200,7 @@ const chatRequest = {
     text: 'Fog on the trail',
     media: { photo: 2, video: 0 },
     tags: ['forest', 'morning fog'],
-    mentions: ['@ridgeline.bsky.social'],
+    mentions: ['Sam Ridge'],
   },
   messages: [{ role: 'user', content: 'Write a caption for these photos' }],
 };
@@ -841,7 +841,7 @@ describe('POST /api/v1/ai/chat', () => {
     const [system, ...turns] = body.messages;
     expect(system.role).toBe('system');
     expect(system.content).toContain("What's in the photos (from image recognition): forest, morning fog");
-    expect(system.content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
+    expect(system.content).toContain('People they may mention: Sam Ridge');
     expect(system.content).toContain('Their post so far: "Fog on the trail"');
     expect(system.content).not.toContain('{"tweets"');
     expect(turns).toEqual([
@@ -900,6 +900,15 @@ describe('POST /api/v1/ai/chat', () => {
     expect((await call('POST', '/ai/chat', { ...chatRequest, readsMentionMarkers: true })).json()).toMatchObject(
       marked,
     );
+  });
+
+  it('tells the model how to write a mention only for a build that reads mention markers', async () => {
+    veniceAnswers();
+    await call('POST', '/ai/chat', chatRequest);
+    await call('POST', '/ai/chat', { ...chatRequest, readsMentionMarkers: true });
+    const [unflagged, flagged] = chatBodies().map((body) => body.messages[0].content as string);
+    expect(unflagged).not.toContain(MENTION_FORMAT);
+    expect(flagged!.endsWith(`\n\n${MENTION_FORMAT}`)).toBe(true);
   });
 
   it('502 ai_unavailable when nothing is left of the reply without its markers, for every build', async () => {

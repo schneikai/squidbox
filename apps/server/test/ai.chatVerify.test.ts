@@ -30,7 +30,7 @@ const instructions = {
     '{posts}',
     'Media: {media}',
     "What's in the photos (from image recognition): {tags}",
-    "People they've tagged in posts from the same album: {mentions}",
+    'People they may mention: {mentions}',
     'Caption so far: {caption}',
     'Before:',
     '{transcript}',
@@ -121,24 +121,33 @@ describe('check', () => {
 });
 
 describe('cardChecks', () => {
-  const post = { photos: 1, videos: 0, tags: [], mentions: ['@ridgeline.bsky.social'], caption: '' };
+  const post = { photos: 1, videos: 0, tags: [], mentions: ['Sam Ridge'], caption: '' };
+  const mentionReason = (card: string) => cardChecks([card], post, true)[0]!.reason;
 
-  it("holds cards to the persona's rules and the post's handles, a failed one with its reason", () => {
+  it("holds cards to the persona's rules and the post's mentions, a failed one with its reason", () => {
     expect(cardChecks([], post, false)).toEqual([]);
-    const fine = cardChecks(['Quiet coast with @ridgeline.bsky.social.'], post, false);
+    const fine = cardChecks(['Quiet coast with @[Sam Ridge].'], post, false);
     expect(fine.every(({ ok, reason }) => ok && reason === null)).toBe(true);
-    const failed = cardChecks(['Wow! #coast with @someone.bsky.social'], post, false).filter(({ ok }) => !ok);
+    const failed = cardChecks(['Wow! #coast with @[Jo Vale]'], post, false).filter(({ ok }) => !ok);
     expect(failed.map(({ reason }) => reason)).toEqual([
       'a hashtag',
       'an exclamation mark',
-      'a handle not in the post',
+      'a marker of a name not given',
     ]);
   });
 
-  it('checks only the handles without the persona', () => {
+  it('checks only the mentions without the persona', () => {
     expect(cardChecks(['Wow! #coast'], post, true)).toEqual([
-      { name: "handles: only the post's, exact", ok: true, reason: null },
+      { name: "mentions: only the post's, marked", ok: true, reason: null },
     ]);
+  });
+
+  it("fails an @handle of the model's own", () => {
+    expect(mentionReason('Out with @samridge.bsky.social')).toBe('an @handle');
+  });
+
+  it('fails a given name written without its marker', () => {
+    expect(mentionReason('@[Sam Ridge] and Sam Ridge again')).toBe('a given name standing outside a marker');
   });
 });
 
@@ -177,9 +186,7 @@ describe('verifyChatModel', () => {
     expect(calls[1]!.messages[0].content).toContain('Before:\n(none)');
     // what the writing model was told about the creator and the post
     expect(judge.messages[0].content).toContain("About the creator: I'm a guy who shoots outdoors");
-    expect(judge.messages[0].content).toContain(
-      "People they've tagged in posts from the same album: @ridgeline.bsky.social",
-    );
+    expect(judge.messages[0].content).toContain('People they may mention: Sam Ridge');
     expect(judge.messages[0].content).toContain("What's in the photos (from image recognition): coastline, grey sky");
     expect(judge.messages[0].content).toContain('Media: 4 photos and 1 video');
     expect(judge.messages[0].content).toContain('Caption so far: (empty)');
@@ -308,7 +315,7 @@ describe('verifyChatModel', () => {
     venice({ model: () => ({ reply: 'Here.', postOptions: POSTS }) });
     const result = await verifyChatModel(model, { catalog, instructions, sectionIds: ['refine'] });
     const [section] = result.sections;
-    expect(section!.post).toMatchObject({ photos: 4, videos: 1, caption: '', mentions: ['@ridgeline.bsky.social'] });
+    expect(section!.post).toMatchObject({ photos: 4, videos: 1, caption: '', mentions: ['Sam Ridge'] });
     expect(section!.turns.map((turn) => turn.note)).toEqual([
       null,
       'The editor changed the caption to “Three days on the coast. The tent lost to the rain, the car won.”.',
@@ -326,7 +333,7 @@ describe('verifyChatModel', () => {
       .at(-1)!;
     expect(judgeOfBare.messages[0].content).not.toContain('About the creator');
     expect(judgeOfBare.messages[0].content).not.toContain('Posts they wrote');
-    expect(judgeOfBare.messages[0].content).toContain('@ridgeline.bsky.social');
+    expect(judgeOfBare.messages[0].content).toContain('Sam Ridge');
   });
 
   it('rejects before any call when Venice does not offer the judge', async () => {

@@ -5,10 +5,12 @@
 // posts, each real reply appended to the transcript as the app keeps it. Each turn gets the
 // checks that can be made in code, then one judge question to VERIFY_JUDGE_MODEL_ID: did the reply
 // answer the request and hold the conversation. The model is sent its replies as it wrote them, mention
-// markers included (as the app sends them back); everything else (the checks, the judge, the stored
-// turn) reads them without markers (withoutMarkers), as Verify's screen shows them.
+// markers included (as the app sends them back), and the mentions check reads the cards so;
+// everything else (the other checks, the judge, the stored turn) reads them without markers
+// (withoutMarkers), as Verify's screen shows them.
 import {
   DEFAULT_PROMPT_BUTTONS,
+  mentionMarkers,
   VERIFY_JUDGE_MODEL_ID,
   type ChatContext,
   type ChatReply,
@@ -37,7 +39,7 @@ import { missedTurn, timedCall, verifyProgress } from './verifyTurns.js';
  *   lines:N   no cards, and at least N lines in the reply (bios, ideas)
  *   about:re  every card matches the regex (the caption was rewritten, not the chat's posts)
  * Every reply with cards is also checked against the persona's rules, his posts (never copied)
- * and the post's handles (only those, spelled exactly).
+ * and the post's mentions (only those, each marked).
  */
 type Step = { user: string; post?: Partial<VerifyPost>; expect: string[] };
 
@@ -58,7 +60,7 @@ const BASE_POST: VerifyPost = {
     'driftwood',
     'empty beach',
   ],
-  mentions: ['@ridgeline.bsky.social'],
+  mentions: ['Sam Ridge'],
   caption: '',
 };
 
@@ -95,7 +97,7 @@ export const SCENARIOS: Record<string, { title: string; steps: Step[] }> = {
       },
     ],
   },
-  // Captions, a switch to bios, back with a count and the handle
+  // Captions, a switch to bios, back with a count and who was there
   switch: {
     title: 'Captions, bios and back',
     steps: [
@@ -158,7 +160,8 @@ export const CHAT_PLAN: VerifyPlan = {
   sections: SECTIONS.map(({ id, title, steps }) => ({ id, title, prompts: steps.map((step) => step.user) })),
 };
 
-const HANDLE = /@[\w-]+(?:\.[\w-]+)+/g;
+// An @ that starts a word: a handle the model wrote of its own.
+const AT_HANDLE = /(?:^|[^\w@])@\w/u;
 
 const normalized = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
 const meanLength = (texts: string[]) => texts.reduce((sum, text) => sum + text.length, 0) / (texts.length || 1);
@@ -196,9 +199,14 @@ export function check(expectation: string, reply: ChatReply, before: string[] | 
   throw new Error(`Unknown expectation ${expectation}`);
 }
 
-// The checks every set of cards gets: the persona's rules, none of his posts copied, only the post's handles.
-export function cardChecks(cards: string[], post: VerifyPost, isBare: boolean): Check[] {
-  if (cards.length === 0) return [];
+/**
+ * The checks every set of cards gets (`written`, as the model wrote them): the persona's rules and none
+ * of his posts copied (on the cards without markers), and the post's mentions, only those, each
+ * marked (mentionProblem).
+ */
+export function cardChecks(written: string[], post: VerifyPost, isBare: boolean): Check[] {
+  if (written.length === 0) return [];
+  const cards = withoutMarkers({ reply: '', postOptions: written }).postOptions;
   const checks: Check[] = [];
   if (!isBare) {
     checks.push(
@@ -224,15 +232,25 @@ export function cardChecks(cards: string[], post: VerifyPost, isBare: boolean): 
       ),
     );
   }
-  const handles = cards.flatMap((card) => card.match(HANDLE) ?? []);
-  checks.push(
-    checked(
-      "handles: only the post's, exact",
-      handles.every((handle) => post.mentions.includes(handle)),
-      'a handle not in the post',
-    ),
-  );
+  const names = new Map(post.mentions.map((name) => [mentionMarkers.key(name), name]));
+  const problem = written.map((card) => mentionProblem(card, names)).find((each) => each !== null) ?? null;
+  checks.push(checked("mentions: only the post's, marked", problem === null, problem ?? ''));
   return checks;
+}
+
+// What is wrong with a card's mentions of the post's `names` (by key), or null: a marker of a name
+// not given, an @handle of the model's own, or a given name standing outside a marker.
+function mentionProblem(card: string, names: ReadonlyMap<string, string>): string | null {
+  const { text, marks, unmatched } = mentionMarkers.read(card, names);
+  if (unmatched.length > 0) return 'a marker of a name not given';
+  if (AT_HANDLE.test(text)) return 'an @handle';
+  const marked = new Set(marks.map(({ location }) => location));
+  for (const name of names.values()) {
+    for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + 1)) {
+      if (!marked.has(at)) return 'a given name standing outside a marker';
+    }
+  }
+  return null;
 }
 
 /** The editor's change to the post before a turn, as a sentence. */
@@ -240,7 +258,7 @@ export function changeNote(change: Partial<VerifyPost>): string {
   const parts = [
     change.caption !== undefined && `the caption to “${change.caption}”`,
     change.tags && `the tags to ${change.tags.join(', ')}`,
-    change.mentions && `the tagged people to ${change.mentions.join(', ')}`,
+    change.mentions && `the people they may mention to ${change.mentions.join(', ')}`,
   ].filter((part) => typeof part === 'string');
   return `The editor changed ${parts.join(' and ')}.`;
 }
@@ -287,6 +305,8 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
           persona: isBare ? null : MOCK_PERSONA,
           posts: isBare ? [] : MOCK_POSTS,
           instructions,
+          // Verify reads the markers the model writes, as the app does.
+          readsMentionMarkers: true,
         });
         if (!section) {
           // The briefing shows once, and again for the bare one, which differs.
@@ -341,7 +361,7 @@ export const verifyChatModel: VerifyRunner = async (model, { catalog, instructio
         });
         const checks = [
           ...step.expect.map((name) => check(name, reply, before)),
-          ...cardChecks(reply.postOptions, post, isBare),
+          ...cardChecks(written.postOptions, post, isBare),
           'error' in verdict
             ? { name: 'judge', ok: false, reason: `the judge failed: ${verdict.error}` }
             : { name: 'judge', ok: verdict.value.pass, reason: verdict.value.reason || null },

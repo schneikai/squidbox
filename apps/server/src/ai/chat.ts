@@ -31,7 +31,14 @@ export async function chatAsync({
       readSamplePosts(db, user.id, request.chatId ?? ''),
       readInstructions(db, user),
     ]);
-    return chatMessages({ context: request.context, transcript: request.messages, persona, posts, instructions });
+    return chatMessages({
+      context: request.context,
+      transcript: request.messages,
+      persona,
+      posts,
+      instructions,
+      readsMentionMarkers: Boolean(request.readsMentionMarkers),
+    });
   }
   const messages = messagesAsync();
   const reply = await runChosenModelTask({

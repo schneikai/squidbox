@@ -25,7 +25,7 @@ const context = {
   text: 'Fog on the trail',
   media: { photo: 4, video: 1 },
   tags: ['forest', 'fog'],
-  mentions: ['@ridgeline.bsky.social'],
+  mentions: ['Sam Ridge'],
 };
 const transcript = [
   { role: 'user' as const, content: 'Write a caption' },
@@ -52,11 +52,25 @@ describe('fillLines', () => {
 
 describe('chatMessages', () => {
   const systemOfChat = (overrides: Partial<Parameters<typeof chatMessages>[0]> = {}) =>
-    chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, posts, ...overrides })[0]!
-      .content as string;
+    chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+      ...overrides,
+    })[0]!.content as string;
 
   it('sends the filled briefing alone as the system message', () => {
-    const [system] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, posts });
+    const [system] = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     const content = system!.content as string;
     expect(system!.role).toBe('system');
     expect(content.startsWith('You are a writing assistant for a content creator')).toBe(true);
@@ -87,7 +101,7 @@ describe('chatMessages', () => {
 
   it('fills {favorites} like {posts}, for a text published before the posts replaced the Favorites', () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Like these:\n{favorites}' };
-    const [system] = chatMessages({ instructions, context, transcript, persona, posts });
+    const [system] = chatMessages({ instructions, context, transcript, persona, posts, readsMentionMarkers: false });
     expect(system!.content).toBe('Like these:\n- First light on the ridge.\n- Fog on the lake.');
   });
 
@@ -96,11 +110,11 @@ describe('chatMessages', () => {
     expect(content).toContain('never copy them):\n- Up early. Fog on the lake.\n');
   });
 
-  it('fills the post: media, tags, handles, the caption as a JSON string, and the count', () => {
+  it('fills the post: media, tags, mentions, the caption as a JSON string, and the count', () => {
     const content = systemOfChat();
     expect(content).toContain('Media: 4 photos and 1 video');
     expect(content).toContain("What's in the photos (from image recognition): forest, fog");
-    expect(content).toContain("People they've tagged in posts from the same album: @ridgeline.bsky.social");
+    expect(content).toContain('People they may mention: Sam Ridge');
     expect(content).toContain('Their post so far: "Fog on the trail"');
     expect(content).toContain('Use 6 options unless the creator specifies otherwise');
   });
@@ -116,6 +130,18 @@ describe('chatMessages', () => {
     expect(systemOfChat()).toContain('Their post so far: "Fog on the trail"\n\nThis is the current state');
   });
 
+  it('ends the briefing with how to write a mention for a build that reads mention markers', () => {
+    expect(systemOfChat({ readsMentionMarkers: true })).toMatch(
+      /For multiple suggestions, put each on its own line\.\n\nWhen a post or your reply names one of the people listed above, .*never write a handle or an @ of your own\.$/,
+    );
+  });
+
+  it('says nothing of mention markers to a build that does not read them', () => {
+    const content = systemOfChat();
+    expect(content).not.toContain('@[');
+    expect(content.endsWith('For multiple suggestions, put each on its own line.')).toBe(true);
+  });
+
   it('adds the thread at the end of a Writing text without {thread}, and nothing without a thread', () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, writing: 'Be brief. {caption}' };
     const thread = { index: 0, posts: ['Fog on the trail', 'Then the sun.'] };
@@ -125,7 +151,7 @@ describe('chatMessages', () => {
     expect(systemOfChat({ instructions })).toBe('Be brief. "Fog on the trail"');
   });
 
-  it('says so for an empty caption and no media, and leaves out empty tags and handles', () => {
+  it('says so for an empty caption and no media, and leaves out empty tags and mentions', () => {
     const content = systemOfChat({
       context: { ...context, text: '  ', media: { photo: 0, video: 0 }, tags: [], mentions: [] },
     });
@@ -151,7 +177,14 @@ describe('chatMessages', () => {
   });
 
   it('follows with the transcript, the past replies as their JSON', () => {
-    const [, ...rest] = chatMessages({ instructions: DEFAULT_INSTRUCTIONS, context, transcript, persona, posts });
+    const [, ...rest] = chatMessages({
+      instructions: DEFAULT_INSTRUCTIONS,
+      context,
+      transcript,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     expect(rest).toEqual([
       { role: 'user', content: 'Write a caption' },
       { role: 'assistant', content: '{"reply":"Here you go.","postOptions":["one","two","three"]}' },
@@ -162,14 +195,28 @@ describe('chatMessages', () => {
   it("puts the user's More like this instruction before a More like this turn's option", () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, moreLikeThis: 'Again, please.' };
     const turns = [...transcript, { role: 'user' as const, content: 'one', moreLikeThis: true }];
-    const messages = chatMessages({ instructions, context, transcript: turns, persona, posts });
+    const messages = chatMessages({
+      instructions,
+      context,
+      transcript: turns,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     expect(messages.at(-1)).toEqual({ role: 'user', content: 'Again, please.\n\none' });
   });
 
   it("puts the user's More instruction before a More turn's request", () => {
     const instructions = { ...DEFAULT_INSTRUCTIONS, moreIdeas: 'Another set.' };
     const turns = [...transcript, { role: 'user' as const, content: 'Write ideas', moreIdeas: true }];
-    const messages = chatMessages({ instructions, context, transcript: turns, persona, posts });
+    const messages = chatMessages({
+      instructions,
+      context,
+      transcript: turns,
+      persona,
+      posts,
+      readsMentionMarkers: false,
+    });
     expect(messages.at(-1)).toEqual({ role: 'user', content: 'Another set.\n\nWrite ideas' });
   });
 

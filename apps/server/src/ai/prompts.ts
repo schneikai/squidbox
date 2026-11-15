@@ -39,6 +39,12 @@ export const CONTACT_FIELDS_FORMAT = [
   'No commentary or Markdown.',
 ].join('\n');
 
+// How the chat's writing model writes a mention, after the writing briefing for a build that makes
+// each marker a chip (`readsMentionMarkers`, mentionMarkers). Not one of the editable instructions,
+// like CONTACT_FIELDS_FORMAT: it is the protocol the app reads, so every text gets it.
+export const MENTION_FORMAT =
+  'When a post or your reply names one of the people listed above, write the name exactly as listed, wrapped like this: @[name as listed]. Keep every @[…] already in their post or the thread as it is. Use @[…] for nobody else, and never write a handle or an @ of your own.';
+
 // Only how a writing compare answers, not what it writes, so it isn't one of the editable
 // instructions (the owner's call): the prompt box stays all the guidance a model gets. It names
 // JSON: some providers behind Venice refuse a response format when the messages don't.
@@ -98,7 +104,8 @@ function userTurnText(turn: UserTurn, instructions: Instructions): string {
 /**
  * The assistant chat, as the user: the writing briefing (`instructions.writing`, filled with their
  * persona, their posts and the post) as the whole system message, then the transcript, a past reply in
- * the JSON the model replies in and a user turn as userTurnText has it.
+ * the JSON the model replies in and a user turn as userTurnText has it. A build that reads mention
+ * markers (`readsMentionMarkers`) gets MENTION_FORMAT after the briefing; one that doesn't, nothing.
  */
 export function chatMessages({
   context,
@@ -106,15 +113,25 @@ export function chatMessages({
   persona,
   posts,
   instructions,
+  readsMentionMarkers,
 }: {
   context: ChatContext;
   transcript: ChatTurn[];
   persona: Persona;
   posts: string[];
   instructions: Instructions;
+  readsMentionMarkers: boolean;
 }): ChatMessage[] {
   return [
-    { role: 'system', content: writingBriefingText(instructions.writing, { persona, posts, context }) },
+    {
+      role: 'system',
+      content: [
+        writingBriefingText(instructions.writing, { persona, posts, context }),
+        readsMentionMarkers ? MENTION_FORMAT : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    },
     ...transcript.map((turn): ChatMessage =>
       turn.role === 'user'
         ? { role: 'user', content: userTurnText(turn, instructions) }
