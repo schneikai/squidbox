@@ -84,11 +84,15 @@ const WRITING_RUN: IdeasRun = {
 const IDEAS_RUN: IdeasRun = {
   ...WRITING_RUN,
   isWriting: false,
+  // One idea mentions a contact: a chip of no live contact draws its stored name.
   items: [
-    'Golden hour on the ridge. Worth the 5 am start, every single time.',
-    'Sunrise or sunset: which one gets you out of bed?',
-    'The trail was empty, the coffee was cold, and then the fog lifted all at once.',
-  ].map((text, index) => ({ replyId: 'gallery', index, value: { text, mentions: null }, isUsed: false })),
+    { text: 'Golden hour on the ridge. Worth the 5 am start, every single time.', mentions: null },
+    {
+      text: 'Up before the sun with Sam Ridge. The fog lifted at the first switchback.',
+      mentions: [{ contactId: 'gallery-sam', location: 23, name: 'Sam Ridge' }],
+    },
+    { text: 'The trail was empty, the coffee was cold, and then the fog lifted all at once.', mentions: null },
+  ].map((value, index) => ({ replyId: 'gallery', index, value, isUsed: false })),
 };
 
 // A popover shown open, as if it had finished growing.

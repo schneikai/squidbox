@@ -15,7 +15,7 @@ import { colors, layout, sizes, space } from '@/styles/designTokens';
 // A reasoning model's first drafting turn can take a while: after this, the card says it still works.
 const SLOW_MS = 20_000;
 
-type AssistantMessageProps = Pick<ChatOptionCardProps, 'onMoreLikeThis' | 'onUse'> & {
+type AssistantMessageProps = Pick<ChatOptionCardProps, 'contactsById' | 'onMoreLikeThis' | 'onUse'> & {
   reply: AssistantChatMessage;
   onRetry: (() => void) | null;
   // The line under the options once one was used (usedNote), or null.
@@ -25,20 +25,22 @@ type AssistantMessageProps = Pick<ChatOptionCardProps, 'onMoreLikeThis' | 'onUse
 /**
  * One of the assistant's replies (`reply`, a chat message): a spinner while it's written, what went
  * wrong with Retry (`onRetry`, for the last reply only), or what it says (AssistantBubble) and its
- * options for the post as ChatOptionCards, with `usedNote` under them once one was used.
+ * options for the post as ChatOptionCards, their chips' contacts from `contactsById`, with `usedNote`
+ * under them once one was used.
  */
-function AssistantMessage({ reply, onRetry, onMoreLikeThis, onUse, usedNote }: AssistantMessageProps) {
+function AssistantMessage({ reply, contactsById, onRetry, onMoreLikeThis, onUse, usedNote }: AssistantMessageProps) {
   if (reply.status === 'loading') return <ThinkingCard />;
 
   if (reply.status === 'error') return <ReplyError error={reply.error} onRetry={onRetry} />;
 
   return (
     <View style={styles.reply}>
-      {!!reply.reply.text && <AssistantBubble text={reply.reply.text} />}
+      {!!reply.reply.text && <AssistantBubble value={reply.reply} contactsById={contactsById} />}
       {reply.postOptions.map((value, index) => (
         <ChatOptionCard
           key={`${index}:${value.text}`}
           value={value}
+          contactsById={contactsById}
           replyId={reply.id}
           index={index}
           onMoreLikeThis={onMoreLikeThis}

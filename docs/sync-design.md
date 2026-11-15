@@ -873,22 +873,22 @@ camel case (`ideaSettings`), and so are the repository and its hook (`ideaSettin
 
 1. Shared: add the descriptor in `packages/shared/collections/`, export it from
    `packages/shared/index.ts`, and add it to `collections` in `registry.ts`. `CollectionName` is
-   inferred from that list, so every step below marked *typed* fails `npm run typecheck` until it
+   inferred from that list, so every step below marked _typed_ fails `npm run typecheck` until it
    is done.
 2. Server: add the table in `apps/server/src/db/schema.ts` with `syncableBase()` (which brings
    `field_clock`), a composite `(user_id, id)` primary key and a `(user_id, server_seq)` index, and
-   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (*typed*). Generate the
+   add it to `serverCollections` in `apps/server/src/sync/collections.ts` (_typed_). Generate the
    migration from `apps/server`: `npm run db:generate -- --name <collection>`. `migrate.ts` attaches
    the `server_seq` trigger.
 3. Client: add the table in `apps/mobile/src/sync/db/schema.ts` and to `clientCollectionTables` in
-   `clientCollections.ts` (*typed*), and generate the migration from `apps/mobile`:
+   `clientCollections.ts` (_typed_), and generate the migration from `apps/mobile`:
    `npx drizzle-kit generate --name <collection>` (it also regenerates `migrations.js`). A pull
    skips a collection without a client table on purpose, so an older build survives a newer
    server; only the typecheck catches a new build that forgot it.
 4. Name a failed push of it in words in `TITLES` in `apps/mobile/src/sync/readPushFailures.ts`
-   (*typed*).
+   (_typed_).
 5. Add a sample record to the "collection registry guard" in `apps/server/test/sync.test.ts`
-   (*typed*), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
+   (_typed_), and the persona's records to `apps/server/scripts/seed-mock.ts` when the mock account
    should have some.
 6. Describe its fields in §10.
 7. For a file field: name it in `fileFields` and add its folder to `FILE_FIELDS` in
@@ -952,13 +952,19 @@ the field shows a mention as its name, and a text it edits may lose its chips (t
 plain text). Server 0041, app 0041.
 
 The assistant works with contacts too: the chat's Mentions are contacts, and a turn sends their
-names (`context.mentions`, still `string[]`, so older builds keep sending handles). Use and an idea's
-Copy make each full name of that turn's Mentions in the idea a mention, so every channel gets the
-contact's own handle there. A typed `@handle` in a saved text stays text: the chat's Mentions come
-from the sheet, the photos' contacts and the posts' chips, never from typed handles.
+names (`context.mentions`, still `string[]`, so older builds keep sending handles). The assistant
+marks each contact it mentions with the name it was given, `@[Sam Ridge]` (`mentionMarkers` in
+`packages/shared`), and the app makes each marker a chip when the reply lands (`markedText`): the
+chat keeps each answer and idea as a text with its mentions, the shape a post stores, so Use and Copy
+take it as it is and every channel gets the contact's own handle; nothing searches a text for names.
+A marker naming nobody the turn was told, a name two of its contacts share, or a broken one becomes
+plain text. The posts' own chips go to the model as markers too, and their contacts count for their
+names. Markers exist only on the wire: the chat is never saved, and a request without
+`readsMentionMarkers` (installed builds) gets the reply with them taken off by the server. A typed
+`@handle` in a saved text stays text: the chat's Mentions come from the sheet, the photos' contacts
+and the posts' chips, never from typed handles.
 
-Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and
-0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
+Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and 0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
 channel of a post was a post of its own, linked by `channelRootId`, and `channelId` with
 `extraChannelIds` (one field group, §7) named the channels a version went to. The app no longer
 reads or writes them (app 0041 drops their columns); they stay optional in the contract, in the

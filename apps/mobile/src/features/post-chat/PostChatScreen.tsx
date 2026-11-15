@@ -9,7 +9,7 @@ import ChatComposer from './ChatComposer';
 import ChatSubjectCard from './ChatSubjectCard';
 import SystemMessageSheet from './SystemMessageSheet';
 import UserMessage from './UserMessage';
-import { type AssistantChatMessage, type ChatMessage, type ChatSeed, canUseFor } from './chatSessions';
+import { type AssistantChatMessage, type ChatMessage, type ChatSeed, canUseFor, isReply } from './chatSessions';
 import promptSeed from './promptSeed';
 import type { LiveChat } from './useChatSession';
 import usePostChat, { type PostChatState } from './usePostChat';
@@ -24,6 +24,7 @@ import ModalSheet from '@/components/ModalSheet';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
@@ -78,6 +79,12 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   const shouldScrollRef = useRef(false);
   const bottomInset = useKeyboardInset();
   const { messages, targets, activeTarget } = chat;
+  // The contacts the replies' chips mention, read once for all of them.
+  const replyTexts = useMemo(
+    () => messages.flatMap((message) => (isReply(message) ? [message.reply, ...message.postOptions] : [])),
+    [messages],
+  );
+  const { contactsById } = useMentionedContacts(replyTexts);
 
   // A new turn or a reply that landed: show the end of the chat once it's laid out.
   useEffect(() => {
@@ -213,6 +220,7 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
             <AssistantMessage
               key={message.id}
               reply={message}
+              contactsById={contactsById}
               onRetry={message === last ? retry : null}
               onMoreLikeThis={isLive ? moreLikeThisFor(target) : null}
               onUse={target !== null && canUseFor(chat, target) ? handleUse : null}

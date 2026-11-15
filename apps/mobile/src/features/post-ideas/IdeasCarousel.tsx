@@ -1,4 +1,4 @@
-import { type ComponentRef, memo, useEffect, useRef } from 'react';
+import { type ComponentRef, memo, useEffect, useMemo, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { interpolate, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
@@ -10,6 +10,8 @@ import OptionCard from '@/components/OptionCard';
 import Text from '@/components/Text';
 import ChatOptionCard from '@/features/post-chat/ChatOptionCard';
 import ReplyError from '@/features/post-chat/ReplyError';
+import MentionRuns from '@/features/post-mentions/MentionRuns';
+import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import useBreath from '@/hooks/useBreath';
 import useTrayInset from '@/hooks/useTrayInset';
 import { colors, disabledOpacity, lineHeights, press, radii, sizes, space } from '@/styles/designTokens';
@@ -36,12 +38,15 @@ type IdeasCarouselProps = {
  * More (`onMore`); while More is written, skeleton cards take its place and the carousel scrolls to
  * the first, and after a failure the error with Retry (`onRetry`, when the run's reply is the chat's
  * last) does. Three skeleton cards while its first reply is written. It shows the idea last used
- * (marked Used) as it is used, in the tray or the chat.
+ * (marked Used) as it is used, in the tray or the chat. Each idea's mentions are chips, of the
+ * contacts read once for the run (useMentionedContacts).
  */
 function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselProps) {
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const inset = useTrayInset();
   const breath = useBreath();
+  const itemValues = useMemo(() => run.items.map((item) => item.value), [run.items]);
+  const { contactsById } = useMentionedContacts(itemValues);
   // The idea last used (in the tray or the chat), which the carousel shows when the tray unfolds:
   // it goes there as the tray folds, unseen.
   const lastUsed = run.items.findLastIndex((item) => item.isUsed);
@@ -78,11 +83,17 @@ function IdeasCarousel({ run, onUse, onMore, onRetry, isBusy }: IdeasCarouselPro
     >
       {items.map((item) =>
         item.index === null ? (
-          <OptionCard key={`${item.replyId}:text`} text={item.value.text} textSize="small" style={styles.card} />
+          <OptionCard
+            key={`${item.replyId}:text`}
+            text={<MentionRuns value={item.value} contactsById={contactsById} size="small" />}
+            textSize="small"
+            style={styles.card}
+          />
         ) : (
           <ChatOptionCard
             key={`${item.replyId}:${item.index}`}
             value={item.value}
+            contactsById={contactsById}
             replyId={item.replyId}
             index={item.index}
             onMoreLikeThis={null}

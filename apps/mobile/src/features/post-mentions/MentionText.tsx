@@ -1,9 +1,8 @@
 import type { Channel } from '@squidbox/shared';
 
-import MentionChip from './MentionChip';
+import MentionRuns from './MentionRuns';
 import type { MentionContact } from './mentionHandle';
-import mentionLabel from './mentionLabel';
-import mentionParts, { type MentionTextValue } from './mentionParts';
+import type { MentionTextValue } from './mentionParts';
 
 import Text from '@/components/Text';
 
@@ -17,27 +16,14 @@ type MentionTextProps = {
 };
 
 /**
- * A post's text, read-only, each valid mention (mentionParts) a chip in the line (MentionChip,
- * labelled as mentionLabel reads it). A chip of a deleted contact shows its stored name and takes no
- * tap. A text without valid mentions is plain reading text, as before mentions.
+ * A post's text, read-only, each valid mention a chip in the line (MentionRuns). A chip of a deleted
+ * contact shows its stored name and takes no tap. A text without valid mentions is plain reading
+ * text, as before mentions.
  */
 export default function MentionText({ value, contactsById, channel, onPressMention }: MentionTextProps) {
-  const parts = mentionParts(value.text, value.mentions);
-
   return (
     <Text>
-      {parts.map((part) => {
-        if (part.kind === 'text') return part.text;
-        const contact = contactsById.get(part.mention.contactId);
-        return (
-          <MentionChip
-            key={part.mention.location}
-            label={mentionLabel(part.mention, contactsById, channel)}
-            contact={contact ?? { name: part.mention.name }}
-            onPress={contact && onPressMention ? () => onPressMention(contact.id) : undefined}
-          />
-        );
-      })}
+      <MentionRuns value={value} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
     </Text>
   );
 }

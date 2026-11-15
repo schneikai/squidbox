@@ -162,14 +162,13 @@ test('a posted post has no tray, and its editor starts no ideas', async ({ page,
   expect(assistant.events).toEqual([]);
 });
 
-test("an idea's marked names of the chat's Mentions are contacts: Copy writes each channel's handle, Use puts the chip in", async ({
+test("an idea's marked names of the chat's Mentions are chips: Copy writes each channel's handle, Use puts the chip in", async ({
   page,
   context,
   assistant,
 }) => {
   await allowClipboard(context);
-  const idea = 'Out on the ridge with Sam Ridge';
-  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Out on the ridge with @[Sam Ridge]'] });
+  assistant.chatAnswer = () => ({ reply: '', postOptions: ['Out on the ridge with @[Sam Ridge] and @[Nobody Here]'] });
   // A post of a Weekend walks photo: Sam Ridge is on one of its photos, so he is one of its Mentions.
   await openTab(page, 'Albums');
   await page.getByTestId('albums-screen').getByText('Weekend walks', { exact: true }).click();
@@ -177,12 +176,16 @@ test("an idea's marked names of the chat's Mentions are contacts: Copy writes ea
   await button(page.getByTestId('asset-screen'), 'More options').click();
   await page.getByRole('menuitem', { name: 'Create post' }).click();
   const editor = page.getByTestId('post-editor');
-  await expect(editor.getByText(idea)).toBeVisible();
+  // Sam Ridge's chip on the card, the name nobody was given as text, and no marker.
+  await expect(editor.getByText('Sam Ridge', { exact: true }).first()).toBeVisible();
+  await expect(editor.getByText('and Nobody Here', { exact: false })).toBeVisible();
+  await expect(editor.getByText('@[')).toHaveCount(0);
   expect(assistant.chats[0]!.context.mentions).toContain('Sam Ridge');
+  expect(assistant.chats[0]!.readsMentionMarkers).toBe(true);
 
   await button(editor, 'Copy text').click();
   await page.getByRole('button', { name: 'Bluesky', exact: false }).first().click();
-  await expect.poll(() => clipboard(page)).toBe('Out on the ridge with @ridgeline.bsky.social');
+  await expect.poll(() => clipboard(page)).toBe('Out on the ridge with @ridgeline.bsky.social and Nobody Here');
 
   await button(editor, 'Use').click();
   await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();

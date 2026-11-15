@@ -8,6 +8,8 @@ import OptionCard, { type OptionCardProps } from '@/components/OptionCard';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import CopyPostTextButton from '@/features/post-mentions/CopyPostTextButton';
+import MentionRuns from '@/features/post-mentions/MentionRuns';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import { colors, layout, sizes } from '@/styles/designTokens';
 
@@ -16,6 +18,8 @@ export default memo(ChatOptionCard);
 
 export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | 'isUsed'> & {
   value: MentionTextValue;
+  // The contacts its chips mention, by id (useMentionedContacts): their names and avatars.
+  contactsById: ReadonlyMap<string, MentionContact>;
   replyId: string;
   index: number;
   onMoreLikeThis: ((text: string) => void) | null;
@@ -23,14 +27,15 @@ export type ChatOptionCardProps = Pick<OptionCardProps, 'style' | 'textSize' | '
 };
 
 /**
- * The option `index` of the reply `replyId`: its text with its mentions (`value`) with a copy icon
- * (CopyPostTextButton), ⋯ → More like this (`onMoreLikeThis(text)`, its plain text, when given: the
+ * The option `index` of the reply `replyId`: its text with its mentions (`value`, each a chip that
+ * takes no tap: the card has its own buttons) with a copy icon (CopyPostTextButton), ⋯ → More like this (`onMoreLikeThis(text)`, its plain text, when given: the
  * chat's, not the tray's), and Use (`onUse(replyId,
  * index)`, when given); once `isUsed` (the tray's), "✓ Used" in place of Use, and the
  * card outlined. style is for layout only.
  */
 function ChatOptionCard({
   value,
+  contactsById,
   replyId,
   index,
   onMoreLikeThis,
@@ -40,7 +45,12 @@ function ChatOptionCard({
   textSize,
 }: ChatOptionCardProps) {
   return (
-    <OptionCard text={value.text} textSize={textSize} isUsed={isUsed} style={style}>
+    <OptionCard
+      text={<MentionRuns value={value} contactsById={contactsById} size={textSize} />}
+      textSize={textSize}
+      isUsed={isUsed}
+      style={style}
+    >
       <CopyPostTextButton post={value} />
       {onMoreLikeThis && (
         <MenuButton accessibilityLabel="More for this idea">

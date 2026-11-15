@@ -351,7 +351,7 @@ export type ChatThread = z.infer<typeof chatThreadSchema>;
 // builds don't send it. `mentions` are who the post may mention: their names from builds that link
 // a name to its contact (chips), @handles from older installed builds; the server joins either.
 // From a build that reads mention markers (`readsMentionMarkers`), `text` and `thread` hold the
-// post's chips as markers (`@[Sam Ridge]`, mentionMarkers).
+// post's chips as mention markers (mentionMarkers).
 export const chatContextSchema = z.object({
   kind: chatSubjectKindSchema,
   text: z.string().max(CHAT_LIMITS.text),
@@ -365,7 +365,7 @@ export type ChatContext = z.infer<typeof chatContextSchema>;
 // A reply: what the assistant says, and options for the post only when the user asked for posts.
 // `chatReplyFieldsSchema` is how the server reads a model's answer, unbounded (checkChatReply trims
 // and cuts it to fit); `chatReplySchema` is the checked reply the app gets and sends back. For a
-// request with `readsMentionMarkers` its texts may hold mention markers (`@[Sam Ridge]`), as the
+// request with `readsMentionMarkers` its texts may hold mention markers (mentionMarkers), as the
 // model wrote them, and the app sends them back so; without it the server takes them off.
 export const chatReplyFieldsSchema = z.object({ reply: z.string(), postOptions: z.array(z.string()) });
 export const chatReplySchema = chatReplyFieldsSchema.extend({

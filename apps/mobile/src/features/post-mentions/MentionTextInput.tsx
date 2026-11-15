@@ -37,7 +37,7 @@ type MentionTextInputProps = {
  * A post's text with its mentions as chips inside it (MentionInput), and under it, while `isActive`,
  * the contacts the @ being typed may mean (MentionSuggestions); a tap on one puts its chip in place
  * of the @. The value is the stored form ({ text, mentions }): the field gets it at mount and again
- * whenever it is not the value it last reported (Write with AI's Use, a relink, a chip's label that
+ * whenever it is not the value it last reported (Write with AI's Use, a chip's label that
  * changed), and reports only its own changes, so opening a post that mentions a renamed contact
  * leaves it unchanged. No suggestions once the text has POST_LIMITS.mentions.
  */
