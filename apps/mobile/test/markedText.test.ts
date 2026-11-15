@@ -11,6 +11,15 @@ describe('markedText', () => {
     expect(read('With @[Sam Ridge]')).toEqual({ text: 'With Sam Ridge', mentions: null });
   });
 
+  it('trims what an empty or unknown marker leaves at the ends, its chips moved with the text', () => {
+    const read = markedText.reader([{ id: 'sam', name: 'Sam Ridge' }]);
+    expect(read('@[]\n\n@[]')).toEqual({ text: '', mentions: null });
+    expect(read('@[] With @[Sam Ridge] @[ ]')).toEqual({
+      text: 'With Sam Ridge',
+      mentions: [{ contactId: 'sam', location: 5, name: 'Sam Ridge' }],
+    });
+  });
+
   it('reads back what it writes', () => {
     const value = {
       text: 'Sam Ridge and Maya, then Maya again',

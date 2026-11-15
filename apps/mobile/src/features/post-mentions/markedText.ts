@@ -10,8 +10,8 @@ export type MentionCandidate = Pick<MentionContact, 'id' | 'name'>;
  * How texts the assistant wrote for one turn are read: each its mention markers (mentionMarkers) made
  * mentions of the contacts of `mentioned`. A name means the one contact of `mentioned` with that name
  * (mentionMarkers.key); a name two contacts share means nobody, and its marker stays plain text, as
- * one naming nobody given or a broken one does. At most POST_LIMITS.mentions; mentions null when there
- * is none.
+ * one naming nobody given or a broken one does. Trimmed, as what an empty marker left at its ends
+ * goes. At most POST_LIMITS.mentions; mentions null when there is none.
  */
 function reader(mentioned: readonly MentionCandidate[]): (text: string) => MentionTextValue {
   // By name: its one contact, or null when two contacts share it.
@@ -26,10 +26,13 @@ function reader(mentioned: readonly MentionCandidate[]): (text: string) => Menti
 
   return (text) => {
     const { text: plain, marks } = mentionMarkers.read(text, names);
-    const mentions: PostMention[] = marks
-      .slice(0, POST_LIMITS.mentions)
-      .map(({ location, name }) => ({ contactId: byKey.get(mentionMarkers.key(name))!.id, location, name }));
-    return { text: plain, mentions: mentions.length > 0 ? mentions : null };
+    const cut = plain.length - plain.trimStart().length;
+    const mentions: PostMention[] = marks.slice(0, POST_LIMITS.mentions).map(({ location, name }) => ({
+      contactId: byKey.get(mentionMarkers.key(name))!.id,
+      location: location - cut,
+      name,
+    }));
+    return { text: plain.trim(), mentions: mentions.length > 0 ? mentions : null };
   };
 }
 
