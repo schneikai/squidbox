@@ -61,9 +61,14 @@ async function readSeed(
 ): Promise<NewPostSeed | null> {
   const fresh = { postedAt: getTimestamp(), threadPosts: [] };
   if (rePostId) {
-    const rePost = await readPost(db, rePostId);
-    if (!rePost) return null;
-    const copies = (await readPostCopies(db, rePostId)).map(({ channelId, posts }) => ({
+    // One transaction: the post and its copies as of one moment.
+    const read = await db.transaction(async (tx) => {
+      const post = await readPost(tx, rePostId);
+      return post && { post, copies: await readPostCopies(tx, rePostId) };
+    });
+    if (!read) return null;
+    const { post: rePost } = read;
+    const copies = read.copies.map(({ channelId, posts }) => ({
       channelId,
       posts: posts.map(({ text, mentions, assetIds }) => ({ text, mentions, assetIds })),
     }));
