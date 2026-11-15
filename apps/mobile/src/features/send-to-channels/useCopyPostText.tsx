@@ -1,10 +1,10 @@
-import { CHANNELS, type Channel, type PostMention } from '@squidbox/shared';
+import { CHANNELS, type Channel } from '@squidbox/shared';
 import { useState } from 'react';
 
 import CopyTextSheet, { type ChannelChoice } from './CopyTextSheet';
 import channelPayload, { payloadText } from './channelPayload';
 
-import mentionHandle, { type MentionContact } from '@/features/post-mentions/mentionHandle';
+import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import mentionLabel from '@/features/post-mentions/mentionLabel';
 import mentionParts, { type MentionTextValue } from '@/features/post-mentions/mentionParts';
 import readMentionContacts from '@/features/post-mentions/readMentionContacts';
@@ -31,12 +31,20 @@ export default function useCopyPostText() {
   async function copyPostText(posts: readonly MentionTextValue[], channel?: CopyChannel) {
     const contactsById = await readMentionContacts(getDb(), posts);
     const payloadPosts = posts.map(({ text, mentions }) => ({ text, mentions, assetIds: [] }));
-    const textFor = (each: CopyChannel) => payloadText(channelPayload(each, payloadPosts, contactsById).payload);
-    if (channel) return copyText(textFor(channel));
+    const payloadFor = (each: CopyChannel) => channelPayload(each, payloadPosts, contactsById);
+    if (channel) return copyText(payloadText(payloadFor(channel).payload));
     // A channel per handle: OnlyFans PPV goes out as OnlyFans does.
     const choices = CHANNELS.filter(
       (each, i) => CHANNELS.findIndex(({ handleField }) => handleField === each.handleField) === i,
-    ).map((each) => ({ channel: each, text: textFor(each), mentions: mentionsText(posts, contactsById, each) }));
+    ).map((each) => {
+      const { payload, missing } = payloadFor(each);
+      return {
+        channel: each,
+        text: payloadText(payload),
+        mentions: mentionsText(posts, contactsById, each),
+        hasNoHandle: missing.length > 0,
+      };
+    });
     if (new Set(choices.map(({ text }) => text)).size <= 1) return copyText(choices[0]?.text ?? '');
     return new Promise<boolean>((answer) => setQuestion({ choices, answer }));
   }
@@ -57,8 +65,7 @@ export default function useCopyPostText() {
   return { copyPostText, sheet };
 }
 
-// The posts' mentions as they are copied for `channel`, each once, in order: the handle there, or the
-// name of a contact without one, said so ("@maya.bsky.social, Sam Ridge (no handle)").
+// The posts' mentions as they are copied for `channel`, each once, in order ("@maya.bsky.social, Sam Ridge").
 function mentionsText(
   posts: readonly MentionTextValue[],
   contactsById: ReadonlyMap<string, MentionContact>,
@@ -66,14 +73,8 @@ function mentionsText(
 ): string {
   const labels = posts.flatMap(({ text, mentions }) =>
     mentionParts(text, mentions).flatMap((part) =>
-      part.kind === 'mention' ? [copiedAs(part.mention, contactsById, channel)] : [],
+      part.kind === 'mention' ? [mentionLabel(part.mention, contactsById, channel)] : [],
     ),
   );
   return [...new Set(labels)].join(', ');
-}
-
-function copiedAs(mention: PostMention, contactsById: ReadonlyMap<string, MentionContact>, channel: Channel): string {
-  const contact = contactsById.get(mention.contactId);
-  const label = mentionLabel(mention, contactsById, channel);
-  return contact && !mentionHandle(contact, channel.handleField) ? `${label} (no handle)` : label;
 }
