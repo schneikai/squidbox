@@ -3,7 +3,7 @@ import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import Card from '@/components/Card';
 import Text from '@/components/Text';
-import { colors } from '@/styles/designTokens';
+import { colors, space } from '@/styles/designTokens';
 
 export type OptionCardProps = {
   text: string;
@@ -15,7 +15,8 @@ export type OptionCardProps = {
 
 /**
  * One post the assistant wrote: its text, and under it the row of actions in `children` when given
- * (the chat's More like this and Use or Copy); without them the text alone (a reply Verify shows).
+ * (the chat's copy icon, More like this and Use); without them the text alone, selectable with a long
+ * press (a reply Verify shows).
  * It fills the height its parent gives it, the actions at its end, so the cards of one row line up
  * (a carousel of ideas). `textSize="small"` for the tray's carousel, where many sit side by side.
  * `isUsed` marks the idea the user put in their post with a light violet outline.
@@ -26,7 +27,7 @@ export default function OptionCard({ text, textSize = 'regular', isUsed = false,
 
   return (
     <Card padded hasControlRow={hasActions} style={[isUsed && styles.used, style]}>
-      <Text selectable size={textSize}>
+      <Text selectable={!hasActions} size={textSize}>
         {text}
       </Text>
       {hasActions && <View style={styles.actions}>{children}</View>}
@@ -45,8 +46,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: space.md,
     marginTop: 'auto',
-    // eslint-disable-next-line no-restricted-syntax -- pulls the first icon button's glyph to the text's edge
-    marginLeft: -10,
   },
 });

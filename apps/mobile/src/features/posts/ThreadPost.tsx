@@ -1,7 +1,9 @@
 import type { ComponentProps } from 'react';
+import { StyleSheet } from 'react-native';
 
 import PostRowCard from './PostRowCard';
 
+import CopyTextButton from '@/components/CopyTextButton';
 import Text from '@/components/Text';
 import type { AssetRow } from '@/sync/db/schema';
 import type { PostWithAssets } from '@/sync/queries/postQuery';
@@ -12,7 +14,7 @@ type PostRowCardProps = ComponentProps<typeof PostRowCard>;
 type ThreadPostProps = {
   post: Pick<PostWithAssets, 'text' | 'postAssets'>;
   onOpenAsset?: (asset: AssetRow) => void;
-  isTextSelectable?: boolean;
+  isCopyable?: boolean;
   entering?: PostRowCardProps['entering'];
   exiting?: PostRowCardProps['exiting'];
   style?: PostRowCardProps['style'];
@@ -24,7 +26,8 @@ type ThreadPostProps = {
  * A following post of a thread as a row card (the post screen, an unfolded thread in the posts
  * list): its first picture as a tile ("+N" when it has more), its text beside it. With
  * `onOpenAsset(asset)` a tap on the tile opens the picture; without it (inside something pressable,
- * the posts list) the tile takes no touch. `isTextSelectable` lets a long press copy the text.
+ * the posts list) the tile takes no touch. With `isCopyable` a copy icon
+ * sits at the card's bottom right (CopyTextButton).
  * `entering` and `exiting` are Reanimated layout animations of the card, and `contentStyle` and
  * `contentExiting` an animated style and exiting animation of what's in it (an unfolding thread's);
  * `style` is for layout only.
@@ -32,7 +35,7 @@ type ThreadPostProps = {
 export default function ThreadPost({
   post,
   onOpenAsset,
-  isTextSelectable = false,
+  isCopyable = false,
   entering,
   exiting,
   style,
@@ -52,7 +55,16 @@ export default function ThreadPost({
       contentStyle={contentStyle}
       contentExiting={contentExiting}
     >
-      {isPresent(post.text) && <Text selectable={isTextSelectable}>{post.text}</Text>}
+      {isPresent(post.text) && <Text>{post.text}</Text>}
+      {isCopyable && isPresent(post.text) && <CopyTextButton text={post.text} style={styles.copy} />}
     </PostRowCard>
   );
 }
+
+const styles = StyleSheet.create({
+  // At the card's bottom right, however tall the picture beside the text makes it.
+  copy: {
+    alignSelf: 'flex-end',
+    marginTop: 'auto',
+  },
+});
