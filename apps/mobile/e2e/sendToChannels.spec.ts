@@ -49,8 +49,7 @@ test('a channel added with + gets a copy filled from the post, and Send all mark
   }
 
   await button(sheet, 'Send all').click();
-  for (const channel of ['Bluesky', 'X'])
-    await expect(copyCard(sheet, channel).getByText('Sent', { exact: true })).toBeVisible();
+  for (const channel of ['Bluesky', 'X']) await expect(copyCard(sheet, channel).getByText(/^Sent /)).toBeVisible();
   await expect(button(sheet, 'Send all')).toBeHidden();
 });
 
@@ -69,7 +68,7 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await expect(card.getByText('Sam Ridge has no Instagram handle')).toBeHidden();
 
   await button(card, 'Send now').click();
-  await expect(card.getByText('Sent', { exact: true })).toBeVisible();
+  await expect(card.getByText(/^Sent /)).toBeVisible();
   await expect(button(card, 'Edit')).toBeHidden();
   await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @samridge.pics 🌲');
 

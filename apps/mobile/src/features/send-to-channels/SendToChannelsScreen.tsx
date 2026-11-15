@@ -13,7 +13,6 @@ import ModalSheet from '@/components/ModalSheet';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
-import { SectionFooter } from '@/components/settings-list/SettingsList';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import useChannels from '@/features/channels/useChannels';
 import usePost from '@/features/post-list/usePost';
@@ -141,10 +140,6 @@ export default function SendToChannelsScreen() {
               onMarkNotSent={() => setPostCopiesSent([copy.id], null)}
             />
           ))}
-          <SectionFooter>
-            Until Squidbox can post for you, Send now copies the text and marks the copy as sent. Send all only marks
-            them.
-          </SectionFooter>
         </ScrollView>
       )}
       {bottomAction && <FloatingPrimaryAction>{bottomAction}</FloatingPrimaryAction>}

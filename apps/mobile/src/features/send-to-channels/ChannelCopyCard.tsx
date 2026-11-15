@@ -4,7 +4,6 @@ import { Text as RNText, StyleSheet, View } from 'react-native';
 import AddHandleButton from './AddHandleButton';
 import channelPayload from './channelPayload';
 
-import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
@@ -37,7 +36,7 @@ type ChannelCopyCardProps = {
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
  * names go out as plain text) and has Send now, Edit and Add handle, and Remove in its ⋯; sent, it
- * is locked: Sent, when, and Mark as not sent in its ⋯.
+ * is locked: when it was sent, and Mark as not sent in its ⋯.
  */
 export default function ChannelCopyCard({
   copy,
@@ -59,9 +58,10 @@ export default function ChannelCopyCard({
     <PostRowCard asset={asset} moreCount={more.length}>
       <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
         <View style={styles.head}>
-          <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
-          <Text variant="label">{channel.name}</Text>
-          {isSent && <Badge label="Sent" tone="success" />}
+          <View style={styles.channel}>
+            <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
+            <Text variant="label">{channel.name}</Text>
+          </View>
           <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
             {isSent ? (
               <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
@@ -103,6 +103,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.cardGap,
+  },
+  channel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.iconGap,
   },
   menu: {
     marginLeft: 'auto',
