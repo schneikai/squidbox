@@ -1,12 +1,11 @@
 import { and, eq, isNull } from 'drizzle-orm';
 
-import contactsByHandle from '@/features/post-mentions/contactsByHandle';
 import mentionedContactIds from '@/features/post-mentions/mentionedContactIds';
+import readContactsByHandle from '@/features/post-mentions/readContactsByHandle';
 import * as schema from '@/sync/db/schema';
 import type { SyncDb } from '@/sync/db/types';
 import { inJson } from '@/sync/inJson';
 import { listedPostId, mentionsSomeone } from '@/sync/postsRepository';
-import contactQuery from '@/sync/queries/contactQuery';
 
 /** What the posts' mentions match: each contact's photos, and how many posts matched (as listed: listedPostId). */
 export type MentionedContactPhotos = { photosByContact: Map<string, string[]>; postCount: number };
@@ -23,9 +22,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
       .select({ id: p.id, listedId: listedPostId('posts'), text: p.text, mentions: p.mentions })
       .from(p)
       .where(mentionsSomeone(p));
-    const contacts = await contactQuery({}).summaries(tx);
-    const contactsById = new Map(contacts.map((contact) => [contact.id, contact]));
-    const ofHandle = contactsByHandle(contacts);
+    const { contactsById, ofHandle } = await readContactsByHandle(tx);
 
     const contactsByPost = new Map<string, string[]>();
     // A thread's following posts are its first post: it counts once.

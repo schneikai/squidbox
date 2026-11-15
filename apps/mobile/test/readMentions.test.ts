@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { createPost, makeAlbumRecord, makeAssetRecord, makeContactRecord } from './helpers/factory';
-import { makeMeasuredTestDb, makeTestDb } from './helpers/testDb';
+import { makeTestDb } from './helpers/testDb';
 import readMentions from '../src/features/post-chat/readMentions';
 import * as assets from '../src/sync/assetsRepository';
 import * as contacts from '../src/sync/contactsRepository';
@@ -25,7 +25,8 @@ const idsOf = async (
 
 // Album "ridge" holds a1 (the post's photo) and a2; a3 is elsewhere. Elsewhere, Erebo is mentioned in
 // posts and on a photo of another album. Lee has no handle.
-async function library(db: ReturnType<typeof makeTestDb> = makeTestDb()) {
+async function library() {
+  const db = makeTestDb();
   await assets.createMany(
     db,
     ['a1', 'a2', 'a3', 'a4'].map((id) => makeAssetRecord({ id })),
@@ -54,21 +55,15 @@ describe('readMentions', () => {
     expect(await idsOf(db, ['a1'])).toEqual(['nico', 'ana', 'lee']);
   });
 
-  it("adds the contacts the album's posts mention, by chip and by typed handle, in the most posts first, each once", async () => {
+  it("adds the contacts the album's posts mention by chip, in the most posts first, each once; a typed handle is none", async () => {
     const db = await library();
     await tag(db, 'a1', ['nico']);
     const erebo = { contactId: 'erebo', location: 5, name: 'Erebo' };
+    const ana = (location: number) => ({ contactId: 'ana', location, name: 'Ana' });
     await createPost(db, { id: 'p3', text: 'With Erebo', mentions: [erebo], postedAt: 30 }, ['a2']);
-    await createPost(db, { id: 'p4', text: 'With @ana_trails and @NICO_hikes', postedAt: 40 }, ['a2']);
-    await createPost(db, { id: 'p5', text: 'Again @ana_trails, and @ridgewalker', postedAt: 50 }, ['a2']);
+    await createPost(db, { id: 'p4', text: 'With Ana and Nico', mentions: [ana(5)], postedAt: 40 }, ['a2']);
+    await createPost(db, { id: 'p5', text: 'Again Ana, and @Erebo123', mentions: [ana(6)], postedAt: 50 }, ['a2']);
     expect(await idsOf(db, ['a1'])).toEqual(['nico', 'ana', 'erebo']);
-  });
-
-  it('adds each contact a handle two contacts share means', async () => {
-    const db = await library();
-    await contacts.create(db, makeContactRecord({ id: 'nico2', name: 'Nico B', blueskyHandle: 'nico_hikes' }));
-    await createPost(db, { id: 'p3', text: 'With @nico_hikes', postedAt: 30 }, ['a2']);
-    expect(await idsOf(db, ['a1'])).toEqual(['nico', 'nico2']);
   });
 
   it("puts the sheet's added contacts first, leaves out the removed ones and an added one since deleted", async () => {
@@ -96,21 +91,5 @@ describe('readMentions', () => {
     const db = await library();
     await tag(db, 'a4', ['ana']);
     expect(await idsOf(db, ['a4'])).toEqual(['ana']);
-  });
-
-  it("reads every contact only when an album post holds a typed handle, else only the chips' contacts", async () => {
-    const work = async (post: {
-      text: string;
-      mentions: { contactId: string; location: number; name: string }[] | null;
-    }) => {
-      const { db, measure } = makeMeasuredTestDb();
-      await library(db);
-      await createPost(db, { id: 'p3', ...post, postedAt: 30 }, ['a2']);
-      return measure(() => readMentions(db, ['a1'], NO_EDITS));
-    };
-    const byChip = await work({ text: 'With Ana', mentions: [{ contactId: 'ana', location: 5, name: 'Ana' }] });
-    const byHandle = await work({ text: 'With @ana_trails', mentions: null });
-    // The library's three other contacts are read only for the typed handle.
-    expect(byHandle.rowsRead - byChip.rowsRead).toBe(3);
   });
 });

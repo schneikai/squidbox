@@ -3,8 +3,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useReducer } from 'react';
 
 import EditSheet from '@/components/EditSheet';
-import linkTypedHandles from '@/features/post-mentions/linkTypedHandles';
-import readContactsByHandle from '@/features/post-mentions/readContactsByHandle';
 import PostCards from '@/features/posts/PostCards';
 import cardsReducer, { type CardsDraft } from '@/features/posts/draft/cardsReducer';
 import draftFromPost, { type CardsSeed } from '@/features/posts/draft/draftFromPost';
@@ -24,8 +22,8 @@ type CopySeed = { channel: Channel; post: CardsSeed; copyId: string | null };
 /**
  * A channel copy's composer, pushed in the Send to channels sheet: the post composer's cards
  * (PostCards) with the channel's limits and handles, Add to thread only where the channel has
- * threads. A new copy (`?channelId`) is filled from the post and its thread, each typed @handle that
- * means one contact as its chip (linkTypedHandles), its assets as fresh refs; a saved one (`?copyId`) opens as saved. Add (new) or Save goes back to the list, a sent or
+ * threads. A new copy (`?channelId`) is filled from the post and its thread, its assets as fresh
+ * refs; a saved one (`?copyId`) opens as saved. Add (new) or Save goes back to the list, a sent or
  * deleted copy refusing the save with its reason.
  */
 export default function ChannelCopyScreen() {
@@ -96,10 +94,9 @@ async function readSeed(
       post: { ...first!, threadPosts: following.map((part) => ({ ...part, id: null })) },
     };
   }
-  const [stored, ofHandle] = await Promise.all([readPost(db, postId), readContactsByHandle(db)]);
+  const post = await readPost(db, postId);
   const channel = channelById(channelId);
-  if (!stored || !channel) return null;
-  const post = linkTypedHandles(stored, ofHandle);
+  if (!post || !channel) return null;
   return {
     channel,
     copyId: null,
@@ -107,10 +104,12 @@ async function readSeed(
       text: post.text,
       mentions: post.mentions,
       postAssets: freshPostAssets(post.postAssets),
-      threadPosts: stored.threadPosts.map((part) => {
-        const { text, mentions } = linkTypedHandles(part, ofHandle);
-        return { id: null, text, mentions, postAssets: freshPostAssets(part.postAssets) };
-      }),
+      threadPosts: post.threadPosts.map(({ text, mentions, postAssets }) => ({
+        id: null,
+        text,
+        mentions,
+        postAssets: freshPostAssets(postAssets),
+      })),
     },
   };
 }

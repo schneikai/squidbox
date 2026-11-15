@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import chipContactIds from './chipContactIds';
 import type { MentionContact } from './mentionHandle';
 import type { MentionTextValue } from './mentionParts';
 
@@ -18,9 +19,7 @@ export default function useMentionedContacts(posts: readonly MentionTextValue[] 
   contactsById: ReadonlyMap<string, MentionContact>;
   isRead: boolean;
 } {
-  const ids = [
-    ...new Set((posts ?? []).flatMap(({ mentions }) => (mentions ?? []).map(({ contactId }) => contactId))),
-  ].sort();
+  const ids = chipContactIds(posts ?? []).sort();
   const contacts = useContactRows({ scope: { ids } });
   const contactsById = useMemo(
     () => (contacts && contacts.length > 0 ? new Map(contacts.map((contact) => [contact.id, contact])) : NONE),
