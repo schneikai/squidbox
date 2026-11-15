@@ -1,5 +1,6 @@
 import nextCardKey from './nextCardKey';
 
+import keptChips from '@/features/post-mentions/keptChips';
 import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import type { PostCardChange, PostCardData } from '@/features/posts/PostCard';
 
@@ -20,8 +21,8 @@ export type CardsAction =
 
 /**
  * Edits a post's cards: one card's text, mentions or photos; a card's text and mentions written over
- * from elsewhere (`setCardText`, the assistant's Use), as they are; a new card at the end; a following
- * card removed.
+ * from elsewhere (`setCardText`, the assistant's Use), as they are, with the card's own chips the new
+ * text still names for sure (keptChips); a new card at the end; a following card removed.
  */
 export default function cardsReducer(draft: CardsDraft, action: CardsAction): CardsDraft {
   switch (action.type) {
@@ -34,7 +35,7 @@ export default function cardsReducer(draft: CardsDraft, action: CardsAction): Ca
       return {
         ...draft,
         cards: draft.cards.map((card) =>
-          card.key === action.key ? { ...card, text: action.value.text, mentions: action.value.mentions } : card,
+          card.key === action.key ? { ...card, ...keptChips(card, action.value) } : card,
         ),
       };
     case 'addCard':

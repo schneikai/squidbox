@@ -55,4 +55,17 @@ describe('cardsReducer', () => {
     };
     expect(cardsReducer(draft, { type: 'setCardText', key, value }).cards[0]).toMatchObject(value);
   });
+
+  it("keeps a card's chip that a text written over it names without a marker", () => {
+    const draft = draftFromPost({
+      ...post,
+      text: 'With Maya Lindqvist',
+      mentions: [{ contactId: 'maya', location: 5, name: 'Maya Lindqvist' }],
+    });
+    const key = draft.cards[0]!.key;
+    const value = { text: 'Out with Maya Lindqvist', mentions: null };
+    expect(cardsReducer(draft, { type: 'setCardText', key, value }).cards[0]!.mentions).toEqual([
+      { contactId: 'maya', location: 9, name: 'Maya Lindqvist' },
+    ]);
+  });
 });
