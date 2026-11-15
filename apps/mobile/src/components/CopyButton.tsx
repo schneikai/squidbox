@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import { Alert, type StyleProp, type ViewStyle } from 'react-native';
 
 import Button from '@/components/Button';
 
@@ -7,7 +7,7 @@ import Button from '@/components/Button';
 const COPIED_MS = 1500;
 
 type CopyButtonProps = {
-  /** Copies, and resolves to whether it did. */
+  /** Copies, and resolves to whether it did; one that rejects says "Couldn't copy the text". */
   onCopy: () => Promise<boolean>;
   style?: StyleProp<ViewStyle>;
 };
@@ -26,7 +26,13 @@ export default function CopyButton({ onCopy, style }: CopyButtonProps) {
   }, [isCopied]);
 
   async function handlePress() {
-    if (await onCopy()) setIsCopied(true);
+    try {
+      if (await onCopy()) setIsCopied(true);
+    } catch (error) {
+      // Before the clipboard: what was to be copied couldn't be read (useCopyText says the rest).
+      console.error("Couldn't copy the text", error);
+      Alert.alert("Couldn't copy the text");
+    }
   }
 
   return (
