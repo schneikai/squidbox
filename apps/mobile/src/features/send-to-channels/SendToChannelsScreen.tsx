@@ -59,11 +59,11 @@ export default function SendToChannelsScreen() {
   const hasNoChannels = channels?.length === 0;
 
   function addCopy(channel: Channel) {
-    router.navigate({ pathname: '/send-to-channels/[postId]/copy', params: { postId, channelId: channel.id } });
+    router.navigate({ pathname: '/send-to-channels/[postId]/copies/new', params: { postId, channelId: channel.id } });
   }
 
   function editCopy(copy: PostCopyWithAssets) {
-    router.navigate({ pathname: '/send-to-channels/[postId]/copy', params: { postId, copyId: copy.id } });
+    router.navigate({ pathname: '/send-to-channels/[postId]/copies/[copyId]/edit', params: { postId, copyId: copy.id } });
   }
 
   function openCopy(copy: PostCopyWithAssets) {

@@ -22,8 +22,8 @@ type CopySeed = { channel: Channel; post: CardsSeed; copyId: string | null };
 /**
  * A channel copy's composer, pushed in the Send to channels sheet: the post composer's cards
  * (PostCards) with the channel's limits and handles, Add to thread only where the channel has
- * threads. A new copy (`?channelId`) is filled from the post and its thread, its assets as fresh
- * refs; a saved one (`?copyId`) opens as saved. Add (new) or Save goes back to the list, a sent or
+ * threads. A new copy (`copies/new?channelId=`) is filled from the post and its thread, its assets as fresh
+ * refs; a saved one (`copies/[copyId]/edit`) opens as saved. Add (new) or Save goes back to the list, a sent or
  * deleted copy refusing the save with its reason.
  */
 export default function ChannelCopyScreen() {
