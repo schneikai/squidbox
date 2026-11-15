@@ -3,7 +3,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useReducer } from 'react';
 
 import EditSheet from '@/components/EditSheet';
-import { SectionFooter } from '@/components/settings-list/SettingsList';
 import PostCards from '@/features/posts/PostCards';
 import cardsReducer, { type CardsDraft } from '@/features/posts/draft/cardsReducer';
 import draftFromPost, { type CardsSeed } from '@/features/posts/draft/draftFromPost';
@@ -63,7 +62,6 @@ function CopyComposer({ postId, seed }: CopyComposerProps) {
   return (
     <EditSheet testID="channel-copy-editor" title={channel.name} {...sheetProps}>
       <PostCards draft={draft} dispatch={dispatch} kind={isNew ? 'draft' : 'edit'} ideas="post" channel={channel} />
-      <SectionFooter>Filled from your post. What you change here only goes to {channel.name}.</SectionFooter>
     </EditSheet>
   );
 }

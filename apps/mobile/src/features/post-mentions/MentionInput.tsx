@@ -77,6 +77,10 @@ export default function MentionInput({
   const [height, setHeight] = useState(0);
   // The host view as React Native's TextInputState knows it.
   const hostRef = useRef<HostInstance | null>(null);
+  // The native view takes function calls only once it is on screen (before, iOS has no view for the
+  // tag yet), which its first height report says: calls made earlier wait for it, and calls after the
+  // view is gone do nothing.
+  const mountedRef = useRef<Mounted | null>(null);
   NativeMentionInput ??= requireNativeView<NativeProps>('MentionInput');
 
   // The ref hands features one content object; the native function takes its two halves. One
@@ -93,10 +97,17 @@ export default function MentionInput({
       }
       if (host) TextInputState.registerInput(host);
       hostRef.current = host;
+      if (mountedRef.current) mountedRef.current.isGone = true;
+      const mounted = native ? newMounted() : null;
+      mountedRef.current = mounted;
+      const whenMounted = async (call: () => Promise<void>) => {
+        await mounted?.ready;
+        if (mounted && !mounted.isGone) await call();
+      };
       const handle: MentionInputHandle | null = native && {
-        setContent: (content) => native.setContent(content.text, content.mentions),
-        insertMention: (...args) => native.insertMention(...args),
-        focus: () => native.focus(),
+        setContent: (content) => whenMounted(() => native.setContent(content.text, content.mentions)),
+        insertMention: (...args) => whenMounted(() => native.insertMention(...args)),
+        focus: () => whenMounted(() => native.focus()),
       };
       if (typeof ref === 'function') ref(handle);
       else if (ref) ref.current = handle;
@@ -123,11 +134,24 @@ export default function MentionInput({
         else TextInputState.blurInput(hostRef.current);
         onFocusChange?.(isFocused);
       }}
-      onContentHeight={(event) => setHeight(event.nativeEvent.height)}
+      onContentHeight={(event) => {
+        mountedRef.current?.markReady();
+        setHeight(event.nativeEvent.height);
+      }}
       onMentionPress={(event) => onMentionPress?.(event.nativeEvent.id)}
       style={[styles.input, { height: Math.max(height, minHeight) }]}
     />
   );
+}
+
+type Mounted = { ready: Promise<void>; markReady: () => void; isGone: boolean };
+
+function newMounted(): Mounted {
+  let markReady = () => {};
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+  return { ready, markReady, isGone: false };
 }
 
 const styles = StyleSheet.create({

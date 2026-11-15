@@ -1,4 +1,4 @@
-import { Platform, Pressable, Text as RNText, StyleSheet } from 'react-native';
+import { Platform, Pressable, Text as RNText, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { mentionChipBox } from './mentionChipStyle';
 
@@ -13,13 +13,17 @@ type MentionChipProps = {
   onPress?: () => void;
 };
 
-const BOX = mentionChipBox(textStyles.reading.fontSize);
 // The system font's capitals for its size (UIFont.capHeight / pointSize).
 const CAP_HEIGHT = 0.7;
-// iOS sits an inline view on the baseline: down by this, its middle is on the middle of the
-// capitals, as the native field draws its chips (chipOffset in MentionInputView.swift). The web lines
-// up the chip's label with the text's baseline by itself.
-const IOS_DROP = (BOX.height - textStyles.reading.fontSize * CAP_HEIGHT) / 2;
+
+// iOS sits an inline view's bottom on the line's own baseline, which is under the text's by half of
+// what the line is taller than the font (React Native lifts the text to the line's middle, not the
+// view). Down by this, the chip's middle is on the middle of the capitals, as the native field
+// draws its chips (chipOffset in MentionInputView.swift). The web lines up the chip's label with
+// the text's baseline by itself.
+function iosDrop(chipHeight: number, fontSize: number, lineHeight: number) {
+  return (chipHeight - fontSize * CAP_HEIGHT) / 2 - (lineHeight - chipHeight) / 2;
+}
 
 /**
  * A mention in read-only text (MentionText): the contact's round avatar (ContactAvatar) and the label on a muted
@@ -27,16 +31,33 @@ const IOS_DROP = (BOX.height - textStyles.reading.fontSize * CAP_HEIGHT) / 2;
  * same written and shown. It sits in a line of text.
  */
 export default function MentionChip({ label, contact, onPress }: MentionChipProps) {
+  // The text around the chip grows with the phone's text size setting, so the chip does too.
+  const { fontScale } = useWindowDimensions();
+
+  const fontSize = textStyles.reading.fontSize * fontScale;
+  const box = mentionChipBox(fontSize);
+  const boxStyle = {
+    height: box.height,
+    paddingLeft: box.inset,
+    paddingRight: box.trailing,
+    gap: box.gap,
+    borderRadius: box.radius,
+    transform:
+      Platform.OS === 'ios'
+        ? [{ translateY: iosDrop(box.height, fontSize, textStyles.reading.lineHeight * fontScale) }]
+        : undefined,
+  };
+
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : 'text'}
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.chip, pressed && press.flat]}
+      style={({ pressed }) => [styles.chip, boxStyle, pressed && press.flat]}
     >
       {/* The chip is read as its label: the avatar says nothing of its own. */}
-      <ContactAvatar contact={contact} size={BOX.avatar} isDecorative />
+      <ContactAvatar contact={contact} size={box.avatar} isDecorative />
       <RNText style={styles.label} numberOfLines={1}>
         {label}
       </RNText>
@@ -48,16 +69,11 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: BOX.height,
-    paddingLeft: BOX.inset,
-    paddingRight: BOX.trailing,
-    gap: BOX.gap,
-    borderRadius: BOX.radius,
     backgroundColor: colors.background.muted,
-    transform: Platform.OS === 'ios' ? [{ translateY: IOS_DROP }] : undefined,
   },
+  // Its size grows with the text size setting by itself, as the text around it.
   label: {
-    fontSize: BOX.labelSize,
+    fontSize: textStyles.reading.fontSize,
     color: colors.text.primary,
   },
 });
