@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import type { EditedPost } from '../src/features/posts/draft/postDraftReducer';
+import type { EditedPost } from '../src/features/posts/draft/postData';
 import changedValues from '../src/utils/changedValues';
 
 describe('changedValues', () => {

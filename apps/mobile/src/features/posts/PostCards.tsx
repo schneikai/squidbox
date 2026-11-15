@@ -1,62 +1,58 @@
-import type { ChatSubjectKind, IdeasKind } from '@squidbox/shared';
+import type { Channel, ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import PostCard, { type PostCardChange } from './PostCard';
 import type { PostedAtPickerProps } from './PostedAtPicker';
-import type { ChannelDraft, ChannelDraftAction } from './draft/channelDraftReducer';
+import type { CardsAction, CardsDraft } from './draft/cardsReducer';
 import hasCardContent from './draft/hasCardContent';
 import nextCardKey from './draft/nextCardKey';
 
 import ThreadConnector from '@/components/ThreadConnector';
 import WarningNote from '@/components/WarningNote';
-import versionLimits from '@/features/channels/versionLimits';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import { layout } from '@/styles/designTokens';
 import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
-import joinWords from '@/utils/joinWords';
-import pluralizeText from '@/utils/pluralizeText';
 
 type PostCardsProps = {
-  draft: ChannelDraft;
-  dispatch: (action: ChannelDraftAction) => void;
+  draft: CardsDraft;
+  dispatch: (action: CardsAction) => void;
   kind: Extract<ChatSubjectKind, 'draft' | 'edit'>;
   ideas: IdeasKind;
-  startsOnItsOwn: boolean;
-  autoFocusFirst: boolean;
-  postedAt: PostedAtPickerProps['timestamp'];
-  isPostedAtShown: boolean;
-  onChangePostedAt: PostedAtPickerProps['onChange'];
+  channel?: Pick<Channel, 'name' | 'maxTextLength' | 'maxMedia' | 'hasThreads'>;
+  startsOnItsOwn?: boolean;
+  autoFocusFirst?: boolean;
+  postedAt?: PostedAtPickerProps['timestamp'];
+  isPostedAtShown?: boolean;
+  onChangePostedAt?: PostedAtPickerProps['onChange'];
 };
 
 /**
- * One version's cards in the post editor (`draft`: the post and its thread), its edits going to
- * `dispatch` (channelDraftReducer): one card per post, joined by a short line, the card being edited
- * with the assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own
- * only while `startsOnItsOwn`). The first card has the Posted time (and the cursor with
- * `autoFocusFirst`); every card follows the version's limits, the strictest of its channels'
- * (versionLimits); ⊕ Add to thread only where all its channels have threads (or it has none), and a
- * note under the cards naming those without threads when it holds a thread anyway (its following
- * posts stay, to edit or remove).
+ * A post's cards in an editor (`draft`: the post and its thread), its edits going to `dispatch`
+ * (cardsReducer): one card per post, joined by a short line, the card being edited with the
+ * assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own only
+ * while `startsOnItsOwn`). The first card has the Posted time when `onChangePostedAt` is given (and
+ * the cursor with `autoFocusFirst`). With `channel` (a copy for it) every card follows its limits; ⊕
+ * Add to thread only where it has threads, and a note under the cards saying it has none when the
+ * copy holds a thread anyway (its following posts stay, to edit or remove).
  */
 export default function PostCards({
   draft,
   dispatch,
   kind,
   ideas,
-  startsOnItsOwn,
-  autoFocusFirst,
-  postedAt,
-  isPostedAtShown,
+  channel,
+  startsOnItsOwn = false,
+  autoFocusFirst = false,
+  postedAt = null,
+  isPostedAtShown = false,
   onChangePostedAt,
 }: PostCardsProps) {
   const { cards } = draft;
   const [activeKey, setActiveKey] = useState(cards[0]!.key);
-  const limits = useMemo(() => versionLimits(draft.channelIds), [draft.channelIds]);
-  const threadless = limits?.threadless ?? [];
-  const hasThreads = threadless.length === 0;
+  const hasThreads = channel?.hasThreads ?? true;
 
   const updateCard = useCallback(
     (key: string, changes: PostCardChange) => {
@@ -103,7 +99,7 @@ export default function PostCards({
             onActivate={setActiveKey}
             onRemove={index > 0 ? removeCard : undefined}
             onAddToThread={hasThreads && index === cards.length - 1 ? addToThread : undefined}
-            limits={limits}
+            channel={channel}
             tray={
               card.key === activeKey
                 ? (style) => (
@@ -121,9 +117,7 @@ export default function PostCards({
         </View>
       ))}
       {!hasThreads && cards.length > 1 && (
-        <WarningNote style={styles.note}>
-          {`${joinWords(threadless)} ${pluralizeText('has', 'have', threadless.length)} no threads.`}
-        </WarningNote>
+        <WarningNote style={styles.note}>{`${channel?.name} has no threads.`}</WarningNote>
       )}
     </View>
   );

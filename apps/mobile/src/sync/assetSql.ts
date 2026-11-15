@@ -110,17 +110,14 @@ export function liveAlbumAssetIds(albumId: string | SQL): SQL {
 
 /**
  * The ids of the posts shown as the post `postId` (sync-design §10): itself, and the live ones of its
- * following posts, its other channels and their following posts. Each part goes through an index.
+ * following posts. Each part goes through an index.
  */
 export function postFamilyIds(postId: string): SQL {
   return sql`(select ${postId}
-    union all select id from posts where thread_root_id = ${postId} and deleted_at is null
-    union all select id from posts where channel_root_id = ${postId} and deleted_at is null
-    union all select f.id from posts c join posts f on f.thread_root_id = c.id and f.deleted_at is null
-      where c.channel_root_id = ${postId} and c.deleted_at is null)`;
+    union all select id from posts where thread_root_id = ${postId} and deleted_at is null)`;
 }
 
-/** The ids of the assets of a post, its thread and its other channels (postFamilyIds), through live edges. */
+/** The ids of the assets of a post and its thread (postFamilyIds), through live edges. */
 export function postFamilyAssetIds(postId: string): SQL {
   return sql`(select asset_id from post_assets where deleted_at is null and post_id in ${postFamilyIds(postId)})`;
 }
@@ -130,7 +127,7 @@ export function albumHoldsAny(albumId: string | SQL | SQLiteColumn, assetIds: st
   return sql`exists (select 1 from album_assets where album_id = ${albumId} and deleted_at is null and ${inJson(sql.raw('asset_id'), assetIds)})`;
 }
 
-/** An album's photos, or a post's (with its thread's and its other channels'). */
+/** An album's photos, or a post's (and its thread's following posts'). */
 export type PhotosOf = { albumId: string } | { postId: string };
 
 /** The ids of the live, untrashed photos of an album or post (PhotosOf), through live edges. */
@@ -176,7 +173,7 @@ function contactPhotoLinks(contactIds: string | string[]): SQL {
 
 /**
  * The ids of the assets of a post's live albums (the albums holding any of the assets the post
- * screen shows, its thread's and its other channels' included (postFamilyIds), so not the purged),
+ * screen shows, its thread's following posts' included (postFamilyIds), so not the purged),
  * through live edges. A trashed asset of those albums counts, as in an album's Posts tab
  * (liveAlbumAssetIds), though the album's grid hides it.
  */

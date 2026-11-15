@@ -5,14 +5,14 @@ import assetHref from '@/features/asset-list/assetHref';
 import PostView from '@/features/posts/PostView';
 import ThreadPost from '@/features/posts/ThreadPost';
 import type { AssetRow } from '@/sync/db/schema';
-import type { ChannelPostRow } from '@/sync/queries/readPost';
+import type { PostDetailRow } from '@/sync/queries/readPost';
 
-// The post or another version of it: the thread read with it, its channels as readPost gives them.
-type PostThreadCardsProps = { post: ChannelPostRow };
+// The post with the thread read with it, as readPost gives it.
+type PostThreadCardsProps = { post: PostDetailRow };
 
 /**
  * A post's card (PostView) and its following posts' cards joined by the thread's line, as the post's
- * screen shows them (the post's own channel or another): a long press copies a text, and a picture
+ * screen shows them: a long press copies a text, and a picture
  * opens pushed, with the others of its own post.
  */
 export default function PostThreadCards({ post }: PostThreadCardsProps) {

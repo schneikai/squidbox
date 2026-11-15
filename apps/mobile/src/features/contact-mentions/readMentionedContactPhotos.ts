@@ -28,7 +28,7 @@ export default function readMentionedContactPhotos(db: SyncDb): Promise<Mentione
     const contactsByHandle = await readContactsByHandle(tx);
 
     const contactsByPost = new Map<string, string[]>();
-    // A post's other channels and following posts are the post: it counts once.
+    // A thread's following posts are its first post: it counts once.
     const listedPosts = new Set<string>();
     for (const post of posts) {
       const ids = new Set(

@@ -22,8 +22,8 @@ export type MenuItemContentProps = {
 // `isSelected`; a row of a pick-several menu (`selection="several"`) always shows a select circle
 // (SelectIndicator), filled when `isSelected`.
 // A given `trailing` takes the mark's place. `leading` goes before the label where what the row picks
-// has a mark of its own (a channel's logo). The row itself (height, padding, press feedback, the
-// dimming of a disabled one) belongs to MenuOption or the popover drawing it.
+// has a mark of its own (a channel's logo). The row itself (height, padding, press feedback) belongs
+// to MenuOption or the popover drawing it.
 export default function MenuItemContent({
   label,
   icon,

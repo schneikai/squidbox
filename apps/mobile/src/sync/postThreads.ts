@@ -16,24 +16,14 @@ export type AssetRef = Pick<PostAssetRecord, 'id' | 'assetId'>;
 export type ThreadPart = { id: string | null; text: string; assetRefs: AssetRef[] };
 type NewPart = Pick<PostRecord, 'text' | 'postedAt'> & { threadRootId: string; threadIndex: number };
 
-/**
- * The live posts linked to `rootIds` by `root`: a thread's following posts (`threadRootId`), each
- * thread's in `(threadIndex, id)` order, or a post's other channels (`channelRootId`), in id order.
- */
-export function readChildPosts(tx: SyncDb, root: 'threadRootId' | 'channelRootId', rootIds: string[]) {
+/** The live following posts of `rootIds`, each thread's in `(threadIndex, id)` order. */
+export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
   const p = schema.posts;
-  const order =
-    root === 'threadRootId' ? [asc(p.threadRootId), asc(p.threadIndex), asc(p.id)] : [asc(p.channelRootId), asc(p.id)];
   return tx
     .select()
     .from(p)
-    .where(and(inJson(p[root], rootIds), isNull(p.deletedAt)))
-    .orderBy(...order);
-}
-
-/** The live following posts of `rootIds`, each thread's in `(threadIndex, id)` order. */
-export function readThreadPosts(tx: SyncDb, rootIds: string[]) {
-  return readChildPosts(tx, 'threadRootId', rootIds);
+    .where(and(inJson(p.threadRootId, rootIds), isNull(p.deletedAt)))
+    .orderBy(asc(p.threadRootId), asc(p.threadIndex), asc(p.id));
 }
 
 /**
@@ -74,7 +64,7 @@ export async function saveThreadPosts(
  * listed (`removed`), the new parts in order (`added`), and the listed ones with their seed
  * (`kept`). A seed part deleted meanwhile (another device) is in neither.
  */
-export function splitParts<P extends { id: string | null }>(parts: P[], seedParts: P[], liveIds: Set<string>) {
+function splitParts<P extends { id: string | null }>(parts: P[], seedParts: P[], liveIds: Set<string>) {
   const listed = new Set(parts.map((part) => part.id));
   const seedById = new Map(seedParts.map((part) => [part.id, part]));
   return {
@@ -88,7 +78,7 @@ export function splitParts<P extends { id: string | null }>(parts: P[], seedPart
 }
 
 /** A post's Posted time as it stands in `tx` (null for none, or no such post). */
-export async function readPostedAt(tx: SyncDb, postId: string): Promise<number | null> {
+async function readPostedAt(tx: SyncDb, postId: string): Promise<number | null> {
   const [post] = await tx
     .select({ postedAt: schema.posts.postedAt })
     .from(schema.posts)

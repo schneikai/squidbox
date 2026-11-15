@@ -124,7 +124,7 @@ export const posts = sqliteTable(
     // A thread's following post: its first post and its place after it (null on a first post).
     threadRootId: text('thread_root_id'),
     threadIndex: integer('thread_index'),
-    // The catalog id of the channel the post is on, and on another channel of a post: that post.
+    // Retired (sync-design §10): the channel versions' fields, dropped by migration 0041.
     channelId: text('channel_id'),
     channelRootId: text('channel_root_id'),
     // The channels the post also goes to besides channelId (null: none).
@@ -138,7 +138,7 @@ export const posts = sqliteTable(
     index('posts_thread_idx')
       .on(t.threadRootId, t.threadIndex, t.id)
       .where(sql`${t.deletedAt} is null and ${t.threadRootId} is not null`),
-    // A post's other channels (readChannelPosts, otherChannelIds, listedPostId).
+    // Retired with the channel versions' fields.
     index('posts_channel_root_idx')
       .on(t.channelRootId, t.id)
       .where(sql`${t.deletedAt} is null and ${t.channelRootId} is not null`),

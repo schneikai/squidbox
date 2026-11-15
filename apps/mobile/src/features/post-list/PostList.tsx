@@ -4,8 +4,6 @@ import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
 import PostListItem, { type PostListItemProps } from './PostListItem';
 
-import useChannelOrder from '@/features/channels/useChannelOrder';
-import useChannels from '@/features/channels/useChannels';
 import type { ScrollableList } from '@/hooks/useListControls';
 import useListRefCallback from '@/hooks/useListRefCallback';
 import { reflow } from '@/styles/designTokens';
@@ -46,10 +44,6 @@ export default function PostList({
   hasMenu = true,
 }: PostListProps) {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
-  const channels = useChannels();
-  // The user's channel order, read once for the list: a post's labels follow it, and the memoized
-  // items run no query of their own.
-  const channelOrder = useChannelOrder(channels);
 
   // More is asked for only once the first page landed: a load-more asked before would read a second
   // page at once.
@@ -80,10 +74,9 @@ export default function PostList({
         isExpanded={expandedThreadIds.includes(post.id)}
         onToggleThread={toggleThread}
         unfoldedPosts={unfoldedPosts}
-        channelOrder={channelOrder}
       />
     ),
-    [renderPostActions, expandedThreadIds, toggleThread, unfoldedPosts, hasMenu, channelOrder],
+    [renderPostActions, expandedThreadIds, toggleThread, unfoldedPosts, hasMenu],
   );
 
   if (!rows) return null;

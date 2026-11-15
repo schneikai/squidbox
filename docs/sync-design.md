@@ -386,7 +386,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
   devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
   `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`; albums and contacts have `isFavorite`,
-  `favoritedAt` too; posts have `channelId`, `extraChannelIds`.
+  `favoritedAt` too; posts have `channelId`, `extraChannelIds` (retired, §10).
 - **Whole-record pushes** (an app from before per-field merge, the dev client's library copy) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`
@@ -435,8 +435,7 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
     editor was open stays, and no keys tie. A moved photo's duplicate edges are tombstoned, as
     `reorder` and `move` do.
   - Removing tombstones the edge. Deleting an album or post tombstones its edges too
-    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThreads`), and deleting
-    a post for every post of it on all its channels (`removePost`). Deleting or purging an asset does not touch its edges, so a restore puts
+    (`tombstoneWhere`); deleting a thread does so for every post of it (`removeThreads`). Deleting or purging an asset does not touch its edges, so a restore puts
     it back where it was. Readers resolve edges through the asset: albums skip deleted assets, a
     post still shows a deleted one (it can come back) but never a purged one, and ids that don't
     resolve are skipped.
@@ -942,45 +941,22 @@ a thread as its first post (lists, counts, searches, a photo's or an album's pos
 suggestions, the assistant's example posts) and a following post whose first post is deleted as a
 post of its own. Deleting a thread tombstones every post of it and their edges, in one transaction.
 
-A post can be on channels (Settings → Posts → Channels): `channelId` (optional, null | the catalog
-id of the channel it is on, `CHANNELS` in `packages/shared`; free text, so a build keeps a channel a
-newer build added) and `channelRootId` (optional, null | on another channel of a post: that post).
-A post's other channels are posts of their own, each with its own `channelId`, text, `post_assets`
-edges (the post's assets at first, its own list afterwards) and thread (`threadRootId` = its id),
-and the post's `postedAt` (changing the post's changes theirs and their threads'). Readers show a
-post as itself with its other channels (lists, counts, searches, a photo's or an album's posts, the
-assistant's example posts, a post screen's contacts and albums): `listedPostId` lists a following
-post of another channel as the post too; another channel whose post is deleted reads as a post of
-its own. Deleting a post tombstones it, its thread, its other channels and their threads with their
-edges (`removePost`). Like the thread fields, an older build sees another channel as an ordinary
-post (it lists, counts and offers it for a repost, and its Delete leaves it) until it is updated.
-Server 0039, app 0039.
-
-A version (the post or another channel of it: one tab in the channel bar) can go to several
-channels: `extraChannelIds` (optional, null | the channels it also goes to besides `channelId`, in
-the order they were added; null unless it has two or more, never `[]`, so a one-channel save of an
-older row writes nothing). Its channels are `[channelId, ...extraChannelIds]`, written only through
-`versionChannelFields`; `channelId` and `extraChannelIds` are one field group (§7), and an older
-build's push of `channelId` alone keeps the stored extras. Reads give each version `channelIds`
-(readPost): a version keeps its `channelId`, and an extra is dropped when it is any version's
-`channelId` or an earlier version's extra (an older build's "Change X to" or "Add channel X" can give
-another version a channel the shared one lists). The editor's Save first writes every live
-version's channels as the read gives them where the stored fields differ (`repairVersionChannels`;
-the others write nothing), before it saves the versions, so an extra the read hid is written away
-and can't come back once the version holding it goes. A shared version's counter and limits are its
-channels' strictest, and a repost goes to the reposted version's channels. Known limits of an older
-build with a shared version: it shows the version under its first channel only, its "Remove <first
-channel>" removes the version for all of its channels, and its Delete covers the whole post, as
-today. Server 0040, app 0040.
+Retired: `channelId`, `channelRootId` and `extraChannelIds` (server 0039 and 0040, app 0039 and
+0040) held a post's channel versions, a feature builds up to `20261114-e71be8cf` shipped: another
+channel of a post was a post of its own, linked by `channelRootId`, and `channelId` with
+`extraChannelIds` (one field group, §7) named the channels a version went to. The app no longer
+reads or writes them (app 0041 drops their columns); they stay optional in the contract, in the
+server's table and in `readSamplePosts`, because those installed builds still push and read them: a
+push of a newer build leaves them out, so the server keeps what an older build stored, and a post an
+older build made on another channel reads as an ordinary post. They go once the last contract
+snapshot that has them (`20261114-e71be8cf`) is retired.
 
 **channels** (Settings → Posts → Channels: the user's channels, in their order). Synced:
 `channelId` (the catalog id) and `position` (a fractional-index key, the order by `(position, id)`),
 plus the base columns. One record per catalog channel, under the catalog's fixed `recordId`, so two
 devices adding the same channel write one record, adding a deleted one again revives its tombstone
 at the end, and a library merge copies a device's channel only when the account has no record of it
-(live or deleted). Deleting one is a tombstone; posts keep their `channelId` and `extraChannelIds`.
-The mock account has Bluesky, X and Instagram; its posts are on Bluesky, a few have an X or Instagram
-channel, and one is shared by Bluesky and X.
+(live or deleted). Deleting one is a tombstone. The mock account has Bluesky, X and Instagram.
 Server 0039, app 0039.
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base

@@ -1,6 +1,6 @@
-import type { ChannelDraft } from './channelDraftReducer';
+import type { CardsDraft } from './cardsReducer';
 
 /** The key the next card added to `draft` takes (addCard). */
-export default function nextCardKey(draft: Pick<ChannelDraft, 'key' | 'nextCard'>): string {
-  return `${draft.key}-card-${draft.nextCard}`;
+export default function nextCardKey(draft: Pick<CardsDraft, 'nextCard'>): string {
+  return `card-${draft.nextCard}`;
 }

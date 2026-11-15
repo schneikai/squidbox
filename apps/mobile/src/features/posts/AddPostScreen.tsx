@@ -1,14 +1,13 @@
-import { channelById } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import leaveWithNewPostSheet from './leaveWithNewPostSheet';
 
 import PostEditor from '@/features/posts/PostEditor';
-import type { EditedPost, PostEditorPost } from '@/features/posts/draft/postDraftReducer';
+import type { PostEditorPost } from '@/features/posts/draft/draftFromPost';
+import type { EditedPost } from '@/features/posts/draft/postData';
 import useSeedOrClose from '@/hooks/useSeedOrClose';
 import listParam from '@/lib/listParam';
 import usePosts from '@/providers/posts/usePosts';
-import { readChannels } from '@/sync/channelsRepository';
 import { schema } from '@/sync/db/client';
 import type { SyncDb } from '@/sync/db/types';
 import readPost from '@/sync/queries/readPost';
@@ -19,8 +18,7 @@ import freshPostAssets from '@/utils/posts/freshPostAssets';
 
 // A new post, seeded once from the route: the assets to post (`assetIds`, comma-separated, in that
 // order), or the post to repost (`rePostId`: its first post's text and assets, as fresh post assets,
-// without its thread or its other channels). It goes to the reposted version's channels, else all the
-// user's channels, else none. Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
+// without its thread). Reposting a post that was deleted meanwhile closes the editor. Once the post is added,
 // marking the reposted one is best-effort: a failure there must not keep the editor open, where Add
 // would add the post again. Added from the New post sheet, the post closes that sheet too: the user
 // lands on the posts list with the new post, not back on what to post next.
@@ -55,21 +53,16 @@ async function readSeed(
   db: SyncDb,
   { rePostId, assetIds }: { rePostId: string | undefined; assetIds: string[] },
 ): Promise<PostEditorPost | null> {
-  // A new post goes to all the user's channels this build knows, as Settings → Channels lists them
-  // (useChannels).
-  const channelIds = (await readChannels(db)).flatMap((row) => (channelById(row.channelId) ? [row.channelId] : []));
-  const fresh = { postedAt: getTimestamp(), threadPosts: [], channelPosts: [] };
+  const fresh = { postedAt: getTimestamp(), threadPosts: [] };
   if (rePostId) {
-    const rePost = await readPost(db, rePostId, { withChannels: false });
+    const rePost = await readPost(db, rePostId);
     if (!rePost) return null;
     return {
       ...fresh,
       text: rePost.text,
       postAssets: freshPostAssets(rePost.postAssets),
-      // A repost goes to the reposted version's channels.
-      channelIds: rePost.channelIds.length > 0 ? rePost.channelIds : channelIds,
     };
   }
   const assets = assetIds.length ? await readByIds(db, schema.assets, assetIds) : [];
-  return { ...fresh, text: '', postAssets: buildPostAssets(assets), channelIds };
+  return { ...fresh, text: '', postAssets: buildPostAssets(assets) };
 }

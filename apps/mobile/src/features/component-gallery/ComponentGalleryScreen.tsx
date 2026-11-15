@@ -40,7 +40,6 @@ import MenuItemContent from '@/components/popup-menu-options/MenuItemContent';
 import PopoverSurface from '@/components/popup-menu-options/PopoverSurface';
 import { Row, Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import ChannelLogo from '@/features/channels/ChannelLogo';
-import ChannelLogos from '@/features/channels/ChannelLogos';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import IdeasCarousel from '@/features/post-ideas/IdeasCarousel';
 import type { IdeasRun } from '@/features/post-ideas/ideasRun';
@@ -159,7 +158,7 @@ export default function ComponentGalleryScreen() {
               <MenuItemContent label="X" leading={<ChannelLogo channelId="x" />} selection="several" />
             </View>
             <Divider variant="menuRow" />
-            <View style={[popupMenuStyles.row, popupMenuStyles.disabledRow]}>
+            <View style={popupMenuStyles.row}>
               <MenuItemContent
                 label="Instagram"
                 leading={<ChannelLogo channelId="instagram" />}
@@ -239,42 +238,6 @@ export default function ComponentGalleryScreen() {
             <Chip variant="mixed" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
-          </ChipRow>
-        </Specimen>
-        <Specimen name="Channel tabs">
-          <View accessibilityRole="tablist">
-            <ChipRow>
-              <Chip label="All channels" isSelected hasCaret accessibilityRole="tab" onPress={noop} />
-              <Chip
-                label="Bluesky, X"
-                accessibilityLabel="Bluesky and X"
-                mark={<ChannelLogos channelIds={['bluesky', 'x']} isDecorative />}
-                isIconOnly
-                hasCaret
-                accessibilityRole="tab"
-                onPress={noop}
-              />
-              <Chip
-                label="OnlyFans"
-                mark={<ChannelLogo channelId="onlyfans" size={sizes.menuIcon} />}
-                isIconOnly
-                hasCaret
-                accessibilityRole="tab"
-                onPress={noop}
-              />
-              <Chip variant="add" label="New version" isIconOnly onPress={noop} />
-            </ChipRow>
-          </View>
-          <ChipRow>
-            <Chip
-              label="Bluesky"
-              mark={<ChannelLogo channelId="bluesky" size={sizes.menuIcon} />}
-              isIconOnly
-              isSelected
-              accessibilityRole="tab"
-            />
-            <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
-            <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans']} />
           </ChipRow>
         </Specimen>
       </>

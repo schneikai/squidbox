@@ -123,39 +123,25 @@ const ALBUMS: { name: string; media?: number[]; smartAlbumType?: 'FAVORITES' | '
   { name: 'To post', media: [33, 34, 35, 36, 37, 38, 40, 4] },
 ];
 
-// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts, with their
-// own text (`channels`) or as on Bluesky (`alsoOn`).
+// His channels, in his order: Bluesky first, where he posts; X and Instagram for some posts.
 const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
 
-// Every post is on Bluesky. `thread`: the posts that follow this one in its thread, each with its own
-// text and photos. `alsoOn`: his other channels the post goes to as it is (one version shared by
-// several channels, its `extraChannelIds`). `channels`: the post on his other channels, each with its
-// own text, photos and thread.
+// `thread`: the posts that follow this one in its thread, each with its own text and photos.
 type MockPostPart = { text: string; media: number[]; thread?: { text: string; media: number[] }[] };
 const POSTS: (MockPostPart & {
   postedDaysAgo: number | null;
   isFavorite?: boolean;
-  alsoOn?: Exclude<(typeof CHANNEL_IDS)[number], 'bluesky'>[];
-  channels?: (MockPostPart & { channelId: (typeof CHANNEL_IDS)[number] })[];
 })[] = [
   {
     text: 'First light over the hills ☀️',
     media: [0, 1],
     postedDaysAgo: 40,
     isFavorite: true,
-    channels: [
-      {
-        channelId: 'instagram',
-        text: 'First light over the hills ☀️ Up at 4:30, an hour of switchbacks in the dark, and then this. The valley was still asleep under the fog, and for ten minutes the whole ridge turned gold. Worth every step. #hiking #sunrise #landscapephotography',
-        media: [0, 1, 2, 9, 10],
-      },
-    ],
   },
   {
     text: 'Lost in the forest for a day with @ridgeline.bsky.social 🌲',
     media: [14, 15, 17, 32],
     postedDaysAgo: 32,
-    alsoOn: ['x'],
   },
   { text: 'Coffee and a view. That is all.', media: [4, 33], postedDaysAgo: 21 },
   {
@@ -167,24 +153,12 @@ const POSTS: (MockPostPart & {
       { text: 'Last walk before heading home. Part 2 soon.', media: [16] },
       { text: 'Thanks for following along. Back on the trail next weekend 🥾', media: [] },
     ],
-    channels: [
-      {
-        channelId: 'x',
-        text: 'Summer recap, part 1 🧵',
-        media: [3, 5],
-        thread: [
-          { text: 'The coast road, one stop at every pull-out 🌊', media: [6] },
-          { text: 'Part 2 next week.', media: [] },
-        ],
-      },
-    ],
   },
   {
     text: 'Quiet roads, loud thoughts.',
     media: [19],
     postedDaysAgo: 5,
     isFavorite: true,
-    channels: [{ channelId: 'x', text: 'Quiet roads.', media: [19] }],
   },
   { text: 'Draft: weekend dump', media: [35, 36, 37], postedDaysAgo: null },
   { text: 'Draft: which one should I post?', media: [38, 40], postedDaysAgo: null },
@@ -390,35 +364,14 @@ const posts: PostRecord[] = POSTS.map((post, index) => {
   const postedAt = post.postedDaysAgo === null ? null : now - post.postedDaysAgo * DAY;
   return postRecord(`post:${index}`, postedAt ?? now - index * DAY, {
     text: post.text,
-    channelId: 'bluesky',
-    extraChannelIds: post.alsoOn?.length ? post.alsoOn : null, // null, never []
     isFavorite: post.isFavorite ?? false,
     postedAt,
     suggestRepostAt: postedAt === null ? 0 : postedAt + 90 * DAY,
   });
 });
 
-// A post on another channel: its own record, linked to the post, with its Posted time.
-const channelPosts = POSTS.flatMap((post, index) =>
-  (post.channels ?? []).map((channel) => {
-    const root = posts[index]!;
-    const key = `post:${index}:channel:${channel.channelId}`;
-    posts.push(
-      postRecord(key, root.createdAt, {
-        text: channel.text,
-        channelId: channel.channelId,
-        channelRootId: root.id,
-        postedAt: root.postedAt,
-        suggestRepostAt: root.suggestRepostAt,
-      }),
-    );
-    return { ...channel, key };
-  }),
-);
-
-// A thread's following posts (a post's, or its post on another channel's): their own records, linked
-// to the first post, with its Posted time.
-const threadParts = [...POSTS.map((post, index) => ({ ...post, key: `post:${index}` })), ...channelPosts].flatMap(
+// A thread's following posts: their own records, linked to the first post, with its Posted time.
+const threadParts = POSTS.map((post, index) => ({ ...post, key: `post:${index}` })).flatMap(
   ({ thread, key: rootKey }) => {
     const root = posts.find((post) => post.id === mockUuid(rootKey))!;
     return (thread ?? []).map((part, j) => ({ ...part, key: `${rootKey}:part:${j + 1}`, root, j }));
@@ -439,7 +392,6 @@ for (const { text, key, root, j } of threadParts) {
 // Each post's edges to its `media`, in that order.
 const postAssets: PostAssetRecord[] = [
   ...POSTS.map((post, index) => ({ key: `post:${index}`, media: post.media })),
-  ...channelPosts,
   ...threadParts,
 ].flatMap(({ key, media }) => {
   const positions = initialKeys(media.length);

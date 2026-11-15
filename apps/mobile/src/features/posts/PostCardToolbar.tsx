@@ -12,13 +12,13 @@ export type PostCardToolbarProps = {
   onAddMedia: AddMediaMenuProps['onAdd'];
   postedAt: PostedAtPickerProps['timestamp'];
   isPostedAtShown: PostedAtPickerProps['isShown'];
-  onChangePostedAt: PostedAtPickerProps['onChange'];
+  onChangePostedAt?: PostedAtPickerProps['onChange'];
   onAddToThread?: () => void;
   onActivate: () => void;
 };
 
 // The quiet row under a post editor card's text: the photo button (the Add media menu), the thread's
-// Posted time on the first card (`isFirst`; only its clock until `isPostedAtShown`) and on the
+// Posted time on the first card (`isFirst`, with `onChangePostedAt`; only its clock until `isPostedAtShown`) and on the
 // trailing side ⊕ Add to thread (with `onAddToThread`, the last card). `onActivate` runs on any of them, so the card they're on becomes
 // the one being edited.
 export default function PostCardToolbar({
@@ -38,7 +38,7 @@ export default function PostCardToolbar({
 
   function handleChangePostedAt(timestamp: PostedAtPickerProps['timestamp']) {
     onActivate();
-    onChangePostedAt(timestamp);
+    onChangePostedAt?.(timestamp);
   }
 
   // Only the ⊕ calls it, and it shows only with `onAddToThread`.
@@ -61,7 +61,9 @@ export default function PostCardToolbar({
         exclude={exclude}
         onAdd={onAddMedia}
       />
-      {isFirst && <PostedAtPicker timestamp={postedAt} isShown={isPostedAtShown} onChange={handleChangePostedAt} />}
+      {isFirst && onChangePostedAt && (
+        <PostedAtPicker timestamp={postedAt} isShown={isPostedAtShown} onChange={handleChangePostedAt} />
+      )}
       {onAddToThread && (
         <Button
           icon="add-circle"
