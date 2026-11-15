@@ -14,8 +14,8 @@ describe('postChannelIds', () => {
   });
 
   it("puts channels no longer in the user's list after it, in the catalog's order", () => {
-    const post = { channelIds: ['onlyfans'], otherChannelIds: ['reddit', 'threads', 'tiktok'] };
-    expect(postChannelIds(post, ['tiktok'])).toEqual(['onlyfans', 'tiktok', 'threads', 'reddit']);
+    const post = { channelIds: ['onlyfans'], otherChannelIds: ['justforfans', 'bluesky', 'instagram'] };
+    expect(postChannelIds(post, ['instagram'])).toEqual(['onlyfans', 'instagram', 'bluesky', 'justforfans']);
   });
 
   it('shows a channel once, also when two other channels of the post are on it', () => {

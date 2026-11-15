@@ -255,8 +255,8 @@ export default function ComponentGalleryScreen() {
                 onPress={noop}
               />
               <Chip
-                label="OnlyFans PPV"
-                mark={<ChannelLogo channelId="onlyfans-ppv" size={sizes.menuIcon} />}
+                label="OnlyFans"
+                mark={<ChannelLogo channelId="onlyfans" size={sizes.menuIcon} />}
                 isIconOnly
                 hasCaret
                 accessibilityRole="tab"
@@ -274,7 +274,7 @@ export default function ComponentGalleryScreen() {
               accessibilityRole="tab"
             />
             <Chip label="No channel" accessibilityRole="tab" onPress={noop} />
-            <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans-ppv']} />
+            <ChannelLogos channelIds={['bluesky', 'x', 'onlyfans']} />
           </ChipRow>
         </Specimen>
       </>

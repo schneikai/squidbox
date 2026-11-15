@@ -1,6 +1,7 @@
-// The built-in channels a post can be on (Settings → Posts → Channels): a place plus a way of posting
-// there, so OnlyFans (a post) and OnlyFans PPV (a pay-per-view message) are two. `id` is what a post's
-// `channelId` and a `channels` record's `channelId` hold; `recordId` is the fixed id of the user's
+import type { ContactHandleField } from './collections/contact';
+
+// The built-in channels a post can be sent to (Settings → Posts → Channels). `id` is what a `channels`
+// record's and a `post_copies` record's `channelId` hold; `recordId` is the fixed id of the user's
 // `channels` record for it, so two devices adding the same channel write one record and adding a
 // deleted one again revives it. Both are stored data: never change them once shipped.
 //
@@ -8,6 +9,7 @@
 // `maxMedia` the media one post can hold, `maxTextLength` the limit of the field the post's text goes
 // into (the post, the caption, the description or the body; never a title's), `hasThreads` whether
 // posts can follow it in a thread. null: no limit known. The app warns over a limit and never blocks.
+// `handleField` is the contact's handle a mention goes out as on the channel (CONTACT_HANDLES).
 
 export type Channel = {
   id: string;
@@ -16,6 +18,7 @@ export type Channel = {
   maxMedia: number | null;
   maxTextLength: number | null;
   hasThreads: boolean;
+  handleField: ContactHandleField;
 };
 
 export const CHANNELS = [
@@ -28,6 +31,7 @@ export const CHANNELS = [
     maxMedia: 4,
     maxTextLength: 280,
     hasThreads: true,
+    handleField: 'xHandle',
   },
   // @atproto/api lexicons: app.bsky.feed.post text maxGraphemes 300; app.bsky.embed.images maxLength 4.
   {
@@ -37,15 +41,7 @@ export const CHANNELS = [
     maxMedia: 4,
     maxTextLength: 300,
     hasThreads: true,
-  },
-  // developers.facebook.com/docs/threads/posts (500 characters; a carousel holds up to 20 items).
-  {
-    id: 'threads',
-    recordId: '5ac9c244-3162-40f8-8abd-0ffb6880b963',
-    name: 'Threads',
-    maxMedia: 20,
-    maxTextLength: 500,
-    hasThreads: true,
+    handleField: 'blueskyHandle',
   },
   // developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media
   // (caption 2,200 characters; a carousel up to 20 images and videos).
@@ -56,44 +52,7 @@ export const CHANNELS = [
     maxMedia: 20,
     maxTextLength: 2200,
     hasThreads: false,
-  },
-  // developers.tiktok.com/doc/content-posting-api-reference-photo-post (description 4,000; up to 35 photos).
-  {
-    id: 'tiktok',
-    recordId: 'f91bf5bb-9c41-403a-9948-62ac37f59ce8',
-    name: 'TikTok',
-    maxMedia: 35,
-    maxTextLength: 4000,
-    hasThreads: false,
-  },
-  // developers.google.com/youtube/v3/docs/videos (description 5,000 bytes; the title's 100 is not the
-  // text's limit); one video per upload.
-  {
-    id: 'youtube',
-    recordId: '67997e18-9fa5-4378-bf64-7f198ac1b27a',
-    name: 'YouTube',
-    maxMedia: 1,
-    maxTextLength: 5000,
-    hasThreads: false,
-  },
-  // A gallery holds up to 20 images (Reddit's gallery launch, July 2020, as reported); the body's
-  // 40,000 is unverified (support.reddithelp.com not reachable); the title's 300 is not the text's limit.
-  {
-    id: 'reddit',
-    recordId: 'e90c6d99-8de8-4c35-96ad-e2f929bc258d',
-    name: 'Reddit',
-    maxMedia: 20,
-    maxTextLength: 40000,
-    hasThreads: false,
-  },
-  // No published limits found.
-  {
-    id: 'patreon',
-    recordId: '5152f97c-6e1f-4c8b-a1ad-3332b67ec9fa',
-    name: 'Patreon',
-    maxMedia: null,
-    maxTextLength: null,
-    hasThreads: false,
+    handleField: 'instagramHandle',
   },
   // The design's example values, unverified (no published limits found).
   {
@@ -103,15 +62,7 @@ export const CHANNELS = [
     maxMedia: 20,
     maxTextLength: 1000,
     hasThreads: false,
-  },
-  // The design's example values, unverified (no published limits found).
-  {
-    id: 'onlyfans-ppv',
-    recordId: '675abb2a-2693-4d8c-86df-de3b5251bec2',
-    name: 'OnlyFans PPV',
-    maxMedia: 20,
-    maxTextLength: 1000,
-    hasThreads: false,
+    handleField: 'onlyFansHandle',
   },
   // No published limits (its help desk, fanshelp.freshdesk.com, names only the 10 GB upload size); a
   // post stands alone, with no thread.
@@ -122,6 +73,7 @@ export const CHANNELS = [
     maxMedia: null,
     maxTextLength: null,
     hasThreads: false,
+    handleField: 'jffHandle',
   },
 ] as const satisfies readonly Channel[];
 

@@ -145,14 +145,14 @@ d('push: the merge rules (Postgres)', () => {
     await push(db, USER_A, [
       { collection: 'posts', record: shared, fields: { text: 1000, channelId: 1000, extraChannelIds: 1000 } },
     ]);
-    const changed = { ...postRecord(), id: shared.id, text: 'changed', channelId: 'threads', updatedAt: 2000 };
+    const changed = { ...postRecord(), id: shared.id, text: 'changed', channelId: 'instagram', updatedAt: 2000 };
     expect(
       (await push(db, USER_A, [{ collection: 'posts', record: changed, fields: { text: 2000, channelId: 2000 } }]))[0],
     ).toMatchObject({ status: 'applied' });
-    expect(await pulled(shared.id)).toMatchObject({ text: 'changed', channelId: 'threads', extraChannelIds: ['x'] });
+    expect(await pulled(shared.id)).toMatchObject({ text: 'changed', channelId: 'instagram', extraChannelIds: ['x'] });
     const whole = { ...changed, text: 'whole', updatedAt: 3000 };
     expect((await push(db, USER_A, [{ collection: 'posts', record: whole }]))[0]).toMatchObject({ status: 'applied' });
-    expect(await pulled(shared.id)).toMatchObject({ text: 'whole', channelId: 'threads', extraChannelIds: ['x'] });
+    expect(await pulled(shared.id)).toMatchObject({ text: 'whole', channelId: 'instagram', extraChannelIds: ['x'] });
 
     const following = postRecord({ threadRootId: first.id, threadIndex: 1 });
     await push(db, USER_A, [
