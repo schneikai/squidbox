@@ -57,32 +57,24 @@ const people = (await db
   .where(and(eq(contacts.userId, user.id), isNull(contacts.deletedAt)))) as unknown as HandleContact[];
 
 const live = all.filter((post) => post.deletedAt === null);
-const byHandle = contactsByHandle(people);
-for (const [old, now] of aliases) {
-  const named = people.filter(({ name }) => name === now);
-  const found = named.length > 0 ? named : byHandle(now!);
-  if (found.length !== 1) throw new Error(`--alias ${old}=${now}: ${found.length} contacts have ${now}`);
-  console.log(`Alias: @${old.replace(/^@/, '')} → ${found[0]!.name}`);
-  people.push({ id: found[0]!.id, name: found[0]!.name, xHandle: old.replace(/^@/, '') });
-}
-// A new contact for each handle no contact has, one per handle under any spelling.
+// A new contact for a handle no contact has: named as the handle, with it as the X handle.
 const now = Date.now();
-const knownHandle = contactsByHandle(people);
 const created = new Map<string, ContactRecord>();
-for (const { left } of live.map((post) => linkTypedHandles(post, people))) {
-  for (const { handle, reason } of left) {
-    const key = handleKey(handle);
-    if (reason !== 'no contact' || knownHandle(handle).length > 0 || created.has(key)) continue;
-    created.set(key, {
+const newContact = (handle: string): ContactRecord => {
+  const bare = handle.replace(/^@/, '');
+  const key = handleKey(bare);
+  const record =
+    created.get(key) ??
+    ({
       id: randomUUID(),
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
-      name: handle.slice(1),
+      name: bare,
       isFavorite: false,
       favoritedAt: null,
       notes: null,
-      xHandle: handle.slice(1),
+      xHandle: bare,
       blueskyHandle: null,
       instagramHandle: null,
       onlyFansHandle: null,
@@ -91,6 +83,26 @@ for (const { left } of live.map((post) => linkTypedHandles(post, people))) {
       places: [],
       avatarFilename: null,
     } as ContactRecord);
+  created.set(key, record);
+  return record;
+};
+
+// An alias's new handle no contact has gets a new contact too, which the old one then links to.
+const byHandle = contactsByHandle(people);
+for (const [old, to] of aliases) {
+  const named = people.filter(({ name }) => name === to);
+  const found = named.length > 0 ? named : byHandle(to!);
+  if (found.length > 1) throw new Error(`--alias ${old}=${to}: ${found.length} contacts have ${to}`);
+  const contact: HandleContact = found[0] ?? (newContact(to!) as HandleContact);
+  console.log(`Alias: @${old!.replace(/^@/, '')} → ${contact.name}${found.length === 0 ? ' (new contact)' : ''}`);
+  people.push({ id: contact.id, name: contact.name, xHandle: old!.replace(/^@/, '') });
+}
+
+// A new contact for each handle no contact has, one per handle under any spelling.
+const knownHandle = contactsByHandle(people);
+for (const { left } of live.map((post) => linkTypedHandles(post, people))) {
+  for (const { handle, reason } of left) {
+    if (reason === 'no contact' && knownHandle(handle).length === 0) newContact(handle);
   }
 }
 const everyone = [...people, ...(created.values() as Iterable<HandleContact>)];
