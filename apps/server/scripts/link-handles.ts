@@ -1,7 +1,8 @@
 /**
  * Turns the @handles typed in an account's posts into contact mentions, once: each @handle that
  * means exactly one of the account's contacts becomes that contact's name in the text, with a
- * mention at its place (linkTypedHandles). A handle that means no contact, or several, stays text.
+ * mention at its place (linkTypedHandles). A handle no contact has first gets a new contact, named
+ * as the handle (without its @) with it as the X handle. A handle that means several contacts stays text.
  * Deleted posts and deleted contacts are left out.
  *
  * The changes go through the sync push, so they get new server_seq values and every device pulls
@@ -13,8 +14,9 @@
  *   npm run link:handles -- me@example.com [--backup | --apply]
  * On Fly: fly ssh console -C "sh -c 'cd /app/apps/server && npm run link:handles:prod -- me@example.com'"
  */
+import { randomUUID } from 'node:crypto';
 import { and, eq, isNull } from 'drizzle-orm';
-import type { PostMention, PushMutation } from '@squidbox/shared';
+import { type ContactRecord, type PostMention, type PushMutation, contactsByHandle, handleKey } from '@squidbox/shared';
 import { getDb, closeDb } from '../src/db/client.js';
 import { contacts, posts } from '../src/db/schema.js';
 import { serverCollections } from '../src/sync/collections.js';
@@ -49,12 +51,42 @@ const people = (await db
   .where(and(eq(contacts.userId, user.id), isNull(contacts.deletedAt)))) as unknown as HandleContact[];
 
 const live = all.filter((post) => post.deletedAt === null);
-const read = live.map((post) => ({ post, ...linkTypedHandles(post, people) }));
+// A new contact for each handle no contact has, one per handle under any spelling.
+const now = Date.now();
+const known = contactsByHandle(people);
+const created = new Map<string, ContactRecord>();
+for (const { left } of live.map((post) => linkTypedHandles(post, people))) {
+  for (const { handle, reason } of left) {
+    const key = handleKey(handle);
+    if (reason !== 'no contact' || known(handle).length > 0 || created.has(key)) continue;
+    created.set(key, {
+      id: randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      name: handle.slice(1),
+      isFavorite: false,
+      favoritedAt: null,
+      notes: null,
+      xHandle: handle.slice(1),
+      blueskyHandle: null,
+      instagramHandle: null,
+      onlyFansHandle: null,
+      jffHandle: null,
+      phoneNumber: null,
+      places: [],
+      avatarFilename: null,
+    } as ContactRecord);
+  }
+}
+const everyone = [...people, ...(created.values() as Iterable<HandleContact>)];
+const read = live.map((post) => ({ post, ...linkTypedHandles(post, everyone) }));
 const changes = read.flatMap(({ post, linked }) => (linked ? [{ post, linked }] : []));
 
 console.log(`${email}: ${live.length} posts, ${people.length} contacts`);
 console.log(
-  `${changes.length} posts to change, ${changes.reduce((n, { post, linked }) => n + linked.mentions.length - (post.mentions?.length ?? 0), 0)} mentions to add`,
+  `${created.size} contacts to create: ${[...created.values()].map(({ name }) => name).join(', ')}\n` +
+    `${changes.length} posts to change, ${changes.reduce((n, { post, linked }) => n + linked.mentions.length - (post.mentions?.length ?? 0), 0)} mentions to add`,
 );
 for (const { post, linked } of changes) {
   const names = linked.mentions.map(({ name }) => name).join(', ');
@@ -72,12 +104,14 @@ for (const { entry, posts: count } of [...left.values()].sort((a, b) => b.posts 
 }
 
 if (mode === '--apply' && changes.length > 0) {
-  const now = Date.now();
-  const mutations: PushMutation[] = changes.map(({ post, linked }) => ({
-    collection: 'posts',
-    record: { ...post, ...linked, updatedAt: now },
-    fields: { text: now, mentions: now },
-  }));
+  const mutations: PushMutation[] = [
+    ...[...created.values()].map((record): PushMutation => ({ collection: 'contacts', record })),
+    ...changes.map(({ post, linked }) => ({
+      collection: 'posts',
+      record: { ...post, ...linked, updatedAt: now },
+      fields: { text: now, mentions: now },
+    })),
+  ];
   const results = await push(db, user.id, mutations);
   const notApplied = results.filter((result) => result.status !== 'applied');
   console.log(`\nApplied ${results.length - notApplied.length} of ${results.length} writes`);
