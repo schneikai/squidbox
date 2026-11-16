@@ -11,7 +11,7 @@
  * --backup the account's posts as JSON (stdout) to keep before applying.
  *
  * Run from apps/server, with .env pointed at the target backend:
- *   npm run link:handles -- me@example.com [--backup | --apply]
+ *   npm run link:handles -- me@example.com [--alias old=new ...] [--backup | --apply]
  * On Fly: fly ssh console -C "sh -c 'cd /app/apps/server && npm run link:handles:prod -- me@example.com'"
  */
 import { randomUUID } from 'node:crypto';
@@ -24,9 +24,15 @@ import { push } from '../src/sync/push.js';
 import { findUserByEmail } from '../src/users.js';
 import { type HandleContact, type LeftAsText, linkTypedHandles } from './linkTypedHandles.js';
 
-const [email, mode] = process.argv.slice(2);
-if (!email || (mode && mode !== '--apply' && mode !== '--backup')) {
-  throw new Error('Usage: link:handles <email> [--backup | --apply]');
+// `--alias old=new` (repeatable): a handle someone used before, read as the contact named `new` (or with
+// `new` as a handle),
+// for this run only.
+const [email, ...flags] = process.argv.slice(2);
+const mode = flags.find((flag) => flag === '--apply' || flag === '--backup');
+const aliases = flags.flatMap((flag, i) => (flags[i - 1] === '--alias' ? [flag.split('=')] : []));
+const known = new Set(['--apply', '--backup', '--alias', ...flags.filter((_, i) => flags[i - 1] === '--alias')]);
+if (!email || flags.some((flag) => !known.has(flag)) || aliases.some((pair) => pair.length !== 2)) {
+  throw new Error('Usage: link:handles <email> [--alias old=new ...] [--backup | --apply]');
 }
 
 const db = getDb();
@@ -51,14 +57,22 @@ const people = (await db
   .where(and(eq(contacts.userId, user.id), isNull(contacts.deletedAt)))) as unknown as HandleContact[];
 
 const live = all.filter((post) => post.deletedAt === null);
+const byHandle = contactsByHandle(people);
+for (const [old, now] of aliases) {
+  const named = people.filter(({ name }) => name === now);
+  const found = named.length > 0 ? named : byHandle(now!);
+  if (found.length !== 1) throw new Error(`--alias ${old}=${now}: ${found.length} contacts have ${now}`);
+  console.log(`Alias: @${old.replace(/^@/, '')} → ${found[0]!.name}`);
+  people.push({ id: found[0]!.id, name: found[0]!.name, xHandle: old.replace(/^@/, '') });
+}
 // A new contact for each handle no contact has, one per handle under any spelling.
 const now = Date.now();
-const known = contactsByHandle(people);
+const knownHandle = contactsByHandle(people);
 const created = new Map<string, ContactRecord>();
 for (const { left } of live.map((post) => linkTypedHandles(post, people))) {
   for (const { handle, reason } of left) {
     const key = handleKey(handle);
-    if (reason !== 'no contact' || known(handle).length > 0 || created.has(key)) continue;
+    if (reason !== 'no contact' || knownHandle(handle).length > 0 || created.has(key)) continue;
     created.set(key, {
       id: randomUUID(),
       createdAt: now,
