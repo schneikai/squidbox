@@ -9,13 +9,13 @@ describe('contact form fields', () => {
       ...contactDraft(),
       xHandle: ' @MayaL ',
       blueskyHandle: 'https://x.com/MayaL',
-      onlyFansHandle: 'TodoesMorb0',
+      onlyFansHandle: 'TheoHikes0',
       jffHandle: '  ',
     });
     expect(stored).toMatchObject({
       xHandle: '@MayaL',
       blueskyHandle: 'https://x.com/MayaL',
-      onlyFansHandle: 'TodoesMorb0',
+      onlyFansHandle: 'TheoHikes0',
       jffHandle: null,
       instagramHandle: null,
     });

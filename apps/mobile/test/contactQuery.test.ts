@@ -162,9 +162,9 @@ describe('contactQuery', () => {
   });
 
   it('search finds a handle stored with @ and capitals under any spelling', async () => {
-    await contacts.create(db, makeContactRecord({ id: 'todo', name: 'Todo', xHandle: '@TodoesMorb0' }));
-    for (const search of ['todoesmorb0', '@todoesmorb0', 'x.com/TodoesMorb0'])
-      expect(await ids(contactQuery({ search }))).toEqual(['todo']);
+    await contacts.create(db, makeContactRecord({ id: 'theo', name: 'Theo', xHandle: '@TheoHikes0' }));
+    for (const search of ['theohikes0', '@theohikes0', 'x.com/TheoHikes0'])
+      expect(await ids(contactQuery({ search }))).toEqual(['theo']);
   });
 
   it("a pasted link that isn't a profile finds no contact by its first segment", async () => {

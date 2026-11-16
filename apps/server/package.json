@@ -26,9 +26,7 @@
     "user:features": "node --env-file=.env --import tsx scripts/user-features.ts",
     "contract:snapshot": "node --import tsx scripts/contract-snapshot.ts",
     "link:handles": "node --env-file=.env --import tsx scripts/link-handles.ts",
-    "link:handles:prod": "node --import tsx scripts/link-handles.ts",
-    "split:link-threads": "node --env-file=.env --import tsx scripts/split-link-threads.ts",
-    "split:link-threads:prod": "node --import tsx scripts/split-link-threads.ts"
+    "link:handles:prod": "node --import tsx scripts/link-handles.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1168.0",
