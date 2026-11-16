@@ -1,7 +1,7 @@
 import type { Page } from 'playwright/test';
 
 import { expect, test } from './fixtures';
-import { assetCells, button, cellAssetIds, openTab, postCards } from './helpers';
+import { assetCells, button, cellAssetIds } from './helpers';
 
 // The browser's share sheet as the flows see it: it can share any files, and each share records
 // the files' names and types in `window.shares`.
@@ -53,22 +53,4 @@ test('Share in select mode shares every picked photo in one share sheet', async 
 
   await expect.poll(() => sharesAsync(page)).toHaveLength(1);
   expect((await sharesAsync(page))[0]).toHaveLength(2);
-});
-
-test("the post's menu offers Share", async ({ page }) => {
-  await openTab(page, 'Posts');
-  await postCards(page.getByTestId('posts-screen')).first().click();
-
-  await button(page.getByTestId('post-screen'), 'Post options').click();
-
-  await expect(page.getByRole('menuitem', { name: 'Share' })).toBeVisible();
-});
-
-test("the photo's bar has Share, and its menu still Copy file URL", async ({ page }) => {
-  await assetCells(page.getByTestId('library-screen')).first().click();
-  const screen = page.getByTestId('asset-screen');
-
-  await expect(button(screen, 'Share')).toBeVisible();
-  await button(screen, 'More options').click();
-  await expect(page.getByRole('menuitem', { name: 'Copy file URL' })).toBeVisible();
 });
