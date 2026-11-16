@@ -1,7 +1,7 @@
 import { and, eq, getTableColumns, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
-import type { PostListRow, PostWithAssets } from './postQuery';
+import postQuery, { type PostListRow, type PostWithAssets } from './postQuery';
 import threadCount from './threadCount';
 import withPostAssets from './withPostAssets';
 
@@ -10,6 +10,9 @@ import type { SyncDb } from '@/sync/db/types';
 import { readThreadPosts } from '@/sync/postThreads';
 
 const p = alias(schema.posts, 'p');
+
+/** The tables readPost reads, which a live read of a post watches: a post list's (its posts, edges and assets). */
+export const readPostTables = postQuery({ scope: 'all' }).tables;
 
 /** A post as the post screen and the editor read it: with its following posts in order, each with its assets. */
 export type PostDetailRow = PostListRow & { threadPosts: PostWithAssets[] };

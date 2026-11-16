@@ -13,15 +13,13 @@ import useOpenLibrary from '@/library/useOpenLibrary';
 import makeAvatarAsync from '@/providers/contacts/makeAvatarAsync';
 import * as lists from '@/sync/contactListsRepository';
 import * as contacts from '@/sync/contactsRepository';
-import { getDb } from '@/sync/db/client';
 import * as schema from '@/sync/db/schema';
-import type { SyncDb } from '@/sync/db/types';
 import { contactLinks, contactListMembers } from '@/sync/membershipRepository';
 import { addToPhotos, removeFromPhotos } from '@/sync/photoContacts';
 import { builtInContactList } from '@/sync/queries/builtInContactLists';
 import { readByIds } from '@/sync/readByIds';
 import readPhotoIdsOf from '@/sync/readPhotoIdsOf';
-import { requestSync } from '@/sync/worker';
+import written from '@/sync/written';
 import { deleteAvatar } from '@/utils/assets/assetStorage';
 import placesChanged from '@/utils/contacts/placesChanged';
 import storedHandle from '@/utils/contacts/storedHandle';
@@ -48,12 +46,6 @@ type ContactsProviderProps = { children: ReactNode };
 export default function ContactsProvider({ children }: ContactsProviderProps) {
   const { paths: library, userId } = useOpenLibrary();
   const value = useMemo<ContactsContextValue>(() => {
-    const db = getDb();
-    async function written<T>(write: (tx: SyncDb) => Promise<T>): Promise<T> {
-      const result = await db.transaction(write);
-      requestSync();
-      return result;
-    }
     // Sets the contact's photo name, from the contact read in the same write: the name it replaced
     // (null for none), or undefined for a contact that is gone.
     function swapAvatar(id: string, avatarFilename: string | null): Promise<string | null | undefined> {

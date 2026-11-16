@@ -42,6 +42,7 @@ export * from './uniqueTags';
 export * from './contacts/formatPlace';
 export * from './contacts/parseHandle';
 export * from './contacts/handleKey';
+export * from './contacts/contactsByHandle';
 export * from './mentionMarkers';
 
 // Wire contracts shared between the mobile app and the server.

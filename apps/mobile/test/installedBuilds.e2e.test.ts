@@ -1,4 +1,4 @@
-import { type AssetRecord } from '@squidbox/shared';
+import { channelById, type AssetRecord } from '@squidbox/shared';
 import { fakeClock } from '@squidbox/shared/testing/fakeClock';
 import Database from 'better-sqlite3';
 import { and, eq, is } from 'drizzle-orm';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
-import { makeAssetRecord } from './helpers/factory';
+import { makeAssetRecord, makePostRecord } from './helpers/factory';
 import { fuzzRuns } from './helpers/fuzzRuns';
 import { populateEveryTable } from './helpers/populateEveryTable';
 import { betterSqliteExecutor, migrationsFolder, runMigrations } from './helpers/testDb';
@@ -25,10 +25,13 @@ import { serverCollections } from '../../server/src/sync/collections.js';
 import { pull as serverPull } from '../../server/src/sync/pull.js';
 import { push as serverPush } from '../../server/src/sync/push.js';
 import * as repo from '../src/sync/assetsRepository';
+import { addChannel } from '../src/sync/channelsRepository';
 import { createDb } from '../src/sync/db/driver';
 import * as clientSchema from '../src/sync/db/schema';
 import type { SyncDb } from '../src/sync/db/types';
 import { retryFailures } from '../src/sync/outbox';
+import readChannelCopies from '../src/sync/queries/readChannelCopies';
+import { makeRepository } from '../src/sync/repository';
 import { setOwner } from '../src/sync/status';
 import type { RemoveFiles } from '../src/sync/sweepPurgedFiles';
 import type { SyncTransport } from '../src/sync/transport';
@@ -44,6 +47,7 @@ import { runSyncOnce } from '../src/sync/worker';
 // (docs/sync-design.md §15). Needs Postgres and each build's commit, which the suite fetches
 // (depth 1) when the checkout lacks it: in CI one it can't get fails the suite instead of skipping it.
 const TEST_URL = process.env.TEST_DATABASE_URL;
+const newPosts = makeRepository('posts', clientSchema.posts);
 const here = fileURLToPath(new URL('.', import.meta.url));
 // git's output, run in this checkout (or `cwd`), and whether a git command succeeds.
 const git = (args: string[], cwd = here) =>
@@ -237,7 +241,8 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
     });
     beforeEach(async () => {
       fakeClock();
-      await pgDb.delete(serverSchema.assets).where(eq(serverSchema.assets.userId, USER));
+      for (const table of [serverSchema.assets, serverSchema.posts, serverSchema.channels, serverSchema.postCopies])
+        await pgDb.delete(table).where(eq(table.userId, USER));
     });
 
     it('both apps converge on edits of different fields', async () => {
@@ -250,6 +255,26 @@ function describeBuild(build: Build, { fuzz }: { fuzz: boolean }) {
       await sync(M);
       await settle([M, N]);
       expect(await expectConverged(id, [M, N])).toMatchObject({ notes: 'from the installed app', isFavorite: true });
+    });
+
+    // A copy an installed build made carries no followsPost: today's app shows it as the channel's own.
+    it('a channel copy the installed app made shows its own posts on the new app (skipped for a build without copies)', async (ctx) => {
+      if (!main.schema.postCopies) ctx.skip();
+      const M = installedPhone();
+      const N = newPhone();
+      const postId = randomUUID();
+      at(S);
+      await newPosts.create(N.db, makePostRecord({ id: postId, text: 'Ridge at dawn', createdAt: S, updatedAt: S }));
+      await addChannel(N.db, channelById('x')!);
+      await settle([M, N]);
+      const copies = await import(/* @vite-ignore */ `${root}/sync/postCopiesRepository.ts`);
+      at(S + 100);
+      const own = [{ text: 'Just for X', mentions: null, assetIds: [] }];
+      await M.db.transaction((tx: SyncDb) => copies.createCopy(tx, { postId, channelId: 'x', posts: own }));
+      await settle([M, N]);
+      expect((await readChannelCopies(N.db, postId))!.copies).toMatchObject([
+        { channelId: 'x', showsPost: false, posts: [{ text: 'Just for X' }] },
+      ]);
     });
 
     // A shipped migration can't be fixed (§15), and one SQLite refuses on a table with rows (`ADD …

@@ -386,7 +386,8 @@ The payload leaves out the collection's local-only fields (`localOnly` in its sh
   partly sent group the same way (both through `widenToGroups`), so the group never mixes two
   devices' values. Assets have three: `isFileSynced`, `isThumbnailSynced`, `isSynced` (§4),
   `isFavorite`, `favoritedAt`, and `deletedAt`, `purgedAt`; albums and contacts have `isFavorite`,
-  `favoritedAt` too; posts have `channelId`, `extraChannelIds` (retired, §10).
+  `favoritedAt` too; posts have `channelId`, `extraChannelIds` (retired, §10); post copies have
+  `posts`, `followsPost`.
 - **Whole-record pushes** (an app from before per-field merge, the dev client's library copy) send no
   `fields`; the server merges every field they carry at their `updatedAt`, so they win or lose
   field by field like any push. Outbox rows from before per-field merge are marked `whole_record`
@@ -987,18 +988,38 @@ Server 0039, app 0039.
 
 **post_copies** (Send to channels: a post as it goes to one channel). Synced: `postId`, `channelId`
 (the catalog id, free text), `sentAt` (null | when it was sent; Send now and Send all set it, Mark as
-not sent clears it) and `posts` (the copy's posts in thread order, 1 to 100, each `{ text, mentions,
-assetIds }` with mentions as on a post and its assets in order), plus the base columns. A copy is
-saved whole by its composer, so `posts` merges as one value: two devices editing one copy keep the
-later save; a sent copy is locked until it is marked as not sent. Asset ids are a list, not edges: a
-purged asset is left out by the read (as a post leaves it out), a library merge re-points them like
-an edge and drops one the account won't have, and a photo only a copy holds does not count as in the
-post (a photo's posts, an album's posts). Deleting a post tombstones its copies (removeThreads); a post
-deleted on an installed build leaves its copies live, orphans that every read skips, since copies are
-read by their `postId`. A repost starts with
-the same copies, unsent, as its own records. An installed build syncs none of it (it has no table)
-and shows no copies. The mock account has a Bluesky copy (sent) and an Instagram copy of one post.
-Server 0041, app 0041.
+not sent clears it), `posts` (the copy's posts in thread order, 1 to 100, each `{ text, mentions,
+assetIds }` with mentions as on a post and its assets in order), `followsPost` (optional, null |
+boolean: true for a copy this app stored from a card that showed the post) and `removedAt` (optional,
+null | when the user took the channel off the post), plus the base columns. A copy is saved whole by
+its composer, so `posts` merges as one value, in one field group with `followsPost`: two devices
+editing one copy keep the later save; a sent copy is locked until it is marked as not sent. Asset ids
+are a list, not edges: a purged asset is left out by the read (as a post leaves it out), a library
+merge re-points them like an edge and drops one the account won't have, and a photo only a copy holds
+does not count as in the post (a photo's posts, an album's posts). Deleting a post tombstones its
+copies (removeThreads); a post deleted on an installed build leaves its copies live, orphans that
+every read skips, since copies are read by their `postId`.
+
+Send to channels shows a card for each of the user's channels (`readChannelCopies`). A channel
+without a live record gets an untouched card, not stored, read from the post; a write on it (Send
+now, Send all, Remove) stores it with the write, as it shows, with `followsPost` true, and Save in the
+composer stores it with `followsPost` false. An unsent copy with `followsPost` true shows the post as
+it is now too; a sent one shows what was sent (Send now stores the posts it copied); any other copy,
+one an installed build wrote included (it has no `followsPost`), is the channel's own. A live record
+with `removedAt` shows no card, and Send to channels' + clears it. A tombstone only means the record
+is gone, as everywhere else: a write refuses a card whose post or stored copy was deleted, and takes
+over a deleted record only under the card's fixed id. A record's id is fixed per post and channel
+(`copyIdOf`, an RFC 4122 uuid v5 of both), so two devices storing the same card offline write one
+record, and a card keeps its id (its routes) once stored; copies made before keep their random ids,
+since every read goes by `postId` and `channelId`. A channel taken out of the user's channels loses
+the cards that show the post; its sent and own copies stay. A repost starts with the post's own
+copies the user did not remove, unsent, as its own records (`readRepostCopies`); its other channels
+get cards that follow the repost. A library merge copies `followsPost` and `removedAt` like any
+field. An installed build from before syncs neither field: it shows a removed copy as a card, and a
+copy it edits that this app stored from a card that showed the post keeps showing the post here until
+it is saved here. The mock account's forest post has his own Bluesky copy (sent) and an unsent
+Instagram copy that shows the post. Server 0041 to 0043, app 0041 to 0043 (0042 added `editedAt`,
+which 0043 replaced by `followsPost` before any build shipped it).
 
 **album_assets** (album membership). Synced: `albumId`, `assetId`, `position`, plus the base
 columns. One record per album and asset.

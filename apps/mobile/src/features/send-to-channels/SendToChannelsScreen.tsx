@@ -1,9 +1,8 @@
-import { channelById, type Channel } from '@squidbox/shared';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import ChannelCopyCard from './ChannelCopyCard';
-import useSendCopies from './useSendCopies';
+import useCopyActions from './useCopyActions';
 
 import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
@@ -14,81 +13,57 @@ import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAct
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import ChannelLogo from '@/features/channels/ChannelLogo';
-import useChannels from '@/features/channels/useChannels';
-import usePost from '@/features/post-list/usePost';
 import useMentionSheet from '@/features/post-mentions/useMentionSheet';
 import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
 import useCloseWhenGone from '@/hooks/useCloseWhenGone';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import usePosts from '@/providers/posts/usePosts';
 import { layout, sizes } from '@/styles/designTokens';
-import readPostCopies, { postCopiesTables, type PostCopyWithAssets } from '@/sync/queries/readPostCopies';
+import readChannelCopies, { channelCopiesTables, type ChannelCopy } from '@/sync/queries/readChannelCopies';
 import { useLiveQuery } from '@/sync/useLiveQuery';
-import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 
 /**
- * Send to channels, a sheet over a post: one card per channel copy (ChannelCopyCard, in the order
- * they were added; a copy of a channel this build doesn't know is left out), each composed like a
- * post on its own screen pushed in the sheet (ChannelCopyScreen), a tap on a card opening the copy as
- * it goes out (ChannelCopyViewScreen). + adds a copy for one of the
- * user's channels without one (off without channels, or once each has one). At the bottom, Send all
- * with two or more unsent copies (it only marks them sent), Send to <channel> with one (its Send
- * now), nothing with none. A post deleted meanwhile closes the sheet.
+ * Send to channels, a sheet over a post: a card for each of the user's channels, in their order, then
+ * the sent and saved copies of channels no longer among them (ChannelCopyCard, readChannelCopies; a
+ * channel this build doesn't know is left out). A card shows the post and its thread as they are now
+ * until it is saved in its composer (ChannelCopyScreen, pushed in the sheet) or sent; a tap on a card
+ * opens it as it goes out (ChannelCopyViewScreen). Remove takes the channel off the post; + (there
+ * only once a card was removed) brings it back. At the bottom, Send all with two or more unsent cards
+ * (it only marks them sent), Send to <channel> with one (its Send now), nothing with none. A post
+ * deleted meanwhile closes the sheet.
  */
 export default function SendToChannelsScreen() {
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const navigation = useNavigation();
-  const post = usePost(postId);
-  const copies = useLiveQuery((db) => readPostCopies(db, postId), postCopiesTables, [postId]);
-  const channels = useChannels();
-  const { contactsById, isRead: areContactsRead } = useMentionedContacts(copies?.flatMap((copy) => copy.posts));
+  const read = useLiveQuery((db) => readChannelCopies(db, postId), channelCopiesTables, [postId]);
+  const { contactsById, isRead: areContactsRead } = useMentionedContacts(read?.copies.flatMap((copy) => copy.posts));
   const { onPressMention, sheet } = useMentionSheet(contactsById);
-  const { sendNow, sendAll } = useSendCopies();
-  const { removePostCopy, setPostCopiesSent } = usePosts();
+  const { sendNow, sendAll, markNotSent, remove, addBack } = useCopyActions();
   const padding = useScreenPadding('sheet');
   const actionPadding = useFloatingPrimaryActionPadding();
-  useCloseWhenGone(post, 'This post was deleted');
+  useCloseWhenGone(read, 'This post was deleted');
 
-  const shown = (copies ?? []).flatMap((copy) => {
-    const channel = channelById(copy.channelId);
-    return channel ? [{ copy, channel }] : [];
-  });
-  const copiedIds = new Set(shown.map(({ channel }) => channel.id));
-  const addable = (channels ?? []).filter((channel) => !copiedIds.has(channel.id));
-  const unsent = shown.filter(({ copy }) => copy.sentAt === null);
-  const hasNoChannels = channels?.length === 0;
+  const copies = read?.copies ?? [];
+  const unsent = copies.filter((copy) => copy.sentAt === null);
 
-  function addCopy(channel: Channel) {
-    router.navigate({ pathname: '/send-to-channels/[postId]/copies/new', params: { postId, channelId: channel.id } });
-  }
-
-  function editCopy(copy: PostCopyWithAssets) {
+  function editCopy(copy: ChannelCopy) {
     router.navigate({
       pathname: '/send-to-channels/[postId]/copies/[copyId]/edit',
       params: { postId, copyId: copy.id },
     });
   }
 
-  function openCopy(copy: PostCopyWithAssets) {
+  function openCopy(copy: ChannelCopy) {
     router.navigate({ pathname: '/send-to-channels/[postId]/copies/[copyId]', params: { postId, copyId: copy.id } });
   }
 
-  async function removeCopy(copy: PostCopyWithAssets, channel: Channel) {
-    if (await confirmRemoveAsync(`this ${channel.name} copy`)) await removePostCopy(copy.id);
-  }
-
-  // The copies show once their chips' contacts are read: their handles and warnings don't move in.
-  if (!post || !copies || !areContactsRead) return null;
+  // The cards show once their chips' contacts are read: their handles and warnings don't move in.
+  if (!read || !areContactsRead) return null;
 
   const bottomAction =
     unsent.length > 1 ? (
-      <Button variant="primary" label="Send all" onPress={() => sendAll(unsent.map(({ copy }) => copy.id))} />
+      <Button variant="primary" label="Send all" onPress={() => sendAll(unsent)} />
     ) : unsent.length === 1 ? (
-      <Button
-        variant="primary"
-        label={`Send to ${unsent[0]!.channel.name}`}
-        onPress={() => sendNow(unsent[0]!.copy, unsent[0]!.channel)}
-      />
+      <Button variant="primary" label={`Send to ${unsent[0]!.channel.name}`} onPress={() => sendNow(unsent[0]!)} />
     ) : null;
 
   return (
@@ -97,31 +72,27 @@ export default function SendToChannelsScreen() {
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="Send to channels"
         trailing={
-          <MenuButton
-            variant="primary"
-            icon="add"
-            accessibilityLabel="Add channel"
-            title="Add channel"
-            disabled={addable.length === 0}
-          >
-            {addable.map((channel) => (
-              <MenuOption
-                key={channel.id}
-                label={channel.name}
-                trailing={<ChannelLogo channelId={channel.id} size={sizes.menuIcon} />}
-                onPress={() => addCopy(channel)}
-              />
-            ))}
-          </MenuButton>
+          read.addable.length > 0 && (
+            <MenuButton variant="primary" icon="add" accessibilityLabel="Add channel" title="Add channel">
+              {read.addable.map((channel) => (
+                <MenuOption
+                  key={channel.id}
+                  label={channel.name}
+                  trailing={<ChannelLogo channelId={channel.id} size={sizes.menuIcon} />}
+                  onPress={() => addBack(postId, channel.id)}
+                />
+              ))}
+            </MenuButton>
+          )
         }
       />
-      {shown.length === 0 ? (
+      {copies.length === 0 ? (
         <View style={[styles.empty, padding]}>
           <EmptyState
             icon="send"
             title="Send this post to your channels"
             subtitle={
-              hasNoChannels
+              !read.hasChannels
                 ? 'Add your channels in Settings → Posts → Channels first.'
                 : 'Add a channel with + to get a copy of the post for it. Change it if you like, then send.'
             }
@@ -135,18 +106,17 @@ export default function SendToChannelsScreen() {
             bottomAction && { paddingBottom: Math.max(padding.paddingBottom, actionPadding) },
           ]}
         >
-          {shown.map(({ copy, channel }) => (
+          {copies.map((copy) => (
             <ChannelCopyCard
               key={copy.id}
               copy={copy}
-              channel={channel}
               contactsById={contactsById}
               onPressMention={onPressMention}
               onOpen={() => openCopy(copy)}
-              onSendNow={() => sendNow(copy, channel)}
+              onSendNow={() => sendNow(copy)}
               onEdit={() => editCopy(copy)}
-              onRemove={() => removeCopy(copy, channel)}
-              onMarkNotSent={() => setPostCopiesSent([copy.id], null)}
+              onRemove={() => remove(copy)}
+              onMarkNotSent={() => markNotSent(copy)}
             />
           ))}
         </ScrollView>

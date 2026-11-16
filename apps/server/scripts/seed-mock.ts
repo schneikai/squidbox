@@ -4,7 +4,9 @@
  * scripts/mock-photos and scripts/mock-videos by bake-mock-photos.sh and bake-mock-videos.sh, so
  * seeding needs no network), albums (including the smart Favorites/Deleted albums)
  * and posts, all by one guy who posts his outdoor photos on Bluesky (his channels: Bluesky, then X and
- * Instagram; two posts mention a friend by chip, no post types a handle, and one has its copies for Bluesky, sent, and Instagram), the people he shoots and
+ * Instagram, each with a card on every post in Send to channels; two posts mention a friend by chip, no
+ * post types a handle, and the forest post has his own Bluesky copy, sent, and an unsent Instagram copy
+ * and an X card that follow the post), the people he shoots and
  * sells prints with (contacts with their photos, in two lists, on a photo, an album and a post), and
  * his assistant setup: Writing
  * as you, the prompt buttons (the app's defaults in his words, and one more), his Post ideas and
@@ -131,8 +133,14 @@ const CHANNEL_IDS = ['bluesky', 'x', 'instagram'] as const;
 // `thread`: the posts that follow this one in its thread, each with its own text and photos.
 // `mention`: the contact (CONTACTS index) whose name in the text is a chip.
 type MockPostPart = { text: string; media: number[]; mention?: number; thread?: { text: string; media: number[] }[] };
-// A post's copy for one of his channels, `sentDaysAgo` null while unsent; its posts in thread order.
-type MockCopy = { channelId: string; sentDaysAgo: number | null; posts: { text: string; media: number[] }[] };
+// A post's copy for one of his channels, `sentDaysAgo` null while unsent, `followsPost` when the app
+// stored it from a card that showed the post (else his own); its posts in thread order.
+type MockCopy = {
+  channelId: string;
+  sentDaysAgo: number | null;
+  followsPost?: boolean;
+  posts: { text: string; media: number[] }[];
+};
 const POSTS: (MockPostPart & {
   postedDaysAgo: number | null;
   isFavorite?: boolean;
@@ -161,6 +169,7 @@ const POSTS: (MockPostPart & {
       {
         channelId: 'instagram',
         sentDaysAgo: null,
+        followsPost: true,
         posts: [{ text: 'Lost in the forest for a day with Sam Ridge 🌲', media: [14, 15, 17, 32] }],
       },
     ],
@@ -435,10 +444,14 @@ const postAssets: PostAssetRecord[] = [
   }));
 });
 
-// The posts' copies for his channels, each post with the parent's chip where its name stands.
+// The posts' copies for his channels (a channel without one gets a card that follows the post), each
+// post with the parent's chip where its name stands: his own, or (`followsPost`) one that shows the
+// post while unsent.
 const postCopies: PostCopyRecord[] = POSTS.flatMap(({ copies = [], mention }, index) =>
-  copies.map(({ channelId, sentDaysAgo, posts: parts }, j) => ({
+  copies.map(({ channelId, sentDaysAgo, followsPost = false, posts: parts }, j) => ({
     ...baseRecord(`post:${index}:copy:${channelId}`, posts[index]!.createdAt + j),
+    followsPost,
+    removedAt: null,
     postId: posts[index]!.id,
     channelId,
     sentAt: sentDaysAgo === null ? null : now - sentDaysAgo * DAY,

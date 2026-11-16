@@ -43,6 +43,8 @@ import m0038 from './0038_idea_settings.sql';
 import m0039 from './0039_post_channels.sql';
 import m0040 from './0040_shared_channel_versions.sql';
 import m0041 from './0041_post_copies.sql';
+import m0042 from './0042_post_copies_edited_removed.sql';
+import m0043 from './0043_post_copies_follows_post.sql';
 
   export default {
     journal,
@@ -88,7 +90,9 @@ m0037,
 m0038,
 m0039,
 m0040,
-m0041
+m0041,
+m0042,
+m0043
     }
   }
   

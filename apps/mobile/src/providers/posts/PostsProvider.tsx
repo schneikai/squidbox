@@ -3,11 +3,10 @@ import { type ReactNode, useMemo } from 'react';
 
 import PostsContext, { type PostsContextValue } from './PostsContext';
 
-import { getDb } from '@/sync/db/client';
-import { createCopy, removeCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
+import { createCopy, removeCopies, restoreCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
 import { removeThreads, saveThreadPosts, setThreadsPostedAt } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
-import { requestSync } from '@/sync/worker';
+import written from '@/sync/written';
 import newRecord from '@/utils/newRecord';
 
 type PostsProviderProps = { children: ReactNode };
@@ -21,53 +20,37 @@ export default function PostsProvider({ children }: PostsProviderProps) {
   // A user action that writes the post and its edges commits once (repository transactions inside
   // `tx` become savepoints), so readers never see half of it.
   const value = useMemo<PostsContextValue>(() => {
-    const db = getDb();
     return {
       addPost: async ({ assetRefs: refs = [], threadPosts = [], copies = [], ...fields }) => {
-        const post = await db.transaction(async (tx) => {
+        const post = await written(async (tx) => {
           const created = await repo.create(tx, newRecord(postCollection, postDefaults, fields));
           await repo.postEdges.createFromRefs(tx, created.id, refs);
           await saveThreadPosts(tx, created.id, threadPosts, [], newPart);
-          // A repost's copies keep the reposted post's order: one millisecond apart.
+          // A repost's copies of channels no longer in the user's channels keep the reposted post's
+          // order: one millisecond apart.
           for (const [index, copy] of copies.entries())
             await createCopy(tx, { postId: created.id, ...copy, createdAt: created.createdAt + index });
           return created;
         });
-        requestSync();
         return { ...post, assetRefs: refs };
       },
       // `seed`: the post an editor was seeded with, whose photo list and following posts a changed
       // `assetRefs` / `threadPosts` is saved over. A changed `postedAt` applies to the whole thread.
       updatePost: async (id, { assetRefs, threadPosts, ...changes }, seed) => {
-        await db.transaction(async (tx) => {
+        await written(async (tx) => {
           if (assetRefs !== undefined) await repo.postEdges.setRefs(tx, id, assetRefs ?? [], seed?.assetRefs ?? []);
           await repo.update(tx, id, changes);
           if (changes.postedAt !== undefined) await setThreadsPostedAt(tx, [id], changes.postedAt);
           if (threadPosts !== undefined) await saveThreadPosts(tx, id, threadPosts, seed?.threadPosts ?? [], newPart);
         });
-        requestSync();
       },
       // The post, its thread and its channel copies.
-      deletePost: async (id) => {
-        await db.transaction((tx) => removeThreads(tx, [id]));
-        requestSync();
-      },
-      addPostCopy: async (postId, copy) => {
-        await db.transaction((tx) => createCopy(tx, { postId, ...copy }));
-        requestSync();
-      },
-      updatePostCopy: async (id, posts) => {
-        await db.transaction((tx) => updateCopyPosts(tx, id, posts));
-        requestSync();
-      },
-      removePostCopy: async (id) => {
-        await db.transaction((tx) => removeCopies(tx, [id]));
-        requestSync();
-      },
-      setPostCopiesSent: async (ids, sentAt) => {
-        await db.transaction((tx) => setCopiesSent(tx, ids, sentAt));
-        requestSync();
-      },
+      deletePost: (id) => written((tx) => removeThreads(tx, [id])),
+      // Send to channels' cards, an untouched one stored with the write (postCopiesRepository).
+      addPostCopy: (postId, channelId) => written((tx) => restoreCopies(tx, postId, channelId)),
+      savePostCopy: (copy, posts) => written((tx) => updateCopyPosts(tx, copy, posts)),
+      removePostCopy: (copy) => written((tx) => removeCopies(tx, [copy])),
+      setPostCopiesSent: (copies, sentAt) => written((tx) => setCopiesSent(tx, copies, sentAt)),
     };
   }, []);
 

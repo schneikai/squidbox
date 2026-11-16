@@ -421,6 +421,8 @@ d('sync engine (Postgres)', () => {
         postId: randomUUID(),
         channelId: 'bluesky',
         sentAt: null,
+        followsPost: true,
+        removedAt: null,
         posts: [
           { text: 'Ridge run with Maya Lindqvist', mentions: null, assetIds: [randomUUID()] },
           { text: 'More from the trail', mentions: null, assetIds: [] },

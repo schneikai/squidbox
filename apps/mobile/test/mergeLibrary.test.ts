@@ -17,7 +17,7 @@ import type { SyncDb } from '../src/sync/db/types';
 import { makeEdgeRepository } from '../src/sync/edgesRepository';
 import { contactLinks, contactListMembers } from '../src/sync/membershipRepository';
 import { retryMissingFiles, setOutboxError } from '../src/sync/outbox';
-import { createCopy } from '../src/sync/postCopiesRepository';
+import { createCopy, removeCopies } from '../src/sync/postCopiesRepository';
 import { makeRepository } from '../src/sync/repository';
 import { clearFirstSyncDone, markFirstSyncDone, setMergeMarks, setOwner } from '../src/sync/status';
 import { sweepPurgedFiles } from '../src/sync/sweepPurgedFiles';
@@ -855,16 +855,31 @@ describe('post copies', () => {
     const theirs = await repo.create(target, makeAssetRecord({ mediaLibraryAssetId: 'm-1' }));
     const mine = await devicePhoto({ mediaLibraryAssetId: 'm-1', filename: 'mine.jpg' });
     const post = await posts.create(source, makePostRecord({ text: 'Ridge' }));
-    const gone = await posts.create(source, makePostRecord({ text: 'Gone', deletedAt: 5 }));
+    const gone = await posts.create(source, makePostRecord({ text: 'Gone' }));
     const missing = '00000000-0000-4000-8000-000000000001';
     const copy = { text: 'Ridge', mentions: null, assetIds: [mine.id, missing] };
     await source.transaction((tx) => createCopy(tx, { postId: post.id, channelId: 'bluesky', posts: [copy] }));
     await source.transaction((tx) => createCopy(tx, { postId: gone.id, channelId: 'x', posts: [copy] }));
+    // Deleted on an installed build, which leaves its copies live.
+    await posts.update(source, gone.id, { deletedAt: 5 });
 
     const plan = await commitPass();
 
     expect(plan.postCopies.map((row) => [row.postId, row.posts[0]!.assetIds])).toEqual([[post.id, [theirs.id]]]);
     expect(await target.select().from(schema.postCopies)).toHaveLength(1);
     expect(writesTarget(await planMerge(source, target, SRC, TGT))).toBe(false);
+  });
+
+  it('carry a channel taken off a post, so its card stays away in the account', async () => {
+    const post = await posts.create(source, makePostRecord({ text: 'Ridge' }));
+    const copy = { text: 'Ridge', mentions: null, assetIds: [] };
+    await source.transaction((tx) => createCopy(tx, { postId: post.id, channelId: 'x', posts: [copy] }));
+    const [stored] = await source.select().from(schema.postCopies);
+    await source.transaction((tx) => removeCopies(tx, [stored!]));
+
+    await commitPass();
+
+    const [merged] = await target.select().from(schema.postCopies);
+    expect(merged!.removedAt).not.toBeNull();
   });
 });

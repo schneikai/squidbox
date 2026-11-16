@@ -374,6 +374,8 @@ export const postCopies = pgTable(
     channelId: text('channel_id').notNull(),
     sentAt: bigint('sent_at', { mode: 'number' }),
     posts: jsonb('posts').$type<PostCopyPost[]>().notNull(),
+    followsPost: boolean('follows_post'),
+    removedAt: bigint('removed_at', { mode: 'number' }),
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] }), index('post_copies_user_seq_idx').on(t.userId, t.serverSeq)],
 );
