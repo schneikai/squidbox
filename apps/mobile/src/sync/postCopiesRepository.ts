@@ -99,6 +99,17 @@ export async function updateCopyPosts(tx: SyncDb, copy: CopyRef, posts: PostCopy
   });
 }
 
+/**
+ * Discard a saved card's edits (its ⋯ Discard changes): it shows the post again. A sent copy is
+ * locked: it throws; a card that already shows the post stays as it is.
+ */
+export async function discardCopyEdits(tx: SyncDb, copy: CopyRef): Promise<void> {
+  await writeCards(tx, [copy], (row) => {
+    if (row?.sentAt != null) throw new Error('This copy was sent: mark it as not sent to edit it');
+    return row && isOwnCopy(row) ? { followsPost: true } : null;
+  });
+}
+
 /** Take cards' channels off the post (Remove): no card shows for them until + (`restoreCopies`). */
 export async function removeCopies(tx: SyncDb, copies: CopyRef[]): Promise<void> {
   await writeCards(tx, copies, () => ({ removedAt: getTimestamp() }));

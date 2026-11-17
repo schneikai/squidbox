@@ -3,6 +3,7 @@ import { Text as RNText, StyleSheet, View } from 'react-native';
 import channelPayload from './channelPayload';
 import copySentText from './copySentText';
 
+import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
@@ -24,6 +25,7 @@ type ChannelCopyCardProps = {
   onOpen: () => void;
   onSendNow: () => void;
   onEdit: () => void;
+  onDiscardChanges: () => void;
   onRemove: () => void;
   onMarkNotSent: () => void;
 };
@@ -32,7 +34,8 @@ type ChannelCopyCardProps = {
  * A post's card for one channel (its stored copy, or an untouched card that shows the post), as a row card: its first post's first picture, the channel's logo
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
- * names go out as plain text, with Add handle: MissingHandleNote) and has Send now and Edit, and Remove in its ⋯; sent, it
+ * names go out as plain text, with Add handle: MissingHandleNote) and has Send now and Edit, and Remove in its ⋯; saved in
+ * its composer, it says Edited and has Discard changes in its ⋯ (it shows the post again); sent, it
  * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
  * (`onOpen`: all of its posts and pictures).
  */
@@ -43,6 +46,7 @@ export default function ChannelCopyCard({
   onOpen,
   onSendNow,
   onEdit,
+  onDiscardChanges,
   onRemove,
   onMarkNotSent,
 }: ChannelCopyCardProps) {
@@ -50,6 +54,7 @@ export default function ChannelCopyCard({
   const [first] = copy.posts;
   const [asset, ...more] = first?.assets ?? [];
   const isSent = copy.sentAt !== null;
+  const isEdited = !isSent && !copy.showsPost;
   const { missing } = channelPayload(channel, copy.posts, contactsById);
 
   return (
@@ -59,12 +64,16 @@ export default function ChannelCopyCard({
           <View style={styles.channel}>
             <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
             <Text variant="label">{channel.name}</Text>
+            {isEdited && <Badge label="Edited" tone="info" />}
           </View>
           <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
             {isSent ? (
               <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
             ) : (
-              <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
+              <>
+                {isEdited && <MenuOption label="Discard changes" icon="undo" onPress={onDiscardChanges} />}
+                <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
+              </>
             )}
           </MenuButton>
         </View>

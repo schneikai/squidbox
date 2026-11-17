@@ -37,7 +37,7 @@ export default function SendToChannelsScreen() {
   const read = useLiveQuery((db) => readChannelCopies(db, postId), channelCopiesTables, [postId]);
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(read?.copies.flatMap((copy) => copy.posts));
   const { onPressMention, sheet } = useMentionSheet(contactsById);
-  const { sendNow, sendAll, markNotSent, remove, addBack } = useCopyActions();
+  const { sendNow, sendAll, markNotSent, discardChanges, remove, addBack } = useCopyActions();
   const padding = useScreenPadding('sheet');
   const actionPadding = useFloatingPrimaryActionPadding();
   useCloseWhenGone(read, 'This post was deleted');
@@ -115,6 +115,7 @@ export default function SendToChannelsScreen() {
               onOpen={() => openCopy(copy)}
               onSendNow={() => sendNow(copy)}
               onEdit={() => editCopy(copy)}
+              onDiscardChanges={() => discardChanges(copy)}
               onRemove={() => remove(copy)}
               onMarkNotSent={() => markNotSent(copy)}
             />
