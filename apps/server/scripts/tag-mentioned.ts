@@ -90,6 +90,7 @@ let noPhotos = 0;
 let deletedContact = 0;
 const removedBefore: string[] = [];
 const report: string[] = [];
+const withoutPhotos: string[] = [];
 const contactsTagged = new Map<string, number>();
 
 for (const post of mentioned) {
@@ -97,6 +98,8 @@ for (const post of mentioned) {
   const ids = [...new Set((post.mentions as PostMention[]).map(({ contactId }) => contactId))];
   if (photos.length === 0) {
     noPhotos++;
+    const names = ids.map((id) => liveContacts.get(id) ?? 'deleted contact').join(', ');
+    withoutPhotos.push(`${post.id}: ${names}\n  ${post.text.slice(0, 120)}`);
     continue;
   }
   const lines: string[] = [];
@@ -125,7 +128,8 @@ for (const post of mentioned) {
         (adding.length ? ` [${adding.map((id) => `${id.slice(0, 8)} ${mediaType.get(id)}`).join(', ')}]` : ''),
     );
   }
-  report.push(`\n--- ${post.id} (${photos.length} photos/videos)\n${post.text.slice(0, 120)}\n${lines.join('\n')}`);
+  if (lines.some((line) => line.includes(' to tag [')))
+    report.push(`\n--- ${post.id} (${photos.length} photos/videos)\n${post.text.slice(0, 120)}\n${lines.join('\n')}`);
 }
 
 const videos = [...toAdd.values()].filter(({ assetId }) => mediaType.get(assetId) === 'video').length;
@@ -140,6 +144,9 @@ for (const line of removedBefore) console.log(`  ${line}`);
 if (deletedContact) console.log(`${deletedContact} mentions of a deleted contact, skipped`);
 console.log(`\nTags per contact:`);
 for (const [name, count] of [...contactsTagged].sort((a, b) => b[1] - a[1])) console.log(`  ${name}: ${count}`);
+console.log(`\nPosts with mentions but no photos or videos (nothing to tag):`);
+for (const line of withoutPhotos) console.log(`  ${line}`);
+console.log(`\nPosts that get tags:`);
 console.log(report.join('\n'));
 
 if (apply && toAdd.size > 0) {
