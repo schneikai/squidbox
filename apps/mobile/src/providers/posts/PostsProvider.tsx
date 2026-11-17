@@ -3,7 +3,14 @@ import { type ReactNode, useMemo } from 'react';
 
 import PostsContext, { type PostsContextValue } from './PostsContext';
 
-import { createCopy, removeCopies, restoreCopies, setCopiesSent, updateCopyPosts } from '@/sync/postCopiesRepository';
+import {
+  createCopy,
+  discardCopyEdits,
+  removeCopies,
+  restoreCopies,
+  setCopiesSent,
+  updateCopyPosts,
+} from '@/sync/postCopiesRepository';
 import { removeThreads, saveThreadPosts, setThreadsPostedAt } from '@/sync/postThreads';
 import * as repo from '@/sync/postsRepository';
 import written from '@/sync/written';
@@ -49,6 +56,7 @@ export default function PostsProvider({ children }: PostsProviderProps) {
       // Send to channels' cards, an untouched one stored with the write (postCopiesRepository).
       addPostCopy: (postId, channelId) => written((tx) => restoreCopies(tx, postId, channelId)),
       savePostCopy: (copy, posts) => written((tx) => updateCopyPosts(tx, copy, posts)),
+      discardPostCopyEdits: (copy) => written((tx) => discardCopyEdits(tx, copy)),
       removePostCopy: (copy) => written((tx) => removeCopies(tx, [copy])),
       setPostCopiesSent: (copies, sentAt) => written((tx) => setCopiesSent(tx, copies, sentAt)),
     };

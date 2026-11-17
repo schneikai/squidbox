@@ -9,6 +9,7 @@ import usePosts from '@/providers/posts/usePosts';
 import { getDb } from '@/sync/db/client';
 import type { ChannelCopy } from '@/sync/queries/readChannelCopies';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
+import confirmAsync from '@/utils/confirmAsync';
 import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 import getTimestamp from '@/utils/date-time/getTimestamp';
 
@@ -16,12 +17,13 @@ import getTimestamp from '@/utils/date-time/getTimestamp';
  * What Send to channels does with its cards, until Squidbox can post for you: `sendNow(copy)` puts
  * the copy's text (its payload, channelPayload, with the contacts its chips mention read at the tap)
  * on the clipboard and marks it sent, a failed copy marking nothing and saying so; `sendAll(copies)`
- * only marks them sent; `markNotSent(copy)`; `remove(copy)`, after its confirm; `addBack(postId,
+ * only marks them sent; `markNotSent(copy)`; `discardChanges(copy)` (it shows the post again) and
+ * `remove(copy)`, each after its confirm; `addBack(postId,
  * channelId)` (+). A card that shows the post is stored as it shows. A write that fails says so
  * ("Couldn't …", with the reason and an error haptic), as the composer's Save does.
  */
 export default function useCopyActions() {
-  const { addPostCopy, removePostCopy, setPostCopiesSent } = usePosts();
+  const { addPostCopy, discardPostCopyEdits, removePostCopy, setPostCopiesSent } = usePosts();
   const copyText = useCopyText();
   const haptics = useHaptics();
 
@@ -50,6 +52,16 @@ export default function useCopyActions() {
     return attempt(() => setPostCopiesSent([copy], null), "Couldn't mark the copy as not sent");
   }
 
+  async function discardChanges(copy: ChannelCopy) {
+    const confirmed = await confirmAsync({
+      title: 'Discard changes?',
+      message: `The ${copy.channel.name} copy shows the post again.`,
+      action: 'Discard',
+      destructive: true,
+    });
+    if (confirmed) await attempt(() => discardPostCopyEdits(copy), "Couldn't discard the changes");
+  }
+
   async function remove(copy: ChannelCopy) {
     if (await confirmRemoveAsync(`this ${copy.channel.name} copy`))
       await attempt(() => removePostCopy(copy), "Couldn't remove the copy");
@@ -59,5 +71,5 @@ export default function useCopyActions() {
     return attempt(() => addPostCopy(postId, channelId), "Couldn't add the channel");
   }
 
-  return { sendNow, sendAll, markNotSent, remove, addBack };
+  return { sendNow, sendAll, markNotSent, discardChanges, remove, addBack };
 }

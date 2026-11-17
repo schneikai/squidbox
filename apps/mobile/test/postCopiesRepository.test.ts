@@ -15,6 +15,7 @@ import {
   restoreCopies,
   setCopiesSent,
   updateCopyPosts,
+  discardCopyEdits,
 } from '../src/sync/postCopiesRepository';
 import { removeThreads } from '../src/sync/postThreads';
 import readChannelCopies, { type ChannelCopy } from '../src/sync/queries/readChannelCopies';
@@ -123,6 +124,15 @@ describe('readChannelCopies', () => {
     await saveAs(db, 'bluesky', 'Just for Bluesky');
     await editPost(db, 'Ridge at noon');
     expect(texts(await card(db, 'bluesky'))).toEqual(['Just for Bluesky']);
+    expect(texts(await card(db, 'x'))).toEqual(['Ridge at noon', 'More from the trail']);
+  });
+
+  it('lets a saved card follow the post again once its changes are discarded', async () => {
+    const db = await setupCards();
+    await saveAs(db, 'x', 'For X');
+    await db.transaction(async (tx) => discardCopyEdits(tx, await card(tx, 'x')));
+    await editPost(db, 'Ridge at noon');
+    expect(await card(db, 'x')).toMatchObject({ showsPost: true });
     expect(texts(await card(db, 'x'))).toEqual(['Ridge at noon', 'More from the trail']);
   });
 

@@ -24,6 +24,7 @@ export type PostsContextValue = {
   deletePost: (id: string) => Promise<void>;
   addPostCopy: (postId: string, channelId: string) => Promise<void>;
   savePostCopy: (copy: CopyRef, posts: PostCopyFields['posts']) => Promise<void>;
+  discardPostCopyEdits: (copy: CopyRef) => Promise<void>;
   removePostCopy: (copy: CopyRef) => Promise<void>;
   setPostCopiesSent: (copies: CopyRef[], sentAt: number | null) => Promise<void>;
 };
