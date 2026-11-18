@@ -9,6 +9,7 @@ import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import ChannelLogo from '@/features/channels/ChannelLogo';
+import NoThreadsNote from '@/features/channels/NoThreadsNote';
 import MentionText from '@/features/post-mentions/MentionText';
 import MissingHandleNote from '@/features/post-mentions/MissingHandleNote';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
@@ -34,7 +35,8 @@ type ChannelCopyCardProps = {
  * A post's card for one channel (its stored copy, or an untouched card that shows the post), as a row card: its first post's first picture, the channel's logo
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
- * names go out as plain text, with Add handle: MissingHandleNote) and has Send now and Edit, and Remove in its ⋯; saved in
+ * names go out as plain text, with Add handle: MissingHandleNote) and, for a thread on a channel
+ * without threads, that it goes out as one post (NoThreadsNote); it has Send now and Edit, and Remove in its ⋯; saved in
  * its composer, it says Edited and has Discard changes in its ⋯ (it shows the post again); sent, it
  * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
  * (`onOpen`: all of its posts and pictures).
@@ -81,12 +83,13 @@ export default function ChannelCopyCard({
           <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
         )}
         {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
+        {!isSent && <NoThreadsNote postCount={copy.posts.length} channel={channel} />}
         {!isSent && <MissingHandleNote contacts={missing} channel={channel} />}
         {copy.sentAt !== null ? (
           <Text variant="hint">{copySentText(copy.sentAt)}</Text>
         ) : (
           <View style={styles.actions}>
-            <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />
+            <Button variant="primary" size="small" label="Send now" onPress={onSendNow} />
             <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
           </View>
         )}
