@@ -1,5 +1,8 @@
+import { useContext } from 'react';
 import { View, StyleSheet, type ViewProps } from 'react-native';
 
+import AssistantTrayContext from '@/components/AssistantTrayContext';
+import InkContext, { DEFAULT_INK } from '@/components/InkContext';
 import { colors, layout, radii, shadows } from '@/styles/designTokens';
 
 export type CardProps = ViewProps & {
@@ -19,9 +22,22 @@ export type CardProps = ViewProps & {
  * from the edge.
  */
 export default function Card({ padded = false, hasControlRow = false, children, style, ...rest }: CardProps) {
+  // On the assistant's tray a card rests flat: the tray clips what it holds, so a shadow would be cut.
+  const isOnTray = useContext(AssistantTrayContext) !== null;
+
   return (
-    <View style={[styles.card, padded && styles.padded, hasControlRow && styles.controlRow, style]} {...rest}>
-      {children}
+    <View
+      style={[
+        styles.card,
+        isOnTray && shadows.none,
+        padded && styles.padded,
+        hasControlRow && styles.controlRow,
+        style,
+      ]}
+      {...rest}
+    >
+      {/* White again: its content takes the default ink, also on a tinted surface. */}
+      <InkContext.Provider value={DEFAULT_INK}>{children}</InkContext.Provider>
     </View>
   );
 }

@@ -224,7 +224,7 @@ function draw(root: HTMLElement, { text, mentions }: FieldContent) {
 }
 
 // A chip as MentionChip draws it: the round avatar (a grey disc without a photo) and the label, on a
-// muted pill.
+// tag chip's fill.
 function chipNode({ id, label, avatarUri }: FieldMention): HTMLElement {
   const chip = document.createElement('span');
   chip.contentEditable = 'false';
@@ -364,7 +364,7 @@ const CHIP_STYLE: Partial<CSSStyleDeclaration> = {
   paddingRight: `${BOX.trailing}px`,
   gap: `${BOX.gap}px`,
   borderRadius: `${BOX.radius}px`,
-  backgroundColor: colors.background.muted,
+  backgroundColor: colors.background.fill,
   fontSize: `${BOX.labelSize}px`,
   lineHeight: `${BOX.height}px`,
   cursor: 'pointer',

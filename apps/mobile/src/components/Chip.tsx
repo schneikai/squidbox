@@ -1,11 +1,12 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useContext } from 'react';
 import { Pressable, type PressableProps, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import Icon, { type IconName } from '@/components/Icon';
+import InkContext from '@/components/InkContext';
 import chipFrame from '@/styles/chipFrame';
-import { colors, disabledOpacity, layout, press, shadows, sizes, space, textStyles } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, press, sizes, space, textStyles } from '@/styles/designTokens';
 
-export type ChipVariant = 'tag' | 'raised' | 'lead' | 'add' | 'mixed';
+export type ChipVariant = 'tag' | 'add' | 'mixed';
 
 export type ChipProps = Pick<
   PressableProps,
@@ -24,16 +25,12 @@ export type ChipProps = Pick<
 
 /**
  * A pill with a short label. `variant` says what it is: `tag` (the default: a thing, such as a tag
- * or a contact, grey on white or on the page; plain white when it `isSelected`, a toggle that is on), `raised`
- * (white and lifted by a soft shadow, with a violet label and icon: a prompt button in the
- * assistant's tray, which is tinted),
- * `lead` (light violet with a semibold violet label, lifted like `raised`, the assistant's own
- * action leading a row of prompt buttons: Post ideas, Repost ideas), `add` (the grey dashed Add at the
+ * or a contact, grey on white or on the page; plain white when it `isSelected`, a toggle that is on), `add` (the grey dashed Add at the
  * end of a row, with its plus) or `mixed` (a tag on only some of the items, such as an album's
  * photos: no fill and a dashed outline; VoiceOver reads it as mixed). Every variant has the same
  * frame, so a tag tapped on never changes its width and moves the chips after it.
  *
- * icon — leads the label (Icon name), grey, or violet when it is the assistant's sparkle; `leading` leads it instead with a node
+ * icon — leads the label (Icon name), grey; `leading` leads it instead with a node
  * (a contact's chip avatar, sizes.avatar.chip) and the label stays on one line, cut short when the
  * chip would be wider than its row. `isSelected` tells VoiceOver it's on (as checked when
  * `accessibilityRole` is a checkbox). `disabled` dims it and takes no presses. Without
@@ -59,17 +56,14 @@ export default function Chip({
   accessibilityHint,
   style,
 }: ChipProps) {
+  const ink = useContext(InkContext);
   const leadingIcon = variant === 'add' ? 'add' : icon;
-  // Violet marks the assistant only: its fill and tray (`raised`, `lead`), and its sparkle.
-  const isAccent = variant === 'lead' || variant === 'raised';
-  const iconColor = isAccent || leadingIcon === 'sparkle' ? colors.accent.base : colors.text.secondary;
-  const isLifted = variant === 'raised' || variant === 'lead';
   const frame = [
     chipFrame,
     styles.chip,
-    VARIANT_STYLES[variant],
+    // A tag's fill is see-through (the ink's), a shade darker than what it sits on; add and mixed are dashed.
+    variant === 'tag' ? { backgroundColor: ink.fill } : styles.dashed,
     variant === 'tag' && isSelected && styles.selected,
-    isLifted && styles.lifted,
     !!leading && styles.withLeading,
   ];
   const accessibilityState =
@@ -78,13 +72,10 @@ export default function Chip({
   const ariaChecked = variant === 'mixed' ? ('mixed' as const) : undefined;
   const content = (
     <>
-      {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={iconColor} />)}
-      <Text
-        style={[styles.label, styles.shrinks, isAccent && styles.accentLabel, variant === 'lead' && styles.leadLabel]}
-        numberOfLines={leading ? 1 : undefined}
-      >
+      {leading ?? (leadingIcon && <Icon name={leadingIcon} size={sizes.menuIcon} color={ink.secondary} />)}
+      <Text style={[styles.label, styles.shrinks, { color: ink.primary }]} numberOfLines={leading ? 1 : undefined}>
         {label}
-        {detail ? <Text style={styles.detail}>{` · ${detail}`}</Text> : null}
+        {detail ? <Text style={{ color: ink.secondary }}>{` · ${detail}`}</Text> : null}
       </Text>
     </>
   );
@@ -98,7 +89,7 @@ export default function Chip({
       accessibilityLabel={removeLabel}
       style={({ pressed }) => [styles.remove, pressed && press.flat]}
     >
-      <Icon name="close" size={sizes.menuIcon} color={colors.text.secondary} />
+      <Icon name="close" size={sizes.menuIcon} color={ink.secondary} />
     </Pressable>
   );
 
@@ -174,32 +165,16 @@ const styles = StyleSheet.create({
   shrinks: {
     flexShrink: 1,
   },
-  // See-through, so a tag is a shade darker than what it sits on, a white card or a screen's grey.
-  tag: {
-    backgroundColor: colors.background.fill,
-  },
   // The node sits close to the frame's start, as an avatar in a pill does.
   withLeading: {
     paddingLeft: space.hair,
     paddingRight: space.md + space.hair,
   },
-  // A selected tag: plain white with a hairline edge, flat (a shadow is the toolbar's and the assistant's lift).
+  // A selected tag: plain white with a hairline edge, flat.
   selected: {
     backgroundColor: colors.background.surface,
     borderColor: colors.border.divider, // its edge on a white card, where the white fill alone vanishes
   },
-  // The `lead` chip.
-  accentFill: {
-    backgroundColor: colors.accent.light,
-  },
-  raised: {
-    backgroundColor: colors.background.surface,
-  },
-  // `raised` and `lead`.
-  lifted: {
-    ...shadows.raised,
-  },
-  // `add` and `mixed`.
   dashed: {
     borderColor: colors.border.dashed,
     borderStyle: 'dashed',
@@ -214,26 +189,6 @@ const styles = StyleSheet.create({
   remove: {
     padding: space.hair,
   },
-  label: {
-    ...textStyles.subheadline,
-    color: colors.text.primary,
-  },
-  detail: {
-    color: colors.text.secondary,
-  },
-  accentLabel: {
-    color: colors.accent.base,
-  },
-  leadLabel: {
-    fontWeight: '600',
-  },
+  // Its color is the ink's (InkContext).
+  label: textStyles.subheadline,
 });
-
-// Each variant's own look, where it has one (`lead` is also `lifted`).
-const VARIANT_STYLES: Partial<Record<ChipVariant, ViewStyle>> = {
-  tag: styles.tag,
-  lead: styles.accentFill,
-  raised: styles.raised,
-  add: styles.dashed,
-  mixed: styles.dashed,
-};

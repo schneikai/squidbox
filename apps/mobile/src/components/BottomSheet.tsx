@@ -3,7 +3,9 @@ import { type LayoutChangeEvent, Modal, Pressable, ScrollView, StyleSheet, Text,
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import AssistantTrayContext from '@/components/AssistantTrayContext';
 import Button from '@/components/Button';
+import InkContext, { DEFAULT_INK } from '@/components/InkContext';
 import sheetSurfaceContext from '@/components/sheetSurfaceContext';
 import { SCREEN_PADDING } from '@/constants';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
@@ -53,27 +55,32 @@ export default function BottomSheet({ isVisible, onClose, title, children }: Bot
 
   return (
     <Modal transparent visible={isMounted} animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
-        </Animated.View>
-        <Animated.View style={[styles.panel, panelStyle]} onLayout={handlePanelLayout} accessibilityViewIsModal>
-          <View style={styles.grabber} />
-          <View style={styles.header}>
-            <Text style={styles.title} accessibilityRole="header">
-              {title}
-            </Text>
-            <Button icon="close" variant="secondary" onPress={onClose} accessibilityLabel="Close" />
+      {/* A sheet opened from the assistant's tray is no part of it: its own ink and cards. */}
+      <AssistantTrayContext.Provider value={null}>
+        <InkContext.Provider value={DEFAULT_INK}>
+          <View style={styles.root}>
+            <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
+              <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+            </Animated.View>
+            <Animated.View style={[styles.panel, panelStyle]} onLayout={handlePanelLayout} accessibilityViewIsModal>
+              <View style={styles.grabber} />
+              <View style={styles.header}>
+                <Text style={styles.title} accessibilityRole="header">
+                  {title}
+                </Text>
+                <Button icon="close" variant="secondary" onPress={onClose} accessibilityLabel="Close" />
+              </View>
+              <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentInner}
+                keyboardShouldPersistTaps="handled"
+              >
+                <sheetSurfaceContext.Provider value>{children}</sheetSurfaceContext.Provider>
+              </ScrollView>
+            </Animated.View>
           </View>
-          <ScrollView
-            style={styles.content}
-            contentContainerStyle={styles.contentInner}
-            keyboardShouldPersistTaps="handled"
-          >
-            <sheetSurfaceContext.Provider value>{children}</sheetSurfaceContext.Provider>
-          </ScrollView>
-        </Animated.View>
-      </View>
+        </InkContext.Provider>
+      </AssistantTrayContext.Provider>
     </Modal>
   );
 }

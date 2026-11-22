@@ -7,15 +7,26 @@ const TONES = {
   accent: { backgroundColor: colors.accent.light, color: colors.accent.base },
   success: { backgroundColor: colors.status.successLight, color: colors.status.success },
   info: { backgroundColor: colors.status.infoLight, color: colors.status.info },
-  warning: { backgroundColor: colors.background.note, color: colors.text.primary },
+  warning: { backgroundColor: colors.status.warningLight, color: colors.status.warningInk },
+  neutral: { backgroundColor: colors.background.fill, color: colors.text.secondary },
 };
 
-export type BadgeProps = { label: string; tone: keyof typeof TONES; style?: StyleProp<TextStyle> };
+export type BadgeProps = {
+  label: string;
+  tone: keyof typeof TONES;
+  numberOfLines?: number;
+  style?: StyleProp<TextStyle>;
+};
 
-// A small uppercase label on a list entry or a screen ("Archived", "Uncensored", "Verified"), in a
-// `tone`: danger | accent | success | info | warning (a WarningNote's yellow). The parent positions it through `style`.
-export default function Badge({ label, tone, style }: BadgeProps) {
-  return <Text style={[styles.badge, TONES[tone], style]}>{label}</Text>;
+// A small uppercase label on a list entry or a screen ("Archived", "Uncensored", "Verified", the
+// lists a contact is in), in a `tone`: danger | accent | success | info | warning (yellow) | neutral
+// (grey, a tag chip's fill). Every fill is see-through, so a badge sits on any surface. `numberOfLines` cuts a long one short (a name someone typed). The parent positions it through `style`.
+export default function Badge({ label, tone, numberOfLines, style }: BadgeProps) {
+  return (
+    <Text style={[styles.badge, TONES[tone], style]} numberOfLines={numberOfLines}>
+      {label}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({

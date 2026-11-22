@@ -1,8 +1,8 @@
 import type { NewPromptButton } from '@squidbox/shared';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { type ComponentRef, Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { type LayoutChangeEvent, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import AssistantMessage from './AssistantMessage';
 import ChatComposer from './ChatComposer';
@@ -26,7 +26,6 @@ import MenuOption from '@/components/popup-menu-options/MenuOption';
 import { SCREEN_PADDING } from '@/constants';
 import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import useMentionedContacts from '@/features/post-mentions/useMentionedContacts';
-import EditPromptButtonsButton from '@/features/prompt-buttons/EditPromptButtonsButton';
 import PromptButtonRow from '@/features/prompt-buttons/PromptButtonRow';
 import usePromptButtons from '@/features/prompt-buttons/usePromptButtons';
 import useAvailableUserId from '@/hooks/useAvailableUserId';
@@ -79,6 +78,7 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const shouldScrollRef = useRef(false);
   const bottomInset = useKeyboardInset();
+  const composerHeight = useSharedValue(0);
   const { messages, targets, activeTarget } = chat;
   // The contacts the replies' chips mention, read once for all of them.
   const { contactsById } = useMentionedContacts(
@@ -91,7 +91,11 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
   }, [messages]);
 
   const composerStyle = useAnimatedStyle(() => ({
-    paddingBottom: bottomInset.value,
+    bottom: bottomInset.value,
+  }));
+  // The chat's end stays clear of the floating composer, over the keyboard too.
+  const endSpaceStyle = useAnimatedStyle(() => ({
+    height: bottomInset.value + composerHeight.value,
   }));
 
   const last = messages[messages.length - 1];
@@ -153,6 +157,14 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
     const confirm = { title: 'New chat', message, action: 'New chat', destructive: true };
     if (messages.length > 0 && !(await confirmAsync(confirm))) return;
     chat.reset();
+  }
+
+  // The end of the chat makes room for the floating composer once it's measured: a chat opened at
+  // its end scrolls there again, past the room, so the last message isn't under the glass.
+  function handleComposerLayout(event: LayoutChangeEvent) {
+    const isFirst = composerHeight.value === 0;
+    composerHeight.value = event.nativeEvent.layout.height;
+    if (isFirst && messages.length) shouldScrollRef.current = true;
   }
 
   function handleContentSizeChange() {
@@ -229,21 +241,26 @@ function PostChat({ chat, assets, tagging, mentions, send, moreLikeThis, retry, 
             />
           );
         })}
+        <Animated.View style={endSpaceStyle} />
       </ScrollView>
       <Animated.View style={[styles.composer, composerStyle]}>
-        <PromptButtonRow buttons={buttons ?? []} onPress={handlePromptButton}>
-          <EditPromptButtonsButton />
-        </PromptButtonRow>
-        <View style={styles.composerInset}>
-          <ChatComposer
-            key={seed.key}
-            seed={seed.turn}
-            placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
-            disabled={chat.isSending}
-            isWaiting={chat.isWaiting}
-            onSend={handleSend}
-          />
-        </View>
+        <ChatComposer
+          key={seed.key}
+          seed={seed.turn}
+          placeholder={messages.length === 0 ? ASK_ANYTHING : 'Message'}
+          disabled={chat.isSending}
+          isWaiting={chat.isWaiting}
+          onSend={handleSend}
+          onLayout={handleComposerLayout}
+          accessory={
+            <PromptButtonRow
+              buttons={buttons ?? []}
+              onPress={handlePromptButton}
+              inset={space.sm}
+              endInset={layout.composerFade}
+            />
+          }
+        />
       </Animated.View>
       <SystemMessageSheet
         isVisible={isSystemMessageOpen}
@@ -296,16 +313,13 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: layout.sheetContentTop,
     paddingHorizontal: SCREEN_PADDING,
-    paddingBottom: layout.contentEnd,
     gap: space.md,
   },
-  // The prompt buttons scroll to the screen's edges; the composer keeps the screen's inset.
+  // Floats over the chat, which scrolls under it.
   composer: {
-    paddingTop: space.sm,
-    gap: space.sm,
-  },
-  composerInset: {
-    paddingHorizontal: SCREEN_PADDING,
+    position: 'absolute',
+    left: SCREEN_PADDING,
+    right: SCREEN_PADDING,
   },
   divider: {
     flexDirection: 'row',

@@ -47,6 +47,7 @@ const palette = {
   cyan200: '#8EDDF0',
   yellow100: '#FEF6C7',
   amber500: '#F59E0B',
+  amber700: '#B45309',
   // The channels' brand colors, each Simple Icons' hex for it (features/channels/channelGlyphs.ts);
   // the black ones are `black`.
   brandBluesky: '#1185FE',
@@ -62,6 +63,7 @@ export const colors = {
     secondary: palette.gray500, // details, inactive icons
     muted: palette.gray600, // details on a grey or yellow fill, where `secondary` would fade ("+3", a duplicate's reason)
     tertiary: palette.gray400, // placeholders and disabled text only, too faint for copy
+    status: alpha(palette.black, 0.3), // the assistant's Thinking line: see-through, so it greys on any surface
     inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
   },
   // The mark of what the user picked (a pick-one check, a pick-several select circle's fill) and the
@@ -90,6 +92,8 @@ export const colors = {
     info: palette.blue600, // a neutral fact about an entry (a model is the Default)
     infoLight: alpha(palette.blue600, 0.12),
     warning: palette.amber500, // a mark on what a warning is about (a field a duplicate contact shares)
+    warningLight: alpha(palette.amber500, 0.18), // a warning Badge's fill
+    warningInk: palette.amber700, // a warning Badge's text: amber500 is too light to read on its fill
   },
   background: {
     // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
@@ -98,6 +102,7 @@ export const colors = {
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
+    litGlassClear: alpha('#F6F6F8', 0), // `litGlass` faded out, the end of a row that scrolls inside it (ChatComposer)
     menu: alpha(palette.white, 0.72), // tint over the BlurView of popover menus
     muted: palette.gray100, // `overlay.pressed` over white, opaque
     fill: alpha(palette.black, 0.06), // a tag chip's see-through fill: a shade darker than the white or grey behind it
@@ -131,6 +136,13 @@ export const colors = {
     divider: alpha(palette.black, 0.08), // between the rows of a grouped list (Divider)
     dashed: alpha(palette.black, 0.2), // the dashed frame of an Add chip
   },
+  // The ink on the assistant's tray (InkContext): its text, grey icons and chips' fill in its dark
+  // violet instead of black and grey
+  assistantInk: {
+    primary: palette.violet900,
+    secondary: alpha(palette.violet900, 0.62),
+    fill: alpha(palette.violet900, 0.08),
+  },
   overlay: {
     pressed: alpha(palette.black, 0.06), // a pressed or highlighted row on a light surface
     menuGap: alpha(palette.black, 0.05), // the band between groups of a popover menu's rows (Divider)
@@ -139,11 +151,6 @@ export const colors = {
     track: alpha(palette.white, 0.1), // the empty part of a progress ring on the scrim
   },
 };
-
-// `shadows.raised`: how far down it falls and how far it blurs.
-// eslint-disable-next-line no-restricted-syntax -- a shadow's offset in px, not a spacing
-const RAISED_OFFSET = 2;
-const RAISED_BLUR = 8;
 
 // The lit edge of a surface, drawn inside it: a `light` rim along its top and left, a `shade` along
 // its bottom and right.
@@ -163,11 +170,6 @@ export const shadows = {
   // A card resting on the page: the same soft light, lower
   card: {
     boxShadow: `0 10px 40px ${alpha(palette.black, 0.05)}`,
-  },
-  // A chip lifted off its surface (the prompt buttons on the assistant's tray and over the chat's
-  // composer); a row of them leaves `raisedShadowRoom` for it
-  raised: {
-    boxShadow: `0 ${RAISED_OFFSET}px ${RAISED_BLUR}px ${alpha(palette.violet900, 0.08)}`,
   },
   // A grid cell lifted under the finger while it's dragged
   lifted: {
@@ -198,11 +200,6 @@ export const shadows = {
   // its shade as faint as litEdge's
   litEdgeAccent: litEdge(alpha(palette.violet250, 0.95), alpha(palette.violet900, 0.2)),
 };
-
-// The room a row of `shadows.raised` chips leaves above and below them (PromptButtonRow), taken back
-// so the row stays the chips' height: the whole shadow, which reaches its blur less its offset above
-// the chip and its blur plus its offset below, so none of it is cut off.
-export const raisedShadowRoom = { top: RAISED_BLUR - RAISED_OFFSET, bottom: RAISED_BLUR + RAISED_OFFSET };
 
 // The spacing scale: every padding, margin, gap and offset is one of these steps or a layout role
 // built from them, except the few that say on their line why they are not (an ESLint rule holds
@@ -263,6 +260,9 @@ export const layout = {
   cardInset: CARD_INSET, // a card's or a sheet's inset (Card `padded`)
   rowInset: space.lg, // a list row's text inset, and its divider's, header's, footer's and intro's
   cardGap: space.md, // between the parts of a card or the rows of a form
+  // The room a chat message (a bubble, an option card) leaves on the other speaker's side: a width, not a step.
+  chatOtherSide: 48,
+  composerFade: space.xl, // the fade a chat composer's chips scroll out under, before Send
   // Objects on a card (pictures, chips, a tray's row) sit one step closer to its edge than text,
   // which starts at cardInset.
   objectInset: OBJECT_INSET,
@@ -319,6 +319,10 @@ export const radii = {
   bubble: 18, // a chat bubble's corners
   bubbleTail: 4, // a chat bubble's corner on its sender's side, under the last line
 };
+
+// The system font's own line for its size (UIFont.lineHeight / pointSize): what a text or field
+// without a line height takes.
+export const FONT_LINE = 1.2;
 
 // The sizes and line heights textStyles are built from. Text takes a textStyle, never these; they
 // are exported for what is sized to text without being text (an icon on a text line, a slot one

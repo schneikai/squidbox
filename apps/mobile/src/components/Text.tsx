@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useContext } from 'react';
 import {
   Text as RNText,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   type TextStyle,
 } from 'react-native';
 
+import InkContext, { DEFAULT_INK } from '@/components/InkContext';
 import TextMetricsContext, { type TextMetrics } from '@/components/TextMetricsContext';
 import { colors, textStyles } from '@/styles/designTokens';
 
@@ -56,9 +57,20 @@ export default function Text({
   accessibilityLabel,
   style,
 }: TextProps) {
+  const ink = useContext(InkContext);
+  // On a tinted surface the roles in the text's own colors take its ink (InkContext).
+  const inkRole = ink === DEFAULT_INK ? null : (tone ?? INK_ROLES[variant]);
+  const inkColor = inkRole === 'primary' ? ink.primary : inkRole === 'secondary' ? ink.secondary : null;
+
   return (
     <RNText
-      style={[styles[variant], size === 'small' && smallStyles[variant], tone && toneStyles[tone], style]}
+      style={[
+        styles[variant],
+        size === 'small' && smallStyles[variant],
+        tone && toneStyles[tone],
+        inkColor !== null && { color: inkColor },
+        style,
+      ]}
       selectable={selectable}
       numberOfLines={numberOfLines}
       accessibilityLabel={accessibilityLabel}
@@ -106,6 +118,16 @@ const styles = StyleSheet.create({
     color: colors.accent.base,
   },
 });
+
+// Which of the text colors each role is in, where it is one the ink replaces.
+const INK_ROLES: Partial<Record<TextVariant, 'primary' | 'secondary'>> = {
+  reading: 'primary',
+  title: 'primary',
+  heading: 'primary',
+  hint: 'secondary',
+  label: 'secondary',
+  status: 'secondary',
+};
 
 // `size="small"`: the smaller size of a role that has one.
 const smallStyles: Partial<Record<TextVariant, TextStyle>> = StyleSheet.create({

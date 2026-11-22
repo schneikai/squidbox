@@ -1,24 +1,21 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useEffect } from 'react';
 import { type LayoutChangeEvent, Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { type SharedValue, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import AssistantTrayContext from '@/components/AssistantTrayContext';
+import EdgeFade from '@/components/EdgeFade';
 import Icon from '@/components/Icon';
+import InkContext from '@/components/InkContext';
 import Shine from '@/components/Shine';
 import Text from '@/components/Text';
 import useShineProgress from '@/hooks/useShineProgress';
-import { colors, layout, motion, press, radii, raisedShadowRoom, shadows, sizes, space } from '@/styles/designTokens';
+import { colors, layout, motion, press, radii, shadows, sizes, space } from '@/styles/designTokens';
 
 // The inset the row's chips keep from the tray's edges.
 const TRAY_INSET = layout.objectInset;
 
 // What the tray gives what it holds (AssistantTrayContext).
 const TRAY = { inset: TRAY_INSET };
-
-const FADE = [colors.background.assistantClear, colors.background.assistant] as const;
-const FADE_START = { x: 0, y: 0 };
-const FADE_END = { x: 1, y: 0 };
 
 // The header is a chip's height: its buttons (the back title, the fold) reach a 44 pt target.
 const HEADER_HEIGHT = sizes.smallButton + space.sm;
@@ -93,51 +90,57 @@ export default function AssistantTray({
   // folded. The title row (or, beside a back button, the free space after it) folds and unfolds it.
   return (
     <AssistantTrayContext.Provider value={TRAY}>
-      <View style={[styles.tray, style]}>
-        <View style={styles.header}>
-          {isBack && back && (
+      <InkContext.Provider value={colors.assistantInk}>
+        <View style={[styles.tray, style]}>
+          <View style={styles.header}>
+            {isBack && back && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={back.label}
+                onPress={back.onPress}
+                hitSlop={HEADER_HIT_SLOP}
+                style={({ pressed }) => [styles.titleRow, pressed && press.flat]}
+              >
+                {lead}
+              </Pressable>
+            )}
             <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={back.label}
-              onPress={back.onPress}
+              disabled={!fold}
+              accessible={Boolean(fold)}
+              accessibilityRole={fold ? 'button' : undefined}
+              // The title is read as it shows (Writing ideas…), the fold as its hint; beside a back
+              // button, this is only the fold.
+              accessibilityLabel={fold ? (isBack ? fold.foldLabel : title) : undefined}
+              accessibilityHint={fold && !isBack ? (isFolded ? fold.unfoldHint : fold.foldLabel) : undefined}
+              accessibilityState={fold ? { expanded: !isFolded } : undefined}
+              onPress={fold?.onToggle}
               hitSlop={HEADER_HIT_SLOP}
-              style={({ pressed }) => [styles.titleRow, pressed && press.flat]}
+              style={({ pressed }) => [styles.lead, pressed && !isBack && press.flat]}
             >
-              {lead}
+              {!isBack && lead}
             </Pressable>
-          )}
-          <Pressable
-            disabled={!fold}
-            accessible={Boolean(fold)}
-            accessibilityRole={fold ? 'button' : undefined}
-            // The title is read as it shows (Writing ideas…), the fold as its hint; beside a back
-            // button, this is only the fold.
-            accessibilityLabel={fold ? (isBack ? fold.foldLabel : title) : undefined}
-            accessibilityHint={fold && !isBack ? (isFolded ? fold.unfoldHint : fold.foldLabel) : undefined}
-            accessibilityState={fold ? { expanded: !isFolded } : undefined}
-            onPress={fold?.onToggle}
-            hitSlop={HEADER_HIT_SLOP}
-            style={({ pressed }) => [styles.lead, pressed && !isBack && press.flat]}
-          >
-            {!isBack && lead}
-          </Pressable>
-          {fold ? (
-            <TrailingSwap isFolded={isFolded} open={open} onToggle={fold.onToggle}>
-              {trailing}
-            </TrailingSwap>
-          ) : (
-            trailing
-          )}
-        </View>
-        <Body isFolded={isFolded} open={open} isNatural={isNatural}>
-          <View>
-            {children}
-            <LinearGradient colors={FADE} start={FADE_START} end={FADE_END} style={styles.fade} pointerEvents="none" />
+            {fold ? (
+              <TrailingSwap isFolded={isFolded} open={open} onToggle={fold.onToggle}>
+                {trailing}
+              </TrailingSwap>
+            ) : (
+              trailing
+            )}
           </View>
-          {footer && <View style={styles.footer}>{footer}</View>}
-        </Body>
-        <View style={styles.rim} pointerEvents="none" />
-      </View>
+          <Body isFolded={isFolded} open={open} isNatural={isNatural}>
+            <View>
+              {children}
+              <EdgeFade
+                color={colors.background.assistant}
+                clearColor={colors.background.assistantClear}
+                width={TRAY_INSET}
+              />
+            </View>
+            {footer && <View style={styles.footer}>{footer}</View>}
+          </Body>
+          <View style={styles.rim} pointerEvents="none" />
+        </View>
+      </InkContext.Provider>
     </AssistantTrayContext.Provider>
   );
 }
@@ -299,14 +302,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.iconGap,
-  },
-  // Over the chips' shadow room too, so a shadow passing under the edge fades with its chip.
-  fade: {
-    position: 'absolute',
-    top: -raisedShadowRoom.top,
-    right: 0,
-    bottom: -raisedShadowRoom.bottom,
-    width: TRAY_INSET,
   },
   // A step further from the row than the header is, so the lines read as the tray's own, not a card's.
   footer: {

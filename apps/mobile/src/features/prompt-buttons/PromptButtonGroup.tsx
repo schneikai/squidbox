@@ -39,7 +39,6 @@ export default function PromptButtonGroup({ buttons, onOpen, onAdd, onMove }: Pr
     return (
       <PromptButtonChip
         button={button}
-        variant="tag"
         onPress={handleOpen}
         accessibilityHint="Opens it to edit. Touch and hold to move it."
       />

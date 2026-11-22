@@ -123,7 +123,7 @@ export default function MentionInput({
       lineHeight={textStyles.reading.lineHeight}
       textColor={colors.text.primary}
       placeholderColor={colors.text.tertiary}
-      chipColor={colors.background.muted}
+      chipColor={colors.background.fill}
       chipStyle={mentionChipStyle}
       onChangeContent={({ nativeEvent: { text, mentions, start, end } }) =>
         onChangeContent({ text, mentions }, { start, end })

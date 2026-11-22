@@ -54,6 +54,7 @@ export default function ChatMentionsSheet({
       <View style={styles.body}>
         <IntroText>Who the assistant may mention in this chat. Your posts stay as they are.</IntroText>
         <TagsField
+          isFlush
           tags={ids}
           onChange={(next) => onEditMentions(tagsDifference(ids, next))}
           placeholder="No mentions"
