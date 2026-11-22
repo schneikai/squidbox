@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useState } from 'react';
+import { type ReactElement, type RefObject, useCallback, useState } from 'react';
 import type { ListRenderItemInfo, StyleProp, ViewStyle } from 'react-native';
 import Animated, { type ScrollHandlerProcessed } from 'react-native-reanimated';
 
@@ -21,6 +21,8 @@ type PostListProps = {
   listRef?: RefObject<ScrollableList | null>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   onScroll?: ScrollHandlerProcessed;
+  // Shown in place of the posts when the list has none.
+  empty?: ReactElement;
   // Whether a long press opens a post's menu (MoreAction); not in a sheet, where Edit and Repost
   // would open a second one.
   hasMenu?: boolean;
@@ -42,6 +44,7 @@ export default function PostList({
   listRef,
   contentContainerStyle,
   onScroll,
+  empty,
   hasMenu = true,
 }: PostListProps) {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
@@ -92,6 +95,7 @@ export default function PostList({
       renderItem={renderItem}
       itemLayoutAnimation={reflow}
       keyExtractor={keyExtractor}
+      ListEmptyComponent={empty}
       contentContainerStyle={contentContainerStyle}
       onEndReached={onEndReached}
       onEndReachedThreshold={2}

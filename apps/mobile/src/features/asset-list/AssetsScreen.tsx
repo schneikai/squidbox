@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Alert, View } from 'react-native';
 
+import EmptyState from '@/components/EmptyState';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import { useFloatingBars } from '@/components/floating-bars/FloatingBarsContext';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
@@ -55,6 +56,16 @@ export default function AssetsScreen() {
   const { rows, count, loadMore } = usePagedQuery(query, 150);
 
   const actions = useAssetSelectionActions(selection, query, count);
+  // Nothing to show: a search or filter that matched nothing, or a library with nothing in it yet.
+  const isNarrowed = activeFilter.length > 0 || !!searchText;
+  const header =
+    count === 0 ? (
+      <EmptyState
+        icon={isNarrowed ? 'search' : 'image'}
+        title={isNarrowed ? 'No photos match' : 'No photos yet'}
+        subtitle={isNarrowed ? undefined : 'Tap + to add photos and videos from your camera roll.'}
+      />
+    ) : undefined;
 
   async function handleAdd() {
     try {
@@ -88,6 +99,7 @@ export default function AssetsScreen() {
         loadMore={loadMore}
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
+        header={header}
         onScroll={onScroll}
         scrollY={scrollY}
         isSelectMode={isSelectMode}

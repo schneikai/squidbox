@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
+import EmptyState from '@/components/EmptyState';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
 import PostList from '@/features/post-list/PostList';
@@ -36,6 +37,13 @@ export default function PostsScreen() {
         loadMore={loadMore}
         contentContainerStyle={{ paddingTop, paddingBottom }}
         onScroll={onScroll}
+        empty={
+          <EmptyState
+            icon={searchText ? 'search' : 'send'}
+            title={searchText ? 'No posts match' : 'No posts yet'}
+            subtitle={searchText ? undefined : 'Tap + to start a new post.'}
+          />
+        }
       />
       <FloatingActionsBar
         search={searchBar}

@@ -3,6 +3,7 @@ import { useNavigation } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
@@ -87,9 +88,16 @@ export default function Album({ album }: AlbumProps) {
     () => (
       <View style={styles.header}>
         <AlbumHeader album={album} assetCount={albumCount} onNameEnd={setNameEnd} />
+        {count === 0 && (
+          <EmptyState
+            icon={isNarrowed ? 'search' : 'image'}
+            title={isNarrowed ? 'No photos match' : 'No photos yet'}
+            subtitle={isNarrowed ? undefined : emptyAlbumHint(album)}
+          />
+        )}
       </View>
     ),
-    [album, albumCount],
+    [album, albumCount, count, isNarrowed],
   );
 
   // Drag-to-reorder only makes sense on the full, unfiltered album order and has
@@ -215,6 +223,12 @@ export default function Album({ album }: AlbumProps) {
       )}
     </Page>
   );
+}
+
+// What fills an empty album: a photo double-tapped anywhere for Favorites, one added with + for the user's own.
+function emptyAlbumHint(album: AlbumRow) {
+  if (album.smartAlbumType === 'FAVORITES') return 'Double-tap a photo to add it to your favorites.';
+  return isSmartAlbum(album) ? undefined : 'Tap + to add photos to this album.';
 }
 
 // Only sorts other than the default Newest first are kept.
