@@ -5,13 +5,14 @@ import Animated from 'react-native-reanimated';
 
 import ContactAvatarRow from './ContactAvatarRow';
 import ContactMenuRow from './ContactMenuRow';
+import PinnedRowEmpty from './PinnedRowEmpty';
 import contactFilterOptions from './contactFilterOptions';
 import contactSortOptions from './contactSortOptions';
 import useContactSort from './useContactSort';
 import usePinnedContactList from './usePinnedContactList';
 
 import EmptyState from '@/components/EmptyState';
-import IntroText from '@/components/IntroText';
+import type { IconName } from '@/components/Icon';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
 import FloatingHeader from '@/components/floating-bars/FloatingHeader';
@@ -20,7 +21,7 @@ import useListRefCallback from '@/hooks/useListRefCallback';
 import useScreenPadding from '@/hooks/useScreenPadding';
 import useScrollY from '@/hooks/useScrollY';
 import { layout } from '@/styles/designTokens';
-import { builtInContactList } from '@/sync/queries/builtInContactLists';
+import { type BuiltInContactList, builtInContactList } from '@/sync/queries/builtInContactLists';
 import contactQuery, { type ContactFilter, type ContactSort, type ContactSummary } from '@/sync/queries/contactQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
 import pluralizeText from '@/utils/pluralizeText';
@@ -28,6 +29,18 @@ import pluralizeText from '@/utils/pluralizeText';
 const PAGE_SIZE = 100;
 const PINNED_PAGE_SIZE = 30;
 const keyExtractor = (contact: ContactSummary) => contact.id;
+
+// What an empty built-in list pinned at the top shows in its empty slot, and how it fills.
+const PINNED_EMPTY_ICONS: Record<BuiltInContactList['id'], IconName> = {
+  favorites: 'heart',
+  tagged: 'tag',
+  deleted: 'trash',
+};
+const PINNED_EMPTY_HINTS: Record<BuiltInContactList['id'], string> = {
+  favorites: "Double-tap a contact's photo to add one.",
+  tagged: 'Tag people on a photo to see them here.',
+  deleted: 'Contacts you delete wait here until you restore them.',
+};
 
 // The Contacts tab: favorites first as a row of avatars (or the list pinned in their place: tapping the row's name picks it),
 // then everyone, by name or recently added, searched, sorted and filtered (Favorites, Tagged) in the floating bar. All lists, at the end of the
@@ -65,13 +78,13 @@ export default function ContactsScreen() {
   // after the list and push it down. From then on it stays: a new pin or search keeps the last rows until its own land.
   const [isShown, setIsShown] = useState(false);
   if (!isShown && rows && pin.pinned !== undefined && isPinnedCurrent) setIsShown(true);
-  // The pinned row's header (its name, All lists) heads the tab whenever it isn't searching; the row under it once there
-  // are contacts, even while it is empty, so its name can change it.
-  const hasPinnedHeader = isShown && !isNarrowed && !!pinnedContacts;
-  const hasPinned = hasPinnedHeader && (pinnedContacts.length > 0 || !!pinned || !!count);
-  const emptyTitle = builtInContactList(pinned?.id ?? 'favorites')?.emptyTitle ?? 'No contacts in this list yet';
-  const pinnedEmptyText = pinned ? `${emptyTitle}.` : `${emptyTitle}. Double-tap a contact's photo to add one.`;
-
+  // Deleted contacts, read only while there are no others: their list stays reachable (All lists) to restore them.
+  const { count: deletedCount } = usePagedQuery(contactQuery({ scope: 'deleted' }), 1, { isLive: count === 0 });
+  // The pinned row (its header: its name, All lists; then its avatars, or its empty slot) heads the tab whenever it
+  // isn't searching, even while it is empty, so its name can change it; not while there is no one to put in a list.
+  const hasContacts = !!count || !!deletedCount;
+  const hasPinned = isShown && !isNarrowed && !!pinnedContacts && hasContacts;
+  const pinnedBuiltIn = builtInContactList(pinned?.id ?? 'favorites');
   const data = (isShown && rows) || [];
   const lastIndex = data.length - 1;
   // Stable while the rows' count is, so a keystroke doesn't re-render every row (ContactRow is memo).
@@ -84,7 +97,7 @@ export default function ContactsScreen() {
 
   const header = (
     <View>
-      {hasPinnedHeader && (
+      {hasPinned && (
         <ScreenSectionHeader
           title={pinned?.name ?? 'Favorites'}
           size="small"
@@ -95,16 +108,28 @@ export default function ContactsScreen() {
         />
       )}
       {hasPinned &&
-        (pinnedContacts?.length ? (
+        (pinnedContacts.length ? (
           <ContactAvatarRow contacts={pinnedContacts} loadMore={loadMorePinned} />
+        ) : pinnedBuiltIn ? (
+          <PinnedRowEmpty
+            icon={PINNED_EMPTY_ICONS[pinnedBuiltIn.id]}
+            title={pinnedBuiltIn.emptyTitle}
+            hint={PINNED_EMPTY_HINTS[pinnedBuiltIn.id]}
+          />
         ) : (
-          <IntroText isScreenIntro>{pinnedEmptyText}</IntroText>
+          <PinnedRowEmpty
+            icon="add"
+            title="No contacts in this list yet"
+            hint="Tap the circle to add people to it."
+            onPress={() => router.navigate({ pathname: '/add-contacts', params: { listId: pinned!.id } })}
+            accessibilityLabel="Add contacts"
+          />
         ))}
       {isShown && !!count && (
         <ScreenSectionHeader
           title={pluralizeText('1 contact', `${count.toLocaleString()} contacts`, count)}
           size="small"
-          isFirst={!hasPinnedHeader}
+          isFirst={!hasPinned}
         />
       )}
       {isShown && count === 0 && (

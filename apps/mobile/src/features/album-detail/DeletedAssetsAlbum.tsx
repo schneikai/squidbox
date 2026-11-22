@@ -3,6 +3,7 @@ import { useNavigation } from 'expo-router';
 import DeletedAlbumActionsBar from './DeletedAlbumActionsBar';
 
 import Button from '@/components/Button';
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
@@ -86,6 +87,15 @@ export default function DeletedAssetsAlbum({ album }: DeletedAssetsAlbumProps) {
         paddingTop={paddingTop}
         paddingBottom={paddingBottom}
         renderListItem={renderCell}
+        header={
+          count === 0 ? (
+            <EmptyState
+              icon="trash"
+              title="No deleted photos"
+              subtitle="Photos you delete wait here until you restore them."
+            />
+          ) : undefined
+        }
       />
       <DeletedAlbumActionsBar
         isSelectMode={isSelectMode}

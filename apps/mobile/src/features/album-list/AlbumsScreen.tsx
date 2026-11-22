@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import EmptyState from '@/components/EmptyState';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import SuperPressable from '@/components/SuperPressable';
 import FloatingActionsBar from '@/components/floating-bars/FloatingActionsBar';
@@ -75,7 +76,13 @@ export default function AlbumsScreen() {
   // The same element while its inputs are, so the grid doesn't re-measure it on every render.
   const header = useMemo(
     () =>
-      starred.length ? (
+      rows && !albums.length ? (
+        <EmptyState
+          icon={isNarrowed ? 'search' : 'images'}
+          title={isNarrowed ? 'No albums match' : 'No albums yet'}
+          subtitle={isNarrowed ? undefined : 'Tap + to make an album for a trip, a shoot or a series.'}
+        />
+      ) : starred.length ? (
         <View style={styles.header}>
           <ScreenSectionHeader title="Starred" size="small" isFirst />
           <StarredAlbumRow albums={starred} />
@@ -85,7 +92,7 @@ export default function AlbumsScreen() {
           />
         </View>
       ) : undefined,
-    [starred, albums.length],
+    [rows, isNarrowed, starred, albums.length],
   );
 
   return (
