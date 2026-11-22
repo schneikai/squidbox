@@ -22,8 +22,8 @@ import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-se
 import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useAssetSelectionActions from '@/features/asset-list/useAssetSelectionActions';
 import useListControls from '@/hooks/useListControls';
+import usePageTitleReveal from '@/hooks/usePageTitleReveal';
 import useScreenPadding from '@/hooks/useScreenPadding';
-import useScrollY from '@/hooks/useScrollY';
 import useAlbums from '@/providers/albums/useAlbums';
 import type { AppSettings } from '@/providers/app-settings/appSettingsDefaults';
 import useAppSettings from '@/providers/app-settings/useAppSettings';
@@ -80,14 +80,13 @@ export default function Album({ album }: AlbumProps) {
   const actions = useAssetSelectionActions(selection, query, count);
   const isSmart = isSmartAlbum(album);
   // The header bar shows the album's name once the name in the page has scrolled under it.
-  const { onScroll, scrollY } = useScrollY();
-  const [nameEnd, setNameEnd] = useState(0);
+  const { onScroll, scrollY, titleReveal, onTitleLayout } = usePageTitleReveal();
   // The album's name, its contacts and its posts, scrolling away with the grid: the same element
   // while they are, so a selection or a keystroke doesn't render it again.
   const header = useMemo(
     () => (
       <View style={styles.header}>
-        <AlbumHeader album={album} assetCount={albumCount} onNameEnd={setNameEnd} />
+        <AlbumHeader album={album} assetCount={albumCount} onNameLayout={onTitleLayout} />
         {count === 0 && (
           <EmptyState
             icon={isNarrowed ? 'search' : 'image'}
@@ -160,7 +159,7 @@ export default function Album({ album }: AlbumProps) {
     <Page testID="album-screen">
       <FloatingDetailHeader
         title={album.name}
-        titleReveal={{ scrollY, from: nameEnd }}
+        titleReveal={titleReveal}
         onBack={() => navigation.goBack()}
         isSelectMode={isSelectMode}
         menuSlot={

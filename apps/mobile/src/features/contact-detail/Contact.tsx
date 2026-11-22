@@ -1,7 +1,7 @@
 import { CONTACT_LIMITS, formatPlace } from '@squidbox/shared';
 import { router, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import ContactAvatarPicker from './ContactAvatarPicker';
 import ContactMenu from './ContactMenu';
@@ -30,6 +30,7 @@ import AssetAlbums from '@/features/album-list/AssetAlbums';
 import addToContactListHref from '@/features/contact-list-picker/addToContactListHref';
 import PostRows from '@/features/post-list/PostRows';
 import useHaptics from '@/hooks/useHaptics';
+import usePageTitleReveal from '@/hooks/usePageTitleReveal';
 import useSaveAsYouType from '@/hooks/useSaveAsYouType';
 import useContacts from '@/providers/contacts/useContacts';
 import { layout, space } from '@/styles/designTokens';
@@ -62,6 +63,8 @@ export default function Contact({ contact }: ContactProps) {
   const { toggleFavoriteContact, setAvatarAsync, changeListContacts } = useContacts();
   const [draft, setDraft] = useState(() => contactDraft(contact));
   const [seen, setSeen] = useState(contact); // the stored contact the draft last took in
+  // The header bar shows the contact's name once the name in the page has scrolled under it.
+  const { onScroll, titleReveal, onTitleLayout } = usePageTitleReveal();
   const saver = useSaveAsYouType(storedContactFields(draft), save);
   const { flush } = saver;
   const lists = useListsOfContact(contact.id);
@@ -122,6 +125,8 @@ export default function Contact({ contact }: ContactProps) {
   return (
     <Page>
       <FloatingDetailHeader
+        title={draft.name || contact.name}
+        titleReveal={titleReveal}
         onBack={() => navigation.goBack()}
         menuSlot={
           <>
@@ -137,19 +142,23 @@ export default function Contact({ contact }: ContactProps) {
           </>
         }
       />
-      <DetailScrollView keyboardShouldPersistTaps="handled">
-        <ContactAvatarPicker contact={contact} onPick={handlePickPhoto} onDoublePress={handleToggleFavorite} />
-        <TextInput
-          variant="title"
-          value={draft.name}
-          onChangeText={(text) => setField('name', text)}
-          onBlur={() => flush()}
-          placeholder={contact.name}
-          accessibilityLabel="Name"
-          textContentType="name"
-          maxLength={CONTACT_LIMITS.name}
-          style={styles.name}
-        />
+      <DetailScrollView keyboardShouldPersistTaps="handled" onScroll={onScroll}>
+        {/* The name's layout is measured from the page's content top, not the list's padded one (usePageTitleReveal). */}
+        <View>
+          <ContactAvatarPicker contact={contact} onPick={handlePickPhoto} onDoublePress={handleToggleFavorite} />
+          <TextInput
+            variant="title"
+            value={draft.name}
+            onChangeText={(text) => setField('name', text)}
+            onBlur={() => flush()}
+            placeholder={contact.name}
+            accessibilityLabel="Name"
+            textContentType="name"
+            maxLength={CONTACT_LIMITS.name}
+            style={styles.name}
+            onLayout={onTitleLayout}
+          />
+        </View>
         <Text variant="status" style={styles.subtitle}>
           {subtitle}
         </Text>

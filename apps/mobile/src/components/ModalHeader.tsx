@@ -1,10 +1,11 @@
 import type { ReactElement, ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import ScrollEdgeFade from '@/components/ScrollEdgeFade';
 import FloatingPill from '@/components/floating-bars/FloatingPill';
 import ToolbarTitle from '@/components/floating-bars/ToolbarTitle';
 import useTitleMaxWidth from '@/components/floating-bars/useTitleMaxWidth';
-import { layout } from '@/styles/designTokens';
+import { layout, sizes } from '@/styles/designTokens';
 
 /**
  * Unified floating header for modal screens — matches the floating-bar visual language.
@@ -17,8 +18,8 @@ import { layout } from '@/styles/designTokens';
  *   [ FloatingPill: leading ]   [ centerTitle ]   [ FloatingPill: trailing ]
  *
  * Both side slots are automatically wrapped in FloatingPill (frosted glass). A string title is a
- * plain bold ToolbarTitle (no pill, unlike a pushed screen's, FloatingDetailHeader), centred on the
- * screen and kept clear of the wider side pill.
+ * plain bold ToolbarTitle, centred on the
+ * screen and kept clear of the wider side pill. What scrolls under it fades out behind it (ScrollEdgeFade).
  *
  * Props:
  *   leading     ReactElement  — typically a close Button (icon="close")
@@ -39,30 +40,33 @@ export default function ModalHeader({ leading, trailing, title, subtitle }: Moda
 
   const center =
     typeof title === 'string' ? (
-      <ToolbarTitle title={title} subtitle={subtitle} isPlain style={maxWidth !== undefined && { maxWidth }} />
+      <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
     ) : (
       (title ?? null)
     );
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
-      <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
-        {/* Center — absolutely positioned so it stays centred on the screen; below the pills. A string
+    <>
+      <ScrollEdgeFade headerBottom={layout.barMargin + sizes.iconButton} />
+      <View style={styles.container} pointerEvents="box-none">
+        <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
+          {/* Center — absolutely positioned so it stays centred on the screen; below the pills. A string
             title is only a label, so touches pass through it to the list. */}
-        <View style={styles.center} pointerEvents={typeof title === 'string' ? 'none' : 'box-none'}>
-          {center}
-        </View>
+          <View style={styles.center} pointerEvents={typeof title === 'string' ? 'none' : 'box-none'}>
+            {center}
+          </View>
 
-        {/* Both sides always render, so a slot that goes away measures 0 and frees the title. */}
-        <View style={styles.side} pointerEvents="box-none" onLayout={onLeftLayout}>
-          {leading != null && <FloatingPill>{leading}</FloatingPill>}
-        </View>
+          {/* Both sides always render, so a slot that goes away measures 0 and frees the title. */}
+          <View style={styles.side} pointerEvents="box-none" onLayout={onLeftLayout}>
+            {leading != null && <FloatingPill>{leading}</FloatingPill>}
+          </View>
 
-        <View style={[styles.side, styles.sideRight]} pointerEvents="box-none" onLayout={onRightLayout}>
-          {!!trailing && <FloatingPill>{trailing}</FloatingPill>}
+          <View style={[styles.side, styles.sideRight]} pointerEvents="box-none" onLayout={onRightLayout}>
+            {!!trailing && <FloatingPill>{trailing}</FloatingPill>}
+          </View>
         </View>
       </View>
-    </View>
+    </>
   );
 }
 

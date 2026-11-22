@@ -15,9 +15,9 @@ export type TitleReveal = { scrollY: SharedValue<number>; from: number };
 const REVEAL_DISTANCE = 24; // pt of scrolling
 
 /**
- * A header's title pill (ToolbarTitle): revealed by scrolling when `reveal` is given, always shown
+ * A header's title (ToolbarTitle): revealed by scrolling when `reveal` is given, always shown
  * otherwise, and moved out to the left as `selectProgress` (useSelectModeProgress) goes to 1. `isMounted` is false while a scroll-revealed
- * pill can't be seen, so its blur isn't drawn and it isn't a second copy of the page's title.
+ * title can't be seen, so it isn't a second copy of the page's title for screen readers.
  */
 export default function useTitleReveal(reveal: TitleReveal | undefined, selectProgress: SharedValue<number>) {
   const scrollY = reveal?.scrollY;

@@ -158,8 +158,9 @@ async function startLocalBackendAndMetro() {
   superviseExit(server);
   await waitFor('the API server', async () => (await fetch(`${SERVER_URL}/up`).catch(() => null))?.ok);
 
-  if (resetData) {
-    log('Resetting the mock data');
+  // A fresh database has the mock account but none of its data: fill it as --reset-data would.
+  if (resetData || hasNoMockData(serverEnv.SEED_USER_EMAIL)) {
+    log('Filling the mock library');
     await resetMockDataAsync({ detached: true, onSpawn: (child) => children.add(child) }).catch((error) =>
       fail(error.message),
     );
@@ -171,6 +172,18 @@ async function startLocalBackendAndMetro() {
   Sign in as:              ${serverEnv.SEED_USER_EMAIL} (prefilled), or tap an account in Settings
   Server log:              ${SERVER_LOG}
 `);
+}
+
+// Whether the mock account has nothing yet (no photos, posts or contacts): a new database, which db:setup
+// gave the account but no data. An account emptied by hand for a test keeps something and isn't reset.
+function hasNoMockData(email) {
+  const sql = `select not exists (select 1 from users u where u.email = '${email.replaceAll("'", "''")}' and (exists (select 1 from assets where user_id = u.id) or exists (select 1 from posts where user_id = u.id) or exists (select 1 from contacts where user_id = u.id)))`;
+  const result = spawnSync(
+    'docker',
+    ['compose', 'exec', '-T', 'postgres', 'psql', '-U', 'squidbox', '-d', 'squidbox', '-tAc', sql],
+    { cwd: SERVER_DIR, encoding: 'utf8' },
+  );
+  return result.status === 0 && result.stdout.trim() === 't';
 }
 
 async function setUpDatabase(copyAccountEnv) {

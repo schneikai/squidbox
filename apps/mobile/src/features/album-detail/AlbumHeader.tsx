@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
+import { type LayoutChangeEvent, Pressable, Text as NativeText, StyleSheet, View } from 'react-native';
 
 import Badge from '@/components/Badge';
 import Chip from '@/components/Chip';
@@ -24,9 +24,9 @@ const STACKED = 3;
 type AlbumHeaderProps = {
   album: AlbumRow;
   assetCount: number | undefined;
-  /** Where the name ends, from the header's top (the name is its first line): the screen's header
-   * shows the name once it has scrolled past there. */
-  onNameEnd?: (y: number) => void;
+  /** The name's layout (the header's first line): the screen's header shows the name once it has
+   * scrolled past it (usePageTitleReveal). */
+  onNameLayout?: (e: LayoutChangeEvent) => void;
 };
 
 /**
@@ -37,7 +37,7 @@ type AlbumHeaderProps = {
  * contacts chip. The name, the line under it and the notes open Edit album; a double-tap on the name or
  * the line under it stars or unstars it.
  */
-export default function AlbumHeader({ album, assetCount, onNameEnd }: AlbumHeaderProps) {
+export default function AlbumHeader({ album, assetCount, onNameLayout }: AlbumHeaderProps) {
   const { toggleFavoriteAlbum } = useAlbums();
   const isSmart = isSmartAlbum(album);
   // A smart album has no contacts of its own: read once, not kept live.
@@ -77,7 +77,7 @@ export default function AlbumHeader({ album, assetCount, onNameEnd }: AlbumHeade
           {...nameTaps}
           style={({ pressed }) => pressed && press.flat}
           accessibilityRole="header"
-          onLayout={(e) => onNameEnd?.(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+          onLayout={onNameLayout}
         >
           <NativeText style={[textStyles.title1, styles.name]} numberOfLines={2}>
             {album.name}
