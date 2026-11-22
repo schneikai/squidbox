@@ -11,7 +11,6 @@ export default function NewPostLayout() {
   return (
     <SheetStack>
       <Stack.Screen name="post/[postId]" dangerouslySingular />
-      <Stack.Screen name="prompt-buttons/[id]" dangerouslySingular />
     </SheetStack>
   );
 }

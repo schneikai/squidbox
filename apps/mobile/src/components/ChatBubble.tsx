@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import GradientFill from '@/components/GradientFill';
 import MenuButton from '@/components/MenuButton';
 import TextMetricsContext from '@/components/TextMetricsContext';
-import { colors, glass, radii, space, textStyles } from '@/styles/designTokens';
+import { colors, glass, layout, radii, space, textStyles } from '@/styles/designTokens';
 
 export type ChatBubbleProps = {
   side: 'user' | 'assistant';
@@ -54,17 +54,15 @@ export default function ChatBubble({ side, label, text, copy, children }: ChatBu
 
 // The bubble's text inset, which its ⋯ lines up with.
 const BUBBLE_PADDING_X = space.md;
-// The room a bubble leaves on the other side: a width, not a step.
-const OTHER_SIDE_WIDTH = 48;
 
 const styles = StyleSheet.create({
   userRow: {
     alignItems: 'flex-end',
-    paddingLeft: OTHER_SIDE_WIDTH,
+    paddingLeft: layout.chatOtherSide,
   },
   assistantRow: {
     alignItems: 'flex-start',
-    paddingRight: OTHER_SIDE_WIDTH,
+    paddingRight: layout.chatOtherSide,
   },
   bubble: {
     borderRadius: radii.bubble,

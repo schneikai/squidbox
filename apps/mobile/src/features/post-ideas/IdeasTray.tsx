@@ -116,7 +116,6 @@ function IdeasTraySection({
 
   const chatButton = (
     <Chip
-      variant="raised"
       icon="message-circle"
       label="Chat"
       onPress={() => router.navigate({ pathname: '/chat/[sessionId]', params: { sessionId } satisfies ChatParams })}
@@ -127,7 +126,6 @@ function IdeasTraySection({
     const sendButton = (button: NewPromptButton) => send({ ...promptSeed(button), kind: 'prompt', target });
     const lead = ideas && (
       <Chip
-        variant="lead"
         icon="sparkle"
         label={ideasText[ideas].name}
         disabled={chat.isSending || !settings}

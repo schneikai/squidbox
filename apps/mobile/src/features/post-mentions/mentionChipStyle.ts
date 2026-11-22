@@ -1,3 +1,5 @@
+import { FONT_LINE } from '@/styles/designTokens';
+
 /**
  * A mention chip's measures, in points, the one source for the native field's chips (MentionInput,
  * which draws them in Swift) and the read-only ones (MentionChip), so its look changes without a
@@ -43,6 +45,3 @@ export function mentionChipBox(fontSize: number): MentionChipBox {
     radius: height / 2,
   };
 }
-
-// The system font's line for its size (UIFont.lineHeight / pointSize).
-const FONT_LINE = 1.2;

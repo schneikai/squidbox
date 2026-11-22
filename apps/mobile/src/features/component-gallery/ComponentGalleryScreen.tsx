@@ -8,7 +8,6 @@ import AssistantTray from '@/components/AssistantTray';
 import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import Card from '@/components/Card';
-import ChangedBadge from '@/components/ChangedBadge';
 import ChatBubble from '@/components/ChatBubble';
 import Chip from '@/components/Chip';
 import ChipRow from '@/components/ChipRow';
@@ -73,7 +72,7 @@ const GALLERY_TAGS = ['Hiking', 'Sunrise', 'Coast'];
 const PROMPT_BUTTONS = DEFAULT_PROMPT_BUTTONS.slice(0, 4);
 
 // The AssistantTray's Chat, and its ideas while written and once they came.
-const CHAT_CHIP = <Chip variant="raised" icon="message-circle" label="Chat" onPress={noop} />;
+const CHAT_CHIP = <Chip icon="message-circle" label="Chat" onPress={noop} />;
 const WRITING_RUN: IdeasRun = {
   name: 'Post ideas',
   prompt: '',
@@ -231,8 +230,7 @@ export default function ComponentGalleryScreen() {
               onRemove={noop}
               removeLabel="Remove Sam Rivera"
             />
-            <Chip variant="lead" icon="sparkle" label="Post ideas" onPress={noop} />
-            <Chip variant="raised" icon="scissors" label="Shorter" onPress={noop} />
+            <Chip icon="sparkle" label="Post ideas" onPress={noop} />
             <Chip variant="mixed" label="sunset" onPress={noop} onRemove={noop} removeLabel="Remove sunset" />
             <Chip variant="add" label="Add" onPress={() => setTags(GALLERY_TAGS)} />
             <Chip label="Disabled" disabled onPress={noop} />
@@ -261,7 +259,7 @@ export default function ComponentGalleryScreen() {
             <PromptButtonRow
               buttons={PROMPT_BUTTONS}
               onPress={noop}
-              lead={<Chip variant="lead" icon="sparkle" label="Post ideas" onPress={noop} />}
+              lead={<Chip icon="sparkle" label="Post ideas" onPress={noop} />}
             />
           </AssistantTray>
         </Specimen>
@@ -408,11 +406,9 @@ export default function ComponentGalleryScreen() {
     return (
       <>
         <Specimen name="Badge">
-          <Badge label="Archived" tone="danger" />
-          <Badge label="Verified" tone="success" />
-          <Badge label="New" tone="accent" />
-          <Badge label="Beta" tone="info" />
-          <ChangedBadge />
+          {(['neutral', 'accent', 'info', 'success', 'warning', 'danger'] as const).map((tone) => (
+            <Badge key={tone} label={tone} tone={tone} />
+          ))}
         </Specimen>
         <Specimen name="SelectIndicator">
           <SelectIndicator isSelected />

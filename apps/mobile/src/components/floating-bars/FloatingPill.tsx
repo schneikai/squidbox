@@ -1,18 +1,17 @@
-import { BlurView } from 'expo-blur';
 import { Children, isValidElement } from 'react';
 import { StyleSheet, View, type ViewProps } from 'react-native';
 
 import type { ButtonProps } from '@/components/Button';
 import FadedGroupContext from '@/components/FadedGroupContext';
+import GlassSurface from '@/components/GlassSurface';
 import IconSlotContext from '@/components/IconSlotContext';
-import { colors, disabledOpacity, layout, litGlass, radii, shadows } from '@/styles/designTokens';
+import { colors, disabledOpacity, layout, radii, shadows } from '@/styles/designTokens';
 
 export type FloatingPillProps = Pick<ViewProps, 'children' | 'style'>;
 
 /**
- * A toolbar: the frosted-glass pill that groups the buttons that belong together, one button tall
- * with a thin frame around them. Wraps content in a BlurView with a soft shadow and a lit edge
- * (shadows.litEdge) drawn inside it, no border. Its tertiary icon buttons each take a 44 pt slot
+ * A toolbar: the frosted-glass pill (GlassSurface) that groups the buttons that belong together, one
+ * button tall with a thin frame around them. Its tertiary icon buttons each take a 44 pt slot
  * (IconSlotContext), so their icons sit apart like discs. A toolbar that is only the primary button
  * is violet instead of glass, so it reads as one bigger button with the same rim (shadows.litEdgeAccent),
  * and while that button is off the whole toolbar fades as one, rim and shadow too.
@@ -25,20 +24,16 @@ export default function FloatingPill({ children, style }: FloatingPillProps) {
     const isOff = onlyButton.props.disabled || onlyButton.props.loading;
     return (
       <View style={[styles.shadow, isOff && styles.off, style]}>
-        <View style={[styles.surface, styles.primarySurface]}>
+        <View style={[styles.row, styles.primarySurface]}>
           <FadedGroupContext.Provider value>{children}</FadedGroupContext.Provider>
         </View>
       </View>
     );
   }
   return (
-    <View style={[styles.shadow, style]}>
-      <BlurView intensity={80} tint="light" style={styles.blur}>
-        <View style={styles.surface}>
-          <IconSlotContext.Provider value>{children}</IconSlotContext.Provider>
-        </View>
-      </BlurView>
-    </View>
+    <GlassSurface radius={radii.pill} style={[styles.shrinks, style]} contentStyle={styles.row}>
+      <IconSlotContext.Provider value>{children}</IconSlotContext.Provider>
+    </GlassSurface>
   );
 }
 
@@ -49,6 +44,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   primarySurface: {
+    borderRadius: radii.pill,
     backgroundColor: colors.accent.frame,
     ...shadows.litEdgeAccent,
   },
@@ -56,14 +52,10 @@ const styles = StyleSheet.create({
   off: {
     opacity: disabledOpacity,
   },
-  blur: {
-    borderRadius: radii.pill,
-    overflow: 'hidden',
+  shrinks: {
+    flexShrink: 1,
   },
-  surface: {
-    ...litGlass,
-    ...shadows.litEdge,
-    borderRadius: radii.pill,
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: layout.toolbarFrame,

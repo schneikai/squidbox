@@ -1,17 +1,16 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { colors, layout, radii, space, textStyles } from '@/styles/designTokens';
+import Badge from '@/components/Badge';
+import { space } from '@/styles/designTokens';
 
-/** The lists a contact is in, each a small grey pill, wrapping onto more lines (a contact row's). */
+/** The lists a contact is in, each a grey Badge, wrapping onto more lines (a contact row's). */
 type ContactListPillsProps = { names: string[] };
 
 export default function ContactListPills({ names }: ContactListPillsProps) {
   return (
     <View style={styles.pills} accessibilityLabel={`Lists: ${names.join(', ')}`}>
       {names.map((name, index) => (
-        <Text key={`${index}-${name}`} style={[textStyles.footnoteBold, styles.pill]} numberOfLines={1}>
-          {name}
-        </Text>
+        <Badge key={`${index}-${name}`} label={name} tone="neutral" numberOfLines={1} />
       ))}
     </View>
   );
@@ -23,13 +22,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: space.xs,
     marginTop: space.xs,
-  },
-  pill: {
-    overflow: 'hidden',
-    borderRadius: radii.pill,
-    paddingHorizontal: layout.capsulePaddingX,
-    paddingVertical: layout.capsulePaddingY,
-    backgroundColor: colors.background.muted,
-    color: colors.text.muted,
   },
 });

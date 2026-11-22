@@ -28,6 +28,7 @@ export default function ChatTagsSheet({ isVisible, onClose, tags, onEditTags, di
       <View style={styles.body}>
         <IntroText>What the assistant sees in these photos. It writes from these tags.</IntroText>
         <TagsField
+          isFlush
           tags={tags}
           onChange={(next) => onEditTags(tagsDifference(tags, next))}
           placeholder="No tags"

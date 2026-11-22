@@ -15,6 +15,7 @@ import FadedGroupContext from '@/components/FadedGroupContext';
 import GradientFill from '@/components/GradientFill';
 import Icon, { type IconName } from '@/components/Icon';
 import IconSlotContext from '@/components/IconSlotContext';
+import InkContext, { type Ink } from '@/components/InkContext';
 import { colors, disabledOpacity, layout, press, radii, scale, sizes, space, textStyles } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 
@@ -126,15 +127,16 @@ export default function Button({
 }: ButtonProps) {
   const hasIconSlot = useContext(IconSlotContext);
   const isFadedByGroup = useContext(FadedGroupContext);
+  const ink = useContext(InkContext);
   const shape = shapeFor(variant, label);
   const palette = colorPalette ?? defaultPalette(shape, variant);
   const isInactive = disabled || loading;
   if (__DEV__) warnOnce(combinationProblem({ variant, icon, label, size, iconCount, isInverse, palette, hasChevron }));
 
-  const color = contentColor({ variant, palette, isSelected, isInverse });
+  const color = contentColor({ variant, palette, isSelected, isInverse }, ink);
   const iconSize = ICON_SIZES[shape][size];
   const box = boxFor(shape, size, iconSize, hasIconSlot);
-  const fill = fillFor({ shape, variant, palette, isSelected, isInverse });
+  const fill = fillFor({ shape, variant, palette, isSelected, isInverse }, ink);
   const pillFill = shape === 'pill' && [styles.pillFill, PILL_FILL_SIZE_STYLES[size]];
   const content = (
     <Content {...{ icon, label, loading, color, iconSize, filled, iconCount, hasChevron, shape, size }} />
@@ -243,22 +245,27 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, has
 
 type Look = { variant: ButtonVariant; palette: Palette; isSelected: boolean; isInverse: boolean };
 
-function contentColor({ variant, palette, isSelected, isInverse }: Look) {
+function contentColor({ variant, palette, isSelected, isInverse }: Look, ink: Ink) {
   if (variant === 'primary') return colors.text.inverse;
   if (variant === 'secondary' && (palette === 'danger' || isInverse)) return colors.text.inverse;
   if (isSelected) return palette === 'favorite' ? colors.status.danger : colors.accent.base;
   if (isInverse) return INVERSE_PALETTE[palette];
+  // Neutral and muted are the ink's on a tinted surface (InkContext).
+  if (palette === 'neutral') return ink.primary;
+  if (palette === 'muted' || palette === 'favorite') return ink.secondary;
   return PALETTE[palette];
 }
 
-// A secondary's fill (a primary's is its gradient; a tertiary has none).
-function fillFor({ shape, variant, palette, isSelected, isInverse }: Look & { shape: Shape }) {
+// A secondary's fill (a primary's is its gradient; a tertiary has none). A grey one is the ink's
+// (InkContext), see-through like a tag chip's.
+function fillFor({ shape, variant, palette, isSelected, isInverse }: Look & { shape: Shape }, ink: Ink) {
   if (variant !== 'secondary') return null;
-  if (shape === 'pill') return styles.mutedFill;
+  const mutedFill = { backgroundColor: ink.fill };
+  if (shape === 'pill') return mutedFill;
   if (isInverse) return styles.inverseFill;
   if (palette === 'danger') return styles.dangerFill;
   if (isSelected || palette === 'accent') return styles.accentFill;
-  return styles.mutedFill;
+  return mutedFill;
 }
 
 // Everything filled dims and shrinks; a link or a bare icon fades.
@@ -323,9 +330,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  mutedFill: {
-    backgroundColor: colors.overlay.pressed,
   },
   inverseFill: {
     backgroundColor: colors.overlay.dim,
