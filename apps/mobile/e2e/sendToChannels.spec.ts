@@ -111,7 +111,7 @@ test("Use on an idea in a copy's composer puts in the chip of a name the idea ma
 
   await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();
   // A chip, so the copy says Sam has no X handle.
-  await expect(editor.getByText('Sam Ridge has no X handle')).toBeVisible();
+  await expect(editor.getByText('Sam Ridge has no X handle.')).toBeVisible();
   await withDialog(
     page,
     (dialog) => dialog.accept(),
@@ -139,10 +139,10 @@ test("a copy warns about a contact without a handle there until Add handle, and 
 }) => {
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   const card = copyCard(sendSheet(page), 'Instagram');
-  await expect(card.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
+  await expect(card.getByText('Sam Ridge has no Instagram handle.')).toBeVisible();
   await button(card, 'Edit').click();
   const editor = page.getByTestId('channel-copy-editor');
-  await expect(editor.getByText('Sam Ridge has no Instagram handle')).toBeVisible();
+  await expect(editor.getByText('Sam Ridge has no Instagram handle.')).toBeVisible();
   // The note's own Add handle, as on the card.
   await expect(button(editor, 'Add handle')).toBeVisible();
   await button(editor, 'Back').click();
@@ -152,7 +152,7 @@ test("a copy warns about a contact without a handle there until Add handle, and 
     (dialog) => dialog.accept('samridge.pics'),
     () => button(card, 'Add handle').click(),
   );
-  await expect(card.getByText('Sam Ridge has no Instagram handle')).toBeHidden();
+  await expect(card.getByText('Sam Ridge has no Instagram handle.')).toBeHidden();
 
   await button(card, 'Send now').click();
   await expect(card.getByText(/^Sent /)).toBeVisible();

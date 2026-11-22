@@ -1,4 +1,4 @@
-import type { Channel } from '@squidbox/shared';
+import { CONTACT_HANDLE_BY_FIELD, type Channel } from '@squidbox/shared';
 
 import AddHandleButton from './AddHandleButton';
 import type { MentionContact } from './mentionHandle';
@@ -15,19 +15,16 @@ type MissingHandleNoteProps = {
 
 /**
  * The warning on a channel copy (its card, its composer) that mentions contacts without a handle on
- * the channel: their names go out as plain text. Add handle under it (AddHandleButton) stores one.
+ * the channel (their chips show the name): their names go out as plain text. It names the handle the
+ * channel uses (handleField), so OnlyFans PPV says OnlyFans. Add handle under it (AddHandleButton) stores one.
  * Nothing without such a contact. style is for layout only.
  */
 export default function MissingHandleNote({ contacts, channel, style }: MissingHandleNoteProps) {
   if (contacts.length === 0) return null;
 
-  const names = joinWords(contacts.map((contact) => contact.name));
-
   return (
     <WarningNote style={style} action={<AddHandleButton contacts={contacts} channel={channel} />}>
-      {contacts.length === 1
-        ? `${names} has no ${channel.name} handle. Using the name instead.`
-        : `${names} have no ${channel.name} handle. Using their names instead.`}
+      {`${joinWords(contacts.map(({ name }) => name))} ${contacts.length === 1 ? 'has' : 'have'} no ${CONTACT_HANDLE_BY_FIELD[channel.handleField].label} handle.`}
     </WarningNote>
   );
 }

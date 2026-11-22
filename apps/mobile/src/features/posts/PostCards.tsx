@@ -9,7 +9,7 @@ import hasCardContent from './draft/hasCardContent';
 import nextCardKey from './draft/nextCardKey';
 
 import ThreadConnector from '@/components/ThreadConnector';
-import WarningNote from '@/components/WarningNote';
+import NoThreadsNote from '@/features/channels/NoThreadsNote';
 import type { TextApplier } from '@/features/post-chat/chatSessions';
 import toChatDraftPost from '@/features/post-chat/toChatDraftPost';
 import IdeasTray from '@/features/post-ideas/IdeasTray';
@@ -133,9 +133,7 @@ export default function PostCards({
           />
         </View>
       ))}
-      {!hasThreads && cards.length > 1 && (
-        <WarningNote style={styles.note}>{`${channel?.name} has no threads.`}</WarningNote>
-      )}
+      <NoThreadsNote postCount={cards.length} channel={channel} style={styles.note} />
       {sheet}
     </View>
   );
