@@ -10,6 +10,7 @@ import useTitleMaxWidth from './useTitleMaxWidth';
 import useTitleReveal, { type TitleReveal } from './useTitleReveal';
 
 import Button from '@/components/Button';
+import ScrollEdgeFade from '@/components/ScrollEdgeFade';
 import useSheetRoute from '@/hooks/useSheetRoute';
 import { layout, sizes, space } from '@/styles/designTokens';
 
@@ -27,7 +28,8 @@ export type FloatingDetailHeaderProps = {
 
 /**
  * Three-part floating header for detail screens, mirroring the main screen
- * floating-bars layout:
+ * floating-bars layout. The title is plain text, as a sheet's (ModalHeader), over the scroll edge
+ * (ScrollEdgeFade) that what scrolls under the header fades out behind:
  *
  *   [‹]          title / subtitle          [•••]
  *
@@ -70,55 +72,58 @@ export default function FloatingDetailHeader({
   );
 
   return (
-    <View
-      // Inside a modal sheet the top safe-area inset is ~0, so insets.top + space.sm would leave the
-      // pills hugging the sheet's top edge. Floor the offset at layout.barMargin so it matches
-      // ModalHeader's top gap in sheets, while full screens (large insets.top) keep insets.top + space.sm.
-      style={[styles.container, { top }]}
-      pointerEvents="box-none"
-    >
-      <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
-        {/* Centre — rendered first so it sits below the pills in z-order;
+    <>
+      <ScrollEdgeFade headerBottom={top + sizes.iconButton} scrollY={titleReveal?.scrollY} />
+      <View
+        // Inside a modal sheet the top safe-area inset is ~0, so insets.top + space.sm would leave the
+        // pills hugging the sheet's top edge. Floor the offset at layout.barMargin so it matches
+        // ModalHeader's top gap in sheets, while full screens (large insets.top) keep insets.top + space.sm.
+        style={[styles.container, { top }]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.row} pointerEvents="box-none" onLayout={onRowLayout}>
+          {/* Centre — rendered first so it sits below the pills in z-order;
           pointerEvents="none" ensures touches pass through to the pills above */}
-        {(!!title || !!subtitle) && titleArea.isMounted && (
-          <Animated.View
-            style={[styles.infoArea, titleArea.style]}
-            pointerEvents="none"
-            // A scroll-revealed title repeats the page's own, which screen readers already read.
-            accessibilityElementsHidden={!!titleReveal}
-            importantForAccessibility={titleReveal ? 'no-hide-descendants' : 'auto'}
-          >
-            <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
+          {(!!title || !!subtitle) && titleArea.isMounted && (
+            <Animated.View
+              style={[styles.infoArea, titleArea.style]}
+              pointerEvents="none"
+              // A scroll-revealed title repeats the page's own, which screen readers already read.
+              accessibilityElementsHidden={!!titleReveal}
+              importantForAccessibility={titleReveal ? 'no-hide-descendants' : 'auto'}
+            >
+              <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
+            </Animated.View>
+          )}
+
+          {/* Left — back chevron pill */}
+          <Animated.View style={leftStyle} pointerEvents={isSelectMode ? 'none' : 'auto'} onLayout={onLeftLayout}>
+            <FloatingPill style={styles.backPill}>
+              <Button
+                icon={closesSheet ? 'close' : 'chevron-left'}
+                onPress={onBack}
+                accessibilityLabel={closesSheet ? 'Close' : 'Back'}
+              />
+            </FloatingPill>
           </Animated.View>
-        )}
 
-        {/* Left — back chevron pill */}
-        <Animated.View style={leftStyle} pointerEvents={isSelectMode ? 'none' : 'auto'} onLayout={onLeftLayout}>
-          <FloatingPill style={styles.backPill}>
-            <Button
-              icon={closesSheet ? 'close' : 'chevron-left'}
-              onPress={onBack}
-              accessibilityLabel={closesSheet ? 'Close' : 'Back'}
-            />
-          </FloatingPill>
-        </Animated.View>
+          {/* Right — menu / action pill */}
+          {!!menuSlot && (
+            <View onLayout={onRightLayout}>
+              <FloatingPill style={styles.menuPill}>{menuSlot}</FloatingPill>
+            </View>
+          )}
 
-        {/* Right — menu / action pill */}
-        {!!menuSlot && (
-          <View onLayout={onRightLayout}>
-            <FloatingPill style={styles.menuPill}>{menuSlot}</FloatingPill>
+          {/* Placeholder so rightWidth is measured even when there is no menuSlot */}
+          {!menuSlot && <View pointerEvents="none" onLayout={onRightLayout} style={styles.emptyRightMeasure} />}
+        </View>
+        {children && (
+          <View style={styles.below} pointerEvents="box-none">
+            {children}
           </View>
         )}
-
-        {/* Placeholder so rightWidth is measured even when there is no menuSlot */}
-        {!menuSlot && <View pointerEvents="none" onLayout={onRightLayout} style={styles.emptyRightMeasure} />}
       </View>
-      {children && (
-        <View style={styles.below} pointerEvents="box-none">
-          {children}
-        </View>
-      )}
-    </View>
+    </>
   );
 }
 

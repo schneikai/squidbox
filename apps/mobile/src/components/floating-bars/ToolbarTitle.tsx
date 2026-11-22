@@ -1,45 +1,37 @@
 import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import FloatingPill from './FloatingPill';
-
 import { colors, layout, sizes, textStyles } from '@/styles/designTokens';
 
-export type ToolbarTitleProps = { title?: string; subtitle?: string; isPlain?: boolean; style?: StyleProp<ViewStyle> };
+export type ToolbarTitleProps = { title?: string; subtitle?: string; style?: StyleProp<ViewStyle> };
 
-// Text in a toolbar: a FloatingPill one button tall with a one-line `title` and an optional smaller
-// `subtitle` under it (a photo's date and place). `isPlain` drops the pill for a bolder title on its
-// own, as a sheet's header has it (ModalHeader). It takes no touches. style is for layout only (a max width).
-export default function ToolbarTitle({ title, subtitle, isPlain = false, style }: ToolbarTitleProps) {
-  const content = (
-    <View style={[styles.content, !!subtitle && styles.twoLines]} pointerEvents="none">
+// A header's title: a bold one-line `title` and an optional smaller grey `subtitle` under it (a photo's
+// date and place), plain text over the scroll edge (ScrollEdgeFade), never in a pill, as iOS 26 has it.
+// One button tall. It takes no touches. style is for layout only (a max width).
+export default function ToolbarTitle({ title, subtitle, style }: ToolbarTitleProps) {
+  return (
+    <View style={[styles.frame, !!subtitle && styles.twoLines, style]} pointerEvents="none">
       {!!title && (
-        <Text testID="toolbar-title" style={[styles.title, isPlain && styles.plainTitle]} numberOfLines={1}>
+        <Text testID="toolbar-title" style={styles.title} numberOfLines={1}>
           {title}
         </Text>
       )}
       {!!subtitle && (
-        <Text style={[styles.subtitle, isPlain && styles.plainSubtitle]} numberOfLines={1}>
+        <Text style={styles.subtitle} numberOfLines={1}>
           {subtitle}
         </Text>
       )}
     </View>
   );
-
-  if (isPlain) return <View style={[styles.pill, style]}>{content}</View>;
-  return <FloatingPill style={[styles.pill, style]}>{content}</FloatingPill>;
 }
 
 const styles = StyleSheet.create({
-  pill: {
+  frame: {
     maxWidth: '100%',
     minWidth: 80,
     alignSelf: 'center',
-  },
-  content: {
     minHeight: sizes.iconButton,
     justifyContent: 'center',
     alignItems: 'center',
-    flexGrow: 1, // fills a pill held at its minWidth, so a short title stays centred in it
     flexShrink: 1,
     // eslint-disable-next-line no-restricted-syntax -- optical: a title's ends want more room than a button's
     paddingHorizontal: layout.barPaddingX * 1.25,
@@ -54,10 +46,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flexShrink: 1,
   },
-  plainTitle: textStyles.bodyBold,
-  plainSubtitle: textStyles.footnote,
   subtitle: {
-    ...textStyles.caption2,
+    ...textStyles.caption1,
     color: colors.text.secondary,
     textAlign: 'center',
     flexShrink: 1,

@@ -2,24 +2,20 @@ import { useNavigation } from 'expo-router';
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, interpolate, Extrapolation, type SharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AccountButton from './AccountButton';
 import FloatingPill from './FloatingPill';
-import ToolbarTitle from './ToolbarTitle';
 import useSelectModeProgress from './useSelectModeProgress';
-import useTitleReveal from './useTitleReveal';
 
 import Button from '@/components/Button';
-import { colors, layout, space, textStyles } from '@/styles/designTokens';
-
-// The scroll offset (pt) by which the large title is gone and the small one starts to show.
-const COMPACT_FROM = 40;
+import ScrollEdgeFade from '@/components/ScrollEdgeFade';
+import { colors, layout, sizes, space, textStyles } from '@/styles/designTokens';
 
 export type FloatingHeaderProps = {
   title: string;
-  /** The screen's own scroll offset (useScrollY): the title fades as it scrolls. */
+  /** The screen's own scroll offset (useScrollY): the scroll edge shows once content goes under the header. */
   scrollY: SharedValue<number>;
   onAdd: () => void;
 } & (
@@ -41,21 +37,14 @@ export default function FloatingHeader({ title, scrollY, onAdd, selection, selec
   const isSelectMode = selection?.isSelectMode ?? false;
 
   // ── Animated styles (must be called before any conditional return) ─────────
-  // As the list scrolls, the large title gives way to a small one in a pill (ToolbarTitle), so the tab
-  // keeps its name on screen over the content (HIG, Toolbars: a large title turns into a standard one).
-  // The scroll parts follow the finger; select mode animates once per change (selectProgress).
+  // The large title stays as the list scrolls, over the scroll edge (ScrollEdgeFade): a tab has no room
+  // for a centred small title between its buttons. Select mode animates once per change (selectProgress).
   const selectProgress = useSelectModeProgress(isSelectMode);
-  const titleStyle = useAnimatedStyle(() => {
-    const scrollOpacity = interpolate(scrollY.value, [0, COMPACT_FROM], [1, 0], Extrapolation.CLAMP);
-    const scrollY_ = interpolate(scrollY.value, [0, COMPACT_FROM], [0, -8], Extrapolation.CLAMP);
-    return {
-      opacity: scrollOpacity * (1 - selectProgress.value),
-      transform: [{ translateY: scrollY_ }, { translateX: -24 * selectProgress.value }],
-      pointerEvents: isSelectMode ? 'none' : 'auto',
-    };
-  });
-
-  const compactTitle = useTitleReveal({ scrollY, from: COMPACT_FROM }, selectProgress);
+  const titleStyle = useAnimatedStyle(() => ({
+    opacity: 1 - selectProgress.value,
+    transform: [{ translateX: -24 * selectProgress.value }],
+    pointerEvents: isSelectMode ? 'none' : 'auto',
+  }));
 
   // Normal controls (action pill + account) fade out in select mode
   const normalStyle = useAnimatedStyle(() => ({
@@ -77,42 +66,38 @@ export default function FloatingHeader({ title, scrollY, onAdd, selection, selec
   }
 
   return (
-    <View style={[styles.container, { top: insets.top }]} pointerEvents="box-none">
-      {/* Page title */}
-      <Animated.Text style={[styles.title, titleStyle]} accessibilityRole="header">
-        {title}
-      </Animated.Text>
+    <>
+      <ScrollEdgeFade headerBottom={insets.top + HEADER_ROW_HEIGHT} scrollY={scrollY} />
+      <View style={[styles.container, { top: insets.top }]} pointerEvents="box-none">
+        {/* Page title */}
+        <Animated.Text style={[styles.title, titleStyle]} accessibilityRole="header">
+          {title}
+        </Animated.Text>
 
-      {/* Small title, once the list is scrolled */}
-      {compactTitle.isMounted && (
-        <Animated.View
-          style={[styles.compactTitle, compactTitle.style]}
-          pointerEvents="none"
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-        >
-          <ToolbarTitle title={title} />
+        {/* Normal mode: action pill + account */}
+        <Animated.View style={[styles.rightGroup, normalStyle]}>
+          <FloatingPill>
+            {selection && (
+              <Button icon="check-circle" onPress={selection.toggleSelectMode} accessibilityLabel="Select" />
+            )}
+            <Button variant="primary" icon="add" onPress={onAdd} accessibilityLabel="Add" />
+          </FloatingPill>
+          <AccountButton onPress={handleSettings} />
         </Animated.View>
-      )}
 
-      {/* Normal mode: action pill + account */}
-      <Animated.View style={[styles.rightGroup, normalStyle]}>
-        <FloatingPill>
-          {selection && <Button icon="check-circle" onPress={selection.toggleSelectMode} accessibilityLabel="Select" />}
-          <Button variant="primary" icon="add" onPress={onAdd} accessibilityLabel="Add" />
-        </FloatingPill>
-        <AccountButton onPress={handleSettings} />
-      </Animated.View>
-
-      {/* Select mode pill */}
-      {selection && (
-        <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
-          <FloatingPill>{selectionSlot}</FloatingPill>
-        </Animated.View>
-      )}
-    </View>
+        {/* Select mode pill */}
+        {selection && (
+          <Animated.View style={[styles.pillWrapper, selectPillStyle]}>
+            <FloatingPill>{selectionSlot}</FloatingPill>
+          </Animated.View>
+        )}
+      </View>
+    </>
   );
 }
+
+// The header's row under the safe area: a button with the container's padding (styles.container).
+const HEADER_ROW_HEIGHT = sizes.iconButton + space.sm * 2;
 
 const styles = StyleSheet.create({
   container: {
@@ -128,13 +113,6 @@ const styles = StyleSheet.create({
     ...textStyles.title1,
     color: colors.text.primary,
     flex: 1,
-  },
-  compactTitle: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
   },
   rightGroup: {
     flexDirection: 'row',

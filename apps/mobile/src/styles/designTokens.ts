@@ -25,9 +25,6 @@ const palette = {
   gray60: '#F5F5F8',
   gray100: '#F0F0F0',
   gray300: '#D3D3D3',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray600: '#4B5563',
   gray900: '#111827',
   violet50: '#F5F3FF',
   violet75: '#EFEDF8', // the page gray with a touch of lavender
@@ -59,10 +56,13 @@ const palette = {
 // name it here by purpose.
 export const colors = {
   text: {
+    // The greys are `primary` see-through, so they keep their contrast on any surface (white, the page,
+    // glass, the tray), as iOS's secondary and tertiary labels do. Each matches the opaque grey it
+    // replaced on the page.
     primary: palette.gray900,
-    secondary: palette.gray500, // details, inactive icons
-    muted: palette.gray600, // details on a grey or yellow fill, where `secondary` would fade ("+3", a duplicate's reason)
-    tertiary: palette.gray400, // placeholders and disabled text only, too faint for copy
+    secondary: alpha(palette.gray900, 0.6), // details, inactive icons
+    muted: alpha(palette.gray900, 0.74), // details on a grey or yellow fill, where `secondary` would fade ("+3", a duplicate's reason)
+    tertiary: alpha(palette.gray900, 0.38), // placeholders and disabled text only, too faint for copy
     status: alpha(palette.black, 0.3), // the assistant's Thinking line: see-through, so it greys on any surface
     inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
   },
@@ -99,6 +99,8 @@ export const colors = {
     // The page gradient: a soft gray, never white, so white cards (`surface`) stand clear of it.
     app: [palette.gray75, palette.gray60, palette.violet75] as const,
     base: palette.gray75, // a sheet or screen without the gradient
+    edgeVeil: alpha(palette.gray75, 0.88), // the page's color over a scroll edge's blur, at its top (ScrollEdgeFade)
+    baseClear: alpha(palette.gray75, 0), // `base` faded out, the end of a scroll edge
     surface: palette.white, // opaque, for a surface over media that mustn't show it through
     glass: alpha(palette.white, 0.95),
     litGlass: alpha('#F6F6F8', 0.94), // a floating pill: a hair off-white, so its white rim shows
@@ -329,6 +331,7 @@ export const FONT_LINE = 1.2;
 // line tall, a time's room).
 export const typography = {
   caption2: scale(11),
+  caption1: scale(12),
   footnote: scale(13),
   subheadline: scale(15),
   body: scale(17),
@@ -338,6 +341,7 @@ export const typography = {
 
 export const lineHeights = {
   caption2: scale(13),
+  caption1: scale(16),
   footnote: scale(18),
   subheadline: scale(20),
   body: scale(22),
@@ -347,12 +351,13 @@ export const lineHeights = {
 };
 
 // Apple's iOS text styles at their default (Large) sizes with their line heights: caption2,
-// footnote, subheadline and body in regular and semibold, `reading` (body, looser) for long text
+// caption1, footnote, subheadline and body in regular and semibold, `reading` (body, looser) for long text
 // someone reads or writes, and the two titles, bold. Every text in the app is one of these.
 export const textStyles = {
   caption2: { fontSize: typography.caption2, lineHeight: lineHeights.caption2 }, // a log's details
-  // a badge over a thumbnail, a toolbar's subtitle, a grid cell's label
+  // a badge over a thumbnail, a grid cell's label
   caption2Bold: { fontSize: typography.caption2, lineHeight: lineHeights.caption2, fontWeight: '600' },
+  caption1: { fontSize: typography.caption1, lineHeight: lineHeights.caption1 }, // a header's subtitle (ToolbarTitle)
   footnote: { fontSize: typography.footnote, lineHeight: lineHeights.footnote }, // a hint, a footer, a log line, a video's time
   // a field's or group's label, the caption under a post or an album, a small or disc button's label
   footnoteBold: { fontSize: typography.footnote, lineHeight: lineHeights.footnote, fontWeight: '600' },

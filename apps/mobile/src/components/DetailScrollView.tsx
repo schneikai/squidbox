@@ -1,15 +1,17 @@
-import { ScrollView, type ScrollViewProps, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import Animated, { type AnimatedScrollViewProps } from 'react-native-reanimated';
 
 import { SCREEN_PADDING } from '@/constants';
 import useScreenPadding from '@/hooks/useScreenPadding';
 
-export type DetailScrollViewProps = ScrollViewProps;
+export type DetailScrollViewProps = AnimatedScrollViewProps;
 
 /**
  * Scrollable body for Page-based detail screens (stack screens using
  * FloatingDetailHeader). Owns the useScreenPadding('detail') call,
  * applies paddingHorizontal: SCREEN_PADDING and correct top/bottom insets
- * to the content container, and enables automaticallyAdjustKeyboardInsets.
+ * to the content container, and enables automaticallyAdjustKeyboardInsets. An Animated.ScrollView, so
+ * useScrollY's onScroll can drive the header's title (FloatingDetailHeader's titleReveal).
  *
  * Style boundaries:
  *   style               → outer ScrollView (scroll container itself; rare)
@@ -21,14 +23,14 @@ export default function DetailScrollView({ children, style, contentContainerStyl
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
 
   return (
-    <ScrollView
+    <Animated.ScrollView
       style={style}
       contentContainerStyle={[styles.content, { paddingTop, paddingBottom }, contentContainerStyle]}
       automaticallyAdjustKeyboardInsets
       {...rest}
     >
       {children}
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
