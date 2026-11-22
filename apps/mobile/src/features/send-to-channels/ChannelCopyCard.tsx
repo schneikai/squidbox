@@ -36,7 +36,7 @@ type ChannelCopyCardProps = {
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread, its size. Unsent, it warns about the contacts without a handle there (their
  * names go out as plain text, with Add handle: MissingHandleNote) and, for a thread on a channel
- * without threads, that it goes out as one post (NoThreadsNote); it has Send now and Edit, and Remove in its ⋯; saved in
+ * without threads, that it goes out as one post (NoThreadsNote); it has Send now and Edit, and Remove in the ⋯ beside them; saved in
  * its composer, it says Edited and has Discard changes in its ⋯ (it shows the post again); sent, it
  * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
  * (`onOpen`: all of its posts and pictures).
@@ -62,12 +62,26 @@ export default function ChannelCopyCard({
   return (
     <PostRowCard asset={asset} moreCount={more.length} onPress={onOpen} openLabel={`Open the ${channel.name} copy`}>
       <View testID="channel-copy-card" accessibilityLabel={`${channel.name} copy`} style={styles.body}>
-        <View style={styles.head}>
-          <View style={styles.channel}>
-            <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
-            <Text variant="label">{channel.name}</Text>
-            {isEdited && <Badge label="Edited" tone="info" />}
-          </View>
+        <View style={styles.channel}>
+          <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
+          <Text variant="label">{channel.name}</Text>
+          {isEdited && <Badge label="Edited" tone="info" />}
+        </View>
+        {first && (
+          <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
+        )}
+        {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
+        {!isSent && <NoThreadsNote postCount={copy.posts.length} channel={channel} />}
+        {!isSent && <MissingHandleNote contacts={missing} channel={channel} />}
+        <View style={styles.actions}>
+          {copy.sentAt !== null ? (
+            <Text variant="hint">{copySentText(copy.sentAt)}</Text>
+          ) : (
+            <>
+              <Button variant="primary" size="small" label="Send now" onPress={onSendNow} />
+              <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
+            </>
+          )}
           <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
             {isSent ? (
               <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
@@ -79,20 +93,6 @@ export default function ChannelCopyCard({
             )}
           </MenuButton>
         </View>
-        {first && (
-          <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
-        )}
-        {copy.posts.length > 1 && <RNText style={listTextStyles.caption}>{threadLabel(copy.posts.length)}</RNText>}
-        {!isSent && <NoThreadsNote postCount={copy.posts.length} channel={channel} />}
-        {!isSent && <MissingHandleNote contacts={missing} channel={channel} />}
-        {copy.sentAt !== null ? (
-          <Text variant="hint">{copySentText(copy.sentAt)}</Text>
-        ) : (
-          <View style={styles.actions}>
-            <Button variant="primary" size="small" label="Send now" onPress={onSendNow} />
-            <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
-          </View>
-        )}
       </View>
     </PostRowCard>
   );
@@ -100,11 +100,6 @@ export default function ChannelCopyCard({
 
 const styles = StyleSheet.create({
   body: {
-    gap: layout.cardGap,
-  },
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: layout.cardGap,
   },
   channel: {
