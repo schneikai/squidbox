@@ -1,5 +1,6 @@
-import { CONTACT_HANDLES } from '@squidbox/shared';
+import { CONTACT_HANDLE_FIELDS, type Channel } from '@squidbox/shared';
 
+import mentionChannels from './mentionChannels';
 import mentionHandle, { type MentionContact } from './mentionHandle';
 
 import { searchForms } from '@/sync/matchingIds';
@@ -20,16 +21,19 @@ export type MentionEntry = {
   handleForms: string[];
 };
 
-/** The contacts as mentionSuggestions matches them, every one, with or without a handle. */
-export function mentionEntries(contacts: readonly MentionContact[]): MentionEntry[] {
+/**
+ * The contacts as mentionSuggestions matches them, every one, with or without a handle: by any of
+ * their handles, each row showing those on the user's `channels` (mentionChannels).
+ */
+export function mentionEntries(contacts: readonly MentionContact[], channels: readonly Channel[]): MentionEntry[] {
+  const shownChannels = mentionChannels(channels);
   return contacts.map((contact) => {
     const nameForms = searchForms(contact.name);
-    const handles = handlesOf(contact);
     return {
-      suggestion: { contact, handlesText: handlesText(handles) },
+      suggestion: { contact, handlesText: handlesText(handlesOf(contact, shownChannels)) },
       nameForms,
       nameWords: nameForms.flatMap((form) => form.split(/\s+/)),
-      handleForms: handles.flatMap(({ handle }) => searchForms(handle)),
+      handleForms: CONTACT_HANDLE_FIELDS.flatMap((field) => mentionHandle(contact, field) ?? []).flatMap(searchForms),
     };
   });
 }
@@ -68,11 +72,11 @@ export default function mentionSuggestions(
     .map(({ suggestion }) => suggestion);
 }
 
-// A contact's distinct handles (mentionHandle), each with the networks it is on, in the app's order.
-function handlesOf(contact: MentionContact): { handle: string; networks: string[] }[] {
+// A contact's distinct handles (mentionHandle) on `channels`, each with the channels it is on, in their order.
+function handlesOf(contact: MentionContact, channels: readonly Channel[]): { handle: string; networks: string[] }[] {
   const byKey = new Map<string, { handle: string; networks: string[] }>();
-  for (const { field, label } of CONTACT_HANDLES) {
-    const handle = mentionHandle(contact, field);
+  for (const { handleField, name: label } of channels) {
+    const handle = mentionHandle(contact, handleField);
     if (!handle) continue;
     const key = handle.toLowerCase();
     const seen = byKey.get(key);

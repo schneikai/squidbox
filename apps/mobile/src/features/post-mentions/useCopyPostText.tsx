@@ -1,7 +1,8 @@
-import { CHANNELS, type Channel } from '@squidbox/shared';
+import { channelById, type Channel } from '@squidbox/shared';
 import { useState } from 'react';
 
 import CopyTextSheet, { type ChannelChoice } from './CopyTextSheet';
+import mentionChannels from './mentionChannels';
 import type { MentionContact } from './mentionHandle';
 import mentionLabel from './mentionLabel';
 import type { MentionTextValue } from './mentionParts';
@@ -10,6 +11,7 @@ import textForChannel from './textForChannel';
 import validMentions from './validMentions';
 
 import useCopyText from '@/hooks/useCopyText';
+import { readChannels } from '@/sync/channelsRepository';
 import { getDb } from '@/sync/db/client';
 
 type CopyChannel = Pick<Channel, 'handleField'>;
@@ -21,22 +23,21 @@ type Question = { choices: ChannelChoice[]; answer: (isCopied: boolean) => void 
  * Copying a post's text, the one way the app does it (CopyPostTextButton, a post card's or an idea's
  * copy icon): `copyPostText(post, channel?)` copies `post`'s text as a channel gets it
  * (textForChannel), each mention as the contact's handle there. For `channel` (a channel copy's) it
- * copies at once; without one it asks which channel (`sheet`, CopyTextSheet, mounted only while it
- * asks) whenever the channels' texts differ, which is whenever a mentioned contact has a handle
- * somewhere. Resolves to whether a text was copied.
+ * copies at once; without one it asks which of the user's channels (mentionChannels; `sheet`,
+ * CopyTextSheet, mounted only while it asks) whenever their texts differ, which is whenever a
+ * mentioned contact has a handle on one of them. Resolves to whether a text was copied.
  */
 export default function useCopyPostText() {
   const copyText = useCopyText();
   const [question, setQuestion] = useState<Question | null>(null);
 
   async function copyPostText(post: MentionTextValue, channel?: CopyChannel) {
-    const contactsById = await readMentionContacts(getDb(), [post]);
+    const db = getDb();
+    const contactsById = await readMentionContacts(db, [post]);
     const textFor = (each: CopyChannel) => textForChannel(post, contactsById, each);
     if (channel) return copyText(textFor(channel).text.trim());
-    // A channel per handle: OnlyFans PPV goes out as OnlyFans does.
-    const choices = CHANNELS.filter(
-      (each, i) => CHANNELS.findIndex(({ handleField }) => handleField === each.handleField) === i,
-    ).map((each) => {
+    const channels = (await readChannels(db)).flatMap((row) => channelById(row.channelId) ?? []);
+    const choices = mentionChannels(channels).map((each) => {
       const { text, missing } = textFor(each);
       return {
         channel: each,

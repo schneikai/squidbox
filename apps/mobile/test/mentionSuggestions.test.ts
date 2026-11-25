@@ -1,3 +1,4 @@
+import { CHANNELS, type Channel } from '@squidbox/shared';
 import { describe, expect, it } from 'vitest';
 
 import type { MentionContact } from '../src/features/post-mentions/mentionHandle';
@@ -9,8 +10,12 @@ function contact(fields: Partial<MentionContact> & Pick<MentionContact, 'name'>)
 
 const NONE = new Set<string>();
 
-const mentionSuggestions = (contacts: MentionContact[], onPhotoIds: Set<string>, query: string) =>
-  mentionSuggestionsOf(mentionEntries(contacts), onPhotoIds, query);
+const mentionSuggestions = (
+  contacts: MentionContact[],
+  onPhotoIds: Set<string>,
+  query: string,
+  channels: readonly Channel[] = CHANNELS,
+) => mentionSuggestionsOf(mentionEntries(contacts, channels), onPhotoIds, query);
 
 const shown = (suggestions: ReturnType<typeof mentionSuggestions>) =>
   suggestions.map(({ contact: { name }, handlesText }) => `${name}: ${handlesText}`);
@@ -33,6 +38,12 @@ describe('mentionSuggestions', () => {
     expect(shown(mentionSuggestions(contacts, NONE, 'ri'))).toEqual([
       'Mike: @Ridge on X and Bluesky · @ridge.pics on Instagram',
     ]);
+  });
+
+  it("shows only the handles on the user's channels, and still finds a contact by any handle", () => {
+    const contacts = [contact({ name: 'Mike', xHandle: 'ridge', instagramHandle: 'mike.pics' })];
+    const channels = CHANNELS.filter(({ id }) => id === 'x' || id === 'bluesky');
+    expect(shown(mentionSuggestions(contacts, NONE, 'mike.p', channels))).toEqual(['Mike: @ridge on X']);
   });
 
   it('puts favorites first among equal matches, then goes by name', () => {
