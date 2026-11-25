@@ -1,10 +1,11 @@
-import { CONTACT_HANDLES } from '@squidbox/shared';
 import { StyleSheet, View } from 'react-native';
 
+import mentionChannels from './mentionChannels';
 import mentionHandle, { type MentionContact } from './mentionHandle';
 
 import BottomSheet from '@/components/BottomSheet';
 import { Row, Section } from '@/components/settings-list/SettingsList';
+import useChannels from '@/features/channels/useChannels';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import { space } from '@/styles/designTokens';
 
@@ -17,11 +18,13 @@ type MentionContactSheetProps = {
 };
 
 /**
- * Who a mention's chip is, in a sheet: the contact's avatar, its handle on each network (what the
- * chip goes out as there, mentionHandle; "No handle" without one) and, with `onOpenContact`, Open
+ * Who a mention's chip is, in a sheet: the contact's avatar, its handle on each of the user's
+ * channels (mentionChannels: what the chip goes out as there, mentionHandle; "No handle" without one) and, with `onOpenContact`, Open
  * contact for the full page.
  */
 export default function MentionContactSheet({ contact, onClose, onOpenContact }: MentionContactSheetProps) {
+  const channels = useChannels();
+
   return (
     <BottomSheet isVisible={contact != null} onClose={onClose} title={contact?.name ?? ''}>
       {contact && (
@@ -29,12 +32,14 @@ export default function MentionContactSheet({ contact, onClose, onOpenContact }:
           <View style={styles.avatar}>
             <ContactAvatar contact={contact} size="hero" />
           </View>
-          <Section>
-            {CONTACT_HANDLES.map(({ field, label }) => {
-              const handle = mentionHandle(contact, field);
-              return <Row key={field} label={label} value={handle ? `@${handle}` : 'No handle'} />;
-            })}
-          </Section>
+          {channels && (
+            <Section>
+              {mentionChannels(channels).map((channel) => {
+                const handle = mentionHandle(contact, channel.handleField);
+                return <Row key={channel.id} label={channel.name} value={handle ? `@${handle}` : 'No handle'} />;
+              })}
+            </Section>
+          )}
           {onOpenContact && (
             <Section>
               <Row label="Open contact" hasChevron onPress={() => onOpenContact(contact.id)} />

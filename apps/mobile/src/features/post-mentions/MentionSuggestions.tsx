@@ -7,6 +7,7 @@ import mentionSuggestions, { mentionEntries, type MentionSuggestion } from './me
 import Divider from '@/components/Divider';
 import RowSlots from '@/components/RowSlots';
 import Text from '@/components/Text';
+import useChannels from '@/features/channels/useChannels';
 import ContactAvatar from '@/features/contact-avatar/ContactAvatar';
 import useContactRows from '@/features/contact-list/useContactRows';
 import keepFocusOnPress from '@/lib/keepFocusOnPress';
@@ -23,12 +24,16 @@ type MentionSuggestionsProps = {
 /**
  * The contacts (`contactsById`) the @ being typed may mean (`query`, without the @;
  * mentionSuggestions), those on the post's photos (`assetIds`) first, each with its avatar, name and
- * handles; a tap hands the contact to `onPick`. Nothing shows while reading or when no contact matches.
+ * handles on the user's channels; a tap hands the contact to `onPick`. Nothing shows while reading or when no contact matches.
  */
 export default function MentionSuggestions({ query, contactsById, assetIds, onPick }: MentionSuggestionsProps) {
   const onPhotos = useContactRows({ scope: { photoIds: assetIds } });
+  const channels = useChannels();
 
-  const entries = useMemo(() => mentionEntries([...contactsById.values()]), [contactsById]);
+  const entries = useMemo(
+    () => (channels ? mentionEntries([...contactsById.values()], channels) : []),
+    [contactsById, channels],
+  );
   const onPhotoIds = useMemo(() => onPhotos && new Set(onPhotos.map(({ id }) => id)), [onPhotos]);
   const suggestions = useMemo(
     () => (onPhotoIds ? mentionSuggestions(entries, onPhotoIds, query) : []),
