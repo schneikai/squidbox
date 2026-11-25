@@ -25,8 +25,13 @@ describe('channelPayload', () => {
   });
 
   it("joins a thread's captions by a blank line, leaving out an empty one", () => {
-    const { payload } = channelPayload(channelById('instagram')!, posts, contacts);
+    const { payload } = channelPayload(channelById('x')!, posts, contacts);
     expect(payloadText(payload)).toBe('With Sam Ridge 🌲\n\nAnd the light on the way out.');
+  });
+
+  it('sends only the first post of a thread to a channel without threads', () => {
+    const { payload } = channelPayload(channelById('instagram')!, posts, contacts);
+    expect(payload.posts).toEqual([{ caption: 'With Sam Ridge 🌲', assetIds: ['a1'] }]);
   });
 
   it('lists a contact without a handle on the channel once, however many posts mention them', () => {
@@ -35,7 +40,7 @@ describe('channelPayload', () => {
       { text: 'Maya Lindqvist and Sam Ridge', mentions: [mention(maya, 0), mention(sam, 19)], assetIds: [] },
       { text: 'Sam Ridge again', mentions: [mention(sam, 0)], assetIds: [] },
     ];
-    const { missing } = channelPayload(channelById('instagram')!, thread, new Map([...contacts, [maya.id, maya]]));
+    const { missing } = channelPayload(channelById('x')!, thread, new Map([...contacts, [maya.id, maya]]));
     expect(missing.map(({ id }) => id)).toEqual(['maya', 'sam']);
   });
 });

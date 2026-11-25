@@ -74,7 +74,7 @@ test("Remove takes a channel's card away for good, and Add channel brings it bac
     () => page.getByRole('menuitem', { name: 'Remove' }).click(),
   );
   await expect(copyCard(sheet, 'X')).toBeHidden();
-  await button(sheet, 'Close').click();
+  await button(sheet, 'Done').click();
   await expect(sheet).toBeHidden();
 
   await button(post, 'Post options').click();
@@ -181,4 +181,25 @@ test("a repost starts with the post's own copies, unsent, and a card for every o
   // The Bluesky copy is his own, so the repost starts with its text; the Instagram one follows the repost.
   await expect(copyCard(sheet, 'Bluesky').getByText('A whole day under the trees', { exact: false })).toBeVisible();
   await expect(button(sheet, 'Send all')).toBeVisible();
+});
+
+test("a thread's card for a channel without threads sends and shows only its first post, without the thread's size", async ({
+  page,
+}) => {
+  await fromPostMenu(page, 'Summer recap, part 1', 'Send to channels');
+  const sheet = sendSheet(page);
+  await expect(copyCard(sheet, 'Bluesky').getByText('Thread · 4')).toBeVisible();
+  const instagram = copyCard(sheet, 'Instagram');
+  await expect(instagram.getByText(/^Thread/)).toBeHidden();
+  await expect(instagram.getByText(/^No threads/)).toBeHidden();
+  // Opened, it shows only that post too.
+  await instagram.getByText('Instagram', { exact: true }).click();
+  const opened = page.getByTestId('channel-copy-screen');
+  await expect(opened.getByText(/^Summer recap, part 1/)).toBeVisible();
+  await expect(opened.getByText(/^Day two/)).toBeHidden();
+  await button(opened, 'Back').click();
+  await button(instagram, 'Send now').click();
+
+  // One line: the first post only (Sam goes out as his name or, once an earlier test added it, his handle).
+  await expect.poll(() => clipboard(page)).toMatch(/^Summer recap, part 1, with [^\n]+$/);
 });
