@@ -1,10 +1,12 @@
 import type { Channel } from '@squidbox/shared';
+import { router } from 'expo-router';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import DraggableFlatList, { type DragEndParams } from 'react-native-draggable-flatlist';
 
 import PostAsset, { type EditorPostAsset } from './PostAsset';
 
 import Text from '@/components/Text';
+import assetHref from '@/features/asset-list/assetHref';
 import isMediaOver from '@/features/channels/isMediaOver';
 import useHaptics from '@/hooks/useHaptics';
 import { scale, space } from '@/styles/designTokens';
@@ -13,6 +15,8 @@ import countMediaTypes from '@/utils/assets/countMediaTypes';
 import getAssetCountInfo from '@/utils/assets/getAssetCountInfo';
 
 export type PostAssetsEditorProps = {
+  // The post being edited, once saved: its trashed assets open too, as on the post's screen.
+  postId: string | null;
   postAssets: EditorPostAsset[];
   onChange: (postAssets: EditorPostAsset[]) => void;
   channel?: Pick<Channel, 'maxMedia'>;
@@ -20,9 +24,10 @@ export type PostAssetsEditorProps = {
 };
 
 // The post's assets ([{ id, asset }]) as a strip of tiles under its text, nothing until it has one:
-// hold one to reorder, × to take it out. `onChange` gets the new list. With `channel` (a copy's) the
+// tap one to see it (the asset screen, swiping through the strip in its order), hold one to reorder,
+// × to take it out. `onChange` gets the new list. With `channel` (a copy's) the
 // caption counts against its media limit ("2 of 4 Assets"), red over it. style is for layout only.
-export default function PostAssetsEditor({ postAssets, onChange, channel, style }: PostAssetsEditorProps) {
+export default function PostAssetsEditor({ postId, postAssets, onChange, channel, style }: PostAssetsEditorProps) {
   const haptics = useHaptics();
 
   const countInfo =
@@ -30,6 +35,11 @@ export default function PostAssetsEditor({ postAssets, onChange, channel, style 
       ? `${postAssets.length} of ${assetCountText(channel.maxMedia)}`
       : getAssetCountInfo(countMediaTypes(postAssets.map((postAsset) => postAsset.asset)));
   const caption = postAssets.length > 1 ? `${countInfo} · hold to reorder` : countInfo;
+
+  function openPostAsset(postAsset: EditorPostAsset) {
+    const ids = postAssets.map((x) => x.asset.id);
+    router.push(assetHref(postAsset.asset.id, { scope: postId ? { postId } : 'library' }, ids));
+  }
 
   function deletePostAsset(postAsset: EditorPostAsset) {
     onChange(postAssets.filter((x) => x.id !== postAsset.id));
@@ -55,6 +65,7 @@ export default function PostAssetsEditor({ postAssets, onChange, channel, style 
         renderItem={({ item: postAsset, drag, isActive }) => (
           <PostAsset
             postAsset={postAsset}
+            onPress={openPostAsset}
             onDelete={deletePostAsset}
             onLongPress={drag}
             isActive={isActive}

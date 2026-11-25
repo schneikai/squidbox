@@ -22,6 +22,7 @@ import useAssetVideo from '@/features/asset-detail/useAssetVideo';
 import useChromeInsets from '@/features/asset-detail/useChromeInsets';
 import assetQueryFromParams, { type AssetParams } from '@/features/asset-list/assetQueryFromParams';
 import useSheetRoute from '@/hooks/useSheetRoute';
+import listParam from '@/lib/listParam';
 import useAssets from '@/providers/assets/useAssets';
 import { colors } from '@/styles/designTokens';
 import { getDb, schema } from '@/sync/db/client';
@@ -33,7 +34,7 @@ import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 // re-read per write, instead of the whole scope.
 const WINDOW = 30;
 
-// Opened on a tapped asset with the grid's query (the URL params, assetHref). The tapped
+// Opened on a tapped asset with the grid's query, or a listed order (the URL params, assetHref). The tapped
 // asset shows at once, alone; the pager mounts once the query's ids have been read, so it opens on
 // that asset without first painting the scope's first one. The snapshot is taken once: an asset
 // that stops matching the grid stays in the pager until it is left, only deleted ones drop (from a
@@ -48,7 +49,9 @@ export default function AssetScreen() {
     sort,
     filter,
     search,
+    ids: idsParam,
   } = useLocalSearchParams<{ assetId: string } & AssetParams>();
+  const listedIds = useMemo(() => listParam(idsParam), [idsParam]);
   const query = useMemo(() => assetQueryFromParams({ scope, sort, filter, search }), [scope, sort, filter, search]);
   const scopeQuery = useMemo(() => assetQuery(query), [query]);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(tappedAssetId);
@@ -86,7 +89,9 @@ export default function AssetScreen() {
   useEffect(() => {
     if (!hasWindow) return;
     let isCancelled = false;
-    scopeQuery.ids(getDb()).then((ids) => {
+    // A listed order (a post editor's strip) is taken as it is.
+    const read = listedIds.length ? Promise.resolve(listedIds) : scopeQuery.ids(getDb());
+    read.then((ids) => {
       if (isCancelled) return;
       // The tapped asset stays, first, if it left the scope between the tap and the snapshot.
       const ordered = ids.includes(tappedAssetId) ? ids : [tappedAssetId, ...ids];
@@ -96,7 +101,7 @@ export default function AssetScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [scopeQuery, tappedAssetId, hasWindow]);
+  }, [scopeQuery, listedIds, tappedAssetId, hasWindow]);
 
   // Ids the window no longer finds (rowsByIds keeps what the scope keeps: a post's assets until
   // purged, any other scope's until deleted) leave the snapshot for good, so a remotely removed

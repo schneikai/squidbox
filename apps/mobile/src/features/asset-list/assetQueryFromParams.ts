@@ -4,7 +4,8 @@ import listParam from '@/lib/listParam';
 import { isAssetSort } from '@/sync/assetSql';
 import { type AssetQueryDescriptor, isAssetFilter } from '@/sync/queries/assetQuery';
 
-export type AssetParams = { scope?: string; sort?: string; filter?: string; search?: string };
+// `ids` is the asset screen's own (assetHref): the query doesn't read it.
+export type AssetParams = { scope?: string; sort?: string; filter?: string; search?: string; ids?: string };
 
 /**
  * The grid's query (assetQuery's descriptor) from the asset screen's URL params (assetHref). A sort
