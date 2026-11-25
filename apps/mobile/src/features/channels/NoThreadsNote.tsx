@@ -8,12 +8,12 @@ type NoThreadsNoteProps = {
 };
 
 /**
- * The warning on a channel copy (its card, its composer) of a thread for a channel without threads:
- * its posts go out as one (payloadText). Nothing for one post or a channel with threads. style is
+ * The warning in the composer of a channel copy that holds a thread for a channel without threads:
+ * only its first post goes out (postsSentTo). Nothing for one post or a channel with threads. style is
  * for layout only.
  */
 export default function NoThreadsNote({ postCount, channel, style }: NoThreadsNoteProps) {
   if (!channel || channel.hasThreads || postCount < 2) return null;
 
-  return <WarningNote style={style}>No threads. Sending as one post.</WarningNote>;
+  return <WarningNote style={style}>No threads. Only the first post is sent.</WarningNote>;
 }

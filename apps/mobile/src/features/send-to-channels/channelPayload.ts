@@ -1,5 +1,7 @@
 import type { Channel } from '@squidbox/shared';
 
+import postsSentTo from './postsSentTo';
+
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import type { MentionTextValue } from '@/features/post-mentions/mentionParts';
 import textForChannel from '@/features/post-mentions/textForChannel';
@@ -14,17 +16,17 @@ export type ChannelPayload = { channelId: string; posts: { caption: string; asse
 export type PayloadPost = MentionTextValue & { assetIds: readonly string[] };
 
 /**
- * The payload of a copy's `posts` for `channel`: each
- * caption is textForChannel's, and `missing` the contacts mentioned without a handle there (whose
+ * The payload of a copy's `posts` for `channel`: the posts that go out there (postsSentTo: only the
+ * first on a channel without threads), each caption is textForChannel's, and `missing` the contacts mentioned without a handle there (whose
  * names go out as plain text), once each, in the order they come.
  */
 export default function channelPayload(
-  channel: Pick<Channel, 'id' | 'handleField'>,
+  channel: Pick<Channel, 'id' | 'handleField' | 'hasThreads'>,
   posts: readonly PayloadPost[],
   contactsById: ReadonlyMap<string, MentionContact>,
 ): { payload: ChannelPayload; missing: MentionContact[] } {
   const missing = new Map<string, MentionContact>();
-  const payloadPosts = posts.map((post) => {
+  const payloadPosts = postsSentTo(channel, posts).map((post) => {
     const sent = textForChannel(post, contactsById, channel);
     for (const contact of sent.missing) missing.set(contact.id, contact);
     return { caption: sent.text, assetIds: [...post.assetIds] };

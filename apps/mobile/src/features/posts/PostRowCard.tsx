@@ -22,6 +22,8 @@ type PostRowCardProps = {
   style?: StyleProp<ViewStyle>;
   contentStyle?: AnimatedViewProps['style'];
   contentExiting?: AnimatedViewProps['exiting'];
+  /** What goes across the card's full width above the tile and the column (a copy's warnings). */
+  header?: ReactNode;
   children?: ReactNode;
 };
 
@@ -34,8 +36,8 @@ type PostRowCardProps = {
  * card stays out of VoiceOver's way, so the controls in it are each reachable, and the tile is the
  * button that opens it (`openLabel`). `entering` and
  * `exiting` are Reanimated layout animations of the card, `contentStyle` and `contentExiting` an
- * animated style and exiting animation of what's in it (an unfolding thread's). style is for layout
- * only.
+ * animated style and exiting animation of what's in it (an unfolding thread's). `header` sits above
+ * the tile and the column, across the card. style is for layout only.
  */
 export default function PostRowCard({
   asset,
@@ -48,12 +50,14 @@ export default function PostRowCard({
   style,
   contentStyle,
   contentExiting,
+  header,
   children,
 }: PostRowCardProps) {
   const tile = asset && <CoverImage asset={asset} moreCount={moreCount} style={styles.tile} />;
 
   const card = (
     <AnimatedCard entering={entering} exiting={exiting} style={[styles.card, style]}>
+      {header && <View style={styles.header}>{header}</View>}
       <Animated.View exiting={contentExiting} style={[styles.content, contentStyle]}>
         {tile && (onPressAsset || onPress) ? (
           <Pressable
@@ -81,6 +85,10 @@ export default function PostRowCard({
 const styles = StyleSheet.create({
   card: {
     padding: layout.postCardPadding,
+  },
+  header: {
+    gap: layout.cardGap,
+    marginBottom: layout.cardGap,
   },
   // The column's own inset makes up the rest of the room between the tile and the text.
   content: {

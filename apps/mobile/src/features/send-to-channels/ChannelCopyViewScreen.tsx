@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import copyAsPost from './copyAsPost';
 import copySentText from './copySentText';
+import postsSentTo from './postsSentTo';
 
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
@@ -20,7 +21,7 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
 /**
  * A channel's card as it goes out (its stored copy, or the post as an untouched card shows it), pushed
  * in the Send to channels sheet from its card: the channel's
- * name and when it was sent in the header, then its posts as the post's screen shows a post and its
+ * name and when it was sent in the header, then the posts that go out (postsSentTo) as the post's screen shows a post and its
  * thread (PostThreadCards), every picture, each mention as the contact's handle on
  * the channel, and a copy icon per text that copies it as the channel gets it. A card removed
  * meanwhile closes the screen.
@@ -36,7 +37,7 @@ export default function ChannelCopyViewScreen() {
 
   // The parts' ids only key the cards.
   const post = useMemo(() => {
-    const asPost = copy && copyAsPost(copy);
+    const asPost = copy && copyAsPost({ posts: postsSentTo(copy.channel, copy.posts) });
     if (!asPost) return null;
     const threadPosts = asPost.threadPosts.map((part, index) => ({ ...part, id: String(index + 1) }));
     return { ...asPost, id: '0', postedAt: null, threadPosts };
