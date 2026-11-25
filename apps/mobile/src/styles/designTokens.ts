@@ -150,6 +150,7 @@ export const colors = {
     menuGap: alpha(palette.black, 0.05), // the band between groups of a popover menu's rows (Divider)
     dim: alpha(palette.black, 0.35), // under a badge over a picture, behind a small dialog
     scrim: alpha(palette.black, 0.8), // dims the whole app behind a blocking overlay
+    cropped: alpha(palette.black, 0.55), // the part of a picture a crop leaves out
     track: alpha(palette.white, 0.1), // the empty part of a progress ring on the scrim
   },
 };

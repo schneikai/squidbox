@@ -4,6 +4,7 @@ import Button from '@/components/Button';
 import Icon from '@/components/Icon';
 import SuperPressable from '@/components/SuperPressable';
 import ContactAvatar, { type ContactAvatarProps } from '@/features/contact-avatar/ContactAvatar';
+import usePhotoCrop from '@/providers/photo-crop/usePhotoCrop';
 import { colors, press, scale, shadows, sizes, space } from '@/styles/designTokens';
 import pickImageFromMediaLibrary from '@/utils/media-library/pickImageFromMediaLibrary';
 
@@ -11,7 +12,7 @@ const CAMERA_DISC = scale(38);
 const PLACEHOLDER = sizes.avatar.hero; // as big as the photo it stands for, and the contact screen's
 
 /**
- * A contact's photo, to pick one square photo and hand its uri to `onPick`. `variant` is where it is:
+ * A contact's photo, to pick one photo, choose its square (usePhotoCrop) and hand that one's uri to `onPick`. `variant` is where it is:
  *   contact — the contact screen's hero avatar, raised off the page, with a white camera disc on
  *             its corner that picks; `onDoublePress` is what a double tap on it does (the favorite)
  *   form    — New contact's: a camera on a disc until there is a name or a photo (the picture at
@@ -32,17 +33,16 @@ export default function ContactAvatarPicker({
   onDoublePress,
   style,
 }: ContactAvatarPickerProps) {
+  const { openPhotoCrop } = usePhotoCrop();
   const hasPhoto = !!uri || !!contact.avatarFilename;
 
+  // iOS's own crop step would open the slow legacy picker: the photo is cut to a square here instead.
   async function handlePick() {
     const [picked] =
-      (await pickImageFromMediaLibrary({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: false,
-        allowsEditing: true,
-        aspect: [1, 1],
-      })) ?? [];
-    if (picked) onPick(picked.uri);
+      (await pickImageFromMediaLibrary({ mediaTypes: ['images'], allowsMultipleSelection: false })) ?? [];
+    if (!picked) return;
+    const cropped = await openPhotoCrop(picked);
+    if (cropped) onPick(cropped);
   }
 
   if (variant === 'form') {

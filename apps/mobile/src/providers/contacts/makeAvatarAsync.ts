@@ -10,8 +10,8 @@ const QUALITY = 0.8;
 
 /**
  * Makes a contact's photo from the picture at `sourceUri`: its centre square as a 512 px JPEG,
- * written into the library's avatars folder as `avatarFilename`. The picker crops to a square already;
- * the cut here keeps a picture from elsewhere square too.
+ * written into the library's avatars folder as `avatarFilename`. The crop (usePhotoCrop) makes it
+ * square already; the cut here keeps a picture from elsewhere square too.
  */
 export default async function makeAvatarAsync(
   sourceUri: string,
