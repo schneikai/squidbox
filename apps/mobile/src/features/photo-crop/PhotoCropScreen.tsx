@@ -3,7 +3,8 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import { GestureDetector, type PanGestureConfig, usePanGesture } from 'react-native-gesture-handler';
-import Animated, { clamp, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { clamp, useAnimatedProps, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 
 import cropPhotoAsync from './cropPhotoAsync';
 
@@ -16,6 +17,8 @@ import { colors, space } from '@/styles/designTokens';
 import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 
 const OUTLINE = 2;
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 /**
  * The crop of usePhotoCrop (`?uri=&width=&height=`, the picture and its size in pixels): the picture
@@ -70,6 +73,12 @@ export default function PhotoCropScreen() {
     return { transform: isWide ? [{ translateX: at }] : [{ translateY: at }] };
   });
 
+  // The picture dimmed around the circle: one layer the picture's size, its hole following the circle.
+  const dimProps = useAnimatedProps(() => {
+    const at = position.value * travel;
+    return { d: dimPath(shown.width, shown.height, isWide ? at : 0, isWide ? 0 : at, side) };
+  });
+
   function handleLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
     setArea({ width, height });
@@ -104,22 +113,12 @@ export default function PhotoCropScreen() {
           {side > 0 && (
             <View style={[styles.picture, shown]}>
               <Image source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="fill" />
-              <Animated.View style={[{ width: side, height: side }, circleStyle]}>
-                <View
-                  style={[
-                    styles.ring,
-                    {
-                      top: -travel - side,
-                      left: -travel - side,
-                      borderWidth: travel + side,
-                      borderRadius: travel + side + side / 2,
-                      width: side + 2 * (travel + side),
-                      height: side + 2 * (travel + side),
-                    },
-                  ]}
-                />
-                <View style={[StyleSheet.absoluteFill, styles.outline, { borderRadius: side / 2 }]} />
-              </Animated.View>
+              <Svg width={shown.width} height={shown.height} style={StyleSheet.absoluteFill}>
+                <AnimatedPath animatedProps={dimProps} fill={colors.overlay.cropped} fillRule="evenodd" />
+              </Svg>
+              <Animated.View
+                style={[styles.outline, { width: side, height: side, borderRadius: side / 2 }, circleStyle]}
+              />
             </View>
           )}
         </View>
@@ -140,12 +139,8 @@ const styles = StyleSheet.create({
   picture: {
     overflow: 'hidden',
   },
-  // A thick ring around the circle, as wide as the picture: it dims what the crop leaves out.
-  ring: {
-    position: 'absolute',
-    borderColor: colors.overlay.cropped,
-  },
   outline: {
+    position: 'absolute',
     borderWidth: OUTLINE,
     borderColor: colors.text.inverse,
   },
@@ -154,3 +149,13 @@ const styles = StyleSheet.create({
     marginTop: space.lg,
   },
 });
+
+// A `width` × `height` picture with a circle of diameter `side` cut out of it, its square's corner at `x`, `y`.
+function dimPath(width: number, height: number, x: number, y: number, side: number) {
+  'worklet';
+  const radius = side / 2;
+  return (
+    `M0 0H${width}V${height}H0Z` +
+    `M${x} ${y + radius}a${radius} ${radius} 0 1 0 ${side} 0a${radius} ${radius} 0 1 0 ${-side} 0Z`
+  );
+}
