@@ -16,8 +16,9 @@ export type ProgressOptions = Required<BatchOptions> & {
 export type ProgressAction = (options: ProgressOptions) => Promise<boolean | void>;
 
 // `countsDone: false` for an action whose items only count once all are through (files gathered for
-// one share sheet): a failure then shows only its error, and a Cancel nothing.
-export type RunWithProgressOptions = { failureTitle?: string; countsDone?: boolean };
+// one share sheet): a failure then shows only its error, and a Cancel nothing. `note` is a quiet line
+// on the overlay (a download's Keep Squidbox open).
+export type RunWithProgressOptions = { failureTitle?: string; countsDone?: boolean; note?: string };
 export type RunWithProgress = (action: ProgressAction, options?: RunWithProgressOptions) => Promise<boolean>;
 
 /**
@@ -34,7 +35,7 @@ export default function useRunWithProgress(): RunWithProgress {
   const { show, hide, updateProgress } = useProgressOverlay();
   const haptics = useHaptics();
 
-  return async function runWithProgress(action, { failureTitle = "Couldn't finish", countsDone = true } = {}) {
+  return async function runWithProgress(action, { failureTitle = "Couldn't finish", countsDone = true, note } = {}) {
     const controller = new AbortController();
     let progress: Progress | null = null;
     const onProgress = (done: number, total: number, current = 0) => {
@@ -42,7 +43,7 @@ export default function useRunWithProgress(): RunWithProgress {
       updateProgress(((done + current) / total) * 100);
     };
 
-    show({ onCancel: () => controller.abort() });
+    show({ onCancel: () => controller.abort(), note });
     let finished: boolean | void;
     try {
       finished = await action({ onProgress, signal: controller.signal });

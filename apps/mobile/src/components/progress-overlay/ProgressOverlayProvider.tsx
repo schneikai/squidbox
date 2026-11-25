@@ -9,11 +9,13 @@ export default function ProgressOverlayProvider({ children }: ProgressOverlayPro
   const [mode, setMode] = useState<ProgressOverlayState['mode']>(null);
   const [progress, setProgress] = useState(0);
   const [onCancel, setOnCancel] = useState<(() => void) | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   // show({ onCancel }) adds a Cancel button; the caller stops at its next chance (see useRunWithProgress)
-  // and hides as usual.
-  const show = useCallback<ProgressOverlayActions['show']>(({ onCancel = null } = {}) => {
+  // and hides as usual. `note` is a quiet line under it (what not to do while it runs).
+  const show = useCallback<ProgressOverlayActions['show']>(({ onCancel = null, note = null } = {}) => {
     setOnCancel(() => onCancel);
+    setNote(note);
     setMode('progress');
   }, []);
   const showBlocking = useCallback(() => setMode('blocking'), []);
@@ -21,6 +23,7 @@ export default function ProgressOverlayProvider({ children }: ProgressOverlayPro
     setMode(null);
     setProgress(0);
     setOnCancel(null);
+    setNote(null);
   }, []);
   const updateProgress = useCallback((value: number) => setProgress(value), []);
 
@@ -39,8 +42,8 @@ export default function ProgressOverlayProvider({ children }: ProgressOverlayPro
           setOnCancel(null);
         }
       : null;
-    return { mode, progress, cancel };
-  }, [mode, progress, onCancel]);
+    return { mode, progress, cancel, note };
+  }, [mode, progress, onCancel, note]);
 
   return (
     <ProgressOverlayContext.Provider value={actions}>
