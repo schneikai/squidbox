@@ -65,6 +65,7 @@ export const colors = {
     tertiary: alpha(palette.gray900, 0.38), // placeholders and disabled text only, too faint for copy
     status: alpha(palette.black, 0.3), // the assistant's Thinking line: see-through, so it greys on any surface
     inverse: palette.white, // text and marks on the accent, danger, dark overlays or pictures
+    inverseSecondary: alpha(palette.white, 0.6), // a quieter note on a dark overlay (the progress overlay's hint)
   },
   // The mark of what the user picked (a pick-one check, a pick-several select circle's fill) and the
   // check on that fill. Neutral, never the accent: violet marks the assistant only (CLAUDE.md).

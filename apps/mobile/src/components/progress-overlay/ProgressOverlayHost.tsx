@@ -5,6 +5,7 @@ import ProgressOverlayStateContext from './ProgressOverlayStateContext';
 
 import Button from '@/components/Button';
 import ProgressRing from '@/components/ProgressRing';
+import Text from '@/components/Text';
 import { colors, space } from '@/styles/designTokens';
 
 // The visual overlay, rendered IN-TREE (never via a native Modal). A native Modal presents from the
@@ -13,9 +14,10 @@ import { colors, space } from '@/styles/designTokens';
 // each sheet (SheetRoute): whichever surface is on top renders its own
 // host and covers itself. All hosts read the same context state, so a single show()/updateProgress()/
 // hide() drives them together. Covering its surface, the overlay keeps touches from the content
-// underneath; only its own Cancel button, when the action can be cancelled, takes them.
+// underneath; only its own Cancel button, when the action can be cancelled, takes them. A `note`
+// (a download's Keep Squidbox open) sits quietly under it.
 export default function ProgressOverlayHost() {
-  const { mode, progress, cancel } = use(ProgressOverlayStateContext);
+  const { mode, progress, cancel, note } = use(ProgressOverlayStateContext);
   if (mode === null) return null;
   return (
     <View style={styles.overlay}>
@@ -28,6 +30,11 @@ export default function ProgressOverlayHost() {
         <View style={styles.cancel}>
           <Button label="Cancel" onPress={cancel} isInverse colorPalette="neutral" />
         </View>
+      )}
+      {note && (
+        <Text variant="hint" tone="inverseSecondary" style={styles.note}>
+          {note}
+        </Text>
       )}
     </View>
   );
@@ -47,5 +54,10 @@ const styles = StyleSheet.create({
   },
   cancel: {
     marginTop: space.xxxl,
+  },
+  note: {
+    marginTop: space.lg,
+    paddingHorizontal: space.xxxl,
+    textAlign: 'center',
   },
 });

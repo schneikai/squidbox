@@ -215,6 +215,14 @@ once and a rerun skips it. Thumbnails in Node need sharp (with HEIF) and ffmpeg.
 from the web app is the fallback for other users. Ente's API is ruled out because it is end-to-end
 encrypted.
 
+### [ ] Keep downloading in the background
+
+Share downloads the full-size files first (`utils/assets/files/useRunWithAssetFiles.ts`,
+`File.downloadFileAsync` in `utils/cloud-api/assets/downloadAssetFileAsync.ts`) only while the app
+is open, so the progress overlay asks to keep Squidbox open. A large video takes minutes. A
+background `URLSession` download (a native module, or a library that wraps one) would let it finish
+while the user switches apps.
+
 ## Design
 
 - **Asset detail background:** a blurred background in the asset's colors.

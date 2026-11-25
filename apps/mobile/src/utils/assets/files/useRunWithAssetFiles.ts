@@ -14,6 +14,10 @@ import apiErrorMessage from '@/utils/cloud-api/apiErrorMessage';
 // One run at a time, app-wide: one progress ring, and a tap while it's up is ignored.
 let isRunning = false;
 
+// A download is only sure to finish while the app is open: iOS may suspend it once the user
+// switches away (todo.md: Keep downloading in the background).
+const KEEP_OPEN_NOTE = 'Keep Squidbox open until it’s done. Switching apps or closing it might stop the download.';
+
 type RunWithAssetFilesOptions = RunWithProgressOptions & { failureTitle: string };
 
 /**
@@ -53,7 +57,7 @@ export default function useRunWithAssetFiles() {
             onProgress(index + 1, assets.length);
           }
         },
-        { failureTitle, countsDone },
+        { failureTitle, countsDone, note: KEEP_OPEN_NOTE },
       );
     } catch (error) {
       // The up-front checks: runWithProgress alerts what fails after them.
