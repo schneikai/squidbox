@@ -159,6 +159,7 @@ export default function PostCard({
       {counterNode}
       {channel && <MissingHandleNote contacts={sent.missing} channel={channel} style={styles.note} />}
       <PostAssetsEditor
+        postId={card.id}
         postAssets={postAssets}
         onChange={(value) => onChange(key, { postAssets: value })}
         channel={channel}

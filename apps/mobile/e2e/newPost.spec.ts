@@ -1,7 +1,16 @@
 import type { Page } from 'playwright/test';
 
 import { expect, test } from './fixtures';
-import { button, expectPostText, openTab, pickFromSquidbox, postCards, postText, uniqueName } from './helpers';
+import {
+  button,
+  expectPostText,
+  openTab,
+  pickFromSquidbox,
+  postCards,
+  postText,
+  swipeLeft,
+  uniqueName,
+} from './helpers';
 
 // Writes a new post with two photos from the library and adds it. The editor opens from the New
 // post sheet (the mock data has posts to repost, so the sheet shows), and Add closes both sheets.
@@ -61,4 +70,32 @@ test('typing @ and part of a name suggests the contact, a tap puts its chip in t
   await button(editor, 'Add').click();
   const card = postCards(page.getByTestId('posts-screen')).filter({ hasText: after });
   await expect(card.getByLabel('Maya Lindqvist', { exact: true })).toBeVisible();
+});
+
+test("a tap on a photo in the editor opens it, and a swipe goes to the post's next photo, not the library's", async ({
+  page,
+}) => {
+  await openTab(page, 'Posts');
+  await button(page.getByTestId('posts-screen'), 'Add').click();
+  await button(page.getByTestId('new-post-sheet'), 'New post').click();
+  const editor = page.getByTestId('post-editor');
+  // Two photos apart in the library: the library's next after the first is another one.
+  await button(editor, 'Add photos').click();
+  await pickFromSquidbox(page, 1, 0);
+  await button(editor, 'Add photos').click();
+  await pickFromSquidbox(page, 1, 5);
+  const tiles = editor.getByLabel('Show photo', { exact: true });
+  const screen = page.getByTestId('asset-screen');
+  const title = screen.getByTestId('toolbar-title');
+
+  await tiles.nth(1).click();
+  const secondTitle = await title.textContent();
+  if (secondTitle === null) throw new Error('The pager title has no text');
+  await button(screen, 'Back').click();
+  await expect(screen).toBeHidden();
+  await tiles.nth(0).click();
+  await expect(title).not.toHaveText(secondTitle);
+  await swipeLeft(page, screen);
+
+  await expect(title).toHaveText(secondTitle);
 });

@@ -15,21 +15,25 @@ export type EditorPostAsset = BuiltPostAsset<AssetRecord>;
 
 export type PostAssetProps = {
   postAsset: EditorPostAsset;
+  onPress: (postAsset: EditorPostAsset) => void;
   onDelete: (postAsset: EditorPostAsset) => void;
   onLongPress: () => void;
   isActive: boolean;
   style: StyleProp<ViewStyle>;
 };
 
-// One tile of the post editor's media strip: × in its top right corner, a video's length at the bottom.
+// One tile of the post editor's media strip: a tap opens it, × in its top right corner takes it out, a
+// video's length at the bottom.
 // style is for layout only (its size).
-export default function PostAsset({ postAsset, onDelete, onLongPress, isActive, style }: PostAssetProps) {
+export default function PostAsset({ postAsset, onPress, onDelete, onLongPress, isActive, style }: PostAssetProps) {
   const asset = postAsset.asset;
 
   return (
     <ScaleDecorator>
       <Pressable
+        onPress={() => onPress(postAsset)}
         onLongPress={onLongPress}
+        accessibilityLabel={asset.mediaType === 'video' ? 'Show video' : 'Show photo'}
         disabled={isActive}
         style={({ pressed }) => [styles.tile, style, pressed && press.flat]}
       >
