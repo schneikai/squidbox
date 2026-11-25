@@ -183,7 +183,7 @@ test("a repost starts with the post's own copies, unsent, and a card for every o
   await expect(button(sheet, 'Send all')).toBeVisible();
 });
 
-test("a thread's card for a channel without threads sends only its first post, without the thread's size", async ({
+test("a thread's card for a channel without threads sends and shows only its first post, without the thread's size", async ({
   page,
 }) => {
   await fromPostMenu(page, 'Summer recap, part 1', 'Send to channels');
@@ -192,6 +192,12 @@ test("a thread's card for a channel without threads sends only its first post, w
   const instagram = copyCard(sheet, 'Instagram');
   await expect(instagram.getByText(/^Thread/)).toBeHidden();
   await expect(instagram.getByText(/^No threads/)).toBeHidden();
+  // Opened, it shows only that post too.
+  await instagram.getByText('Instagram', { exact: true }).click();
+  const opened = page.getByTestId('channel-copy-screen');
+  await expect(opened.getByText(/^Summer recap, part 1/)).toBeVisible();
+  await expect(opened.getByText(/^Day two/)).toBeHidden();
+  await button(opened, 'Back').click();
   await button(instagram, 'Send now').click();
 
   // One line: the first post only (Sam goes out as his name or, once an earlier test added it, his handle).
