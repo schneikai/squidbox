@@ -186,9 +186,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  // A card's gap from the text and the toolbar (the card's gap is the toolbar's slack).
+  // A card's gap from the text and the toolbar (the card's gap is the toolbar's slack). The toolbar
+  // comes space.xs closer: the caption's line leaves that much room under its letters, so the icons
+  // look as far from the caption as from the tray under them.
   assets: {
-    marginVertical: layout.cardGap - layout.controlRowSlack,
+    marginTop: layout.cardGap - layout.controlRowSlack,
+    marginBottom: layout.cardGap - layout.controlRowSlack - space.xs,
   },
   // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
   // gap, and keeps the card's side inset below it.
