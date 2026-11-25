@@ -35,6 +35,7 @@ import CloudProvider from '@/providers/cloud/CloudProvider';
 import useCloud from '@/providers/cloud/useCloud';
 import CloudSyncProvider from '@/providers/cloud-sync/CloudSyncProvider';
 import ContactsProvider from '@/providers/contacts/ContactsProvider';
+import PhotoCropProvider from '@/providers/photo-crop/PhotoCropProvider';
 import PostsProvider from '@/providers/posts/PostsProvider';
 import '@/polyfills/browserDialogs';
 import { colors } from '@/styles/designTokens';
@@ -226,20 +227,22 @@ const MainApp = memo(function MainApp() {
       <ActionSheetProvider>
         <MenuProvider>
           <AssetPickerProvider>
-            <FloatingBarsProvider>
-              <View style={styles.root}>
-                <LinearGradient
-                  colors={colors.background.app}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <ThemeProvider value={NAVIGATION_THEME}>
-                  <RootStack />
-                </ThemeProvider>
-                <QuickViewHost />
-              </View>
-            </FloatingBarsProvider>
+            <PhotoCropProvider>
+              <FloatingBarsProvider>
+                <View style={styles.root}>
+                  <LinearGradient
+                    colors={colors.background.app}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <ThemeProvider value={NAVIGATION_THEME}>
+                    <RootStack />
+                  </ThemeProvider>
+                  <QuickViewHost />
+                </View>
+              </FloatingBarsProvider>
+            </PhotoCropProvider>
           </AssetPickerProvider>
         </MenuProvider>
       </ActionSheetProvider>
@@ -275,6 +278,7 @@ function RootStack() {
       <Stack.Screen name="(main)/contact-list/[listId]/edit" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/contact/[contactId]/place" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/pick-assets" options={SHEET_OPTIONS} />
+      <Stack.Screen name="(main)/crop-photo" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/add-to-album" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/add-channel" options={SHEET_OPTIONS} />
       <Stack.Screen name="(main)/(chat)" options={SHEET_OPTIONS} />
