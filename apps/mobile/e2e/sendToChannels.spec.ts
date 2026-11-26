@@ -64,7 +64,9 @@ test('the sheet opens with a card per channel filled from the post, and Send all
   await expect(button(sheet, 'Send all')).toBeHidden();
 });
 
-test("Remove takes a channel's card away for good, and Add channel brings it back", async ({ page }) => {
+test("Remove takes a channel's card away for good, and + brings the only removed one back at once", async ({
+  page,
+}) => {
   const post = await fromPostMenu(page, 'First light over the hills', 'Send to channels');
   const sheet = sendSheet(page);
   await button(copyCard(sheet, 'X'), 'X copy options').click();
@@ -81,11 +83,11 @@ test("Remove takes a channel's card away for good, and Add channel brings it bac
   await page.getByRole('menuitem', { name: 'Send to channels', exact: true }).click();
   await expect(copyCard(sheet, 'Bluesky')).toBeVisible();
   await expect(copyCard(sheet, 'X')).toBeHidden();
-  await button(sheet, 'Add channel').click();
-  await page.getByRole('menuitem', { name: 'X', exact: true }).click();
-
-  await expect(button(copyCard(sheet, 'X'), 'Send now')).toBeVisible();
   await expect(button(sheet, 'Add channel')).toBeHidden();
+  await button(sheet, 'Add X').click();
+
+  await expect(button(copyCard(sheet, 'X'), 'Send now')).toBeInViewport();
+  await expect(button(sheet, 'Add X')).toBeHidden();
 });
 
 test("Edit on an untouched card saves it as the channel's own copy", async ({ page }) => {

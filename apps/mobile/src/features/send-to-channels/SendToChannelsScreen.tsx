@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { type ComponentRef, useRef } from 'react';
+import { ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import ChannelCopyCard from './ChannelCopyCard';
 import useCopyActions from './useCopyActions';
@@ -27,7 +28,8 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * channel this build doesn't know is left out). A card shows the post and its thread as they are now
  * until it is saved in its composer (ChannelCopyScreen, pushed in the sheet) or sent; a tap on a card
  * opens it as it goes out (ChannelCopyViewScreen). Remove takes the channel off the post; + on the right (there
- * only once a card was removed) brings it back. At the bottom, the screen's one primary action: Send all with
+ * only once a card was removed) brings it back, from a menu of the removed channels or, with one, at once, and
+ * scrolls to its card. At the bottom, the screen's one primary action: Send all with
  * two or more unsent cards (it only marks them sent), Send to <channel> with one (that card then has no Send
  * now of its own), nothing with none. A post deleted meanwhile closes the sheet. Every change saves as it is
  * made, so × on the left closes the sheet like every sheet that is not a draft (HIG: Close closes a modal
@@ -43,6 +45,9 @@ export default function SendToChannelsScreen() {
   const padding = useScreenPadding('sheet');
   const actionPadding = useFloatingPrimaryActionPadding();
   useCloseWhenGone(read, 'This post was deleted');
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  // The channel just added back: its card scrolls into view once it is laid out.
+  const addedChannelId = useRef<string | null>(null);
 
   const copies = read?.copies ?? [];
   const unsent = copies.filter((copy) => copy.sentAt === null);
@@ -52,6 +57,17 @@ export default function SendToChannelsScreen() {
       pathname: '/send-to-channels/[postId]/copies/[copyId]/edit',
       params: { postId, copyId: copy.id },
     });
+  }
+
+  function addChannel(channelId: string) {
+    addedChannelId.current = channelId;
+    return addBack(postId, channelId);
+  }
+
+  function handleCardLayout(copy: ChannelCopy, event: LayoutChangeEvent) {
+    if (copy.channel.id !== addedChannelId.current) return;
+    addedChannelId.current = null;
+    scrollRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - padding.paddingTop) });
   }
 
   function openCopy(copy: ChannelCopy) {
@@ -74,14 +90,20 @@ export default function SendToChannelsScreen() {
         leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
         title="Send to channels"
         trailing={
-          read.addable.length > 0 ? (
+          read.addable.length === 1 ? (
+            <Button
+              icon="add"
+              accessibilityLabel={`Add ${read.addable[0]!.name}`}
+              onPress={() => addChannel(read.addable[0]!.id)}
+            />
+          ) : read.addable.length > 1 ? (
             <MenuButton icon="add" accessibilityLabel="Add channel" title="Add channel">
               {read.addable.map((channel) => (
                 <MenuOption
                   key={channel.id}
                   label={channel.name}
                   trailing={<ChannelLogo channelId={channel.id} size={sizes.menuIcon} />}
-                  onPress={() => addBack(postId, channel.id)}
+                  onPress={() => addChannel(channel.id)}
                 />
               ))}
             </MenuButton>
@@ -102,6 +124,7 @@ export default function SendToChannelsScreen() {
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={[
             styles.list,
             padding,
@@ -109,18 +132,19 @@ export default function SendToChannelsScreen() {
           ]}
         >
           {copies.map((copy) => (
-            <ChannelCopyCard
-              key={copy.id}
-              copy={copy}
-              contactsById={contactsById}
-              onPressMention={onPressMention}
-              onOpen={() => openCopy(copy)}
-              onSendNow={unsent.length > 1 ? () => sendNow(copy) : undefined}
-              onEdit={() => editCopy(copy)}
-              onDiscardChanges={() => discardChanges(copy)}
-              onRemove={() => remove(copy)}
-              onMarkNotSent={() => markNotSent(copy)}
-            />
+            <View key={copy.id} onLayout={(event) => handleCardLayout(copy, event)}>
+              <ChannelCopyCard
+                copy={copy}
+                contactsById={contactsById}
+                onPressMention={onPressMention}
+                onOpen={() => openCopy(copy)}
+                onSendNow={unsent.length > 1 ? () => sendNow(copy) : undefined}
+                onEdit={() => editCopy(copy)}
+                onDiscardChanges={() => discardChanges(copy)}
+                onRemove={() => remove(copy)}
+                onMarkNotSent={() => markNotSent(copy)}
+              />
+            </View>
           ))}
         </ScrollView>
       )}
