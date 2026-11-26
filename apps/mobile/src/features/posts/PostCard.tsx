@@ -180,6 +180,8 @@ export default function PostCard({
   );
 }
 
+// A post's parts sit a step apart from cardGap: photos and a tray are larger parts than a form's rows.
+const PART_GAP = space.lg;
 // The room a 44 pt toolbar row leaves above and below its icons.
 const TOOLBAR_ROOM = (sizes.iconButton - sizes.icon) / 2;
 
@@ -190,16 +192,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   // One rhythm down the card: the text, the photos, their caption, the toolbar's icons and the tray
-  // each sit cardGap apart (the card's own gap between its parts is controlRowSlack). The toolbar's
+  // each sit PART_GAP apart (the card's own gap between its parts is controlRowSlack). The toolbar's
   // 44 pt row already holds TOOLBAR_ROOM above and below its icons, so its neighbours come that much
   // closer, and the icons space.xs more: the caption's line leaves that much under its letters.
   assets: {
-    marginTop: layout.cardGap - layout.controlRowSlack,
-    marginBottom: layout.cardGap - layout.controlRowSlack - TOOLBAR_ROOM - space.xs,
+    marginTop: PART_GAP - layout.controlRowSlack,
+    marginBottom: PART_GAP - layout.controlRowSlack - TOOLBAR_ROOM - space.xs,
   },
   // Keeps the card's side inset below it.
   tray: {
-    marginTop: layout.cardGap - layout.controlRowSlack - TOOLBAR_ROOM,
+    marginTop: PART_GAP - layout.controlRowSlack - TOOLBAR_ROOM,
     marginBottom: layout.cardInset - layout.controlRowSlack,
   },
   // Under the text it is about, at the card's gap.
