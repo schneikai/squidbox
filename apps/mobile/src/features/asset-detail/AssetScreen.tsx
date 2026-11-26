@@ -1,5 +1,5 @@
 import { useIsFocused, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, StatusBar, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
@@ -134,11 +134,22 @@ export default function AssetScreen() {
     if (details.isShown) setIsFullscreen(false);
   }, [details.isShown]);
 
-  // Zooming in shows the photo alone, like a tap; back at 1× the controls come back.
-  const handleLockChange = useCallback((isLocked: boolean) => {
-    setIsPagerLocked(isLocked);
-    setIsFullscreen(isLocked);
-  }, []);
+  // Zooming in shows the photo alone, like a tap; zoomed back to 1× the controls come back. Swiping from
+  // a zoomed photo to the next one also unlocks the pager (the next one starts at 1×): that stays
+  // fullscreen, as in Apple Photos, until a tap.
+  const zoomedAssetIdRef = useRef<string | null>(null);
+  const handleLockChange = useCallback(
+    (isLocked: boolean) => {
+      setIsPagerLocked(isLocked);
+      if (isLocked) {
+        zoomedAssetIdRef.current = selectedAssetId;
+        setIsFullscreen(true);
+      } else if (zoomedAssetIdRef.current === selectedAssetId) {
+        setIsFullscreen(false);
+      }
+    },
+    [selectedAssetId],
+  );
 
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {
