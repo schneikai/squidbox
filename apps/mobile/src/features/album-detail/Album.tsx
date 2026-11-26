@@ -49,7 +49,7 @@ export default function Album({ album }: AlbumProps) {
   const { removeAssetsFromAlbum, reorderAlbumAssets, updateAlbum } = useAlbums();
   const { albumSortOrders, setAlbumSortOrders } = useAppSettings();
   const navigation = useNavigation();
-  const { paddingTop, paddingBottom } = useScreenPadding('detail');
+  const { paddingTop, paddingBottom } = useScreenPadding('detail', { bottomBar: true });
   const { showActionSheetWithOptions } = useActionSheet();
 
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AssetSort, AssetFilter>({

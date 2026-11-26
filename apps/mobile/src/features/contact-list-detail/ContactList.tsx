@@ -40,7 +40,7 @@ type ContactListProps = { list: schema.ContactListRow } | { builtIn: BuiltInCont
 export default function ContactList(props: ContactListProps) {
   const navigation = useNavigation();
   const { restoreContact } = useContacts();
-  const { paddingTop, paddingBottom } = useScreenPadding('detail');
+  const { paddingTop, paddingBottom } = useScreenPadding('detail', { bottomBar: true });
   const { sortOrder, setSortOrder } = useContactSort();
   const { listRef, sort, searchBar, searchText: search } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);

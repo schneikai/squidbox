@@ -31,7 +31,7 @@ const NO_ROWS: never[] = [];
  */
 export default function ContactListsScreen() {
   const navigation = useNavigation();
-  const { paddingTop, paddingBottom } = useScreenPadding('detail');
+  const { paddingTop, paddingBottom } = useScreenPadding('detail', { bottomBar: true });
   const { sortOrder, setSortOrder } = useContactSort('lists');
   const { listRef, sort, searchBar, searchText } = useListControls({ onSort: setSortOrder });
   const attachList = useListRefCallback(listRef);

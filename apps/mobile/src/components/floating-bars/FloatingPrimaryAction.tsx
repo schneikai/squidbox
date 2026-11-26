@@ -9,7 +9,7 @@ export type FloatingPrimaryActionProps = { children?: ReactNode; align?: 'stretc
 // A screen's main action floating above the home indicator, over the content, placed like the
 // floating bars: a primary Button across the width, a row of toolbars across it (the Deleted
 // album's Restore and Delete), or with `align="center"` a pill-sized action (a FloatingPill) in the
-// middle. The content keeps useFloatingPrimaryActionPadding free.
+// middle. The content keeps it free with useScreenPadding's `bottomBar`.
 export default function FloatingPrimaryAction({ children, align = 'stretch' }: FloatingPrimaryActionProps) {
   const { bottom } = useSafeAreaInsets();
   return (

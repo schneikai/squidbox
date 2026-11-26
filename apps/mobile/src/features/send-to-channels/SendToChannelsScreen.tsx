@@ -11,7 +11,6 @@ import MenuButton from '@/components/MenuButton';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
-import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import ChannelLogo from '@/features/channels/ChannelLogo';
 import useMentionSheet from '@/features/post-mentions/useMentionSheet';
@@ -43,7 +42,7 @@ export default function SendToChannelsScreen() {
   const { onPressMention, sheet } = useMentionSheet(contactsById);
   const { sendNow, sendAll, markNotSent, discardChanges, remove, addBack } = useCopyActions();
   const padding = useScreenPadding('sheet');
-  const actionPadding = useFloatingPrimaryActionPadding();
+  const { paddingBottom: actionPadding } = useScreenPadding('sheet', { bottomBar: true });
   useCloseWhenGone(read, 'This post was deleted');
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   // The channel just added back: its card scrolls into view once it is laid out.
@@ -125,11 +124,7 @@ export default function SendToChannelsScreen() {
       ) : (
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={[
-            styles.list,
-            padding,
-            bottomAction && { paddingBottom: Math.max(padding.paddingBottom, actionPadding) },
-          ]}
+          contentContainerStyle={[styles.list, padding, bottomAction && { paddingBottom: actionPadding }]}
         >
           {copies.map((copy) => (
             <View key={copy.id} onLayout={(event) => handleCardLayout(copy, event)}>

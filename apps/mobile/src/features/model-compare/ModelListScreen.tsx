@@ -14,11 +14,11 @@ import Page from '@/components/Page';
 import ScreenSectionHeader from '@/components/ScreenSectionHeader';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
-import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
 import AddRow from '@/components/settings-list/AddRow';
 import { Section, SectionFooter } from '@/components/settings-list/SettingsList';
 import useModelKindParam from '@/hooks/useModelKindParam';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels, { type YourModelRow } from '@/hooks/useYourModels';
 import { resetScores } from '@/sync/aiStateRepository';
 import { getDb } from '@/sync/db/client';
@@ -38,7 +38,7 @@ type ModelListProps = { kind: AiModelKind };
 
 function ModelList({ kind }: ModelListProps) {
   const navigation = useNavigation();
-  const paddingBottom = useFloatingPrimaryActionPadding();
+  const { paddingBottom } = useScreenPadding('detail', { bottomBar: true });
   const { defaults, yourDefaults, isChanged, error, retry, rows, readDefaultsToApply, publishDefaults, resetDefaults } =
     useYourModels(kind);
 
