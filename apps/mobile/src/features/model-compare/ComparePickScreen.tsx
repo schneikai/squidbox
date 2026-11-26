@@ -13,10 +13,10 @@ import IntroText from '@/components/IntroText';
 import ModalHeader from '@/components/ModalHeader';
 import ModalSheet from '@/components/ModalSheet';
 import FloatingPrimaryAction from '@/components/floating-bars/FloatingPrimaryAction';
-import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import useModelKindParam from '@/hooks/useModelKindParam';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import useYourModels from '@/hooks/useYourModels';
 import useAssetPicker from '@/providers/asset-picker/useAssetPicker';
 import { layout, space } from '@/styles/designTokens';
@@ -40,7 +40,7 @@ type ComparePickProps = { kind: AiModelKind };
 function ComparePick({ kind }: ComparePickProps) {
   const navigation = useNavigation();
   const isVision = kind === 'vision';
-  const paddingBottom = useFloatingPrimaryActionPadding();
+  const { paddingBottom } = useScreenPadding('sheet', { bottomBar: true });
   const { openAssetPicker } = useAssetPicker();
   const { rows, defaults, yourDefaults, usedId, error, retry } = useYourModels(kind);
   // Your changes only: null keeps the default, the current choice ticked.

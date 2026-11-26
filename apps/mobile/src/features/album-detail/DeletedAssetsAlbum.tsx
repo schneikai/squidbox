@@ -6,7 +6,6 @@ import Button from '@/components/Button';
 import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import FloatingDetailHeader from '@/components/floating-bars/FloatingDetailHeader';
-import useFloatingPrimaryActionPadding from '@/components/floating-bars/useFloatingPrimaryActionPadding';
 import AssetList from '@/features/asset-list/AssetList';
 import useToggleSelectAssetsAction from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import useAssetCells from '@/features/asset-list/useAssetCells';
@@ -24,8 +23,7 @@ type DeletedAssetsAlbumProps = { album: AlbumRow };
 export default function DeletedAssetsAlbum({ album }: DeletedAssetsAlbumProps) {
   const { restore, deletePermanently } = useDeletedAssetsActions();
   const navigation = useNavigation();
-  const { paddingTop } = useScreenPadding('detail');
-  const paddingBottom = useFloatingPrimaryActionPadding();
+  const { paddingTop, paddingBottom } = useScreenPadding('detail', { bottomBar: true });
 
   const { isSelectMode, selectedAssetIds, isAssetSelected, toggleSelectMode, exitSelectMode, toggleSelectAsset } =
     useToggleSelectAssetsAction();

@@ -1,5 +1,4 @@
 import type { ScrollHandlerProcessed, SharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import AssetGrid from '@/features/asset-list/AssetGrid';
@@ -8,7 +7,7 @@ import assetSortOptions from '@/features/asset-list/actions/sort-assets-action/a
 import type { AssetSelection } from '@/features/asset-list/actions/toggle-select-assets-action/useToggleSelectAssetsAction';
 import { ASSET_SEARCH_PLACEHOLDER } from '@/features/asset-list/assetSearchPlaceholder';
 import useListControls from '@/hooks/useListControls';
-import { layout } from '@/styles/designTokens';
+import useScreenPadding from '@/hooks/useScreenPadding';
 import type { AssetQueryScope, AssetSort } from '@/sync/assetSql';
 import assetQuery, { type AssetExclude, type AssetFilter } from '@/sync/queries/assetQuery';
 import { usePagedQuery } from '@/sync/usePagedQuery';
@@ -32,7 +31,7 @@ export default function AssetPickerGrid({
   scrollY,
   expandProgress,
 }: AssetPickerGridProps) {
-  const { bottom } = useSafeAreaInsets();
+  const { paddingTop, paddingBottom } = useScreenPadding('sheet', { bottomBar: true });
   const { listRef, sortOrder, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<
     AssetSort,
     AssetFilter
@@ -55,8 +54,8 @@ export default function AssetPickerGrid({
         listRef={listRef}
         rows={rows}
         loadMore={loadMore}
-        paddingTop={layout.sheetContentTop}
-        paddingBottom={bottom + layout.barClearance}
+        paddingTop={paddingTop}
+        paddingBottom={paddingBottom}
         onScroll={onScroll}
         scrollY={scrollY}
         isSelectMode

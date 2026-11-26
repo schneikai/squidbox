@@ -289,12 +289,11 @@ export const layout = {
   barMargin: BAR_MARGIN, // a bar's room from the screen's edge, top or bottom (the safe area's), and a sheet header's
   barGap: space.lg, // between two pills in a bar
   barHeight: BAR_HEIGHT, // a floating bar's row with the room around it
-  barClearance: BAR_HEIGHT + space.lg, // what content keeps free under the bottom bars
+  barClearance: BAR_HEIGHT + space.lg, // what content keeps free above the bottom safe area under floating bottom bars (useScreenPadding)
   barPaddingX: space.sm,
   barPaddingY: scale(6), // frames a toolbar's disc
   toolbarFrame: 3, // the glass frame around a toolbar's buttons, its lit rim inside it (FloatingPill)
   contentTop: scale(88), // clears the floating header
-  contentBottom: scale(128), // clears the floating bottom bars
   sheetContentTop: BAR_HEIGHT + space.sm, // a sheet's content under its header (ModalHeader)
   contentEnd: space.lg, // what a screen's or a sheet's content keeps above the bottom safe area
   popoverGap: 25, // between a trigger button and the popover that opens from it

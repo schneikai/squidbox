@@ -1,6 +1,5 @@
 import { Pressable } from 'react-native';
 import type { ScrollHandlerProcessed, SharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SearchSortFilterBar from '@/components/floating-bars/SearchSortFilterBar';
 import AlbumList from '@/features/album-list/AlbumList';
@@ -13,7 +12,8 @@ import { ALBUM_SEARCH_PLACEHOLDER } from '@/features/album-list/albumSearchPlace
 import type { AlbumFilter } from '@/features/album-list/prepareAlbums';
 import usePreparedAlbums from '@/features/album-list/usePreparedAlbums';
 import useListControls from '@/hooks/useListControls';
-import { layout, press } from '@/styles/designTokens';
+import useScreenPadding from '@/hooks/useScreenPadding';
+import { press } from '@/styles/designTokens';
 import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
 type AlbumPickerProps = {
@@ -26,7 +26,7 @@ type AlbumPickerProps = {
 // `onPick`. Smart albums show (to pick assets from Favorites), but never Deleted: nothing is picked
 // from the trash. `onScroll` and `expandProgress` let the modal animate its header and a segment pill.
 export default function AlbumPicker({ onPick, onScroll, expandProgress }: AlbumPickerProps) {
-  const { bottom } = useSafeAreaInsets();
+  const padding = useScreenPadding('sheet', { bottomBar: true });
 
   const { sortOrder, sortAlbums } = useSortAlbumsAction();
   const { listRef, sort, activeFilter, toggleFilter, searchBar, searchText } = useListControls<AlbumSort, AlbumFilter>({
@@ -39,10 +39,7 @@ export default function AlbumPicker({ onPick, onScroll, expandProgress }: AlbumP
       <AlbumList
         listRef={listRef}
         albums={albums}
-        contentContainerStyle={{
-          paddingTop: layout.sheetContentTop,
-          paddingBottom: bottom + layout.barClearance,
-        }}
+        contentContainerStyle={padding}
         onScroll={onScroll}
         renderItem={({ album, elementWidth }) => (
           <Pressable style={({ pressed }) => pressed && press.flat} onPress={() => onPick(album)}>
