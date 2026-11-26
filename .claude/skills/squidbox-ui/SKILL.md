@@ -90,6 +90,9 @@ All paths are under `apps/mobile/src/`.
 
 - Buttons are glass (`FloatingPill`); titles are plain text, never in a pill (iOS 26). What scrolls under a
   header blurs and pales behind it (`ScrollEdgeFade`, drawn by every header).
+- The one exception is the photo detail screen (`AssetScreen`): the photo fills the screen under the bar, so
+  its date sits in a glass pill and there is no scroll edge (`FloatingDetailHeader`'s `isTitleInPill`).
+  No other screen gets it.
 - Tabs (`FloatingHeader`): the large title stays on the left as the list scrolls.
 - Pushed screens (`FloatingDetailHeader`) and sheets (`ModalHeader`): a small centred title (`ToolbarTitle`).
   A screen whose title is in the page (an album, a contact) shows it in the header once that one has

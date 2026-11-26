@@ -23,6 +23,10 @@ export type FloatingDetailHeaderProps = {
   /** For a screen whose title is in the page (with useScreenPadding('detail')): the list's offset, and
    * where that title ends, from the content's top. The title pill shows once it has gone under the bar. */
   titleReveal?: TitleReveal;
+  /** The title in a glass pill, like the buttons beside it, with no scroll edge behind the bar. Only the
+   * photo detail screen, whose photo fills the screen under the bar: there the edge's blur reads as
+   * part of the photo. */
+  isTitleInPill?: boolean;
   children?: ReactNode;
 };
 
@@ -40,6 +44,7 @@ export type FloatingDetailHeaderProps = {
  *   menuSlot     — element(s) rendered inside the right FloatingPill
  *   isSelectMode — when true, back + info animate out to the left
  *   titleReveal  — the title shows only once the page's own title has scrolled away
+ *   isTitleInPill — the title in a glass pill instead, without the scroll edge (the photo detail screen)
  *   children     — centred under the row (a note about what the screen shows)
  */
 export default function FloatingDetailHeader({
@@ -49,6 +54,7 @@ export default function FloatingDetailHeader({
   menuSlot,
   isSelectMode = false,
   titleReveal,
+  isTitleInPill = false,
   children,
 }: FloatingDetailHeaderProps) {
   const insets = useSafeAreaInsets();
@@ -73,7 +79,7 @@ export default function FloatingDetailHeader({
 
   return (
     <>
-      <ScrollEdgeFade headerBottom={top + sizes.iconButton} scrollY={titleReveal?.scrollY} />
+      {!isTitleInPill && <ScrollEdgeFade headerBottom={top + sizes.iconButton} scrollY={titleReveal?.scrollY} />}
       <View
         // Inside a modal sheet the top safe-area inset is ~0, so insets.top + space.sm would leave the
         // pills hugging the sheet's top edge. Floor the offset at layout.barMargin so it matches
@@ -92,7 +98,13 @@ export default function FloatingDetailHeader({
               accessibilityElementsHidden={!!titleReveal}
               importantForAccessibility={titleReveal ? 'no-hide-descendants' : 'auto'}
             >
-              <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
+              {isTitleInPill ? (
+                <FloatingPill style={maxWidth !== undefined && { maxWidth }}>
+                  <ToolbarTitle title={title} subtitle={subtitle} />
+                </FloatingPill>
+              ) : (
+                <ToolbarTitle title={title} subtitle={subtitle} style={maxWidth !== undefined && { maxWidth }} />
+              )}
             </Animated.View>
           )}
 
