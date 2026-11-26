@@ -1,12 +1,8 @@
 import { useNavigation } from 'expo-router';
 import { type ReactNode, useMemo } from 'react';
-import { MenuProvider } from 'react-native-popup-menu';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import ModalHosts from './ModalHosts';
 import SheetRouteContext, { type SheetRouteValue } from './SheetRouteContext';
-
-import ProgressOverlayHost from '@/components/progress-overlay/ProgressOverlayHost';
-import QuickViewHost from '@/components/quick-view/QuickViewHost';
 
 export type SheetRouteProps = { routeKey: string; children?: ReactNode };
 
@@ -17,10 +13,8 @@ export type SheetRouteProps = { routeKey: string; children?: ReactNode };
  * the whole sheet, and its options (`setOptions({ gestureEnabled })` locks its swipe down).
  *
  * iOS presents the sheet as a page sheet whose own top safe-area inset is 0, so the sheet has its
- * own SafeAreaProvider: without it, screens read the window's inset (the notch) and leave a gap
- * below the sheet's top edge. The root's menus and progress overlay would show behind the sheet, so
- * it has its own MenuProvider and overlay hosts too (the quick view's, for peeks opened in the
- * sheet, and the progress overlay's, which shares the root's overlay state).
+ * own hosts (ModalHosts): without its SafeAreaProvider, screens read the window's inset (the notch)
+ * and leave a gap below the sheet's top edge.
  */
 export default function SheetRoute({ routeKey, children }: SheetRouteProps) {
   const navigation = useNavigation();
@@ -31,11 +25,7 @@ export default function SheetRoute({ routeKey, children }: SheetRouteProps) {
 
   return (
     <SheetRouteContext value={sheet}>
-      <SafeAreaProvider>
-        <MenuProvider skipInstanceCheck>{children}</MenuProvider>
-        <QuickViewHost />
-        <ProgressOverlayHost />
-      </SafeAreaProvider>
+      <ModalHosts>{children}</ModalHosts>
     </SheetRouteContext>
   );
 }
