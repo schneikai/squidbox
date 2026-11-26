@@ -16,7 +16,8 @@ const PLACEHOLDER = sizes.avatar.hero; // as big as the photo it stands for, and
  *   contact — the contact screen's hero avatar, raised off the page, with a white camera disc on
  *             its corner that picks; `onDoublePress` is what a double tap on it does (the favorite)
  *   form    — New contact's: a camera on a disc until there is a name or a photo (the picture at
- *             `uri`), then the avatar, with Add photo (or Change photo once it has one) under it
+ *             `uri`), then the avatar, with Add photo (or Change photo once it has one) under it;
+ *             the circle picks as well as the link
  */
 type ContactAvatarPickerProps = {
   contact: ContactAvatarProps['contact'];
@@ -49,18 +50,21 @@ export default function ContactAvatarPicker({
     const isBlank = !uri && !contact.name.trim();
     return (
       <View style={[styles.form, style]}>
-        {isBlank ? (
-          <Pressable
-            onPress={handlePick}
-            accessibilityRole="button"
-            accessibilityLabel="Add photo"
-            style={({ pressed }) => [styles.placeholder, pressed && press.filled]}
-          >
-            <Icon name="camera" size={scale(40)} color={colors.accent.base} />
-          </Pressable>
-        ) : (
-          <ContactAvatar contact={contact} uri={uri} size="hero" />
-        )}
+        {/* The circle picks too, before and after there is a photo, like the link under it. */}
+        <Pressable
+          onPress={handlePick}
+          accessibilityRole="button"
+          accessibilityLabel={hasPhoto ? 'Change photo' : 'Add photo'}
+          style={({ pressed }) => pressed && press.filled}
+        >
+          {isBlank ? (
+            <View style={styles.placeholder}>
+              <Icon name="camera" size={scale(40)} color={colors.accent.base} />
+            </View>
+          ) : (
+            <ContactAvatar contact={contact} uri={uri} size="hero" />
+          )}
+        </Pressable>
         <Button label={hasPhoto ? 'Change photo' : 'Add photo'} onPress={handlePick} style={styles.link} />
       </View>
     );
