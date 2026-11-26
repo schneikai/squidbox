@@ -188,9 +188,9 @@ test("a thread's card for a channel without threads sends and shows only its fir
 }) => {
   await fromPostMenu(page, 'Summer recap, part 1', 'Send to channels');
   const sheet = sendSheet(page);
-  await expect(copyCard(sheet, 'Bluesky').getByText('Thread · 4')).toBeVisible();
+  await expect(copyCard(sheet, 'Bluesky').getByText('4 threads', { exact: false })).toBeVisible();
   const instagram = copyCard(sheet, 'Instagram');
-  await expect(instagram.getByText(/^Thread/)).toBeHidden();
+  await expect(instagram.getByText(/threads/)).toBeHidden();
   await expect(instagram.getByText(/^No threads/)).toBeHidden();
   // Opened, it shows only that post too.
   await instagram.getByText('Instagram', { exact: true }).click();

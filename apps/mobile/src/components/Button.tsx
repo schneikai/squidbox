@@ -95,7 +95,7 @@ export type ButtonProps = Pick<PressableProps, 'onPress' | 'disabled' | 'accessi
  * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) or a picker
  * (IconSlotContext) a bare icon takes a 44 pt slot. A link has its own height, regular or small; a
  * link can also be `caption`: no padding, in the meta style of the text beside it
- * (`listTextStyles.meta`), a tap in a row of captions (a thread's "Thread · 3").
+ * (`listTextStyles.meta`), a tap in a row of captions (a thread's "3 threads").
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a link is `accent`, a secondary pill `neutral` and an icon `muted` unless told,
  * wherever it sits. `isInverse` puts a link on a dark surface (the Undo bar). `isSelected` marks a
