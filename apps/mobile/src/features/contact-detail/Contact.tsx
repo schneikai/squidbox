@@ -187,7 +187,7 @@ export default function Contact({ contact }: ContactProps) {
           title="Photos"
           isFlush
           link={
-            photos?.count
+            photos && photos.count > photos.rows.length
               ? { label: `See all ${photos.count}`, onPress: () => router.navigate(`/contact/${contact.id}/photos`) }
               : undefined
           }
