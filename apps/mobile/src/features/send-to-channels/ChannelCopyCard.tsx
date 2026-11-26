@@ -23,7 +23,8 @@ type ChannelCopyCardProps = {
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention: (contactId: string) => void;
   onOpen: () => void;
-  onSendNow: () => void;
+  /** Left out when the sheet's own bottom action sends this copy. */
+  onSendNow?: () => void;
   onEdit: () => void;
   onDiscardChanges: () => void;
   onRemove: () => void;
@@ -35,7 +36,7 @@ type ChannelCopyCardProps = {
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
  * and, for a thread it sends, its size, on one line with when it was sent once it is (a channel without threads gets only the first post,
  * postsSentTo). Unsent, it warns at its top, across the card, about the contacts without a handle there (their
- * names go out as plain text, with Add handle: MissingHandleNote); it has Send now and Edit, and Remove in the ⋯ beside them; saved in
+ * names go out as plain text, with Add handle: MissingHandleNote); it has Send now (unless the sheet's bottom action is its Send now) and Edit, and Remove in the ⋯ beside them; saved in
  * its composer, it says Edited and has Discard changes in its ⋯ (it shows the post again); sent, it
  * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
  * (`onOpen`: all of its posts and pictures).
@@ -85,7 +86,7 @@ export default function ChannelCopyCard({
               <Text variant="meta">{[threadText, copySentText(copy.sentAt)].filter(Boolean).join(' · ')}</Text>
             ) : (
               <>
-                <Button variant="primary" size="small" label="Send now" onPress={onSendNow} />
+                {onSendNow && <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />}
                 <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
               </>
             )}
