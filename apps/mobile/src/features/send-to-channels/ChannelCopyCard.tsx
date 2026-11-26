@@ -58,8 +58,7 @@ export default function ChannelCopyCard({
   const isSent = copy.sentAt !== null;
   const isEdited = !isSent && !copy.showsPost;
   const sentCount = postsSentTo(channel, copy.posts).length;
-  // A thread's size, on one line with when it was sent ("2 threads · Sent 1 month ago"), in the card's footer with
-  // its actions and ⋯, across the card's width.
+  // A thread's size, on one line with when it was sent ("2 threads · Sent 1 month ago").
   const threadText = sentCount > 1 ? threadLabel(sentCount) : null;
   const { missing } = channelPayload(channel, copy.posts, contactsById);
 
@@ -71,7 +70,17 @@ export default function ChannelCopyCard({
         onPress={onOpen}
         openLabel={`Open the ${channel.name} copy`}
         header={!isSent && missing.length > 0 && <MissingHandleNote contacts={missing} channel={channel} />}
-        footer={
+      >
+        <View style={styles.body}>
+          <View style={styles.channel}>
+            <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
+            <Text variant="label">{channel.name}</Text>
+            {isEdited && <Badge label="Edited" tone="info" />}
+          </View>
+          {first && (
+            <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
+          )}
+          {!isSent && threadText && <Text variant="meta">{threadText}</Text>}
           <View style={styles.actions}>
             {copy.sentAt !== null ? (
               <Text variant="meta">{[threadText, copySentText(copy.sentAt)].filter(Boolean).join(' · ')}</Text>
@@ -92,18 +101,6 @@ export default function ChannelCopyCard({
               )}
             </MenuButton>
           </View>
-        }
-      >
-        <View style={styles.body}>
-          <View style={styles.channel}>
-            <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
-            <Text variant="label">{channel.name}</Text>
-            {isEdited && <Badge label="Edited" tone="info" />}
-          </View>
-          {first && (
-            <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
-          )}
-          {!isSent && threadText && <Text variant="meta">{threadText}</Text>}
         </View>
       </PostRowCard>
     </View>
