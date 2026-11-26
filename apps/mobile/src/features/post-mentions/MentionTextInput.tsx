@@ -1,5 +1,5 @@
 import { POST_LIMITS, type Channel, type PostMention } from '@squidbox/shared';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import MentionInput, { type FieldSelection, type MentionInputHandle } from './MentionInput';
@@ -75,7 +75,9 @@ export default function MentionTextInput({
   const mention = isActive && (mentions?.length ?? 0) < POST_LIMITS.mentions ? autocomplete.mention : null;
 
   // A keystroke's value comes back as the same text and mentions the field reported: nothing to do.
-  useEffect(() => {
+  // A layout effect, so the field holds the value before it can take a keystroke: a later effect
+  // would compare that keystroke with a value from before it, draw the field again and lose the cursor.
+  useLayoutEffect(() => {
     const held = heldRef.current;
     if (held && held.value.text === text && held.value.mentions === mentions && held.chipOf === chipOf) return;
     const content = toFieldContent({ text, mentions }, chipOf);
