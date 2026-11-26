@@ -26,11 +26,12 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * the sent and saved copies of channels no longer among them (ChannelCopyCard, readChannelCopies; a
  * channel this build doesn't know is left out). A card shows the post and its thread as they are now
  * until it is saved in its composer (ChannelCopyScreen, pushed in the sheet) or sent; a tap on a card
- * opens it as it goes out (ChannelCopyViewScreen). Remove takes the channel off the post; + on the left (there
- * only once a card was removed) brings it back. At the bottom, Send all with two or more unsent cards
- * (it only marks them sent), Send to <channel> with one (its Send now), nothing with none. A post
- * deleted meanwhile closes the sheet. Every change saves as it is made, so the sheet closes with Done
- * (trailing, as iOS does for a sheet that is not a draft), never a × that reads as Cancel.
+ * opens it as it goes out (ChannelCopyViewScreen). Remove takes the channel off the post; + on the right (there
+ * only once a card was removed) brings it back. At the bottom, the screen's one primary action: Send all with
+ * two or more unsent cards (it only marks them sent), Send to <channel> with one (that card then has no Send
+ * now of its own), nothing with none. A post deleted meanwhile closes the sheet. Every change saves as it is
+ * made, so × on the left closes the sheet like every sheet that is not a draft (HIG: Close closes a modal
+ * view; Done is for a sheet whose task it completes).
  */
 export default function SendToChannelsScreen() {
   const { postId } = useLocalSearchParams<{ postId: string }>();
@@ -70,7 +71,9 @@ export default function SendToChannelsScreen() {
   return (
     <ModalSheet testID="send-to-channels-sheet">
       <ModalHeader
-        leading={
+        leading={<Button icon="close" accessibilityLabel="Close" onPress={() => navigation.goBack()} />}
+        title="Send to channels"
+        trailing={
           read.addable.length > 0 ? (
             <MenuButton icon="add" accessibilityLabel="Add channel" title="Add channel">
               {read.addable.map((channel) => (
@@ -84,8 +87,6 @@ export default function SendToChannelsScreen() {
             </MenuButton>
           ) : undefined
         }
-        title="Send to channels"
-        trailing={<Button variant="primary" label="Done" onPress={() => navigation.goBack()} />}
       />
       {copies.length === 0 ? (
         <View style={[styles.empty, padding]}>
@@ -114,7 +115,7 @@ export default function SendToChannelsScreen() {
               contactsById={contactsById}
               onPressMention={onPressMention}
               onOpen={() => openCopy(copy)}
-              onSendNow={() => sendNow(copy)}
+              onSendNow={unsent.length > 1 ? () => sendNow(copy) : undefined}
               onEdit={() => editCopy(copy)}
               onDiscardChanges={() => discardChanges(copy)}
               onRemove={() => remove(copy)}
