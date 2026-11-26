@@ -19,7 +19,7 @@ import useSearchText from '@/hooks/useSearchText';
 import useSheetSearchList from '@/hooks/useSheetSearchList';
 import listParam from '@/lib/listParam';
 import useAlbums from '@/providers/albums/useAlbums';
-import { sizes } from '@/styles/designTokens';
+import { sizes, space } from '@/styles/designTokens';
 import listTextStyles from '@/styles/listTextStyles';
 import type { AlbumListRow } from '@/sync/queries/albumQuery';
 
@@ -85,7 +85,7 @@ const AlbumRows = memo(function AlbumRows({ albums, assetIds }: AlbumRowsProps) 
           label={
             <View style={styles.labels}>
               <Text style={listTextStyles.name}>{album.name}</Text>
-              <Text style={listTextStyles.detail}>{albumAssetCountText(album.assetCount)}</Text>
+              <Text style={listTextStyles.meta}>{albumAssetCountText(album.assetCount)}</Text>
             </View>
           }
           onPress={() => handleAddAssetsToAlbum(album)}
@@ -102,5 +102,6 @@ const styles = StyleSheet.create({
   },
   labels: {
     flex: 1,
+    gap: space.hair,
   },
 });

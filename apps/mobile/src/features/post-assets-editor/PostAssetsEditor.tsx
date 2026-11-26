@@ -73,7 +73,7 @@ export default function PostAssetsEditor({ postId, postAssets, onChange, channel
           />
         )}
       />
-      <Text variant="label" tone={isMediaOver(channel, postAssets.length) ? 'danger' : undefined}>
+      <Text variant="meta" tone={isMediaOver(channel, postAssets.length) ? 'danger' : undefined}>
         {caption}
       </Text>
     </View>

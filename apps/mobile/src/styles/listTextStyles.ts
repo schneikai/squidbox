@@ -1,31 +1,22 @@
 import { StyleSheet } from 'react-native';
 
-import { colors, space, textStyles } from '@/styles/designTokens';
+import { colors, textStyles } from '@/styles/designTokens';
 
-// A list entry's main line and the smaller grey line below it (ThumbnailRow, the asset's details), and
-// a contact's or a contact list's: the name in bold over its details, which wrap rather than cut off;
-// the small bold grey caption under a post or an album (its date, counts, a thread's "Thread · 3").
+// A list entry's main line (ThumbnailRow, the asset's details), a contact's or a contact list's name
+// in bold, and `meta`: the app's one style for the facts about an item, small, regular and grey, under
+// or beside it: counts, dates, places ("10 Assets · Posted 12 days ago", "Thread · 3", a contact's
+// places). Text's `meta` variant is the same. Its gap from the line above is the parent's layout.
 export default StyleSheet.create({
   title: {
     ...textStyles.body,
     color: colors.text.primary,
   },
-  subtitle: {
-    marginTop: space.hair,
-    ...textStyles.footnote,
-    color: colors.text.secondary,
-  },
   name: {
     ...textStyles.bodyBold,
     color: colors.text.primary,
   },
-  detail: {
-    marginTop: space.hair,
-    ...textStyles.subheadline,
-    color: colors.text.secondary,
-  },
-  caption: {
-    ...textStyles.footnoteBold,
+  meta: {
+    ...textStyles.footnote,
     color: colors.text.secondary,
   },
 });

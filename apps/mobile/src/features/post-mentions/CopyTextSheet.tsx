@@ -34,7 +34,7 @@ export default function CopyTextSheet({ choices, onPick, onClose }: CopyTextShee
           >
             <View style={styles.copied}>
               {choice.hasNoHandle && <Badge label="No handle" tone="warning" />}
-              <Text variant="status">{choice.mentions}</Text>
+              <Text variant="meta">{choice.mentions}</Text>
             </View>
           </Row>
         ))}

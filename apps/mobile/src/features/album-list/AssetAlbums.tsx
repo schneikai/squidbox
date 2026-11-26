@@ -26,7 +26,7 @@ export default function AssetAlbums({ scope, emptyText, guardPress = unguarded, 
   const albums = useAssetAlbums(scope, { isLive });
 
   if (!albums) return null;
-  if (albums.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
+  if (albums.length === 0) return <Text style={listTextStyles.meta}>{emptyText}</Text>;
 
   return albums.map((album, index) => (
     <ThumbnailRow

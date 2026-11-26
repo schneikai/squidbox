@@ -78,10 +78,10 @@ export default function ChannelCopyCard({
           {first && (
             <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
           )}
-          {sentCount > 1 && <RNText style={listTextStyles.caption}>{threadLabel(sentCount)}</RNText>}
+          {sentCount > 1 && <RNText style={listTextStyles.meta}>{threadLabel(sentCount)}</RNText>}
           <View style={styles.actions}>
             {copy.sentAt !== null ? (
-              <Text variant="hint">{copySentText(copy.sentAt)}</Text>
+              <Text variant="meta">{copySentText(copy.sentAt)}</Text>
             ) : (
               <>
                 <Button variant="primary" size="small" label="Send now" onPress={onSendNow} />

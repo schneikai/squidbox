@@ -283,7 +283,7 @@ export const layout = {
   sectionGap: space.xl, // between a screen's sections
   iconGap: space.sm, // an icon from its label in a chip or a regular control
   iconGapSmall: space.xs, // an icon from its label in a small control, a link or a badge
-  linkPaddingX: space.xxl, // a regular text link's side padding (Button); AddRow and PostedAtPicker undo it
+  linkPaddingX: space.xxl, // a regular text link's side padding (Button); AddRow undoes it
   keyboardGap: space.md, // between the keyboard (or the safe area) and what sits on it (useKeyboardInset)
   gridGutter: 1, // the hairline between a grid's cells: a line, not a step
   barMargin: BAR_MARGIN, // a bar's room from the screen's edge, top or bottom (the safe area's), and a sheet header's

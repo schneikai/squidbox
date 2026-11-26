@@ -16,7 +16,7 @@ import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import textForChannel from '@/features/post-mentions/textForChannel';
 import type { Point } from '@/lib/Point';
 import isPastTapSlop from '@/lib/isPastTapSlop';
-import { layout, scale, space } from '@/styles/designTokens';
+import { layout, scale, sizes, space } from '@/styles/designTokens';
 import type { ThreadPart } from '@/sync/postThreads';
 import buildPostAssets from '@/utils/posts/buildPostAssets';
 
@@ -92,9 +92,9 @@ export default function PostCard({
     [channel, contactsById, mentions, text],
   );
   const { counter, isOver } = textLimit(channel, sent.text);
-  // The date's look beside it (Text `status`: regular, grey), so the toolbar has one grey.
+  // Meta, like the date in the toolbar under it.
   const counterNode = counter && (isTyping || isOver) && (
-    <Text variant="status" tone={isOver ? 'danger' : undefined} style={styles.counter}>
+    <Text variant="meta" tone={isOver ? 'danger' : undefined} style={styles.counter}>
       {counter}
     </Text>
   );
@@ -180,23 +180,26 @@ export default function PostCard({
   );
 }
 
+// The room a 44 pt toolbar row leaves above and below its icons.
+const TOOLBAR_ROOM = (sizes.iconButton - sizes.icon) / 2;
+
 const styles = StyleSheet.create({
   // The × keeps its place when the text grows: the text takes the rest and wraps.
   top: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  // A card's gap from the text and the toolbar (the card's gap is the toolbar's slack). The toolbar
-  // comes space.xs closer: the caption's line leaves that much room under its letters, so the icons
-  // look as far from the caption as from the tray under them.
+  // One rhythm down the card: the text, the photos, their caption, the toolbar's icons and the tray
+  // each sit cardGap apart (the card's own gap between its parts is controlRowSlack). The toolbar's
+  // 44 pt row already holds TOOLBAR_ROOM above and below its icons, so its neighbours come that much
+  // closer, and the icons space.xs more: the caption's line leaves that much under its letters.
   assets: {
     marginTop: layout.cardGap - layout.controlRowSlack,
-    marginBottom: layout.cardGap - layout.controlRowSlack - space.xs,
+    marginBottom: layout.cardGap - layout.controlRowSlack - TOOLBAR_ROOM - space.xs,
   },
-  // The toolbar's 44 pt row already leaves room under its icons, so the tray follows at the card's
-  // gap, and keeps the card's side inset below it.
+  // Keeps the card's side inset below it.
   tray: {
-    marginTop: layout.cardGap - layout.controlRowSlack,
+    marginTop: layout.cardGap - layout.controlRowSlack - TOOLBAR_ROOM,
     marginBottom: layout.cardInset - layout.controlRowSlack,
   },
   // Under the text it is about, at the card's gap.

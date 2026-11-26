@@ -94,7 +94,7 @@ function ContactRow({ contact, trailing, onPress, onLongPress, isSelected, isFir
           size="small"
         >
           <Text style={listTextStyles.name}>{contact.name}</Text>
-          {!!subtitle && <Text style={listTextStyles.detail}>{subtitle}</Text>}
+          {!!subtitle && <Text style={listTextStyles.meta}>{subtitle}</Text>}
           {!!contact.listNames?.length && <ContactListPills names={contact.listNames} />}
         </RowSlots>
       </Pressable>

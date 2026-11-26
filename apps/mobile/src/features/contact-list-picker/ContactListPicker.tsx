@@ -75,7 +75,7 @@ export default function ContactListPicker({
                     isSelected={isSingle ? isSelected : undefined}
                     onPress={() => handlePress(list.id)}
                   >
-                    <Text style={listTextStyles.subtitle}>
+                    <Text style={listTextStyles.meta}>
                       {pluralizeText('1 contact', '%{count} contacts', list.memberCount)}
                     </Text>
                   </Row>

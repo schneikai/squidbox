@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { FlatList, Modal, Pressable, View, Text as RNText, StyleSheet } from 'react-native';
+import { FlatList, Modal, Pressable, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Button from '@/components/Button';
@@ -10,7 +10,6 @@ import Text from '@/components/Text';
 import { Section } from '@/components/settings-list/SettingsList';
 import { SCREEN_PADDING } from '@/constants';
 import { layout, press, space } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 import type { SyncFailureRow } from '@/sync/readPushFailures';
 import { type PagedQuery, usePagedQuery } from '@/sync/usePagedQuery';
 
@@ -64,9 +63,9 @@ export default function SyncErrorViewer({ query, onRetryAll, close }: SyncErrorV
                   onPress={href ? () => handleOpen(href) : undefined}
                   accessibilityRole={href ? 'link' : undefined}
                 >
-                  <RNText style={[listTextStyles.caption, styles.errorTitle]} numberOfLines={1}>
+                  <Text variant="label" numberOfLines={1} style={styles.errorTitle}>
                     {row.title}
-                  </RNText>
+                  </Text>
                   <Text variant="error">{row.error}</Text>
                 </Pressable>
               </Section>

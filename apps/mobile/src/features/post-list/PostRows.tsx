@@ -28,7 +28,7 @@ export default function PostRows({ scope, emptyText, limit, guardPress = unguard
   const posts = useScopePosts(scope, limit, isLive);
 
   if (!posts) return null;
-  if (posts.length === 0) return <Text style={listTextStyles.subtitle}>{emptyText}</Text>;
+  if (posts.length === 0) return <Text style={listTextStyles.meta}>{emptyText}</Text>;
 
   return posts.map((post, index) => (
     <ThumbnailRow

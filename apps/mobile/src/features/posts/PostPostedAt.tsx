@@ -27,7 +27,7 @@ export default function PostPostedAt({ postedAt }: PostPostedAtProps) {
 
   return (
     <Pressable onPress={toggleFormat}>
-      <Text style={listTextStyles.caption}>Posted {formatted}</Text>
+      <Text style={listTextStyles.meta}>Posted {formatted}</Text>
     </Pressable>
   );
 }
