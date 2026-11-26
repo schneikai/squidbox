@@ -5,7 +5,6 @@ import copySentText from './copySentText';
 import postsSentTo from './postsSentTo';
 
 import Badge from '@/components/Badge';
-import Button from '@/components/Button';
 import MenuButton from '@/components/MenuButton';
 import Text from '@/components/Text';
 import MenuOption from '@/components/popup-menu-options/MenuOption';
@@ -22,10 +21,12 @@ type ChannelCopyCardProps = {
   copy: ChannelCopy;
   contactsById: ReadonlyMap<string, MentionContact>;
   onPressMention: (contactId: string) => void;
+  /** A tap on a sent card: the copy as it went out. */
   onOpen: () => void;
+  /** A tap on an unsent card: its composer. */
+  onEdit: () => void;
   /** Left out when the sheet's own bottom action sends this copy. */
   onSendNow?: () => void;
-  onEdit: () => void;
   onDiscardChanges: () => void;
   onRemove: () => void;
   onMarkNotSent: () => void;
@@ -33,21 +34,21 @@ type ChannelCopyCardProps = {
 
 /**
  * A post's card for one channel (its stored copy, or an untouched card that shows the post), as a row card: its first post's first picture, the channel's logo
- * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
- * and, for a thread it sends, its size, on one line with when it was sent once it is (a channel without threads gets only the first post,
- * postsSentTo). Unsent, it warns at its top, across the card, about the contacts without a handle there (their
- * names go out as plain text, with Add handle: MissingHandleNote); it has Send now (unless the sheet's bottom action is its Send now) and Edit, and Remove in the ⋯ beside them; saved in
- * its composer, it says Edited and has Discard changes in its ⋯ (it shows the post again); sent, it
- * is locked: when it was sent, and Mark as not sent in its ⋯. A tap on the card opens the copy
- * (`onOpen`: all of its posts and pictures).
+ * and name with the card's ⋯ at its end, its text as the channel gets it (each mention as the contact's handle there, MentionText)
+ * and, for a thread it sends, its size on a line of its own (a channel without threads gets only the first post,
+ * postsSentTo). Unsent, it warns at its bottom, across the card, about the contacts without a handle there (their
+ * names go out as plain text, with Add handle: MissingHandleNote); a tap opens its composer (`onEdit`), and its ⋯ has Send now
+ * (unless the sheet's bottom action is its Send now) and Remove; saved in its composer, it says Edited and its ⋯ also has
+ * Discard changes (it shows the post again). Sent, it is locked: when it was sent on the line under the size, Mark as not
+ * sent in its ⋯, and a tap opens the copy as it went out (`onOpen`: all of its posts and pictures).
  */
 export default function ChannelCopyCard({
   copy,
   contactsById,
   onPressMention,
   onOpen,
-  onSendNow,
   onEdit,
+  onSendNow,
   onDiscardChanges,
   onRemove,
   onMarkNotSent,
@@ -58,7 +59,6 @@ export default function ChannelCopyCard({
   const isSent = copy.sentAt !== null;
   const isEdited = !isSent && !copy.showsPost;
   const sentCount = postsSentTo(channel, copy.posts).length;
-  // A thread's size, on one line with when it was sent ("2 threads · Sent 1 month ago").
   const threadText = sentCount > 1 ? threadLabel(sentCount) : null;
   const { missing } = channelPayload(channel, copy.posts, contactsById);
 
@@ -67,40 +67,36 @@ export default function ChannelCopyCard({
       <PostRowCard
         asset={asset}
         moreCount={more.length}
-        onPress={onOpen}
-        openLabel={`Open the ${channel.name} copy`}
-        header={!isSent && missing.length > 0 && <MissingHandleNote contacts={missing} channel={channel} />}
+        onPress={isSent ? onOpen : onEdit}
+        openLabel={isSent ? `Open the ${channel.name} copy` : `Edit the ${channel.name} copy`}
+        footer={!isSent && missing.length > 0 && <MissingHandleNote contacts={missing} channel={channel} />}
       >
         <View style={styles.body}>
           <View style={styles.channel}>
             <ChannelLogo channelId={channel.id} size={sizes.menuIcon} />
             <Text variant="label">{channel.name}</Text>
             {isEdited && <Badge label="Edited" tone="info" />}
-          </View>
-          {first && (
-            <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
-          )}
-          {!isSent && threadText && <Text variant="meta">{threadText}</Text>}
-          <View style={styles.actions}>
-            {copy.sentAt !== null ? (
-              <Text variant="meta">{[threadText, copySentText(copy.sentAt)].filter(Boolean).join(' · ')}</Text>
-            ) : (
-              <>
-                {onSendNow && <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />}
-                <Button variant="secondary" size="small" label="Edit" onPress={onEdit} />
-              </>
-            )}
             <MenuButton size="small" accessibilityLabel={`${channel.name} copy options`} style={styles.menu}>
               {isSent ? (
                 <MenuOption label="Mark as not sent" icon="undo" onPress={onMarkNotSent} />
               ) : (
                 <>
+                  {onSendNow && <MenuOption label="Send now" icon="send" onPress={onSendNow} />}
                   {isEdited && <MenuOption label="Discard changes" icon="undo" onPress={onDiscardChanges} />}
                   <MenuOption label="Remove" icon="trash" colorPalette="danger" onPress={onRemove} />
                 </>
               )}
             </MenuButton>
           </View>
+          {first && (
+            <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
+          )}
+          {(threadText || copy.sentAt !== null) && (
+            <View>
+              {threadText && <Text variant="meta">{threadText}</Text>}
+              {copy.sentAt !== null && <Text variant="meta">{copySentText(copy.sentAt)}</Text>}
+            </View>
+          )}
         </View>
       </PostRowCard>
     </View>
@@ -116,13 +112,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.iconGap,
   },
+  // The ⋯ sits at the row's end without making the row taller than its label.
   menu: {
     marginLeft: 'auto',
-  },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: layout.cardGap,
+    marginVertical: -layout.iconGap,
   },
 });
