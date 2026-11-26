@@ -5,7 +5,8 @@ import { colors, layout, sizes, textStyles } from '@/styles/designTokens';
 export type ToolbarTitleProps = { title?: string; subtitle?: string; style?: StyleProp<ViewStyle> };
 
 // A header's title: a bold one-line `title` and an optional smaller grey `subtitle` under it (a photo's
-// date and place), plain text over the scroll edge (ScrollEdgeFade), never in a pill, as iOS 26 has it.
+// date and place), plain text over the scroll edge (ScrollEdgeFade), never in a pill, as iOS 26 has it. The
+// one exception is the photo detail screen (FloatingDetailHeader's isTitleInPill).
 // One button tall. It takes no touches. style is for layout only (a max width).
 export default function ToolbarTitle({ title, subtitle, style }: ToolbarTitleProps) {
   return (

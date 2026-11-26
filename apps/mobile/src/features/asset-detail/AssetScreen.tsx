@@ -134,6 +134,12 @@ export default function AssetScreen() {
     if (details.isShown) setIsFullscreen(false);
   }, [details.isShown]);
 
+  // Zooming in shows the photo alone, like a tap; back at 1× the controls come back.
+  const handleLockChange = useCallback((isLocked: boolean) => {
+    setIsPagerLocked(isLocked);
+    setIsFullscreen(isLocked);
+  }, []);
+
   // Recenter once the current asset leaves the middle third of the window.
   useEffect(() => {
     const third = windowIds.length / 3;
@@ -174,7 +180,7 @@ export default function AssetScreen() {
             isDetailsShown={details.isShown}
             onChangeAssetId={setSelectedAssetId}
             onTapAsset={handleTapAsset}
-            onLockChange={setIsPagerLocked}
+            onLockChange={handleLockChange}
           />
         ) : (
           // Not zoomable (nor its details shown) until the pager takes over, which locks the swipes
@@ -191,6 +197,7 @@ export default function AssetScreen() {
             title={headerDate?.title ?? ''}
             subtitle={headerDate?.subtitle ?? ''}
             onBack={() => navigation.goBack()}
+            isTitleInPill
             menuSlot={asset && <MoreAction asset={asset} />}
           >
             {!!asset?.deletedAt && <DeletedNote mediaType={asset.mediaType} />}
