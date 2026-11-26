@@ -64,7 +64,9 @@ test('the sheet opens with a card per channel filled from the post, and Send all
   await expect(button(sheet, 'Send all')).toBeHidden();
 });
 
-test("Remove takes a channel's card away for good, and Add channel brings it back", async ({ page }) => {
+test("Remove takes a channel's card away for good, and + brings the only removed one back at once", async ({
+  page,
+}) => {
   const post = await fromPostMenu(page, 'First light over the hills', 'Send to channels');
   const sheet = sendSheet(page);
   await button(copyCard(sheet, 'X'), 'X copy options').click();
@@ -74,18 +76,18 @@ test("Remove takes a channel's card away for good, and Add channel brings it bac
     () => page.getByRole('menuitem', { name: 'Remove' }).click(),
   );
   await expect(copyCard(sheet, 'X')).toBeHidden();
-  await button(sheet, 'Done').click();
+  await button(sheet, 'Close').click();
   await expect(sheet).toBeHidden();
 
   await button(post, 'Post options').click();
   await page.getByRole('menuitem', { name: 'Send to channels', exact: true }).click();
   await expect(copyCard(sheet, 'Bluesky')).toBeVisible();
   await expect(copyCard(sheet, 'X')).toBeHidden();
-  await button(sheet, 'Add channel').click();
-  await page.getByRole('menuitem', { name: 'X', exact: true }).click();
-
-  await expect(button(copyCard(sheet, 'X'), 'Send now')).toBeVisible();
   await expect(button(sheet, 'Add channel')).toBeHidden();
+  await button(sheet, 'Add X').click();
+
+  await expect(button(copyCard(sheet, 'X'), 'Send now')).toBeInViewport();
+  await expect(button(sheet, 'Add X')).toBeHidden();
 });
 
 test("Edit on an untouched card saves it as the channel's own copy", async ({ page }) => {
@@ -134,7 +136,7 @@ test("an idea in a copy's composer reads its chip as the contact's handle on tha
   await expect(editor.getByText('@ridgeline.bsky.social', { exact: true })).toHaveCount(2);
 });
 
-test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent", async ({
+test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent, the last unsent card sent from the bottom", async ({
   page,
 }) => {
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
@@ -158,6 +160,9 @@ test("a copy warns about a contact without a handle there until Add handle, and 
   await expect(card.getByText(/^Sent /)).toBeVisible();
   await expect(button(card, 'Edit')).toBeHidden();
   await expect.poll(() => clipboard(page)).toBe('Lost in the forest for a day with @samridge.pics 🌲');
+  // X is the last unsent card: the sheet's bottom action sends it, so the card has no Send now of its own.
+  await expect(button(sendSheet(page), 'Send to X')).toBeVisible();
+  await expect(button(copyCard(sendSheet(page), 'X'), 'Send now')).toBeHidden();
 
   await button(card, 'Instagram copy options').click();
   await page.getByRole('menuitem', { name: 'Mark as not sent' }).click();
