@@ -25,8 +25,9 @@ import { colors, layout, press, shadows, space, textStyles } from '@/styles/desi
 export type SectionProps = { children: ReactNode; isHeaderless?: boolean };
 
 // `isHeaderless`: a section without a header above it, set apart from the one before like a headed one.
-// On a sheet's white surface (sheetSurfaceContext, a BottomSheet) it has no shadow, as an iOS grouped
-// list on a sheet.
+// On a sheet's white surface (sheetSurfaceContext, a BottomSheet) the card can't be seen, so it has no
+// shadow or corners and reaches into the sheet's side padding: its rows' text starts at the sheet's
+// edge, under the title, and its dividers and pressed rows run to the screen's edge, as an iOS list.
 export function Section({ children, isHeaderless = false }: SectionProps) {
   const isOnSheet = useContext(sheetSurfaceContext);
   const kids = Children.toArray(children);
@@ -46,9 +47,11 @@ export function Section({ children, isHeaderless = false }: SectionProps) {
 export type SectionFooterProps = { children?: ReactNode };
 
 // iOS-style small gray explanatory text shown BELOW a grouped section.
+// On a sheet it starts at the sheet's edge, under the rows' text (Section).
 export function SectionFooter({ children }: SectionFooterProps) {
+  const isOnSheet = useContext(sheetSurfaceContext);
   return (
-    <Text variant="hint" style={styles.footer}>
+    <Text variant="hint" style={[styles.footer, isOnSheet && styles.footerOnSheet]}>
       {children}
     </Text>
   );
@@ -153,6 +156,8 @@ const styles = StyleSheet.create({
   },
   onSheet: {
     ...shadows.none,
+    borderRadius: 0,
+    marginHorizontal: -layout.rowInset,
   },
   rowLabel: {
     ...textStyles.body,
@@ -174,5 +179,8 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: space.sm,
     marginHorizontal: layout.rowInset, // under the rows' text
+  },
+  footerOnSheet: {
+    marginHorizontal: 0,
   },
 });
