@@ -83,7 +83,7 @@ function AssetDetails({ asset, isCurrent, guardPress, onEditingBottomChange }: A
     <>
       <View style={styles.info}>
         <Text style={listTextStyles.title}>{formatFullDateTime(asset.createdAt)}</Text>
-        <Text style={listTextStyles.subtitle}>{infoLine(asset)}</Text>
+        <Text style={listTextStyles.meta}>{infoLine(asset)}</Text>
       </View>
 
       <AssetNote
@@ -135,6 +135,7 @@ const styles = StyleSheet.create({
   },
   // The note belongs to the photo's info, right under its date and size.
   info: {
+    gap: space.hair,
     marginBottom: space.md,
   },
 });

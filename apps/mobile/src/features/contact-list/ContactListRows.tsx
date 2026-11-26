@@ -47,7 +47,7 @@ function ListRow({ list, onLongPress }: { list: ListSummary; onLongPress?: () =>
       label={
         <View style={styles.labels}>
           <Text style={listTextStyles.name}>{list.name}</Text>
-          <Text style={listTextStyles.detail}>{pluralizeText('1 contact', '%{count} contacts', list.memberCount)}</Text>
+          <Text style={listTextStyles.meta}>{pluralizeText('1 contact', '%{count} contacts', list.memberCount)}</Text>
         </View>
       }
       onPress={() => router.navigate(`/contact-list/${list.id}`)}
@@ -68,6 +68,7 @@ function ListRow({ list, onLongPress }: { list: ListSummary; onLongPress?: () =>
 const styles = StyleSheet.create({
   labels: {
     flex: 1,
+    gap: space.hair,
   },
   stack: {
     flexDirection: 'row',

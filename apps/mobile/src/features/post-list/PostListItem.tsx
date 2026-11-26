@@ -36,7 +36,7 @@ export type PostListItemProps = {
  * A post in the posts list, as a card (PostView) that opens the post, with `renderPostActions(post)`
  * (buttons for this post, e.g. the Ignored sheet's Restore) in it; with `hasMenu` a long press opens
  * the post's menu (MoreAction, as its ⋯ on the post screen). A thread (a post with following posts) sits on
- * one or two card edges peeking out below (one per following post), a stack, and shows "Thread · N" in its Posted row: a tap on it
+ * one or two card edges peeking out below (one per following post), a stack, and shows "N threads" in its Posted row: a tap on it
  * (or the item's accessibility action) calls `onToggleThread(post.id)`, and while `isExpanded` the
  * thread is unfolded in place: the following posts come out of the stack (ThreadFollowingPosts) as
  * row cards (ThreadPost, as on the post screen), joined by the thread's line; a tap on them

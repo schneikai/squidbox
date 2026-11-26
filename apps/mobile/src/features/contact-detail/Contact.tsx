@@ -159,7 +159,7 @@ export default function Contact({ contact }: ContactProps) {
             onLayout={onTitleLayout}
           />
         </View>
-        <Text variant="status" style={styles.subtitle}>
+        <Text variant="meta" style={styles.subtitle}>
           {subtitle}
         </Text>
 
@@ -195,7 +195,7 @@ export default function Contact({ contact }: ContactProps) {
         {photos?.count ? (
           <ContactPhotosStrip assets={photos.rows} scope={scope} />
         ) : (
-          photos && <Text style={listTextStyles.subtitle}>Not on a photo</Text>
+          photos && <Text style={listTextStyles.meta}>Not on a photo</Text>
         )}
 
         <ScreenSectionHeader title="Albums" isFlush />

@@ -1,4 +1,4 @@
-import { Text as RNText, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import channelPayload from './channelPayload';
 import copySentText from './copySentText';
@@ -16,7 +16,6 @@ import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import PostRowCard from '@/features/posts/PostRowCard';
 import threadLabel from '@/lib/threadLabel';
 import { layout, sizes } from '@/styles/designTokens';
-import listTextStyles from '@/styles/listTextStyles';
 import type { ChannelCopy } from '@/sync/queries/readChannelCopies';
 
 type ChannelCopyCardProps = {
@@ -35,7 +34,7 @@ type ChannelCopyCardProps = {
 /**
  * A post's card for one channel (its stored copy, or an untouched card that shows the post), as a row card: its first post's first picture, the channel's logo
  * and name, its text as the channel gets it (each mention as the contact's handle there, MentionText)
- * and, for a thread it sends, its size (a channel without threads gets only the first post,
+ * and, for a thread it sends, its size, on one line with when it was sent once it is (a channel without threads gets only the first post,
  * postsSentTo). Unsent, it warns at its top, across the card, about the contacts without a handle there (their
  * names go out as plain text, with Add handle: MissingHandleNote); it has Send now (unless the sheet's bottom action is its Send now) and Edit, and Remove in the ⋯ beside them; saved in
  * its composer, it says Edited and has Discard changes in its ⋯ (it shows the post again); sent, it
@@ -59,6 +58,8 @@ export default function ChannelCopyCard({
   const isSent = copy.sentAt !== null;
   const isEdited = !isSent && !copy.showsPost;
   const sentCount = postsSentTo(channel, copy.posts).length;
+  // A thread's size, on one line with when it was sent ("2 threads · Sent 1 month ago").
+  const threadText = sentCount > 1 ? threadLabel(sentCount) : null;
   const { missing } = channelPayload(channel, copy.posts, contactsById);
 
   return (
@@ -79,10 +80,10 @@ export default function ChannelCopyCard({
           {first && (
             <MentionText value={first} contactsById={contactsById} channel={channel} onPressMention={onPressMention} />
           )}
-          {sentCount > 1 && <RNText style={listTextStyles.caption}>{threadLabel(sentCount)}</RNText>}
+          {!isSent && threadText && <Text variant="meta">{threadText}</Text>}
           <View style={styles.actions}>
             {copy.sentAt !== null ? (
-              <Text variant="hint">{copySentText(copy.sentAt)}</Text>
+              <Text variant="meta">{[threadText, copySentText(copy.sentAt)].filter(Boolean).join(' · ')}</Text>
             ) : (
               <>
                 {onSendNow && <Button variant="secondary" size="small" label="Send now" onPress={onSendNow} />}

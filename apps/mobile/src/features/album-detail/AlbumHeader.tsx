@@ -90,7 +90,7 @@ export default function AlbumHeader({ album, assetCount, onNameLayout }: AlbumHe
           accessibilityLabel={album.isFavorite ? `Starred, ${details}` : details}
         >
           {!!album.isFavorite && <Icon name="star" filled size={sizes.iconSmall} color={colors.text.secondary} />}
-          <Text variant="status">{details}</Text>
+          <Text variant="meta">{details}</Text>
         </SuperPressable>
         {/* Closer to the details than the header's gap: the lines' own leading adds to it. */}
         {!!album.notes && (

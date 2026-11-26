@@ -11,7 +11,7 @@ type AlbumLastPostedAtProps = { album: AlbumListRow };
 // stays, blank, so its tile is as tall as every other (the grid gives every cell one height).
 export default function AlbumLastPostedAt({ album }: AlbumLastPostedAtProps) {
   return (
-    <Text style={listTextStyles.caption} numberOfLines={1}>
+    <Text style={listTextStyles.meta} numberOfLines={1}>
       {isDeletedAssetsAlbum(album) ? '\u00A0' : albumLastPostedText(album)}
     </Text>
   );

@@ -10,6 +10,7 @@ import {
 import InkContext, { DEFAULT_INK } from '@/components/InkContext';
 import TextMetricsContext, { type TextMetrics } from '@/components/TextMetricsContext';
 import { colors, textStyles } from '@/styles/designTokens';
+import listTextStyles from '@/styles/listTextStyles';
 
 export type TextVariant = keyof typeof styles;
 export type TextTone = keyof typeof toneStyles;
@@ -35,7 +36,10 @@ export type TextProps = Pick<RNTextProps, 'selectable' | 'numberOfLines' | 'acce
  *   title     — a card's or a row's bold title. `size="small"` for a smaller one (a pick row's
  *               count)
  *   heading   — a status screen's large bold title (StatusTitle)
- *   status    — a grey line about what's going on: the assistant thinking, a screen's subtitle
+ *   status    — a grey line about what's going on: the assistant thinking, a list's description
+ *   meta      — the facts about an item, small and grey: counts, dates, places ("5 Assets · hold
+ *               to reorder", "Squamish · added 21 days ago"). The one style for them
+ *               (listTextStyles.meta)
  *   error     — what went wrong, in red. `size="small"` for a line under another
  *   assistant — the assistant's violet semibold line, footnote size: an AssistantTray's title
  * `tone` gives the role another of the text colors: primary (a hint or label in the text's color),
@@ -110,6 +114,7 @@ const styles = StyleSheet.create({
     ...textStyles.subheadline,
     color: colors.text.secondary,
   },
+  meta: listTextStyles.meta,
   error: {
     ...textStyles.subheadline,
     color: colors.status.danger,
@@ -128,6 +133,7 @@ const INK_ROLES: Partial<Record<TextVariant, 'primary' | 'secondary'>> = {
   hint: 'secondary',
   label: 'secondary',
   status: 'secondary',
+  meta: 'secondary',
 };
 
 // `size="small"`: the smaller size of a role that has one.

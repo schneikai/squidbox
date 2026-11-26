@@ -42,7 +42,7 @@ export default function ThumbnailRow({
             {title}
           </Text>
           {!!subtitle && (
-            <Text style={listTextStyles.subtitle} numberOfLines={1}>
+            <Text style={listTextStyles.meta} numberOfLines={1}>
               {subtitle}
             </Text>
           )}
@@ -81,5 +81,6 @@ const styles = StyleSheet.create({
   },
   labels: {
     flex: 1,
+    gap: space.hair,
   },
 });

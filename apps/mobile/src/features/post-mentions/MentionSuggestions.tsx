@@ -69,7 +69,7 @@ function SuggestionRow({ suggestion: { contact, handlesText }, onPick }: Suggest
         <Text variant="title" size="small" numberOfLines={1}>
           {contact.name}
         </Text>
-        <RNText style={listTextStyles.subtitle} numberOfLines={1}>
+        <RNText style={listTextStyles.meta} numberOfLines={1}>
           {handlesText}
         </RNText>
       </RowSlots>

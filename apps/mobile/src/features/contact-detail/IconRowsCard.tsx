@@ -62,7 +62,7 @@ export default function IconRowsCard({ icon, rows, twoLine = false, addLabel, on
                 <Text style={styles.title} numberOfLines={twoLine ? undefined : 1}>
                   {row.title}
                 </Text>
-                {!!row.detail && <Text style={listTextStyles.detail}>{row.detail}</Text>}
+                {!!row.detail && <Text style={listTextStyles.meta}>{row.detail}</Text>}
               </View>
               {row.mark}
               {hasButton ? (
@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
   },
   labels: {
     flex: 1,
+    gap: space.hair,
   },
   title: listTextStyles.title,
   // Under every row, the line starts at the text, the one above the add row too.

@@ -50,7 +50,7 @@ export default function TagsSection({
       />
       <View style={styles.section}>
         {children}
-        {!!error && <Text style={listTextStyles.subtitle}>{error}</Text>}
+        {!!error && <Text style={listTextStyles.meta}>{error}</Text>}
       </View>
     </View>
   );

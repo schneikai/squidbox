@@ -94,8 +94,8 @@ export type ButtonProps = Pick<PressableProps, 'onPress' | 'disabled' | 'accessi
  * of one size line up; a bare icon is as tall as its size and only as wide as the icon. Whatever
  * its size, every button takes a 44 pt tap target (hitSlop), and in a toolbar (FloatingPill) or a picker
  * (IconSlotContext) a bare icon takes a 44 pt slot. A link has its own height, regular or small; a
- * link can also be `caption`: no padding, as small and bold as the caption beside it
- * (`listTextStyles.caption`), a tap in a row of captions (a thread's "Thread · 3").
+ * link can also be `caption`: no padding, in the meta style of the text beside it
+ * (`listTextStyles.meta`), a tap in a row of captions (a thread's "3 threads").
  * `colorPalette` is what its color means: `neutral`, `muted`, `accent`, `danger` or `favorite`
  * (a heart); a link is `accent`, a secondary pill `neutral` and an icon `muted` unless told,
  * wherever it sits. `isInverse` puts a link on a dark surface (the Undo bar). `isSelected` marks a
@@ -235,7 +235,7 @@ function Content({ icon, label, loading, color, iconSize, filled, iconCount, has
   return (
     <>
       {loading ? spinner : icon && <Icon name={icon} size={iconSize} color={color} />}
-      <Text style={[LABEL_SIZE_STYLES[shape]?.[size], size === 'caption' && listTextStyles.caption, { color }]}>
+      <Text style={[LABEL_SIZE_STYLES[shape]?.[size], size === 'caption' && listTextStyles.meta, { color }]}>
         {label}
       </Text>
       {hasChevron && shape === 'link' && <Icon name="chevron-right" size={iconSize} color={color} />}

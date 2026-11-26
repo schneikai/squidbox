@@ -37,13 +37,13 @@ export default function ModelSummary({ name, labels, detail, score, note, isDimm
         </View>
       )}
       <Text
-        style={[listTextStyles.subtitle, styles.detail, isDimmed && styles.dimmed]}
+        style={[listTextStyles.meta, styles.detail, isDimmed && styles.dimmed]}
         accessibilityLabel={scoreDetailLabel(score, detail)}
       >
         <ScoreDetail score={score} detail={detail} />
       </Text>
       {!!note && (
-        <Text style={[listTextStyles.subtitle, styles.note]} numberOfLines={2}>
+        <Text style={[listTextStyles.meta, styles.note]} numberOfLines={2}>
           {note}
         </Text>
       )}

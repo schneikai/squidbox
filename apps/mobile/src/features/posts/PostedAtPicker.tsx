@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import BottomSheet from '@/components/BottomSheet';
 import Button from '@/components/Button';
 import PostedAtCalendar from '@/features/posts/PostedAtCalendar';
-import { layout, space } from '@/styles/designTokens';
+import { space } from '@/styles/designTokens';
 import type { PostRow } from '@/sync/db/schema';
 import formatDetailHeaderDate from '@/utils/date-time/formatDetailHeaderDate';
 
@@ -38,6 +38,7 @@ export default function PostedAtPicker({ timestamp, isShown, onChange }: PostedA
       {isShown && (
         <Button
           label={label}
+          size="caption"
           colorPalette="muted"
           accessibilityLabel={accessibilityLabel}
           onPress={open}
@@ -64,9 +65,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  // The time follows the clock closely: a regular link's side padding undone, less a little room.
+  // The time, in the meta style (a caption link, no padding), follows the clock closely.
   time: {
-    marginLeft: space.sm - layout.linkPaddingX,
+    marginLeft: space.sm,
   },
   remove: {
     alignSelf: 'center',
