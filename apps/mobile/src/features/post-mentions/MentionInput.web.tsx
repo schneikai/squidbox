@@ -32,8 +32,10 @@ export default function MentionInput({
   onSelectionChange,
   onFocusChange,
   onMentionPress,
+  missingHandleIds,
 }: MentionInputProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const missingRef = useLatestRef(missingHandleIds);
   // The last selection reported, so moving the cursor reports once per change.
   const reportedRef = useRef('');
   const [isEmpty, setIsEmpty] = useState(true);
@@ -61,6 +63,7 @@ export default function MentionInput({
         const root = rootRef.current;
         if (!root) return;
         draw(root, content);
+        paintChips(root, missingRef.current);
         setIsEmpty(content.text.length === 0);
       },
       insertMention: async (id, label, avatarUri, start, end) => {
@@ -79,6 +82,7 @@ export default function MentionInput({
           ].sort((a, b) => a.location - b.location),
         };
         draw(root, next);
+        paintChips(root, missingRef.current);
         placeCaret(root, start + 2);
         changed(root);
       },
@@ -86,6 +90,11 @@ export default function MentionInput({
     }),
     [changed],
   );
+
+  // The chips of contacts without a handle on the text's channel take a warning's yellow, as they change.
+  useEffect(() => {
+    if (rootRef.current) paintChips(rootRef.current, missingHandleIds);
+  });
 
   // Selection changes are the document's, not the field's.
   useEffect(() => {
@@ -243,6 +252,14 @@ function chipNode({ id, label, avatarUri }: FieldMention): HTMLElement {
   name.setAttribute('aria-hidden', 'true');
   chip.append(avatar, name);
   return chip;
+}
+
+// Each chip's fill: a warning's yellow for a contact in `missingHandleIds`, a tag chip's fill otherwise.
+function paintChips(root: HTMLElement, missingHandleIds: readonly string[] | undefined) {
+  for (const chip of root.querySelectorAll<HTMLElement>('[data-mention-id]')) {
+    const isMissing = !!missingHandleIds?.includes(chip.dataset[CHIP] ?? '');
+    chip.style.backgroundColor = isMissing ? colors.background.note : colors.background.fill;
+  }
 }
 
 // How much of the field's text `child` holds: a chip is one character, a line break one (none at the end).

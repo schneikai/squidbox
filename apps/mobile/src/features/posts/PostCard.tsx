@@ -11,7 +11,6 @@ import textLimit from '@/features/channels/textLimit';
 import type { EditorPostAsset } from '@/features/post-assets-editor/PostAsset';
 import PostAssetsEditor from '@/features/post-assets-editor/PostAssetsEditor';
 import MentionTextInput from '@/features/post-mentions/MentionTextInput';
-import MissingHandleNote from '@/features/post-mentions/MissingHandleNote';
 import type { MentionContact } from '@/features/post-mentions/mentionHandle';
 import textForChannel from '@/features/post-mentions/textForChannel';
 import type { Point } from '@/lib/Point';
@@ -55,8 +54,8 @@ type PostCardProps = {
  * (`onRemove(key)`), the last ⊕ (`onAddToThread`). A tap anywhere on the card makes it the one
  * being edited (its tray shows), without the keyboard. With `channel` (a copy's) the text's counter
  * ("260 / 280", the text as the channel gets it: textForChannel) follows the text, at its right, while its text is typed in, or while the text is
- * over; the counter and the media line turn red over a limit; under the text, a warning about the
- * contacts it mentions without a handle there (MissingHandleNote).
+ * over; the counter and the media line turn red over a limit; the chips of contacts without a handle
+ * there are yellow (MentionTextInput), and a tap on one adds it (useMentionSheet).
  */
 export default function PostCard({
   card,
@@ -157,7 +156,6 @@ export default function PostCard({
         )}
       </View>
       {counterNode}
-      {channel && <MissingHandleNote contacts={sent.missing} channel={channel} style={styles.note} />}
       <PostAssetsEditor
         postId={card.id}
         postAssets={postAssets}
@@ -205,9 +203,6 @@ const styles = StyleSheet.create({
     marginBottom: layout.cardInset - layout.controlRowSlack,
   },
   // Under the text it is about, at the card's gap.
-  note: {
-    marginTop: layout.cardGap,
-  },
   // Right under the text's end, where the eye is while typing.
   counter: {
     alignSelf: 'flex-end',

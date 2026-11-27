@@ -22,6 +22,9 @@ async function fromPostMenu(page: Page, text: string, item: string) {
 // His channels, in his order: every post has a card for each.
 const CHANNELS = ['Bluesky', 'X', 'Instagram'];
 
+// A warning's yellow (colors.background.note): the fill of a chip whose contact has no handle on the channel.
+const WARNING_FILL = 'rgb(254, 246, 199)';
+
 const sendSheet = (page: Page) => page.getByTestId('send-to-channels-sheet');
 const copyCard = (sheet: Locator, channel: string) => sheet.getByLabel(`${channel} copy`, { exact: true });
 // A tap on a card: an unsent one's composer, a sent one as it went out.
@@ -118,9 +121,8 @@ test("Use on an idea in a copy's composer puts in the chip of a name the idea ma
   await button(editor, 'Post ideas').click();
   await button(editor, 'Use').click();
 
-  await expect(button(postText(editor), 'Sam Ridge')).toBeVisible();
-  // A chip, so the copy says Sam has no X handle.
-  await expect(editor.getByText('Sam Ridge has no X handle.')).toBeVisible();
+  // A chip, yellow as Sam has no X handle.
+  await expect(button(postText(editor), 'Sam Ridge').last()).toHaveCSS('background-color', WARNING_FILL);
   await withDialog(
     page,
     (dialog) => dialog.accept(),
@@ -143,26 +145,29 @@ test("an idea in a copy's composer reads its chip as the contact's handle on tha
   await expect(editor.getByText('@ridgeline.bsky.social', { exact: true })).toHaveCount(2);
 });
 
-test("a copy warns about a contact without a handle there until Add handle, and Send now locks it until it's marked as not sent, the last unsent card sent from the bottom", async ({
+test("a copy's chip of a contact without a handle there is yellow until Add handle in its sheet, and Send now locks it until it's marked as not sent, the last unsent card sent from the bottom", async ({
   page,
 }) => {
   await fromPostMenu(page, CHIP_POST, 'Send to channels');
   const sheet = sendSheet(page);
   const card = copyCard(sheet, 'Instagram');
-  await expect(card.getByText('Sam Ridge has no Instagram handle.')).toBeVisible();
+  await expect(button(card, 'Sam Ridge, no handle')).toHaveCSS('background-color', WARNING_FILL);
   await tapCard(sheet, 'Instagram');
   const editor = page.getByTestId('channel-copy-editor');
-  await expect(editor.getByText('Sam Ridge has no Instagram handle.')).toBeVisible();
-  // The note's own Add handle, as on the card.
-  await expect(button(editor, 'Add handle')).toBeVisible();
+  // Yellow in its composer too.
+  await expect(button(postText(editor), 'Sam Ridge')).toHaveCSS('background-color', WARNING_FILL);
   await button(editor, 'Back').click();
 
+  await button(card, 'Sam Ridge, no handle').click();
   await withDialog(
     page,
     (dialog) => dialog.accept('samridge.pics'),
-    () => button(card, 'Add handle').click(),
+    () => button(page, 'Add Instagram handle').click(),
   );
-  await expect(card.getByText('Sam Ridge has no Instagram handle.')).toBeHidden();
+  // The chip reads as the handle, and the sheet's row has it in place of Add handle.
+  await expect(button(card, '@samridge.pics')).toBeVisible();
+  await expect(button(page, 'Add Instagram handle')).toBeHidden();
+  await button(page, 'Close').last().click();
 
   await fromCardMenu(page, sheet, 'Instagram', 'Send now');
   await expect(card.getByText(/^Sent /)).toBeVisible();

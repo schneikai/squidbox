@@ -31,6 +31,8 @@ export type MentionInputProps = {
   onFocusChange?: (isFocused: boolean) => void;
   /** A tapped chip's contact id. */
   onMentionPress?: (id: string) => void;
+  /** The contacts without a handle on the channel the text is for: their chips take a warning's yellow. */
+  missingHandleIds?: readonly string[];
 };
 
 type NativeContent = FieldContent & FieldSelection;
@@ -42,6 +44,8 @@ type NativeProps = ViewProps & {
   textColor?: string;
   placeholderColor?: string;
   chipColor?: string;
+  warningChipColor?: string;
+  missingHandleIds?: readonly string[];
   chipStyle?: MentionChipStyle;
   onChangeContent?: (event: NativeSyntheticEvent<NativeContent>) => void;
   onSelectionChange?: (event: NativeSyntheticEvent<FieldSelection>) => void;
@@ -73,6 +77,7 @@ export default function MentionInput({
   onSelectionChange,
   onFocusChange,
   onMentionPress,
+  missingHandleIds,
 }: MentionInputProps) {
   const [height, setHeight] = useState(0);
   // The host view as React Native's TextInputState knows it.
@@ -124,6 +129,8 @@ export default function MentionInput({
       textColor={colors.text.primary}
       placeholderColor={colors.text.tertiary}
       chipColor={colors.background.fill}
+      warningChipColor={colors.background.note}
+      missingHandleIds={missingHandleIds}
       chipStyle={mentionChipStyle}
       onChangeContent={({ nativeEvent: { text, mentions, start, end } }) =>
         onChangeContent({ text, mentions }, { start, end })

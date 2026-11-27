@@ -41,6 +41,15 @@ public final class MentionInputModule: Module {
         view.setChipColor(color ?? UIColor.secondarySystemFill)
       }
 
+      // The chips of these contacts get the warning fill: no handle on the channel the text is for.
+      Prop("missingHandleIds") { (view, ids: [String]?) in
+        view.setMissingHandleIds(Set(ids ?? []))
+      }
+
+      Prop("warningChipColor") { (view, color: UIColor?) in
+        view.setWarningChipColor(color ?? UIColor.systemYellow.withAlphaComponent(0.25))
+      }
+
       Prop("chipStyle") { (view, style: [String: Double]?) in
         view.setChipStyle(style ?? [:])
       }

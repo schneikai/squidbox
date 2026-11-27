@@ -39,7 +39,7 @@ export default function SendToChannelsScreen() {
   const navigation = useNavigation();
   const read = useLiveQuery((db) => readChannelCopies(db, postId), channelCopiesTables, [postId]);
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(read?.copies.flatMap((copy) => copy.posts));
-  const { onPressMention, sheet } = useMentionSheet(contactsById);
+  const { onPressMention, sheet } = useMentionSheet(contactsById, { closesSheetForContact: true });
   const { sendNow, sendAll, markNotSent, discardChanges, remove, addBack } = useCopyActions();
   const padding = useScreenPadding('sheet');
   const { paddingBottom: actionPadding } = useScreenPadding('sheet', { bottomBar: true });
