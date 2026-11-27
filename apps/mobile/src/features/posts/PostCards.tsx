@@ -39,8 +39,8 @@ type PostCardsProps = {
  * assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own only
  * while `startsOnItsOwn`). The first card has the Posted time when `onChangePostedAt` is given (and
  * the cursor with `autoFocusFirst`). With `channel` (a copy for it) every card follows its limits; ⊕
- * Add to thread only where it has threads, and a note under the cards saying it has none when the
- * copy holds a thread anyway (its following posts stay, to edit or remove).
+ * Add to thread only where it has threads, and a note between the first card and the rest saying it
+ * has none when the copy holds a thread anyway (its following posts stay, to edit or remove).
  */
 export default function PostCards({
   draft,
@@ -57,6 +57,8 @@ export default function PostCards({
   const { cards } = draft;
   const [activeKey, setActiveKey] = useState(cards[0]!.key);
   const hasThreads = channel?.hasThreads ?? true;
+  // Between the first post, the one that goes out, and the rest of the thread.
+  const isNoThreadsNoteShown = !hasThreads && cards.length > 1;
 
   const updateCard = useCallback(
     (key: string, changes: PostCardChange) => {
@@ -99,7 +101,11 @@ export default function PostCards({
     <View>
       {cards.map((card, index) => (
         <View key={card.key}>
-          {index > 0 && <ThreadConnector />}
+          {index === 1 && isNoThreadsNoteShown ? (
+            <NoThreadsNote postCount={cards.length} channel={channel} style={styles.note} />
+          ) : (
+            index > 0 && <ThreadConnector />
+          )}
           <PostCard
             card={card}
             isFirst={index === 0}
@@ -133,7 +139,6 @@ export default function PostCards({
           />
         </View>
       ))}
-      <NoThreadsNote postCount={cards.length} channel={channel} style={styles.note} />
       {sheet}
     </View>
   );
@@ -141,6 +146,6 @@ export default function PostCards({
 
 const styles = StyleSheet.create({
   note: {
-    marginTop: layout.cardGap,
+    marginVertical: layout.cardGap,
   },
 });
