@@ -31,7 +31,7 @@ export default function ChannelCopyViewScreen() {
   const { postId, copyId } = useLocalSearchParams<{ postId: string; copyId: string }>();
   const copy = useLiveQuery((db) => readChannelCopy(db, postId, copyId), channelCopiesTables, [postId, copyId]);
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(copy?.posts);
-  const { onPressMention, sheet } = useMentionSheet(contactsById);
+  const { onPressMention, sheet } = useMentionSheet(contactsById, { closesSheetForContact: true });
   const { paddingTop, paddingBottom } = useScreenPadding('detail');
   useCloseWhenGone(copy, REMOVED);
 

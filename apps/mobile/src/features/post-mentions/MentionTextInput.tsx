@@ -1,12 +1,12 @@
 import { POST_LIMITS, type Channel, type PostMention } from '@squidbox/shared';
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import MentionInput, { type FieldSelection, type MentionInputHandle } from './MentionInput';
 import MentionSuggestions from './MentionSuggestions';
 import contactLabel from './contactLabel';
 import { fromFieldContent, toFieldContent, type FieldContent } from './fieldContent';
-import type { MentionContact } from './mentionHandle';
+import mentionHandle, { type MentionContact } from './mentionHandle';
 import mentionLabel from './mentionLabel';
 import type { MentionTextValue } from './mentionParts';
 import useChipAvatarUri from './useChipAvatarUri';
@@ -39,7 +39,8 @@ type MentionTextInputProps = {
  * of the @. The value is the stored form ({ text, mentions }): the field gets it at mount and again
  * whenever it is not the value it last reported (Write with AI's Use, a chip's label that
  * changed), and reports only its own changes, so opening a post that mentions a renamed contact
- * leaves it unchanged. No suggestions once the text has POST_LIMITS.mentions.
+ * leaves it unchanged. No suggestions once the text has POST_LIMITS.mentions. For a `channel`, the
+ * chips of contacts without a handle there take a warning's yellow, as MentionChip's do.
  */
 export default function MentionTextInput({
   value,
@@ -72,6 +73,14 @@ export default function MentionTextInput({
     }),
     [avatarUriOf, channel, contactsById],
   );
+  const missingHandleIds = useMemo(() => {
+    if (!channel) return undefined;
+    const ids = new Set(mentions?.map(({ contactId }) => contactId));
+    return [...ids].filter((id) => {
+      const contact = contactsById.get(id);
+      return contact && !mentionHandle(contact, channel.handleField);
+    });
+  }, [channel, contactsById, mentions]);
   const mention = isActive && (mentions?.length ?? 0) < POST_LIMITS.mentions ? autocomplete.mention : null;
 
   // A keystroke's value comes back as the same text and mentions the field reported: nothing to do.
@@ -114,6 +123,7 @@ export default function MentionTextInput({
         onSelectionChange={autocomplete.onSelection}
         onFocusChange={(isFocused) => (isFocused ? onFocus?.() : onBlur?.())}
         onMentionPress={onPressMention}
+        missingHandleIds={missingHandleIds}
       />
       {mention && (
         <MentionSuggestions query={mention.query} contactsById={contactsById} assetIds={assetIds} onPick={pick} />

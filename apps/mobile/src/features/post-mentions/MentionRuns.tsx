@@ -1,7 +1,7 @@
 import type { Channel } from '@squidbox/shared';
 
 import MentionChip from './MentionChip';
-import type { MentionContact } from './mentionHandle';
+import mentionHandle, { type MentionContact } from './mentionHandle';
 import mentionLabel from './mentionLabel';
 import mentionParts, { type MentionTextValue } from './mentionParts';
 
@@ -16,8 +16,8 @@ type MentionRunsProps = {
 
 /**
  * A text's pieces, to stand inside a Text: its plain runs, and each valid mention (mentionParts) a
- * chip in the line (MentionChip, labelled as mentionLabel reads it). A chip of a deleted contact
- * shows its stored name and takes no tap. MentionText wraps them in reading text; a card or bubble
+ * chip in the line (MentionChip, labelled as mentionLabel reads it). For a `channel`, a contact without
+ * a handle there is a yellow chip. A chip of a deleted contact shows its stored name and takes no tap. MentionText wraps them in reading text; a card or bubble
  * puts them in its own.
  */
 export default function MentionRuns({ value, contactsById, channel, onPressMention }: MentionRunsProps) {
@@ -34,6 +34,7 @@ export default function MentionRuns({ value, contactsById, channel, onPressMenti
             label={mentionLabel(part.mention, contactsById, channel)}
             contact={contact ?? { name: part.mention.name }}
             onPress={contact && onPressMention ? () => onPressMention(contact.id) : undefined}
+            isMissingHandle={!!contact && !!channel && !mentionHandle(contact, channel.handleField)}
           />
         );
       })}

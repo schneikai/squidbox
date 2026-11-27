@@ -25,11 +25,11 @@ import { useLiveQuery } from '@/sync/useLiveQuery';
  * Send to channels, a sheet over a post: a card for each of the user's channels, in their order, then
  * the sent and saved copies of channels no longer among them (ChannelCopyCard, readChannelCopies; a
  * channel this build doesn't know is left out). A card shows the post and its thread as they are now
- * until it is saved in its composer (ChannelCopyScreen, pushed in the sheet) or sent; a tap on a card
- * opens it as it goes out (ChannelCopyViewScreen). Remove takes the channel off the post; + on the right (there
+ * until it is saved in its composer (ChannelCopyScreen, pushed in the sheet, where a tap on an unsent card
+ * goes) or sent; a tap on a sent card opens it as it went out (ChannelCopyViewScreen). Remove takes the channel off the post; + on the right (there
  * only once a card was removed) brings it back, from a menu of the removed channels or, with one, at once, and
  * scrolls to its card. At the bottom, the screen's one primary action: Send all with
- * two or more unsent cards (it only marks them sent), Send to <channel> with one (that card then has no Send
+ * two or more unsent cards (it only marks them sent), Send to <channel> with one (that card's ⋯ then has no Send
  * now of its own), nothing with none. A post deleted meanwhile closes the sheet. Every change saves as it is
  * made, so × on the left closes the sheet like every sheet that is not a draft (HIG: Close closes a modal
  * view; Done is for a sheet whose task it completes).
@@ -39,7 +39,7 @@ export default function SendToChannelsScreen() {
   const navigation = useNavigation();
   const read = useLiveQuery((db) => readChannelCopies(db, postId), channelCopiesTables, [postId]);
   const { contactsById, isRead: areContactsRead } = useMentionedContacts(read?.copies.flatMap((copy) => copy.posts));
-  const { onPressMention, sheet } = useMentionSheet(contactsById);
+  const { onPressMention, sheet } = useMentionSheet(contactsById, { closesSheetForContact: true });
   const { sendNow, sendAll, markNotSent, discardChanges, remove, addBack } = useCopyActions();
   const padding = useScreenPadding('sheet');
   const { paddingBottom: actionPadding } = useScreenPadding('sheet', { bottomBar: true });

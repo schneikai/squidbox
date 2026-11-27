@@ -28,6 +28,9 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
   private var lineHeight: CGFloat = 0
   private var textColor = UIColor.label
   private var chipColor = UIColor.secondarySystemFill
+  // A chip of a contact without a handle on the text's channel (missingHandleIds) takes this fill.
+  private var warningChipColor = UIColor.systemYellow.withAlphaComponent(0.25)
+  private var missingHandleIds: Set<String> = []
   // The chip's measures, set by the app so its look changes without a build: avatarInset (around the
   // avatar), labelGap (avatar to label), trailing (after the label). The app's are the only copy: until
   // they arrive, chips are drawn empty (setChipStyle draws them again).
@@ -123,7 +126,8 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
       attachment.bounds = CGRect.zero
       return
     }
-    let image = chipImage(label: attachment.mentionLabel, avatar: attachment.avatar, measures: measures)
+    let fill = missingHandleIds.contains(attachment.mentionId) ? warningChipColor : chipColor
+    let image = chipImage(label: attachment.mentionLabel, avatar: attachment.avatar, fill: fill, measures: measures)
     attachment.image = image
     // Its middle on the middle of the capitals, so it sits centered on the text beside it.
     attachment.bounds = CGRect(x: 0, y: chipOffset(image.size.height), width: image.size.width, height: image.size.height)
@@ -187,6 +191,19 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
 
   func setChipColor(_ color: UIColor) {
     chipColor = color
+    redrawChips()
+  }
+
+  func setWarningChipColor(_ color: UIColor) {
+    warningChipColor = color
+    redrawChips()
+  }
+
+  func setMissingHandleIds(_ ids: Set<String>) {
+    guard ids != missingHandleIds else {
+      return
+    }
+    missingHandleIds = ids
     redrawChips()
   }
 
@@ -404,11 +421,12 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     return UIImage(contentsOfFile: uri)
   }
 
-  // The chip as a picture: a pill as tall as a line, the round avatar (a plain disc without a
+  // The chip as a picture: a pill of `fill` as tall as a line, the round avatar (a plain disc without a
   // photo), then the label.
   private func chipImage(
     label: String,
     avatar: UIImage?,
+    fill: UIColor,
     measures: (inset: CGFloat, gap: CGFloat, trailing: CGFloat)
   ) -> UIImage {
     let height = ceil(font.lineHeight)
@@ -425,7 +443,6 @@ public final class MentionInputView: ExpoView, UITextViewDelegate, UIGestureReco
     let labelSize = (label as NSString).size(withAttributes: labelAttributes)
     let width = ceil(inset + avatarSize + gap + labelSize.width + trailing)
     let size = CGSize(width: width, height: height)
-    let fill = chipColor
 
     let renderer = UIGraphicsImageRenderer(size: size)
     return renderer.image { context in
