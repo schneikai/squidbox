@@ -352,7 +352,7 @@ export const lineHeights = {
 };
 
 // Apple's iOS text styles at their default (Large) sizes with their line heights: caption2,
-// caption1, footnote, subheadline and body in regular and semibold, `reading` (body, looser) for long text
+// caption1, footnote, subheadline and body in regular and semibold, footnote also in medium (meta), `reading` (body, looser) for long text
 // someone reads or writes, and the two titles, bold. Every text in the app is one of these.
 export const textStyles = {
   caption2: { fontSize: typography.caption2, lineHeight: lineHeights.caption2 }, // a log's details
@@ -360,6 +360,8 @@ export const textStyles = {
   caption2Bold: { fontSize: typography.caption2, lineHeight: lineHeights.caption2, fontWeight: '600' },
   caption1: { fontSize: typography.caption1, lineHeight: lineHeights.caption1 }, // a header's subtitle (ToolbarTitle)
   footnote: { fontSize: typography.footnote, lineHeight: lineHeights.footnote }, // a hint, a footer, a log line, a video's time
+  // the facts about an item: counts, dates, places (listTextStyles.meta)
+  footnoteMedium: { fontSize: typography.footnote, lineHeight: lineHeights.footnote, fontWeight: '500' },
   // a field's or group's label, the caption under a post or an album, a small or disc button's label
   footnoteBold: { fontSize: typography.footnote, lineHeight: lineHeights.footnote, fontWeight: '600' },
   // a row's description, a menu row, a text link, an error
