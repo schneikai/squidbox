@@ -213,7 +213,7 @@ test("a thread's card for a channel without threads sends and shows only its fir
   await expect(copyCard(sheet, 'Bluesky').getByText('4 threads', { exact: false })).toBeVisible();
   const instagram = copyCard(sheet, 'Instagram');
   await expect(instagram.getByText(/threads/)).toBeHidden();
-  await expect(instagram.getByText(/^No threads/)).toBeHidden();
+  await expect(instagram.getByText(/has no threads/)).toBeHidden();
   // Opened, it shows only that post too.
   await fromCardMenu(page, sheet, 'Instagram', 'Send now');
   await tapCard(sheet, 'Instagram');

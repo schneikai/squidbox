@@ -3,7 +3,7 @@ import WarningNote, { type WarningNoteProps } from '@/components/WarningNote';
 type NoThreadsNoteProps = {
   /** How many posts the thread has: the note shows only for more than one. */
   postCount: number;
-  channel: { hasThreads: boolean } | undefined;
+  channel: { name: string; hasThreads: boolean } | undefined;
   style?: WarningNoteProps['style'];
 };
 
@@ -15,5 +15,5 @@ type NoThreadsNoteProps = {
 export default function NoThreadsNote({ postCount, channel, style }: NoThreadsNoteProps) {
   if (!channel || channel.hasThreads || postCount < 2) return null;
 
-  return <WarningNote style={style}>No threads. Only the first post is sent.</WarningNote>;
+  return <WarningNote style={style}>{`${channel.name} has no threads. Only the first post is sent.`}</WarningNote>;
 }

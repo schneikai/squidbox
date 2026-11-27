@@ -1,6 +1,6 @@
 import type { Channel, ChatSubjectKind, IdeasKind } from '@squidbox/shared';
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import PostCard, { type PostCardChange } from './PostCard';
 import type { PostedAtPickerProps } from './PostedAtPicker';
@@ -16,7 +16,6 @@ import IdeasTray from '@/features/post-ideas/IdeasTray';
 import useEditorIdeas from '@/features/post-ideas/useEditorIdeas';
 import useMentionContacts from '@/features/post-mentions/useMentionContacts';
 import useMentionSheet from '@/features/post-mentions/useMentionSheet';
-import { layout } from '@/styles/designTokens';
 import confirmRemoveAsync from '@/utils/confirmRemoveAsync';
 
 type PostCardsProps = {
@@ -39,7 +38,7 @@ type PostCardsProps = {
  * assistant's tray (its own chat about these cards, useEditorIdeas; ideas start on their own only
  * while `startsOnItsOwn`). The first card has the Posted time when `onChangePostedAt` is given (and
  * the cursor with `autoFocusFirst`). With `channel` (a copy for it) every card follows its limits; ⊕
- * Add to thread only where it has threads, and a note between the first card and the rest saying it
+ * Add to thread only where it has threads, and a note between the first card and the rest, on the thread's line, saying it
  * has none when the copy holds a thread anyway (its following posts stay, to edit or remove).
  */
 export default function PostCards({
@@ -101,10 +100,12 @@ export default function PostCards({
     <View>
       {cards.map((card, index) => (
         <View key={card.key}>
-          {index === 1 && isNoThreadsNoteShown ? (
-            <NoThreadsNote postCount={cards.length} channel={channel} style={styles.note} />
-          ) : (
-            index > 0 && <ThreadConnector />
+          {index > 0 && <ThreadConnector />}
+          {index === 1 && isNoThreadsNoteShown && (
+            <>
+              <NoThreadsNote postCount={cards.length} channel={channel} />
+              <ThreadConnector />
+            </>
           )}
           <PostCard
             card={card}
@@ -143,9 +144,3 @@ export default function PostCards({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  note: {
-    marginVertical: layout.cardGap,
-  },
-});
